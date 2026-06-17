@@ -147,6 +147,11 @@ export const componentRegistry = {
     component: Nothing,
     label: 'Placeholder',
   },
+  'rtls-device-list': {
+    component: views.RtlsDeviceList,
+    label: 'RTLS',
+    detachable: true,
+  },
   'saved-location-list': {
     component: views.SavedLocationList,
     label: 'Locations',

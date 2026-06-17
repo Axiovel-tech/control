@@ -36,6 +36,12 @@ export const getRtlsDeviceIdList: AppSelector<Identifier[]> = (state) =>
   state.rtls.devices.order;
 
 /**
+ * Selector that returns the list of currently selected RTLS device IDs.
+ */
+export const getSelectedRtlsDeviceIds: AppSelector<string[]> = (state) =>
+  state.rtls.selectedIds;
+
+/**
  * Returns the display name of an RTLS device, falling back to its id.
  */
 export const getRtlsDeviceDisplayName = (device: RtlsDevice): string =>

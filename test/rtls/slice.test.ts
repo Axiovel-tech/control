@@ -5,6 +5,7 @@ import reducer, {
   setRtlsDeviceState,
   setRtlsDevicesFromStatus,
   setRtlsOtaJob,
+  setSelectedRtlsDeviceIds,
   updateRtlsStats,
 } from '~/features/rtls/slice';
 
@@ -113,6 +114,26 @@ describe('rtls slice', () => {
     expect(state.stats.lastUpdatedAt).toBe(200);
   });
 
+  test('setSelectedRtlsDeviceIds replaces the selection', () => {
+    let state = reducer(initial(), setSelectedRtlsDeviceIds(['1', '2']));
+    expect(state.selectedIds).toEqual(['1', '2']);
+    state = reducer(state, setSelectedRtlsDeviceIds(['3']));
+    expect(state.selectedIds).toEqual(['3']);
+  });
+
+  test('setRtlsDevicesFromStatus prunes the selection of vanished devices', () => {
+    let state = reducer(
+      initial(),
+      setRtlsDevicesFromStatus({ '1': { online: true }, '2': { online: true } })
+    );
+    state = reducer(state, setSelectedRtlsDeviceIds(['1', '2']));
+    state = reducer(
+      state,
+      setRtlsDevicesFromStatus({ '1': { online: true } })
+    );
+    expect(state.selectedIds).toEqual(['1']);
+  });
+
   test('setRtlsOtaJob records the latest job per device', () => {
     const state = reducer(
       initial(),
@@ -132,10 +153,13 @@ describe('rtls slice', () => {
       updateRtlsStats({ byId: { '1': { id: '1' } }, lastUpdatedAt: 1 })
     );
 
+    state = reducer(state, setSelectedRtlsDeviceIds(['1']));
+
     state = reducer(state, clearRtlsDevices());
     expect(state.devices.order).toEqual([]);
     expect(state.devices.byId).toEqual({});
     expect(state.stats.byId).toEqual({});
     expect(state.otaJobs).toEqual({});
+    expect(state.selectedIds).toEqual([]);
   });
 });

@@ -23,6 +23,13 @@ export type RtlsSliceState = {
   /** Registry of known RTLS devices keyed by system id (numeric string). */
   devices: Collection<RtlsDevice>;
 
+  /**
+   * IDs of the devices currently selected in the RTLS device list. RTLS
+   * devices keep a local selection rather than joining the shared global map
+   * selection model.
+   */
+  selectedIds: string[];
+
   /** Live statistics keyed by system id; replaced wholesale on each update. */
   stats: {
     byId: Record<string, RtlsDeviceStats>;
@@ -35,6 +42,7 @@ export type RtlsSliceState = {
 
 const initialState: RtlsSliceState = {
   devices: EMPTY_COLLECTION,
+  selectedIds: [],
   stats: {
     byId: {},
     lastUpdatedAt: undefined,
@@ -49,8 +57,14 @@ const { actions, reducer } = createSlice({
     /** Clears the entire RTLS device registry, stats and OTA jobs. */
     clearRtlsDevices(state) {
       clearOrderedCollection<RtlsDevice>(state.devices);
+      state.selectedIds = [];
       state.stats = { byId: {}, lastUpdatedAt: undefined };
       state.otaJobs = {};
+    },
+
+    /** Sets the list of selected RTLS device IDs. */
+    setSelectedRtlsDeviceIds(state, { payload }: PayloadAction<string[]>) {
+      state.selectedIds = Array.isArray(payload) ? [...payload] : [];
     },
 
     /**
@@ -85,6 +99,9 @@ const { actions, reducer } = createSlice({
       state.devices.order = state.devices.order.filter((id) =>
         ids.includes(id)
       );
+
+      // Keep the selection consistent with the surviving device set.
+      state.selectedIds = state.selectedIds.filter((id) => ids.includes(id));
 
       for (const [id, device] of Object.entries(payload)) {
         updateStateOfRtlsDevice(state.devices, id, device);
@@ -125,6 +142,7 @@ export const {
   setRtlsDeviceState,
   setRtlsDevicesFromStatus,
   setRtlsOtaJob,
+  setSelectedRtlsDeviceIds,
   updateRtlsStats,
 } = actions;
 

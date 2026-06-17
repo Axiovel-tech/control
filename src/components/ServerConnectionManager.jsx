@@ -21,6 +21,8 @@ import { clearConnectionList } from '~/features/connections/slice';
 import { clearDockList } from '~/features/docks/slice';
 import { shouldManageLocalServer } from '~/features/local-server/selectors';
 import { addLogItem } from '~/features/log/slice';
+import { handleRtlsInformationMessage } from '~/features/rtls/handlers';
+import { clearRtlsDevices } from '~/features/rtls/slice';
 import {
   calculateAndStoreClockSkew,
   disconnectFromServer,
@@ -562,6 +564,17 @@ async function executeTasksAfterConnection(dispatch, getState) {
       handleBeaconPropertiesMessage(response.body, dispatch);
     }
 
+    // Request the current RTLS device inventory. The RTLS extension is
+    // optional, so we tolerate servers that do not understand X-RTLS-INF.
+    try {
+      response = await messageHub.sendMessage({ type: 'X-RTLS-INF' });
+      if (response.body?.type === 'X-RTLS-INF') {
+        handleRtlsInformationMessage(response.body, dispatch);
+      }
+    } catch {
+      /* RTLS not supported by this server; ignore */
+    }
+
     // Check whether the server supports the following optional features
     const OPTIONAL_FEATURES = ['virtual_uavs', 'map_cache', 'studio'];
     dispatch(
@@ -654,6 +667,7 @@ async function executeTasksAfterDisconnection(dispatch) {
   dispatch(clearClockList());
   dispatch(clearConnectionList());
   dispatch(clearDockList());
+  dispatch(clearRtlsDevices());
   dispatch(clearServerFeatures());
   dispatch(clearServerLicense());
   dispatch(clearServerPortMapping());

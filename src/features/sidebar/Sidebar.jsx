@@ -124,6 +124,12 @@ const Sidebar = ({
             component='beacon-list'
           />
         )}
+        <Module
+          id='rtls'
+          icon={<Grain />}
+          label={t('view.rtls-device-list')}
+          component='rtls-device-list'
+        />
         {hasFeature('docks') && experimentalFeaturesEnabled && (
           <Module
             id='docks'
