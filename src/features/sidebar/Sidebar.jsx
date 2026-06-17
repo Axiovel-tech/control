@@ -130,6 +130,12 @@ const Sidebar = ({
           label={t('view.rtls-device-list')}
           component='rtls-device-list'
         />
+        <Module
+          id='rtlsStats'
+          icon={<Grain />}
+          label={t('view.rtls-stats')}
+          component='rtls-stats'
+        />
         {hasFeature('docks') && experimentalFeaturesEnabled && (
           <Module
             id='docks'

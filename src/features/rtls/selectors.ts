@@ -9,6 +9,11 @@ import {
 
 import { type RtlsDeviceParamsState } from './slice';
 import {
+  getDeviceHealth,
+  getOverallHealth,
+  type RtlsHealth,
+} from './stats-utils';
+import {
   type RtlsDevice,
   type RtlsDeviceStats,
   type RtlsOtaJob,
@@ -125,3 +130,23 @@ export const isRtlsOtaDialogOpen: AppSelector<boolean> = (state) =>
 export const getRtlsOtaDialogDeviceId: AppSelector<string | undefined> = (
   state
 ) => state.rtls.otaDialog.deviceId;
+
+/**
+ * Selector that returns the per-device statistics, in the same order as the
+ * device list, for devices that have any statistics reported.
+ */
+export const getRtlsStatsInOrder: AppSelector<RtlsDeviceStats[]> =
+  createSelector(getRtlsDeviceIdList, getRtlsStatsById, (ids, byId) =>
+    ids.map((id) => byId[id]).filter((stats): stats is RtlsDeviceStats =>
+      Boolean(stats)
+    )
+  );
+
+/**
+ * Selector that returns the overall (worst-case) RTLS health across all devices
+ * that report statistics.
+ */
+export const getOverallRtlsHealth: AppSelector<RtlsHealth> = createSelector(
+  getRtlsStatsInOrder,
+  (statsList) => getOverallHealth(statsList.map((stats) => getDeviceHealth(stats)))
+);

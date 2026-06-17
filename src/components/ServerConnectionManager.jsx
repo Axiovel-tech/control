@@ -21,7 +21,10 @@ import { clearConnectionList } from '~/features/connections/slice';
 import { clearDockList } from '~/features/docks/slice';
 import { shouldManageLocalServer } from '~/features/local-server/selectors';
 import { addLogItem } from '~/features/log/slice';
-import { handleRtlsInformationMessage } from '~/features/rtls/handlers';
+import {
+  handleRtlsInformationMessage,
+  handleRtlsStatsMessage,
+} from '~/features/rtls/handlers';
 import { clearRtlsDevices } from '~/features/rtls/slice';
 import {
   calculateAndStoreClockSkew,
@@ -564,12 +567,18 @@ async function executeTasksAfterConnection(dispatch, getState) {
       handleBeaconPropertiesMessage(response.body, dispatch);
     }
 
-    // Request the current RTLS device inventory. The RTLS extension is
-    // optional, so we tolerate servers that do not understand X-RTLS-INF.
+    // Request the current RTLS device inventory and statistics. The RTLS
+    // extension is optional, so we tolerate servers that do not understand
+    // these messages.
     try {
       response = await messageHub.sendMessage({ type: 'X-RTLS-INF' });
       if (response.body?.type === 'X-RTLS-INF') {
         handleRtlsInformationMessage(response.body, dispatch);
+      }
+
+      response = await messageHub.sendMessage({ type: 'X-RTLS-STATS' });
+      if (response.body?.type === 'X-RTLS-STATS') {
+        handleRtlsStatsMessage(response.body, dispatch);
       }
     } catch {
       /* RTLS not supported by this server; ignore */
