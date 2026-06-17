@@ -1,8 +1,18 @@
 import { describe, expect, jest, test } from '@jest/globals';
 
+// `~/error-handling` transitively pulls in the snackbar/MUI/logging chain
+// (which loads native-ESM `color` packages that babel-jest does not transform),
+// so it is stubbed here with a thin `errorToString`. The message helpers only
+// use it to format error text.
+jest.mock('~/error-handling', () => ({
+  errorToString: (error: unknown, prefix?: string): string => {
+    const base =
+      error instanceof Error ? error.message : String(error);
+    return prefix ? `${prefix}: ${base}` : base;
+  },
+}));
+
 import {
-  queryRtlsDevices,
-  queryRtlsParameter,
   queryRtlsParameterList,
   setRtlsParameter,
   startRtlsOta,
@@ -23,21 +33,6 @@ const makeHub = (body: Record<string, unknown>) => {
 };
 
 describe('rtls messages', () => {
-  test('queryRtlsDevices returns the status map', async () => {
-    const { hub } = makeHub({
-      type: 'X-RTLS-INF',
-      status: { '1': { online: true } },
-    });
-    await expect(queryRtlsDevices(hub)).resolves.toEqual({
-      '1': { online: true },
-    });
-  });
-
-  test('queryRtlsDevices throws on an unexpected response', async () => {
-    const { hub } = makeHub({ type: 'ACK-NAK', reason: 'no such message' });
-    await expect(queryRtlsDevices(hub)).rejects.toThrow(/X-RTLS-INF/);
-  });
-
   test('queryRtlsParameterList sorts by index then name', async () => {
     const { hub } = makeHub({
       type: 'X-RTLS-PARAM-LIST',
@@ -50,21 +45,6 @@ describe('rtls messages', () => {
     });
     const params = await queryRtlsParameterList(hub, '7');
     expect(params.map((p) => p.name)).toEqual(['ALPHA', 'BETA', 'GAMMA']);
-  });
-
-  test('queryRtlsParameter maps paramType to type', async () => {
-    const { hub } = makeHub({
-      type: 'X-RTLS-PARAM-GET',
-      id: '7',
-      name: 'GAIN',
-      value: 5,
-      paramType: 'uint16',
-    });
-    await expect(queryRtlsParameter(hub, '7', 'GAIN')).resolves.toEqual({
-      name: 'GAIN',
-      value: 5,
-      type: 'uint16',
-    });
   });
 
   describe('setRtlsParameter', () => {

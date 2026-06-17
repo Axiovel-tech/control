@@ -29,15 +29,17 @@ import {
 import { closeRtlsOtaDialog, setRtlsOtaJob } from './slice';
 
 /**
- * Normalises an OTA progress value to a percentage. The server may report a
- * fraction in [0, 1] or a percentage in [0, 100].
+ * Normalises an OTA progress value to an integer percentage. The X-RTLS-OTA
+ * server reports `job.progress` as a fraction in [0, 1] (0.0 at start, 1.0 on
+ * completion), so it is scaled unconditionally and clamped to [0, 100]. This
+ * avoids the 0–1 boundary ambiguity of a dual fraction/percentage heuristic.
  */
 const toPercent = (progress: number | undefined): number | undefined => {
-  if (progress === undefined) {
+  if (progress === undefined || !Number.isFinite(progress)) {
     return undefined;
   }
 
-  return progress <= 1 ? Math.round(progress * 100) : Math.round(progress);
+  return Math.round(Math.min(1, Math.max(0, progress)) * 100);
 };
 
 const ACTIVE_STATUSES = new Set(['pending', 'inProgress']);

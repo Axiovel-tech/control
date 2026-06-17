@@ -15,16 +15,11 @@ import { connect } from 'react-redux';
 
 import { StatusLight, Tooltip } from '@skybrush/mui-components';
 
-import { multiSelectableListOf } from '~/components/helpers/lists';
-import {
-  openRtlsOtaDialog,
-  openRtlsParamDialog,
-  setSelectedRtlsDeviceIds,
-} from '~/features/rtls/slice';
+import { listOf } from '~/components/helpers/lists';
+import { openRtlsOtaDialog, openRtlsParamDialog } from '~/features/rtls/slice';
 import {
   getRtlsDeviceDisplayName,
   getRtlsDevicesInOrder,
-  getSelectedRtlsDeviceIds,
 } from '~/features/rtls/selectors';
 
 /**
@@ -51,8 +46,8 @@ const describeDevice = (device) => {
 /**
  * Presentation component for the entire RTLS device list.
  */
-const RtlsDeviceListPresentation = multiSelectableListOf(
-  (device, props, selected) => {
+const RtlsDeviceListPresentation = listOf(
+  (device, props) => {
     const secondaryAction = (
       <Box>
         <Tooltip content='Parameters'>
@@ -77,12 +72,12 @@ const RtlsDeviceListPresentation = multiSelectableListOf(
     );
 
     return (
-      <ListItem disablePadding secondaryAction={secondaryAction}>
-        <ListItemButton
-          key={device.id}
-          className={selected ? 'selected-list-item' : undefined}
-          onClick={props.onItemSelected}
-        >
+      <ListItem
+        key={device.id}
+        disablePadding
+        secondaryAction={secondaryAction}
+      >
+        <ListItemButton>
           <StatusLight status={device.online ? 'success' : 'error'} />
           <ListItemText
             primary={getRtlsDeviceDisplayName(device)}
@@ -102,21 +97,11 @@ const RtlsDeviceListPresentation = multiSelectableListOf(
  * React component that shows the state of the known RTLS devices in a Skybrush
  * server.
  */
-const RtlsDeviceList = ({
-  onItemActivated,
-  onSelectionChanged,
-  onShowOta,
-  onShowParameters,
-  selectedIds,
-  ...rest
-}) => (
+const RtlsDeviceList = ({ onShowOta, onShowParameters, ...rest }) => (
   <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
     <Box sx={{ height: '100%', overflow: 'auto' }}>
       <RtlsDeviceListPresentation
         dense
-        value={selectedIds || []}
-        onActivate={onItemActivated}
-        onChange={onSelectionChanged}
         onShowOta={onShowOta}
         onShowParameters={onShowParameters}
         {...rest}
@@ -126,9 +111,6 @@ const RtlsDeviceList = ({
 );
 
 RtlsDeviceList.propTypes = {
-  selectedIds: PropTypes.arrayOf(PropTypes.string).isRequired,
-  onItemActivated: PropTypes.func,
-  onSelectionChanged: PropTypes.func,
   onShowOta: PropTypes.func,
   onShowParameters: PropTypes.func,
 };
@@ -137,11 +119,9 @@ export default connect(
   // mapStateToProps
   (state) => ({
     devices: getRtlsDevicesInOrder(state),
-    selectedIds: getSelectedRtlsDeviceIds(state),
   }),
   // mapDispatchToProps
   {
-    onSelectionChanged: setSelectedRtlsDeviceIds,
     onShowOta: openRtlsOtaDialog,
     onShowParameters: openRtlsParamDialog,
   }

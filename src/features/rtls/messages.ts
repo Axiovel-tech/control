@@ -8,10 +8,10 @@
  * first argument, mirroring the convention used elsewhere.
  */
 
+import { errorToString } from '~/error-handling';
 import type MessageHub from '~/flockwave/messages';
 import { type Message, type MessageBody } from '~/flockwave/types';
 
-import { rtlsErrorToString } from './errors';
 import {
   type RtlsOtaJob,
   type RtlsParam,
@@ -40,42 +40,6 @@ function ensureResponseType(
   }
 
   return body;
-}
-
-/**
- * Requests the current RTLS device inventory from the server.
- *
- * Returns the raw `status` mapping keyed by system id, which callers typically
- * forward to {@link handleRtlsInformationMessage}.
- */
-export async function queryRtlsDevices(
-  hub: MessageHub
-): Promise<Record<string, Record<string, unknown>>> {
-  const response: Message<AnyMessageBody> = await hub.sendMessage({
-    type: 'X-RTLS-INF',
-  });
-  const body = ensureResponseType(response.body, 'X-RTLS-INF');
-  const status = body.status;
-  return status && typeof status === 'object'
-    ? (status as Record<string, Record<string, unknown>>)
-    : {};
-}
-
-/**
- * Requests the live RTLS statistics from the server, returning the raw `stats`
- * mapping keyed by system id.
- */
-export async function queryRtlsStats(
-  hub: MessageHub
-): Promise<Record<string, Record<string, unknown>>> {
-  const response: Message<AnyMessageBody> = await hub.sendMessage({
-    type: 'X-RTLS-STATS',
-  });
-  const body = ensureResponseType(response.body, 'X-RTLS-STATS');
-  const stats = body.stats;
-  return stats && typeof stats === 'object'
-    ? (stats as Record<string, Record<string, unknown>>)
-    : {};
 }
 
 /**
@@ -128,28 +92,6 @@ export async function queryRtlsParameterList(
 }
 
 /**
- * Reads the value of a single parameter from an RTLS device.
- */
-export async function queryRtlsParameter(
-  hub: MessageHub,
-  deviceId: string,
-  name: string
-): Promise<RtlsParam> {
-  const response: Message<AnyMessageBody> = await hub.sendMessage({
-    type: 'X-RTLS-PARAM-GET',
-    id: deviceId,
-    name,
-  });
-  const body = ensureResponseType(response.body, 'X-RTLS-PARAM-GET');
-
-  return {
-    name: (body.name as string) ?? name,
-    value: body.value as RtlsParamValue,
-    type: body.paramType as RtlsParamType,
-  };
-}
-
-/**
  * Result of an X-RTLS-PARAM-SET request.
  *
  * A response with `accepted: false` is a normal "the device rejected this
@@ -185,7 +127,7 @@ export async function setRtlsParameter(
     });
   } catch (error) {
     throw new Error(
-      `Failed to set parameter ${name} on device ${deviceId}: ${rtlsErrorToString(
+      `Failed to set parameter ${name} on device ${deviceId}: ${errorToString(
         error
       )}`
     );
@@ -238,7 +180,7 @@ export async function startRtlsOta(
     );
   } catch (error) {
     throw new Error(
-      `Failed to start OTA on device ${deviceId}: ${rtlsErrorToString(error)}`
+      `Failed to start OTA on device ${deviceId}: ${errorToString(error)}`
     );
   }
 

@@ -10,18 +10,6 @@
 import { type Identifier } from '~/utils/collections';
 
 /**
- * The set of OTA (over-the-air firmware update) job statuses that the server
- * may report for a device or for an individual OTA job.
- */
-export enum RtlsOtaStatus {
-  IDLE = 'idle',
-  PENDING = 'pending',
-  IN_PROGRESS = 'inProgress',
-  SUCCESS = 'success',
-  ERROR = 'error',
-}
-
-/**
  * The parameter types supported by the RTLS firmware. These mirror the
  * MAV_PARAM_EXT_TYPE enum names, lowercased. Numeric parameters are carried as
  * JSON numbers; `custom` parameters are carried as strings.
@@ -108,7 +96,7 @@ export type RtlsOtaJob = {
   id?: string;
   image?: string;
   status?: string;
-  /** Progress as a fraction in [0, 1] or a percentage in [0, 100]. */
+  /** Progress as a fraction in [0, 1] (0.0 at start, 1.0 on completion). */
   progress?: number;
   version?: string;
   error?: string;

@@ -42,24 +42,10 @@ export const getRtlsDeviceIdList: AppSelector<Identifier[]> = (state) =>
   state.rtls.devices.order;
 
 /**
- * Selector that returns the list of currently selected RTLS device IDs.
- */
-export const getSelectedRtlsDeviceIds: AppSelector<string[]> = (state) =>
-  state.rtls.selectedIds;
-
-/**
  * Returns the display name of an RTLS device, falling back to its id.
  */
 export const getRtlsDeviceDisplayName = (device: RtlsDevice): string =>
   device?.name ?? device?.id ?? 'Unnamed device';
-
-/**
- * Selector factory that returns a single RTLS device by id.
- */
-export const getRtlsDeviceById: AppSelector<
-  RtlsDevice | undefined,
-  [Identifier]
-> = (state, id) => state.rtls.devices.byId[id];
 
 /**
  * Selector that returns the live statistics keyed by device id.
@@ -67,14 +53,6 @@ export const getRtlsDeviceById: AppSelector<
 export const getRtlsStatsById: AppSelector<Record<string, RtlsDeviceStats>> = (
   state
 ) => state.rtls.stats.byId;
-
-/**
- * Selector factory that returns the live statistics for a single device.
- */
-export const getRtlsStatsForDevice: AppSelector<
-  RtlsDeviceStats | undefined,
-  [Identifier]
-> = (state, id) => state.rtls.stats.byId[id];
 
 /**
  * Selector that returns the timestamp of the last statistics update.
@@ -90,20 +68,6 @@ export const getRtlsOtaJobForDevice: AppSelector<
   RtlsOtaJob | undefined,
   [Identifier]
 > = (state, id) => state.rtls.otaJobs[id];
-
-/**
- * Selector that returns whether there are any RTLS devices known to the client.
- */
-export const hasRtlsDevices: AppSelector<boolean> = (state) =>
-  state.rtls.devices.order.length > 0;
-
-/**
- * Selector that returns the number of currently online RTLS devices.
- */
-export const getOnlineRtlsDeviceCount: AppSelector<number> = createSelector(
-  getRtlsDevicesInOrder,
-  (devices) => devices.filter((device) => device.online).length
-);
 
 /**
  * Selector factory that returns the cached parameter-list state for a device.
@@ -132,21 +96,13 @@ export const getRtlsOtaDialogDeviceId: AppSelector<string | undefined> = (
 ) => state.rtls.otaDialog.deviceId;
 
 /**
- * Selector that returns the per-device statistics, in the same order as the
- * device list, for devices that have any statistics reported.
- */
-export const getRtlsStatsInOrder: AppSelector<RtlsDeviceStats[]> =
-  createSelector(getRtlsDeviceIdList, getRtlsStatsById, (ids, byId) =>
-    ids.map((id) => byId[id]).filter((stats): stats is RtlsDeviceStats =>
-      Boolean(stats)
-    )
-  );
-
-/**
- * Selector that returns the overall (worst-case) RTLS health across all devices
- * that report statistics.
+ * Selector that returns the overall (worst-case) RTLS health across *all* known
+ * RTLS devices. A discovered device that has not yet reported statistics
+ * contributes an UNKNOWN health, so a fleet with a mix of healthy and
+ * statless devices does not collapse to "healthy".
  */
 export const getOverallRtlsHealth: AppSelector<RtlsHealth> = createSelector(
-  getRtlsStatsInOrder,
-  (statsList) => getOverallHealth(statsList.map((stats) => getDeviceHealth(stats)))
+  getRtlsDeviceIdList,
+  getRtlsStatsById,
+  (ids, byId) => getOverallHealth(ids.map((id) => getDeviceHealth(byId[id])))
 );

@@ -8,10 +8,8 @@ import reducer, {
   rtlsParamsFetchStarted,
   rtlsParamsFetchSucceeded,
   rtlsParamValueUpdated,
-  setRtlsDeviceState,
   setRtlsDevicesFromStatus,
   setRtlsOtaJob,
-  setSelectedRtlsDeviceIds,
   updateRtlsStats,
 } from '~/features/rtls/slice';
 
@@ -24,37 +22,6 @@ describe('rtls slice', () => {
     expect(state.devices.byId).toEqual({});
     expect(state.stats.byId).toEqual({});
     expect(state.otaJobs).toEqual({});
-  });
-
-  test('setRtlsDeviceState creates a new device with defaults', () => {
-    const state = reducer(
-      initial(),
-      setRtlsDeviceState({ id: '7', online: true, firmwareVersion: '1.2.3' })
-    );
-    expect(state.devices.order).toEqual(['7']);
-    expect(state.devices.byId['7']).toEqual({
-      id: '7',
-      online: true,
-      firmwareVersion: '1.2.3',
-    });
-  });
-
-  test('setRtlsDeviceState merges into an existing device', () => {
-    let state = reducer(
-      initial(),
-      setRtlsDeviceState({ id: '7', online: true, paramCount: 10 })
-    );
-    state = reducer(
-      state,
-      setRtlsDeviceState({ id: '7', online: false, firmwareVersion: '2.0.0' })
-    );
-    expect(state.devices.order).toEqual(['7']);
-    expect(state.devices.byId['7']).toMatchObject({
-      id: '7',
-      online: false,
-      paramCount: 10,
-      firmwareVersion: '2.0.0',
-    });
   });
 
   test('setRtlsDevicesFromStatus replaces the registry wholesale', () => {
@@ -100,7 +67,7 @@ describe('rtls slice', () => {
     expect(state.otaJobs['2']).toBeUndefined();
   });
 
-  test('updateRtlsStats replaces the stats wholesale', () => {
+  test('updateRtlsStats merges per device and keeps lastUpdatedAt fresh', () => {
     let state = reducer(
       initial(),
       updateRtlsStats({
@@ -115,29 +82,57 @@ describe('rtls slice', () => {
       state,
       updateRtlsStats({ byId: { '4': { id: '4' } }, lastUpdatedAt: 200 })
     );
-    expect(state.stats.byId['3']).toBeUndefined();
+    // The earlier device's stats are preserved alongside the new device's.
+    expect(state.stats.byId['3']).toMatchObject({ id: '3', solveRateHz: 10 });
     expect(state.stats.byId['4']).toBeDefined();
     expect(state.stats.lastUpdatedAt).toBe(200);
   });
 
-  test('setSelectedRtlsDeviceIds replaces the selection', () => {
-    let state = reducer(initial(), setSelectedRtlsDeviceIds(['1', '2']));
-    expect(state.selectedIds).toEqual(['1', '2']);
-    state = reducer(state, setSelectedRtlsDeviceIds(['3']));
-    expect(state.selectedIds).toEqual(['3']);
+  test("a device's stats survive a single-device stats broadcast for another device", () => {
+    // Device A reports stats first.
+    let state = reducer(
+      initial(),
+      updateRtlsStats({
+        byId: { A: { id: 'A', solveRateHz: 8, solvePct: 90 } },
+        lastUpdatedAt: 1,
+      })
+    );
+    // The server then broadcasts ONLY device B (one device per message).
+    state = reducer(
+      state,
+      updateRtlsStats({
+        byId: { B: { id: 'B', solveRateHz: 4 } },
+        lastUpdatedAt: 2,
+      })
+    );
+
+    // Device A must NOT be clobbered by the device-B-only broadcast.
+    expect(state.stats.byId['A']).toMatchObject({
+      id: 'A',
+      solveRateHz: 8,
+      solvePct: 90,
+    });
+    expect(state.stats.byId['B']).toMatchObject({ id: 'B', solveRateHz: 4 });
   });
 
-  test('setRtlsDevicesFromStatus prunes the selection of vanished devices', () => {
+  test('setRtlsDevicesFromStatus prunes stats of vanished devices', () => {
     let state = reducer(
       initial(),
       setRtlsDevicesFromStatus({ '1': { online: true }, '2': { online: true } })
     );
-    state = reducer(state, setSelectedRtlsDeviceIds(['1', '2']));
     state = reducer(
       state,
-      setRtlsDevicesFromStatus({ '1': { online: true } })
+      updateRtlsStats({
+        byId: { '1': { id: '1' }, '2': { id: '2' } },
+        lastUpdatedAt: 1,
+      })
     );
-    expect(state.selectedIds).toEqual(['1']);
+    expect(state.stats.byId['2']).toBeDefined();
+
+    // Device 2 disappears from the next inventory snapshot.
+    state = reducer(state, setRtlsDevicesFromStatus({ '1': { online: true } }));
+    expect(state.stats.byId['2']).toBeUndefined();
+    expect(state.stats.byId['1']).toBeDefined();
   });
 
   test('setRtlsOtaJob records the latest job per device', () => {
@@ -230,18 +225,13 @@ describe('rtls slice', () => {
       updateRtlsStats({ byId: { '1': { id: '1' } }, lastUpdatedAt: 1 })
     );
 
-    state = reducer(state, setSelectedRtlsDeviceIds(['1']));
-    state = reducer(
-      state,
-      rtlsParamsFetchSucceeded({ id: '1', params: [] })
-    );
+    state = reducer(state, rtlsParamsFetchSucceeded({ id: '1', params: [] }));
 
     state = reducer(state, clearRtlsDevices());
     expect(state.devices.order).toEqual([]);
     expect(state.devices.byId).toEqual({});
     expect(state.stats.byId).toEqual({});
     expect(state.otaJobs).toEqual({});
-    expect(state.selectedIds).toEqual([]);
     expect(state.paramsByDevice).toEqual({});
   });
 });

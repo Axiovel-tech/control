@@ -37,13 +37,10 @@ export type RtlsSliceState = {
   devices: Collection<RtlsDevice>;
 
   /**
-   * IDs of the devices currently selected in the RTLS device list. RTLS
-   * devices keep a local selection rather than joining the shared global map
-   * selection model.
+   * Live statistics keyed by system id. The server broadcasts statistics one
+   * device per message, so updates are merged per id; stale devices are pruned
+   * from the X-RTLS-INF device snapshot rather than from the stats path.
    */
-  selectedIds: string[];
-
-  /** Live statistics keyed by system id; replaced wholesale on each update. */
   stats: {
     byId: Record<string, RtlsDeviceStats>;
     lastUpdatedAt?: number;
@@ -70,7 +67,6 @@ export type RtlsSliceState = {
 
 const initialState: RtlsSliceState = {
   devices: EMPTY_COLLECTION,
-  selectedIds: [],
   stats: {
     byId: {},
     lastUpdatedAt: undefined,
@@ -94,7 +90,6 @@ const { actions, reducer } = createSlice({
     /** Clears the entire RTLS device registry, stats and OTA jobs. */
     clearRtlsDevices(state) {
       clearOrderedCollection<RtlsDevice>(state.devices);
-      state.selectedIds = [];
       state.stats = { byId: {}, lastUpdatedAt: undefined };
       state.otaJobs = {};
       state.paramsByDevice = {};
@@ -161,11 +156,6 @@ const { actions, reducer } = createSlice({
       }
     },
 
-    /** Sets the list of selected RTLS device IDs. */
-    setSelectedRtlsDeviceIds(state, { payload }: PayloadAction<string[]>) {
-      state.selectedIds = Array.isArray(payload) ? [...payload] : [];
-    },
-
     /** Opens the parameter viewer/editor dialog for a device. */
     openRtlsParamDialog(state, { payload: deviceId }: PayloadAction<string>) {
       state.paramDialog = { open: true, deviceId };
@@ -187,17 +177,6 @@ const { actions, reducer } = createSlice({
     },
 
     /**
-     * Updates the state of a single RTLS device, creating it if it does not
-     * exist yet.
-     */
-    setRtlsDeviceState(
-      state,
-      { payload: { id, ...rest } }: PayloadAction<RtlsDevice>
-    ) {
-      updateStateOfRtlsDevice(state.devices, id, rest);
-    },
-
-    /**
      * Replaces the full set of RTLS devices with the supplied mapping. Devices
      * that are absent from the mapping are removed, mirroring the wholesale
      * semantics of an X-RTLS-INF status snapshot.
@@ -208,19 +187,20 @@ const { actions, reducer } = createSlice({
     ) {
       const ids = Object.keys(payload);
 
-      // Drop devices that are no longer present in the snapshot.
+      // Drop devices that are no longer present in the snapshot, along with
+      // their now-stale stats and OTA jobs. Device disappearance is the single
+      // source of truth for pruning stats (the per-device stats broadcasts
+      // never remove anything).
       for (const existingId of [...state.devices.order]) {
         if (!ids.includes(existingId)) {
           delete state.devices.byId[existingId];
           delete state.otaJobs[existingId];
+          delete state.stats.byId[existingId];
         }
       }
       state.devices.order = state.devices.order.filter((id) =>
         ids.includes(id)
       );
-
-      // Keep the selection consistent with the surviving device set.
-      state.selectedIds = state.selectedIds.filter((id) => ids.includes(id));
 
       for (const [id, device] of Object.entries(payload)) {
         updateStateOfRtlsDevice(state.devices, id, device);
@@ -228,8 +208,12 @@ const { actions, reducer } = createSlice({
     },
 
     /**
-     * Replaces the live statistics for all devices wholesale (mirroring the
-     * RTK statistics update semantics).
+     * Merges live statistics into the per-device store. The server broadcasts
+     * statistics one device per message, so each update must be merged into the
+     * existing map rather than replacing it wholesale; otherwise every
+     * broadcast would clobber every other device's stats. Stale devices are
+     * pruned from the X-RTLS-INF snapshot in `setRtlsDevicesFromStatus`, not
+     * here.
      */
     updateRtlsStats(
       state,
@@ -240,7 +224,7 @@ const { actions, reducer } = createSlice({
         lastUpdatedAt?: number;
       }>
     ) {
-      state.stats.byId = payload.byId;
+      Object.assign(state.stats.byId, payload.byId);
       state.stats.lastUpdatedAt = payload.lastUpdatedAt ?? Date.now();
     },
 
@@ -266,10 +250,8 @@ export const {
   rtlsParamsFetchStarted,
   rtlsParamsFetchSucceeded,
   rtlsParamValueUpdated,
-  setRtlsDeviceState,
   setRtlsDevicesFromStatus,
   setRtlsOtaJob,
-  setSelectedRtlsDeviceIds,
   updateRtlsStats,
 } = actions;
 
