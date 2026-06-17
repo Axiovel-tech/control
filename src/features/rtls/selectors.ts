@@ -7,6 +7,7 @@ import {
   selectOrdered,
 } from '~/utils/collections';
 
+import { type RtlsDeviceParamsState } from './slice';
 import {
   type RtlsDevice,
   type RtlsDeviceStats,
@@ -98,3 +99,29 @@ export const getOnlineRtlsDeviceCount: AppSelector<number> = createSelector(
   getRtlsDevicesInOrder,
   (devices) => devices.filter((device) => device.online).length
 );
+
+/**
+ * Selector factory that returns the cached parameter-list state for a device.
+ */
+export const getRtlsParamsStateForDevice: AppSelector<
+  RtlsDeviceParamsState | undefined,
+  [Identifier]
+> = (state, id) => state.rtls.paramsByDevice[id];
+
+/** Selector that returns whether the parameter dialog is open. */
+export const isRtlsParamDialogOpen: AppSelector<boolean> = (state) =>
+  state.rtls.paramDialog.open;
+
+/** Selector that returns the device id targeted by the parameter dialog. */
+export const getRtlsParamDialogDeviceId: AppSelector<string | undefined> = (
+  state
+) => state.rtls.paramDialog.deviceId;
+
+/** Selector that returns whether the OTA dialog is open. */
+export const isRtlsOtaDialogOpen: AppSelector<boolean> = (state) =>
+  state.rtls.otaDialog.open;
+
+/** Selector that returns the device id targeted by the OTA dialog. */
+export const getRtlsOtaDialogDeviceId: AppSelector<string | undefined> = (
+  state
+) => state.rtls.otaDialog.deviceId;

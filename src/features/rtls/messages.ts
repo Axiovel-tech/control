@@ -8,10 +8,10 @@
  * first argument, mirroring the convention used elsewhere.
  */
 
-import { errorToString } from '~/error-handling';
 import type MessageHub from '~/flockwave/messages';
 import { type Message, type MessageBody } from '~/flockwave/types';
 
+import { rtlsErrorToString } from './errors';
 import {
   type RtlsOtaJob,
   type RtlsParam,
@@ -185,7 +185,7 @@ export async function setRtlsParameter(
     });
   } catch (error) {
     throw new Error(
-      `Failed to set parameter ${name} on device ${deviceId}: ${errorToString(
+      `Failed to set parameter ${name} on device ${deviceId}: ${rtlsErrorToString(
         error
       )}`
     );
@@ -238,7 +238,7 @@ export async function startRtlsOta(
     );
   } catch (error) {
     throw new Error(
-      `Failed to start OTA on device ${deviceId}: ${errorToString(error)}`
+      `Failed to start OTA on device ${deviceId}: ${rtlsErrorToString(error)}`
     );
   }
 

@@ -2,6 +2,12 @@ import { describe, expect, test } from '@jest/globals';
 
 import reducer, {
   clearRtlsDevices,
+  closeRtlsParamDialog,
+  openRtlsParamDialog,
+  rtlsParamsFetchFailed,
+  rtlsParamsFetchStarted,
+  rtlsParamsFetchSucceeded,
+  rtlsParamValueUpdated,
   setRtlsDeviceState,
   setRtlsDevicesFromStatus,
   setRtlsOtaJob,
@@ -142,6 +148,77 @@ describe('rtls slice', () => {
     expect(state.otaJobs['5']).toEqual({ status: 'success', progress: 1 });
   });
 
+  describe('parameter cache', () => {
+    test('fetch lifecycle: started → succeeded', () => {
+      let state = reducer(initial(), rtlsParamsFetchStarted('7'));
+      expect(state.paramsByDevice['7']).toMatchObject({
+        status: 'loading',
+        params: [],
+      });
+
+      state = reducer(
+        state,
+        rtlsParamsFetchSucceeded({
+          id: '7',
+          params: [{ name: 'GAIN', value: 5, type: 'uint16', index: 0 }],
+        })
+      );
+      expect(state.paramsByDevice['7'].status).toBe('ready');
+      expect(state.paramsByDevice['7'].params).toHaveLength(1);
+      expect(typeof state.paramsByDevice['7'].lastFetchedAt).toBe('number');
+    });
+
+    test('fetch failure keeps prior params and records the error', () => {
+      let state = reducer(
+        initial(),
+        rtlsParamsFetchSucceeded({
+          id: '7',
+          params: [{ name: 'GAIN', value: 5, type: 'uint16' }],
+        })
+      );
+      state = reducer(
+        state,
+        rtlsParamsFetchFailed({ id: '7', error: 'timeout' })
+      );
+      expect(state.paramsByDevice['7'].status).toBe('error');
+      expect(state.paramsByDevice['7'].error).toBe('timeout');
+      // Previously fetched params survive a later failure.
+      expect(state.paramsByDevice['7'].params).toHaveLength(1);
+    });
+
+    test('rtlsParamValueUpdated mutates a cached value', () => {
+      let state = reducer(
+        initial(),
+        rtlsParamsFetchSucceeded({
+          id: '7',
+          params: [{ name: 'GAIN', value: 5, type: 'uint16' }],
+        })
+      );
+      state = reducer(
+        state,
+        rtlsParamValueUpdated({ id: '7', name: 'GAIN', value: 9 })
+      );
+      expect(state.paramsByDevice['7'].params[0].value).toBe(9);
+    });
+
+    test('rtlsParamValueUpdated is a no-op for an unloaded device', () => {
+      const state = reducer(
+        initial(),
+        rtlsParamValueUpdated({ id: '7', name: 'GAIN', value: 9 })
+      );
+      expect(state.paramsByDevice['7']).toBeUndefined();
+    });
+  });
+
+  describe('parameter dialog', () => {
+    test('open and close', () => {
+      let state = reducer(initial(), openRtlsParamDialog('7'));
+      expect(state.paramDialog).toEqual({ open: true, deviceId: '7' });
+      state = reducer(state, closeRtlsParamDialog());
+      expect(state.paramDialog).toEqual({ open: false, deviceId: undefined });
+    });
+  });
+
   test('clearRtlsDevices resets everything', () => {
     let state = reducer(
       initial(),
@@ -154,6 +231,10 @@ describe('rtls slice', () => {
     );
 
     state = reducer(state, setSelectedRtlsDeviceIds(['1']));
+    state = reducer(
+      state,
+      rtlsParamsFetchSucceeded({ id: '1', params: [] })
+    );
 
     state = reducer(state, clearRtlsDevices());
     expect(state.devices.order).toEqual([]);
@@ -161,5 +242,6 @@ describe('rtls slice', () => {
     expect(state.stats.byId).toEqual({});
     expect(state.otaJobs).toEqual({});
     expect(state.selectedIds).toEqual([]);
+    expect(state.paramsByDevice).toEqual({});
   });
 });

@@ -16,8 +16,21 @@ import {
   type RtlsDevice,
   type RtlsDeviceStats,
   type RtlsOtaJob,
+  type RtlsParam,
 } from './types';
 import { updateStateOfRtlsDevice } from './utils';
+
+/** Cached read-only parameter list for a single device. */
+export type RtlsDeviceParamsState = {
+  /** Fetch status of the parameter list. */
+  status: 'idle' | 'loading' | 'ready' | 'error';
+  /** Parameters in display order, populated once `status === 'ready'`. */
+  params: RtlsParam[];
+  /** Error message when `status === 'error'`. */
+  error?: string;
+  /** Timestamp of the last successful fetch. */
+  lastFetchedAt?: number;
+};
 
 export type RtlsSliceState = {
   /** Registry of known RTLS devices keyed by system id (numeric string). */
@@ -38,6 +51,21 @@ export type RtlsSliceState = {
 
   /** Last known OTA job per device, keyed by system id. */
   otaJobs: Record<string, RtlsOtaJob>;
+
+  /** Cached read-only parameter lists keyed by device id. */
+  paramsByDevice: Record<string, RtlsDeviceParamsState>;
+
+  /** State of the per-device parameter viewer/editor dialog. */
+  paramDialog: {
+    open: boolean;
+    deviceId?: string;
+  };
+
+  /** State of the per-device OTA dialog. */
+  otaDialog: {
+    open: boolean;
+    deviceId?: string;
+  };
 };
 
 const initialState: RtlsSliceState = {
@@ -48,6 +76,15 @@ const initialState: RtlsSliceState = {
     lastUpdatedAt: undefined,
   },
   otaJobs: {},
+  paramsByDevice: {},
+  paramDialog: {
+    open: false,
+    deviceId: undefined,
+  },
+  otaDialog: {
+    open: false,
+    deviceId: undefined,
+  },
 };
 
 const { actions, reducer } = createSlice({
@@ -60,11 +97,93 @@ const { actions, reducer } = createSlice({
       state.selectedIds = [];
       state.stats = { byId: {}, lastUpdatedAt: undefined };
       state.otaJobs = {};
+      state.paramsByDevice = {};
+    },
+
+    /** Marks the parameter list of a device as being loaded. */
+    rtlsParamsFetchStarted(state, { payload: id }: PayloadAction<string>) {
+      const existing = state.paramsByDevice[id];
+      state.paramsByDevice[id] = {
+        status: 'loading',
+        params: existing?.params ?? [],
+        error: undefined,
+        lastFetchedAt: existing?.lastFetchedAt,
+      };
+    },
+
+    /** Stores a freshly fetched parameter list for a device. */
+    rtlsParamsFetchSucceeded(
+      state,
+      {
+        payload: { id, params },
+      }: PayloadAction<{ id: string; params: RtlsParam[] }>
+    ) {
+      state.paramsByDevice[id] = {
+        status: 'ready',
+        params,
+        error: undefined,
+        lastFetchedAt: Date.now(),
+      };
+    },
+
+    /** Records a failure while fetching the parameter list of a device. */
+    rtlsParamsFetchFailed(
+      state,
+      { payload: { id, error } }: PayloadAction<{ id: string; error: string }>
+    ) {
+      const existing = state.paramsByDevice[id];
+      state.paramsByDevice[id] = {
+        status: 'error',
+        params: existing?.params ?? [],
+        error,
+        lastFetchedAt: existing?.lastFetchedAt,
+      };
+    },
+
+    /**
+     * Updates the cached value of a single parameter for a device (e.g. after a
+     * successful X-RTLS-PARAM-SET), if that device's list has been loaded.
+     */
+    rtlsParamValueUpdated(
+      state,
+      {
+        payload: { id, name, value },
+      }: PayloadAction<{ id: string; name: string; value: RtlsParam['value'] }>
+    ) {
+      const entry = state.paramsByDevice[id];
+      if (!entry) {
+        return;
+      }
+
+      const param = entry.params.find((p) => p.name === name);
+      if (param) {
+        param.value = value;
+      }
     },
 
     /** Sets the list of selected RTLS device IDs. */
     setSelectedRtlsDeviceIds(state, { payload }: PayloadAction<string[]>) {
       state.selectedIds = Array.isArray(payload) ? [...payload] : [];
+    },
+
+    /** Opens the parameter viewer/editor dialog for a device. */
+    openRtlsParamDialog(state, { payload: deviceId }: PayloadAction<string>) {
+      state.paramDialog = { open: true, deviceId };
+    },
+
+    /** Closes the parameter viewer/editor dialog. */
+    closeRtlsParamDialog(state) {
+      state.paramDialog = { open: false, deviceId: undefined };
+    },
+
+    /** Opens the OTA dialog for a device. */
+    openRtlsOtaDialog(state, { payload: deviceId }: PayloadAction<string>) {
+      state.otaDialog = { open: true, deviceId };
+    },
+
+    /** Closes the OTA dialog. */
+    closeRtlsOtaDialog(state) {
+      state.otaDialog = { open: false, deviceId: undefined };
     },
 
     /**
@@ -139,6 +258,14 @@ const { actions, reducer } = createSlice({
 
 export const {
   clearRtlsDevices,
+  closeRtlsOtaDialog,
+  closeRtlsParamDialog,
+  openRtlsOtaDialog,
+  openRtlsParamDialog,
+  rtlsParamsFetchFailed,
+  rtlsParamsFetchStarted,
+  rtlsParamsFetchSucceeded,
+  rtlsParamValueUpdated,
   setRtlsDeviceState,
   setRtlsDevicesFromStatus,
   setRtlsOtaJob,
