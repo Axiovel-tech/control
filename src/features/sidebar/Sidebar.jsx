@@ -124,6 +124,27 @@ const Sidebar = ({
             component='beacon-list'
           />
         )}
+        {/* The RTLS server extension is optional; `hasFeature('rtls')` mirrors
+            the gating of the other optional modules above. It defaults to true
+            when the key is absent, so RTLS stays visible unless a deployment
+            opts out via config. A runtime gate (hide until devices appear)
+            would be a larger change; tracked as follow-up. */}
+        {hasFeature('rtls') && (
+          <Module
+            id='rtls'
+            icon={<Grain />}
+            label={t('view.rtls-device-list')}
+            component='rtls-device-list'
+          />
+        )}
+        {hasFeature('rtls') && (
+          <Module
+            id='rtlsStats'
+            icon={<Grain />}
+            label={t('view.rtls-stats')}
+            component='rtls-stats'
+          />
+        )}
         {hasFeature('docks') && experimentalFeaturesEnabled && (
           <Module
             id='docks'

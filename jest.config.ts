@@ -184,7 +184,12 @@ const config: Config = {
   },
 
   // An array of regexp pattern strings that are matched against all source file paths, matched files will skip transformation
-  transformIgnorePatterns: ['/node_modules/(?!lodash-es)'],
+  // NOTE: the listed packages ship as native ESM and must be transpiled by
+  // babel-jest, otherwise importing them (transitively, e.g. via
+  // ~/utils/redux) throws "Cannot use import statement outside a module".
+  transformIgnorePatterns: [
+    '/node_modules/(?!(lodash-es|p-min-delay|yoctodelay)/)',
+  ],
   // extensionsToTreatAsEsm: ['.ts', '.tsx'],
 
   // An array of regexp pattern strings that are matched against all modules before the module loader will automatically return a mock for them

@@ -1,0 +1,109 @@
+import { describe, expect, jest, test } from '@jest/globals';
+
+// `~/error-handling` transitively pulls in the snackbar/MUI/logging chain
+// (which loads native-ESM `color` packages that babel-jest does not transform),
+// so it is stubbed here with a thin `errorToString`. The message helpers only
+// use it to format error text.
+jest.mock('~/error-handling', () => ({
+  errorToString: (error: unknown, prefix?: string): string => {
+    const base =
+      error instanceof Error ? error.message : String(error);
+    return prefix ? `${prefix}: ${base}` : base;
+  },
+}));
+
+import {
+  queryRtlsParameterList,
+  setRtlsParameter,
+  startRtlsOta,
+} from '~/features/rtls/messages';
+import type MessageHub from '~/flockwave/messages';
+
+/** Builds a hub whose sendMessage returns the given body, capturing requests. */
+const makeHub = (body: Record<string, unknown>) => {
+  const sent: unknown[] = [];
+  const hub = {
+    sendMessage: jest.fn((request: unknown) => {
+      sent.push(request);
+      return Promise.resolve({ body });
+    }),
+  };
+
+  return { hub: hub as unknown as MessageHub, sent, sendMessage: hub.sendMessage };
+};
+
+describe('rtls messages', () => {
+  test('queryRtlsParameterList sorts by index then name', async () => {
+    const { hub } = makeHub({
+      type: 'X-RTLS-PARAM-LIST',
+      count: 3,
+      params: {
+        GAMMA: { value: 3, type: 'uint8', index: 2 },
+        ALPHA: { value: 1, type: 'uint8', index: 0 },
+        BETA: { value: 2, type: 'uint8', index: 1 },
+      },
+    });
+    const params = await queryRtlsParameterList(hub, '7');
+    expect(params.map((p) => p.name)).toEqual(['ALPHA', 'BETA', 'GAMMA']);
+  });
+
+  describe('setRtlsParameter', () => {
+    test('returns accepted:true on an accepted set', async () => {
+      const { hub, sendMessage } = makeHub({
+        type: 'X-RTLS-PARAM-SET',
+        id: '7',
+        name: 'GAIN',
+        value: 5,
+        paramType: 'uint16',
+        result: 'ok',
+        accepted: true,
+      });
+      const result = await setRtlsParameter(hub, '7', 'GAIN', 5, 'uint16');
+      expect(result).toEqual({
+        name: 'GAIN',
+        value: 5,
+        paramType: 'uint16',
+        result: 'ok',
+        accepted: true,
+      });
+      // paramType is forwarded in the request.
+      expect(sendMessage).toHaveBeenCalledWith({
+        type: 'X-RTLS-PARAM-SET',
+        id: '7',
+        name: 'GAIN',
+        value: 5,
+        paramType: 'uint16',
+      });
+    });
+
+    test('a device rejection (accepted:false) resolves normally, does not throw', async () => {
+      const { hub } = makeHub({
+        type: 'X-RTLS-PARAM-SET',
+        id: '7',
+        name: 'GAIN',
+        value: 5,
+        accepted: false,
+        result: 'out of range',
+      });
+      const result = await setRtlsParameter(hub, '7', 'GAIN', 5);
+      expect(result.accepted).toBe(false);
+      expect(result.result).toBe('out of range');
+    });
+
+    test('a malformed response throws', async () => {
+      const { hub } = makeHub({ type: 'ACK-NAK', reason: 'bad request' });
+      await expect(setRtlsParameter(hub, '7', 'GAIN', 5)).rejects.toThrow();
+    });
+  });
+
+  test('startRtlsOta forwards the image and returns the job', async () => {
+    const { hub, sent } = makeHub({
+      type: 'X-RTLS-OTA',
+      id: '7',
+      job: { id: 'job-1', status: 'pending', image: 'fw.bin' },
+    });
+    const job = await startRtlsOta(hub, '7', 'fw.bin');
+    expect(job).toMatchObject({ id: 'job-1', status: 'pending' });
+    expect(sent[0]).toMatchObject({ type: 'X-RTLS-OTA', id: '7', image: 'fw.bin' });
+  });
+});

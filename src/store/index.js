@@ -61,6 +61,7 @@ const persistConfig = {
     'log',
     'logDownload',
     'messages',
+    'rtls',
     'servers',
     'session',
     'snackbar',
