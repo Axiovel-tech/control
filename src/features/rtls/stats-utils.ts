@@ -7,7 +7,7 @@
  * RtlsHealth} to a theme `Status` lives in `health-status.ts`.
  */
 
-import { type RtlsDeviceStats } from './types';
+import { type RtlsDevice, type RtlsDeviceStats } from './types';
 
 /** Overall health classification of an RTLS device, used to colour a light. */
 export enum RtlsHealth {
@@ -34,8 +34,13 @@ const MIN_HEALTHY_SOLVE_PCT = 50;
  * Derives a coarse health classification for a single device from its stats.
  */
 export function getDeviceHealth(
-  stats: RtlsDeviceStats | undefined
+  stats: RtlsDeviceStats | undefined,
+  device?: Pick<RtlsDevice, 'online' | 'role'>
 ): RtlsHealth {
+  if (isAnchorRole(device?.role)) {
+    return device?.online === false ? RtlsHealth.ERROR : RtlsHealth.OK;
+  }
+
   if (!stats) {
     return RtlsHealth.UNKNOWN;
   }
@@ -69,6 +74,10 @@ export function getDeviceHealth(
   }
 
   return RtlsHealth.OK;
+}
+
+export function isAnchorRole(role: string | undefined): boolean {
+  return role === 'anchor-initiator' || role === 'anchor-responder';
 }
 
 /**

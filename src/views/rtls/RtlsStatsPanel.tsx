@@ -28,7 +28,7 @@ import {
   countAnchorsInMask,
   getDeviceHealth,
 } from '~/features/rtls/stats-utils';
-import { type RtlsDeviceStats } from '~/features/rtls/types';
+import { type RtlsDevice, type RtlsDeviceStats } from '~/features/rtls/types';
 
 const formatNumber = (
   value: number | undefined,
@@ -37,13 +37,12 @@ const formatNumber = (
 ): string => (value === undefined ? '—' : `${value.toFixed(digits)} ${unit}`);
 
 type DeviceStatsRowProps = {
-  id: string;
-  name: string;
+  device: RtlsDevice;
   stats: RtlsDeviceStats | undefined;
 };
 
-const DeviceStatsRow = ({ id, name, stats }: DeviceStatsRowProps) => {
-  const health = getDeviceHealth(stats);
+const DeviceStatsRow = ({ device, stats }: DeviceStatsRowProps) => {
+  const health = getDeviceHealth(stats, device);
   const anchorsSeen = stats?.anchorsSeen ?? countAnchorsInMask(stats?.anchorMask);
 
   return (
@@ -51,7 +50,7 @@ const DeviceStatsRow = ({ id, name, stats }: DeviceStatsRowProps) => {
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
         <StatusLight status={getStatusForHealth(health)} />
         <Typography variant='subtitle2' sx={{ flexGrow: 1 }}>
-          {name}
+          {device.name ?? device.id}
         </Typography>
         <AnchorBars
           anchorMask={stats?.anchorMask}
@@ -89,7 +88,7 @@ const DeviceStatsRow = ({ id, name, stats }: DeviceStatsRowProps) => {
         color='textSecondary'
         sx={{ pl: 1, opacity: 0.6 }}
       >
-        {`system id ${id}`}
+        {`system id ${device.id}`}
       </Typography>
     </Box>
   );
@@ -127,8 +126,7 @@ const RtlsStatsPanel = () => {
         <Box key={device.id}>
           {index > 0 && <Divider />}
           <DeviceStatsRow
-            id={device.id}
-            name={device.name ?? device.id}
+            device={device}
             stats={statsById[device.id]}
           />
         </Box>

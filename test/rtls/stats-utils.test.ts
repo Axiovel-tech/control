@@ -54,6 +54,29 @@ describe('rtls stats-utils', () => {
         RtlsHealth.ERROR
       );
     });
+
+    test('anchors are judged by liveness, not tag solve stats', () => {
+      expect(
+        getDeviceHealth(undefined, {
+          role: 'anchor-responder',
+          online: true,
+        })
+      ).toBe(RtlsHealth.OK);
+
+      expect(
+        getDeviceHealth(
+          { id: '2', solveRateHz: 0, fixAgeMs: 60000 },
+          { role: 'anchor-initiator', online: true }
+        )
+      ).toBe(RtlsHealth.OK);
+
+      expect(
+        getDeviceHealth(undefined, {
+          role: 'anchor-responder',
+          online: false,
+        })
+      ).toBe(RtlsHealth.ERROR);
+    });
   });
 
   describe('getOverallHealth', () => {

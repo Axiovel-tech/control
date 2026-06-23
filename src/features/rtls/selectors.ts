@@ -102,7 +102,10 @@ export const getRtlsOtaDialogDeviceId: AppSelector<string | undefined> = (
  * statless devices does not collapse to "healthy".
  */
 export const getOverallRtlsHealth: AppSelector<RtlsHealth> = createSelector(
-  getRtlsDeviceIdList,
+  getRtlsDevicesInOrder,
   getRtlsStatsById,
-  (ids, byId) => getOverallHealth(ids.map((id) => getDeviceHealth(byId[id])))
+  (devices, byId) =>
+    getOverallHealth(
+      devices.map((device) => getDeviceHealth(byId[device.id], device))
+    )
 );
