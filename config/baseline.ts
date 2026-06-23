@@ -90,6 +90,7 @@ const baseline: Config = {
       { id: 'base', type: LayerType.BASE, label: 'Base map' },
       { id: 'graticule', type: LayerType.GRATICULE, label: 'Graticule' },
       { id: 'beacons', type: LayerType.BEACONS, label: 'Beacons' },
+      { id: 'anchors', type: LayerType.ANCHORS, label: 'RTLS anchors' },
       { id: 'features', type: LayerType.FEATURES, label: 'Features' },
       { id: 'home', type: LayerType.MISSION_INFO, label: 'Mission info' },
       { id: 'uavs', type: LayerType.UAVS, label: 'UAVs' },

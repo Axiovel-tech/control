@@ -28,6 +28,7 @@ import Antenna from '~/icons/Antenna';
  * Enum containing constants for the various layer types that we support.
  */
 export enum LayerType {
+  ANCHORS = 'anchors',
   BASE = 'base',
   BEACONS = 'beacons',
   DOCKS = 'docks',
@@ -67,6 +68,7 @@ export const LayerTypes: readonly LayerType[] = [
   LayerType.FEATURES,
   LayerType.IMAGE,
   LayerType.UAVS,
+  LayerType.ANCHORS,
   LayerType.BEACONS,
   LayerType.DOCKS,
   LayerType.UAV_TRACE,
@@ -112,6 +114,11 @@ const propertiesForLayerTypes: Record<
     multiple?: boolean;
   }
 > = {
+  [LayerType.ANCHORS]: {
+    label: 'RTLS anchors',
+    icon: Antenna,
+    parameters: {},
+  },
   [LayerType.BASE]: {
     label: 'Base layer',
     icon: Map,

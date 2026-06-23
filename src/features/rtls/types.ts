@@ -65,6 +65,22 @@ export type RtlsDevice = {
 };
 
 /**
+ * A site anchor position reported alongside X-RTLS-INF. Anchor positions are
+ * derived server-side from the shared site frame (origin + yaw) and the anchor
+ * table, then projected to GPS so the map can render the anchor constellation.
+ */
+export type RtlsAnchor = {
+  /** Index of the anchor within the site anchor table. */
+  index: number;
+  /** WGS84 latitude in degrees. */
+  lat: number;
+  /** WGS84 longitude in degrees. */
+  lon: number;
+  /** Altitude above mean sea level in metres, if known. */
+  amsl?: number;
+};
+
+/**
  * A single parameter descriptor as returned by an X-RTLS-PARAM-LIST or
  * X-RTLS-PARAM-GET query.
  */

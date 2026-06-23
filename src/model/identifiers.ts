@@ -1,5 +1,6 @@
 import { appendTo, hasPrefix, stripPrefix } from '~/utils/operators';
 
+export const anchorIdToGlobalId = appendTo('anchor$');
 export const areaIdToGlobalId = appendTo('area$');
 export const beaconIdToGlobalId = appendTo('beacon$');
 export const dockIdToGlobalId = appendTo('dock$');
@@ -12,6 +13,7 @@ export const plannedTrajectoryIdToGlobalId = appendTo('planned$');
 export const uavIdToGlobalId = appendTo('uav$');
 export const missionSlotIdToGlobalId = appendTo('mission$');
 
+export const globalIdToAnchorId = stripPrefix('anchor$');
 export const globalIdToAreaId = stripPrefix('area$');
 export const globalIdToBeaconId = stripPrefix('beacon$');
 export const globalIdToDockId = stripPrefix('dock$');
@@ -24,6 +26,7 @@ export const globalIdToPlannedTrajectoryId = stripPrefix('planned$');
 export const globalIdToUavId = stripPrefix('uav$');
 export const globalIdToMissionSlotId = stripPrefix('mission$');
 
+export const isAnchorId = hasPrefix('anchor$');
 export const isAreaId = hasPrefix('area$');
 export const isBeaconId = hasPrefix('beacon$');
 export const isDockId = hasPrefix('dock$');

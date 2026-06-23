@@ -12,11 +12,13 @@ import isNil from 'lodash-es/isNil';
 import { type AppDispatch } from '~/store/reducers';
 
 import {
+  setRtlsAnchors,
   setRtlsDevicesFromStatus,
   setRtlsOtaJob,
   updateRtlsStats,
 } from './slice';
 import {
+  type RtlsAnchor,
   type RtlsDevice,
   type RtlsDeviceStats,
   type RtlsOtaJob,
@@ -105,8 +107,53 @@ export function buildRtlsDeviceStatusMap(
 }
 
 /**
+ * Maps a single anchor entry from the `anchors` field of an X-RTLS-INF message
+ * body into the shape stored in the Redux state. Returns `undefined` if the
+ * mandatory index/lat/lon fields are missing or malformed.
+ */
+export function mapRtlsAnchor(raw: AnyRecord): RtlsAnchor | undefined {
+  const index = toNumber(raw.index);
+  const lat = toNumber(raw.lat);
+  const lon = toNumber(raw.lon);
+  if (index === undefined || lat === undefined || lon === undefined) {
+    return undefined;
+  }
+
+  const anchor: RtlsAnchor = { index, lat, lon };
+  const amsl = toNumber(raw.amsl);
+  if (amsl !== undefined) {
+    anchor.amsl = amsl;
+  }
+
+  return anchor;
+}
+
+/**
+ * Builds the anchor list consumed by `setRtlsAnchors` from the `anchors` field
+ * of an X-RTLS-INF message body. Malformed entries are dropped.
+ */
+export function buildRtlsAnchorList(anchors: unknown): RtlsAnchor[] {
+  if (!Array.isArray(anchors)) {
+    return [];
+  }
+
+  const result: RtlsAnchor[] = [];
+  for (const raw of anchors) {
+    if (raw && typeof raw === 'object') {
+      const anchor = mapRtlsAnchor(raw as AnyRecord);
+      if (anchor !== undefined) {
+        result.push(anchor);
+      }
+    }
+  }
+
+  return result;
+}
+
+/**
  * Handles an X-RTLS-INF message (response or notification) by updating the RTLS
- * device registry wholesale from the `status` mapping.
+ * device registry wholesale from the `status` mapping, and the site anchor
+ * constellation from the `anchors` field.
  */
 export function handleRtlsInformationMessage(
   body: AnyRecord,
@@ -114,6 +161,7 @@ export function handleRtlsInformationMessage(
 ): void {
   const status = body?.status as Record<string, AnyRecord> | undefined;
   dispatch(setRtlsDevicesFromStatus(buildRtlsDeviceStatusMap(status)));
+  dispatch(setRtlsAnchors(buildRtlsAnchorList(body?.anchors)));
 }
 
 /**

@@ -13,6 +13,7 @@ import {
 } from '~/utils/collections';
 
 import {
+  type RtlsAnchor,
   type RtlsDevice,
   type RtlsDeviceStats,
   type RtlsOtaJob,
@@ -35,6 +36,13 @@ export type RtlsDeviceParamsState = {
 export type RtlsSliceState = {
   /** Registry of known RTLS devices keyed by system id (numeric string). */
   devices: Collection<RtlsDevice>;
+
+  /**
+   * Site anchor constellation reported alongside the X-RTLS-INF snapshot. These
+   * are fixed, georeferenced positions (not live devices); the map renders them
+   * as anchor markers.
+   */
+  anchors: RtlsAnchor[];
 
   /**
    * Live statistics keyed by system id. The server broadcasts statistics one
@@ -67,6 +75,7 @@ export type RtlsSliceState = {
 
 const initialState: RtlsSliceState = {
   devices: EMPTY_COLLECTION,
+  anchors: [],
   stats: {
     byId: {},
     lastUpdatedAt: undefined,
@@ -90,9 +99,19 @@ const { actions, reducer } = createSlice({
     /** Clears the entire RTLS device registry, stats and OTA jobs. */
     clearRtlsDevices(state) {
       clearOrderedCollection<RtlsDevice>(state.devices);
+      state.anchors = [];
       state.stats = { byId: {}, lastUpdatedAt: undefined };
       state.otaJobs = {};
       state.paramsByDevice = {};
+    },
+
+    /**
+     * Replaces the site anchor constellation wholesale. Anchors travel with the
+     * X-RTLS-INF snapshot (the site frame is server-owned), so they are
+     * replaced as a set rather than merged.
+     */
+    setRtlsAnchors(state, { payload }: PayloadAction<RtlsAnchor[]>) {
+      state.anchors = payload;
     },
 
     /** Marks the parameter list of a device as being loaded. */
@@ -250,6 +269,7 @@ export const {
   rtlsParamsFetchStarted,
   rtlsParamsFetchSucceeded,
   rtlsParamValueUpdated,
+  setRtlsAnchors,
   setRtlsDevicesFromStatus,
   setRtlsOtaJob,
   updateRtlsStats,

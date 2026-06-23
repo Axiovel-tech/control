@@ -1,16 +1,19 @@
 import { describe, expect, jest, test } from '@jest/globals';
 
 import {
+  buildRtlsAnchorList,
   buildRtlsDeviceStatusMap,
   buildRtlsStatsMap,
   handleRtlsInformationMessage,
   handleRtlsOtaMessage,
   handleRtlsStatsMessage,
+  mapRtlsAnchor,
   mapRtlsDeviceStats,
   mapRtlsDeviceStatus,
   mapRtlsOtaJob,
 } from '~/features/rtls/handlers';
 import {
+  setRtlsAnchors,
   setRtlsDevicesFromStatus,
   setRtlsOtaJob,
   updateRtlsStats,
@@ -89,22 +92,59 @@ describe('rtls handlers', () => {
     expect(result['2']).toMatchObject({ online: false });
   });
 
-  test('handleRtlsInformationMessage dispatches setRtlsDevicesFromStatus', () => {
+  test('handleRtlsInformationMessage dispatches devices and anchors', () => {
     const dispatch = createMockDispatch();
     handleRtlsInformationMessage(
-      { type: 'X-RTLS-INF', status: { '1': { online: true } } },
+      {
+        type: 'X-RTLS-INF',
+        status: { '1': { online: true } },
+        anchors: [{ index: 0, lat: 41.39, lon: 2.15, amsl: 10 }],
+      },
       dispatch
     );
-    expect(dispatch).toHaveBeenCalledTimes(1);
+    expect(dispatch).toHaveBeenCalledTimes(2);
     expect(dispatch).toHaveBeenCalledWith(
       setRtlsDevicesFromStatus({ '1': { online: true } })
     );
+    expect(dispatch).toHaveBeenCalledWith(
+      setRtlsAnchors([{ index: 0, lat: 41.39, lon: 2.15, amsl: 10 }])
+    );
   });
 
-  test('handleRtlsInformationMessage tolerates a missing status field', () => {
+  test('handleRtlsInformationMessage tolerates missing status and anchors', () => {
     const dispatch = createMockDispatch();
     handleRtlsInformationMessage({ type: 'X-RTLS-INF' }, dispatch);
     expect(dispatch).toHaveBeenCalledWith(setRtlsDevicesFromStatus({}));
+    expect(dispatch).toHaveBeenCalledWith(setRtlsAnchors([]));
+  });
+
+  describe('anchors', () => {
+    test('mapRtlsAnchor keeps index/lat/lon and optional amsl', () => {
+      expect(mapRtlsAnchor({ index: 2, lat: 41.39, lon: 2.15, amsl: 12.5 })).toEqual(
+        { index: 2, lat: 41.39, lon: 2.15, amsl: 12.5 }
+      );
+      expect(mapRtlsAnchor({ index: 0, lat: 1, lon: 2 })).toEqual({
+        index: 0,
+        lat: 1,
+        lon: 2,
+      });
+    });
+
+    test('mapRtlsAnchor rejects entries missing required fields', () => {
+      expect(mapRtlsAnchor({ index: 0, lat: 1 })).toBeUndefined();
+      expect(mapRtlsAnchor({ lat: 1, lon: 2 })).toBeUndefined();
+    });
+
+    test('buildRtlsAnchorList drops malformed entries and tolerates non-arrays', () => {
+      expect(
+        buildRtlsAnchorList([
+          { index: 0, lat: 1, lon: 2 },
+          { index: 1, lat: 3 }, // malformed -> dropped
+          'nope', // not an object -> dropped
+        ])
+      ).toEqual([{ index: 0, lat: 1, lon: 2 }]);
+      expect(buildRtlsAnchorList(undefined)).toEqual([]);
+    });
   });
 
   describe('stats', () => {

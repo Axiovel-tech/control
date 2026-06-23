@@ -8,6 +8,7 @@ import reducer, {
   rtlsParamsFetchStarted,
   rtlsParamsFetchSucceeded,
   rtlsParamValueUpdated,
+  setRtlsAnchors,
   setRtlsDevicesFromStatus,
   setRtlsOtaJob,
   updateRtlsStats,
@@ -22,6 +23,30 @@ describe('rtls slice', () => {
     expect(state.devices.byId).toEqual({});
     expect(state.stats.byId).toEqual({});
     expect(state.otaJobs).toEqual({});
+    expect(state.anchors).toEqual([]);
+  });
+
+  test('setRtlsAnchors replaces the constellation wholesale', () => {
+    let state = reducer(
+      initial(),
+      setRtlsAnchors([
+        { index: 0, lat: 41.39, lon: 2.15, amsl: 10 },
+        { index: 1, lat: 41.3901, lon: 2.1501 },
+      ])
+    );
+    expect(state.anchors).toHaveLength(2);
+
+    state = reducer(state, setRtlsAnchors([{ index: 0, lat: 1, lon: 2 }]));
+    expect(state.anchors).toEqual([{ index: 0, lat: 1, lon: 2 }]);
+  });
+
+  test('clearRtlsDevices also clears anchors', () => {
+    let state = reducer(
+      initial(),
+      setRtlsAnchors([{ index: 0, lat: 41.39, lon: 2.15 }])
+    );
+    state = reducer(state, clearRtlsDevices());
+    expect(state.anchors).toEqual([]);
   });
 
   test('setRtlsDevicesFromStatus replaces the registry wholesale', () => {

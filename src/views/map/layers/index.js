@@ -5,6 +5,7 @@ import {
 import { FeaturesLayer } from '~/components/map/layers/features';
 import { LayerType } from '~/model/layers';
 
+import { AnchorsLayer } from './anchors';
 import { BeaconsLayer } from './beacons';
 import { DocksLayer } from './docks';
 import { GeoJSONLayer, GeoJSONLayerSettings } from './geojson';
@@ -49,6 +50,7 @@ export const stateObjectToLayerSettings = (layer, layerId) => {
 
 export const Layers = {
   ...layerComponents,
+  [LayerType.ANCHORS]: AnchorsLayer,
   [LayerType.BEACONS]: BeaconsLayer,
   [LayerType.DOCKS]: DocksLayer,
   [LayerType.FEATURES]: FeaturesLayer,

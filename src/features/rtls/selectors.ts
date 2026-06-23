@@ -14,6 +14,7 @@ import {
   type RtlsHealth,
 } from './stats-utils';
 import {
+  type RtlsAnchor,
   type RtlsDevice,
   type RtlsDeviceStats,
   type RtlsOtaJob,
@@ -40,6 +41,13 @@ export const getRtlsDevicesInOrder: AppSelector<RtlsDevice[]> = createSelector(
  */
 export const getRtlsDeviceIdList: AppSelector<Identifier[]> = (state) =>
   state.rtls.devices.order;
+
+/**
+ * Selector that returns the site anchor constellation (fixed, georeferenced
+ * positions) for rendering on the map.
+ */
+export const getRtlsAnchors: AppSelector<RtlsAnchor[]> = (state) =>
+  state.rtls.anchors;
 
 /**
  * Returns the display name of an RTLS device, falling back to its id.
