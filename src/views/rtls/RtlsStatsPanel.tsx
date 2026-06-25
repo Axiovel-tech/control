@@ -31,7 +31,11 @@ import {
   isAnchorRole,
   RtlsRole,
 } from '~/features/rtls/stats-utils';
-import { type RtlsDevice, type RtlsDeviceStats } from '~/features/rtls/types';
+import {
+  type RtlsDevice,
+  type RtlsDeviceStats,
+  type RtlsTwrPeer,
+} from '~/features/rtls/types';
 
 const formatNumber = (
   value: number | undefined,
@@ -60,32 +64,39 @@ type DeviceStatsRowProps = {
 };
 
 /**
- * Renders the anchor inter-anchor TWR telemetry row: the measured distance to a
- * heard peer and its freshness. This is the anchor analogue of the tag's solve
- * stats — it proves the anchor is hearing the ether.
+ * Renders the anchor inter-anchor TWR telemetry: one row per peer anchor heard
+ * on the UWB ether, showing the measured distance and its freshness. This is
+ * the anchor analogue of the tag's solve stats — it proves the anchor is
+ * hearing the ether.
  */
-const AnchorTelemetryRows = ({
-  stats,
-}: {
-  stats: RtlsDeviceStats | undefined;
-}) => (
-  <MiniList>
-    <MiniListItem
-      primaryText='Inter-anchor TWR'
-      secondaryText={
-        stats?.twrDistanceM === undefined
-          ? '—'
-          : `${formatMac(stats.twrPeerMac)} @ ${stats.twrDistanceM.toFixed(
-              2
-            )} m`
-      }
-    />
-    <MiniListItem
-      primaryText='TWR age'
-      secondaryText={formatNumber(stats?.twrAgeMs, 'ms', 0)}
-    />
-  </MiniList>
-);
+const AnchorTelemetryRows = ({ twr }: { twr: RtlsTwrPeer[] | undefined }) => {
+  if (!twr || twr.length === 0) {
+    return (
+      <MiniList>
+        <MiniListItem primaryText='Inter-anchor TWR' secondaryText='—' />
+      </MiniList>
+    );
+  }
+  return (
+    <MiniList>
+      {twr.map((peer, index) => (
+        <MiniListItem
+          key={peer.peerMac ?? index}
+          primaryText={`Peer ${formatMac(peer.peerMac)}`}
+          secondaryText={
+            peer.distanceM === undefined
+              ? '—'
+              : `${peer.distanceM.toFixed(2)} m · ${formatNumber(
+                  peer.ageMs,
+                  'ms',
+                  0
+                )}`
+          }
+        />
+      ))}
+    </MiniList>
+  );
+};
 
 const DeviceStatsRow = ({ device, stats }: DeviceStatsRowProps) => {
   const { id, role: rawRole } = device;
@@ -96,7 +107,8 @@ const DeviceStatsRow = ({ device, stats }: DeviceStatsRowProps) => {
     online: device.online,
     age: device.age,
   });
-  const anchorsSeen = stats?.anchorsSeen ?? countAnchorsInMask(stats?.anchorMask);
+  const anchorsSeen =
+    stats?.anchorsSeen ?? countAnchorsInMask(stats?.anchorMask);
   const roleLabel = ROLE_LABELS[role];
 
   return (
@@ -119,7 +131,7 @@ const DeviceStatsRow = ({ device, stats }: DeviceStatsRowProps) => {
         )}
       </Box>
       {anchor ? (
-        <AnchorTelemetryRows stats={stats} />
+        <AnchorTelemetryRows twr={device.twr} />
       ) : (
         <MiniList>
           <MiniListItem

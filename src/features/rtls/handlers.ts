@@ -20,6 +20,7 @@ import {
   type RtlsDevice,
   type RtlsDeviceStats,
   type RtlsOtaJob,
+  type RtlsTwrPeer,
 } from './types';
 
 type AnyRecord = Record<string, unknown>;
@@ -29,6 +30,25 @@ const toNumber = (value: unknown): number | undefined =>
 
 const toString = (value: unknown): string | undefined =>
   typeof value === 'string' ? value : undefined;
+
+/**
+ * Maps the server's inter-anchor TWR list (X-RTLS-INF `twr`) into the device
+ * shape. Each row is `{peerMac, distanceM, ageMs}`; non-array or empty input
+ * yields `undefined` so the field is simply omitted.
+ */
+const mapTwrPeers = (value: unknown): RtlsTwrPeer[] | undefined => {
+  if (!Array.isArray(value) || value.length === 0) {
+    return undefined;
+  }
+  return value.map((raw) => {
+    const row = (raw ?? {}) as AnyRecord;
+    return {
+      peerMac: toNumber(row.peerMac),
+      distanceM: toNumber(row.distanceM),
+      ageMs: toNumber(row.ageMs),
+    };
+  });
+};
 
 /**
  * Maps a single device status object from the server into the shape stored in
@@ -84,6 +104,11 @@ export function mapRtlsDeviceStatus(
     result.otaStatus = otaStatus;
   }
 
+  const twr = mapTwrPeers(raw.twr);
+  if (twr !== undefined) {
+    result.twr = twr;
+  }
+
   return result;
 }
 
@@ -132,9 +157,6 @@ export function mapRtlsDeviceStats(
     fixAgeMs: toNumber(raw.fixAgeMs),
     clockPpm: toNumber(raw.clockPpm),
     anchorMask: toNumber(raw.anchorMask),
-    twrPeerMac: toNumber(raw.twrPeerMac),
-    twrDistanceM: toNumber(raw.twrDistanceM),
-    twrAgeMs: toNumber(raw.twrAgeMs),
   };
 }
 
