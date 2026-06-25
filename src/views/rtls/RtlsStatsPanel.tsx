@@ -25,10 +25,13 @@ import {
   getRtlsStatsLastUpdatedAt,
 } from '~/features/rtls/selectors';
 import {
+  classifyRole,
   countAnchorsInMask,
-  getDeviceHealth,
+  getDeviceHealthForRole,
+  isAnchorRole,
+  RtlsRole,
 } from '~/features/rtls/stats-utils';
-import { type RtlsDeviceStats } from '~/features/rtls/types';
+import { type RtlsDevice, type RtlsDeviceStats } from '~/features/rtls/types';
 
 const formatNumber = (
   value: number | undefined,
@@ -36,15 +39,65 @@ const formatNumber = (
   digits = 1
 ): string => (value === undefined ? '—' : `${value.toFixed(digits)} ${unit}`);
 
+/** Human-readable label for a classified role, shown next to the device name. */
+const ROLE_LABELS: Record<RtlsRole, string> = {
+  [RtlsRole.UNKNOWN]: '',
+  [RtlsRole.DISABLED]: 'Disabled',
+  [RtlsRole.TAG]: 'Tag',
+  [RtlsRole.ANCHOR_INITIATOR]: 'Anchor (initiator)',
+  [RtlsRole.ANCHOR_RESPONDER]: 'Anchor (responder)',
+};
+
+/** Formats an inter-anchor TWR peer MAC for display (e.g. 0x0001). */
+const formatMac = (mac: number | undefined): string =>
+  mac === undefined
+    ? '—'
+    : `0x${mac.toString(16).padStart(4, '0').toUpperCase()}`;
+
 type DeviceStatsRowProps = {
-  id: string;
-  name: string;
+  device: RtlsDevice;
   stats: RtlsDeviceStats | undefined;
 };
 
-const DeviceStatsRow = ({ id, name, stats }: DeviceStatsRowProps) => {
-  const health = getDeviceHealth(stats);
+/**
+ * Renders the anchor inter-anchor TWR telemetry row: the measured distance to a
+ * heard peer and its freshness. This is the anchor analogue of the tag's solve
+ * stats — it proves the anchor is hearing the ether.
+ */
+const AnchorTelemetryRows = ({
+  stats,
+}: {
+  stats: RtlsDeviceStats | undefined;
+}) => (
+  <MiniList>
+    <MiniListItem
+      primaryText='Inter-anchor TWR'
+      secondaryText={
+        stats?.twrDistanceM === undefined
+          ? '—'
+          : `${formatMac(stats.twrPeerMac)} @ ${stats.twrDistanceM.toFixed(
+              2
+            )} m`
+      }
+    />
+    <MiniListItem
+      primaryText='TWR age'
+      secondaryText={formatNumber(stats?.twrAgeMs, 'ms', 0)}
+    />
+  </MiniList>
+);
+
+const DeviceStatsRow = ({ device, stats }: DeviceStatsRowProps) => {
+  const { id, role: rawRole } = device;
+  const name = device.name ?? device.id;
+  const role = classifyRole(rawRole);
+  const anchor = isAnchorRole(role);
+  const health = getDeviceHealthForRole(role, stats, {
+    online: device.online,
+    age: device.age,
+  });
   const anchorsSeen = stats?.anchorsSeen ?? countAnchorsInMask(stats?.anchorMask);
+  const roleLabel = ROLE_LABELS[role];
 
   return (
     <Box sx={{ px: 1, py: 1 }}>
@@ -53,37 +106,48 @@ const DeviceStatsRow = ({ id, name, stats }: DeviceStatsRowProps) => {
         <Typography variant='subtitle2' sx={{ flexGrow: 1 }}>
           {name}
         </Typography>
-        <AnchorBars
-          anchorMask={stats?.anchorMask}
-          anchorsSeen={anchorsSeen}
-        />
+        {roleLabel && (
+          <Typography variant='caption' color='textSecondary'>
+            {roleLabel}
+          </Typography>
+        )}
+        {!anchor && (
+          <AnchorBars
+            anchorMask={stats?.anchorMask}
+            anchorsSeen={anchorsSeen}
+          />
+        )}
       </Box>
-      <MiniList>
-        <MiniListItem
-          primaryText='Solve rate'
-          secondaryText={formatNumber(stats?.solveRateHz, 'Hz')}
-        />
-        <MiniListItem
-          primaryText='Solve %'
-          secondaryText={
-            stats?.solvePct === undefined
-              ? '—'
-              : `${stats.solvePct.toFixed(0)}%`
-          }
-        />
-        <MiniListItem
-          primaryText='Fix age'
-          secondaryText={formatNumber(stats?.fixAgeMs, 'ms', 0)}
-        />
-        <MiniListItem
-          primaryText='Clock drift'
-          secondaryText={formatNumber(stats?.clockPpm, 'ppm', 2)}
-        />
-        <MiniListItem
-          primaryText='Anchors seen'
-          secondaryText={String(anchorsSeen)}
-        />
-      </MiniList>
+      {anchor ? (
+        <AnchorTelemetryRows stats={stats} />
+      ) : (
+        <MiniList>
+          <MiniListItem
+            primaryText='Solve rate'
+            secondaryText={formatNumber(stats?.solveRateHz, 'Hz')}
+          />
+          <MiniListItem
+            primaryText='Solve %'
+            secondaryText={
+              stats?.solvePct === undefined
+                ? '—'
+                : `${stats.solvePct.toFixed(0)}%`
+            }
+          />
+          <MiniListItem
+            primaryText='Fix age'
+            secondaryText={formatNumber(stats?.fixAgeMs, 'ms', 0)}
+          />
+          <MiniListItem
+            primaryText='Clock drift'
+            secondaryText={formatNumber(stats?.clockPpm, 'ppm', 2)}
+          />
+          <MiniListItem
+            primaryText='Anchors seen'
+            secondaryText={String(anchorsSeen)}
+          />
+        </MiniList>
+      )}
       <Typography
         variant='caption'
         color='textSecondary'
@@ -126,11 +190,7 @@ const RtlsStatsPanel = () => {
       {devices.map((device, index) => (
         <Box key={device.id}>
           {index > 0 && <Divider />}
-          <DeviceStatsRow
-            id={device.id}
-            name={device.name ?? device.id}
-            stats={statsById[device.id]}
-          />
+          <DeviceStatsRow device={device} stats={statsById[device.id]} />
         </Box>
       ))}
     </Box>

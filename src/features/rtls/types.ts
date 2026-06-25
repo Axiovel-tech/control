@@ -87,6 +87,23 @@ export type RtlsDeviceStats = {
   clockPpm?: number;
   /** Bitmask of anchors that contributed to the most recent fix. */
   anchorMask?: number;
+
+  /**
+   * Inter-anchor TWR telemetry (anchors only). An anchor hears its peers over
+   * the UWB ether and reports the measured distance to one peer as a
+   * NAMED_VALUE_FLOAT; the server surfaces it here so the stats panel can show
+   * "I can hear A0 at 14.10 m". Tags do not populate these fields.
+   */
+
+  /** MAC of the peer anchor this TWR measurement refers to. */
+  twrPeerMac?: number;
+  /** Measured inter-anchor distance to the peer, in metres. */
+  twrDistanceM?: number;
+  /**
+   * Age of the inter-anchor TWR measurement, in milliseconds. A growing value
+   * means the peer has gone quiet on the ether (stale telemetry).
+   */
+  twrAgeMs?: number;
 };
 
 /**

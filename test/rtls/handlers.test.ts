@@ -129,6 +129,21 @@ describe('rtls handlers', () => {
       });
     });
 
+    test('mapRtlsDeviceStats maps inter-anchor TWR telemetry', () => {
+      expect(
+        mapRtlsDeviceStats('5', {
+          twrPeerMac: 0x0001,
+          twrDistanceM: 14.1,
+          twrAgeMs: 120,
+        })
+      ).toMatchObject({
+        id: '5',
+        twrPeerMac: 0x0001,
+        twrDistanceM: 14.1,
+        twrAgeMs: 120,
+      });
+    });
+
     test('buildRtlsStatsMap maps every device', () => {
       const byId = buildRtlsStatsMap({ '3': { solveRateHz: 1 } });
       expect(byId['3']).toMatchObject({ id: '3', solveRateHz: 1 });

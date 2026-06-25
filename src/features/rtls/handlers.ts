@@ -132,6 +132,9 @@ export function mapRtlsDeviceStats(
     fixAgeMs: toNumber(raw.fixAgeMs),
     clockPpm: toNumber(raw.clockPpm),
     anchorMask: toNumber(raw.anchorMask),
+    twrPeerMac: toNumber(raw.twrPeerMac),
+    twrDistanceM: toNumber(raw.twrDistanceM),
+    twrAgeMs: toNumber(raw.twrAgeMs),
   };
 }
 
