@@ -53,12 +53,19 @@ export default function* onboardingSaga() {
     // does not connect automatically, we can leave the hostname and the port
     // empty.
     if (connectAutomatically) {
-      if (!hostName) {
+      const hostNameConfigured = Boolean(hostName);
+      if (!hostNameConfigured) {
         hostName = guessHostName();
       }
 
       if (isNil(port) || !port) {
-        port = guessPort();
+        // The page URL's port is only meaningful when the hostname also
+        // came from the page (Live served by the server itself). An
+        // explicitly configured hostname points at a separate server
+        // process, so guessing the page's port would aim the websocket at
+        // whatever serves the GUI (e.g. a webpack dev server) and hang on
+        // "connecting" forever; use the standard Skybrush port instead.
+        port = hostNameConfigured ? 5000 : guessPort();
       }
     }
 
