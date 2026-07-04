@@ -9,7 +9,8 @@ import {
 
 import { type RtlsDeviceParamsState } from './slice';
 import {
-  getDeviceHealth,
+  classifyRole,
+  getDeviceHealthForRole,
   getOverallHealth,
   type RtlsHealth,
 } from './stats-utils';
@@ -97,12 +98,24 @@ export const getRtlsOtaDialogDeviceId: AppSelector<string | undefined> = (
 
 /**
  * Selector that returns the overall (worst-case) RTLS health across *all* known
- * RTLS devices. A discovered device that has not yet reported statistics
- * contributes an UNKNOWN health, so a fleet with a mix of healthy and
- * statless devices does not collapse to "healthy".
+ * RTLS devices. Health is role-aware: anchors are judged by liveness
+ * (online/last-seen), tags by their solve statistics. A discovered device that
+ * has not yet reported the signal relevant to its role contributes an UNKNOWN
+ * health, so a fleet with a mix of healthy and statless devices does not
+ * collapse to "healthy".
  */
 export const getOverallRtlsHealth: AppSelector<RtlsHealth> = createSelector(
-  getRtlsDeviceIdList,
+  getRtlsDevicesAsCollection,
   getRtlsStatsById,
-  (ids, byId) => getOverallHealth(ids.map((id) => getDeviceHealth(byId[id])))
+  (devices, byId) =>
+    getOverallHealth(
+      devices.order.map((id) => {
+        const device = devices.byId[id];
+        return getDeviceHealthForRole(
+          classifyRole(device?.role),
+          byId[id],
+          device ? { online: device.online, age: device.age } : undefined
+        );
+      })
+    )
 );

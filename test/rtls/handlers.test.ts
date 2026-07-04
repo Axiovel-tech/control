@@ -26,9 +26,9 @@ type DispatchedAction = { type: string; payload: any };
  * recorded actions from `.mock.calls` yields a typed `DispatchedAction`.
  */
 const createMockDispatch = () =>
-  jest.fn<(action: DispatchedAction) => DispatchedAction>() as unknown as jest.Mock<
+  jest.fn<
     (action: DispatchedAction) => DispatchedAction
-  > &
+  >() as unknown as jest.Mock<(action: DispatchedAction) => DispatchedAction> &
     AppDispatch;
 
 describe('rtls handlers', () => {
@@ -53,9 +53,11 @@ describe('rtls handlers', () => {
     });
 
     test('respects an explicit online flag', () => {
-      expect(mapRtlsDeviceStatus('1', { online: false, age: 0 })).toMatchObject({
-        online: false,
-      });
+      expect(mapRtlsDeviceStatus('1', { online: false, age: 0 })).toMatchObject(
+        {
+          online: false,
+        }
+      );
     });
 
     test('infers offline from a large age when no online flag is present', () => {
@@ -76,6 +78,26 @@ describe('rtls handlers', () => {
       expect(mapped.age).toBeUndefined();
       expect(mapped.paramCount).toBeUndefined();
       expect(mapped.firmwareVersion).toBeUndefined();
+    });
+
+    test('maps the inter-anchor TWR list from the device status', () => {
+      const mapped = mapRtlsDeviceStatus('5', {
+        role: 'anchor-responder',
+        twr: [
+          { peerMac: 0x0001, distanceM: 14.1, ageMs: 120 },
+          { peerMac: 0x0002, distanceM: 9.5, ageMs: 0 },
+        ],
+      });
+      expect(mapped.twr).toEqual([
+        { peerMac: 0x0001, distanceM: 14.1, ageMs: 120 },
+        { peerMac: 0x0002, distanceM: 9.5, ageMs: 0 },
+      ]);
+    });
+
+    test('omits TWR when absent or not a non-empty array', () => {
+      expect(mapRtlsDeviceStatus('5', {}).twr).toBeUndefined();
+      expect(mapRtlsDeviceStatus('5', { twr: [] }).twr).toBeUndefined();
+      expect(mapRtlsDeviceStatus('5', { twr: 'nope' }).twr).toBeUndefined();
     });
   });
 
@@ -127,6 +149,15 @@ describe('rtls handlers', () => {
         clockPpm: -1.2,
         anchorMask: 0b1011,
       });
+    });
+
+    test('mapRtlsDeviceStats ignores inter-anchor TWR (it rides on X-RTLS-INF)', () => {
+      // TWR is now surfaced on the device status (INF), not on the stats path;
+      // the stats mapper must not invent twr* fields from a stats body.
+      const mapped = mapRtlsDeviceStats('5', { solveRateHz: 1 });
+      expect(mapped).not.toHaveProperty('twrPeerMac');
+      expect(mapped).not.toHaveProperty('twrDistanceM');
+      expect(mapped).not.toHaveProperty('twrAgeMs');
     });
 
     test('buildRtlsStatsMap maps every device', () => {

@@ -31,6 +31,24 @@ export type RtlsParamType =
 export type RtlsParamValue = number | string;
 
 /**
+ * A single inter-anchor TWR measurement (anchors only). An anchor hears its
+ * peers over the UWB ether and reports the measured distance to each peer; the
+ * server surfaces these on the device's X-RTLS-INF status so the stats panel
+ * can show "I can hear A0 at 14.10 m". Tags do not report these.
+ */
+export type RtlsTwrPeer = {
+  /** MAC of the peer anchor this measurement refers to. */
+  peerMac?: number;
+  /** Measured inter-anchor distance to the peer, in metres. */
+  distanceM?: number;
+  /**
+   * Age of the measurement, in milliseconds. A growing value means the peer
+   * has gone quiet on the ether (stale telemetry).
+   */
+  ageMs?: number;
+};
+
+/**
  * A single RTLS device as tracked in the Redux state.
  *
  * Devices are keyed by their MAVLink system id rendered as a numeric string.
@@ -62,6 +80,13 @@ export type RtlsDevice = {
 
   /** Last known OTA status for the device. */
   otaStatus?: string;
+
+  /**
+   * Inter-anchor TWR telemetry (anchors only), freshest first: one row per
+   * peer anchor heard on the UWB ether. Absent for tags and for anchors that
+   * are not yet hearing peers.
+   */
+  twr?: RtlsTwrPeer[];
 };
 
 /**
