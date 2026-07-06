@@ -10,6 +10,7 @@ import reducer, {
   rtlsParamValueUpdated,
   setRtlsDevicesFromStatus,
   setRtlsOtaJob,
+  setSelectedTabInRtlsPanel,
   updateRtlsStats,
 } from '~/features/rtls/slice';
 
@@ -60,10 +61,7 @@ describe('rtls slice', () => {
     );
     expect(state.otaJobs['2']).toBeDefined();
 
-    state = reducer(
-      state,
-      setRtlsDevicesFromStatus({ '1': { online: true } })
-    );
+    state = reducer(state, setRtlsDevicesFromStatus({ '1': { online: true } }));
     expect(state.otaJobs['2']).toBeUndefined();
   });
 
@@ -211,6 +209,19 @@ describe('rtls slice', () => {
       expect(state.paramDialog).toEqual({ open: true, deviceId: '7' });
       state = reducer(state, closeRtlsParamDialog());
       expect(state.paramDialog).toEqual({ open: false, deviceId: undefined });
+    });
+  });
+
+  describe('panel tab', () => {
+    test('defaults to the devices tab', () => {
+      expect(initial().panel.selectedTab).toBe('devices');
+    });
+
+    test('setSelectedTabInRtlsPanel switches tabs', () => {
+      let state = reducer(initial(), setSelectedTabInRtlsPanel('health'));
+      expect(state.panel.selectedTab).toBe('health');
+      state = reducer(state, setSelectedTabInRtlsPanel('devices'));
+      expect(state.panel.selectedTab).toBe('devices');
     });
   });
 

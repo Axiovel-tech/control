@@ -7,7 +7,7 @@ import {
   selectOrdered,
 } from '~/utils/collections';
 
-import { type RtlsDeviceParamsState } from './slice';
+import { type RtlsDeviceParamsState, type RtlsPanelTab } from './slice';
 import {
   classifyRole,
   getDeviceHealthForRole,
@@ -86,6 +86,10 @@ export const isRtlsParamDialogOpen: AppSelector<boolean> = (state) =>
 export const getRtlsParamDialogDeviceId: AppSelector<string | undefined> = (
   state
 ) => state.rtls.paramDialog.deviceId;
+
+/** Selector that returns the selected tab of the RTLS Link panel. */
+export const getSelectedTabInRtlsPanel: AppSelector<RtlsPanelTab> = (state) =>
+  state.rtls.panel.selectedTab;
 
 /** Selector that returns whether the OTA dialog is open. */
 export const isRtlsOtaDialogOpen: AppSelector<boolean> = (state) =>
