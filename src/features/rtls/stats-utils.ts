@@ -196,8 +196,7 @@ export function getDeviceHealth(
   const stale = fixAgeMs !== undefined && fixAgeMs > STALE_FIX_AGE_MS;
   const lowRate =
     solveRateHz !== undefined && solveRateHz < MIN_HEALTHY_SOLVE_RATE_HZ;
-  const lowPct =
-    solvePct !== undefined && solvePct < MIN_HEALTHY_SOLVE_PCT;
+  const lowPct = solvePct !== undefined && solvePct < MIN_HEALTHY_SOLVE_PCT;
 
   if (stale || lowRate || lowPct) {
     return RtlsHealth.WARNING;
@@ -248,7 +247,8 @@ export function decodeAnchorMask(
   }
 
   const intMask = Math.trunc(mask);
-  const bits = count ?? (intMask === 0 ? 0 : Math.floor(Math.log2(intMask)) + 1);
+  const bits =
+    count ?? (intMask === 0 ? 0 : Math.floor(Math.log2(intMask)) + 1);
 
   const result: boolean[] = [];
   for (let i = 0; i < bits; i++) {

@@ -231,9 +231,7 @@ const { actions, reducer } = createSlice({
     /** Records the latest OTA job state for a single device. */
     setRtlsOtaJob(
       state,
-      {
-        payload: { id, job },
-      }: PayloadAction<{ id: string; job: RtlsOtaJob }>
+      { payload: { id, job } }: PayloadAction<{ id: string; job: RtlsOtaJob }>
     ) {
       state.otaJobs[id] = job;
     },
