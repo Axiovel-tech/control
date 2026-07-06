@@ -21,9 +21,10 @@ export type RtlsParamGroup = {
 
 /**
  * Human-readable labels for the known group prefixes. Unknown prefixes fall
- * back to the raw prefix itself.
+ * back to the raw prefix itself; `getRtlsParamGroupLabel` is the single
+ * access path so the fallback cannot be bypassed.
  */
-export const GROUP_LABELS: Record<string, string> = {
+const GROUP_LABELS: Record<string, string> = {
   UWB: 'UWB ranging',
   POS: 'Positioning',
   ORIGIN: 'Site origin',
@@ -85,6 +86,7 @@ export function groupRtlsParams(params: RtlsParam[]): RtlsParamGroup[] {
     return a.localeCompare(b);
   });
 
+  // Non-null: every key came out of byKey.keys() two statements above.
   return keys.map((key) => ({ key, params: byKey.get(key)! }));
 }
 

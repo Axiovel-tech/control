@@ -39,7 +39,7 @@ const views: Record<RtlsPanelTab, React.ComponentType> = {
 const RtlsPanel = () => {
   const classes = useStyles();
   const selectedTab = useSelector(getSelectedTabInRtlsPanel);
-  const Body = views[selectedTab] ?? RtlsDeviceList;
+  const Body = views[selectedTab];
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>

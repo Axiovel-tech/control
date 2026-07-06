@@ -15,6 +15,7 @@ import Refresh from '@mui/icons-material/Refresh';
 import Search from '@mui/icons-material/Search';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
+import ButtonBase from '@mui/material/ButtonBase';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import IconButton from '@mui/material/IconButton';
@@ -63,20 +64,27 @@ const GroupHeaderRow = ({
   expanded,
   onToggle,
 }: GroupHeaderRowProps) => (
-  <TableRow
-    hover
-    sx={{ cursor: searching ? 'default' : 'pointer' }}
-    onClick={searching ? undefined : onToggle}
-  >
+  <TableRow hover>
     <TableCell
       colSpan={4}
       sx={{
-        py: 0.5,
+        p: 0,
         bgcolor: 'action.hover',
         opacity: searching && matchCount === 0 ? 0.5 : 1,
       }}
     >
-      <Box display='flex' alignItems='center' gap={1}>
+      <ButtonBase
+        disabled={searching}
+        aria-expanded={expanded}
+        sx={{
+          width: '100%',
+          justifyContent: 'flex-start',
+          px: 2,
+          py: 0.5,
+          gap: 1,
+        }}
+        onClick={onToggle}
+      >
         {expanded ? (
           <ExpandMore fontSize='small' />
         ) : (
@@ -86,7 +94,7 @@ const GroupHeaderRow = ({
         <Typography variant='caption' color='text.secondary'>
           {searching ? `${matchCount} of ${total}` : total}
         </Typography>
-      </Box>
+      </ButtonBase>
     </TableCell>
   </TableRow>
 );
@@ -145,7 +153,12 @@ const RtlsParameterDialog = () => {
   const status = paramsState?.status ?? 'idle';
   const params = paramsState?.params ?? [];
 
-  const searching = searchText.trim().length > 0;
+  // `hasText` gates the editor chrome (clear adornment, Escape-clears);
+  // `query`/`searching` gate the actual filtering, so whitespace-only input
+  // is still clearable but does not filter.
+  const hasText = searchText.length > 0;
+  const query = searchText.trim();
+  const searching = query.length > 0;
   const grouped = useMemo(() => groupRtlsParams(params), [params]);
   const filteredGroups = useMemo(
     () =>
@@ -153,11 +166,11 @@ const RtlsParameterDialog = () => {
         key: group.key,
         label: getRtlsParamGroupLabel(group.key),
         total: group.params.length,
-        matches: group.params.filter((param) =>
-          matchesRtlsParamFilter(param, searchText)
-        ),
+        matches: query
+          ? group.params.filter((param) => matchesRtlsParamFilter(param, query))
+          : group.params,
       })),
-    [grouped, searchText]
+    [grouped, query]
   );
   const matchCount = filteredGroups.reduce(
     (sum, group) => sum + group.matches.length,
@@ -181,7 +194,10 @@ const RtlsParameterDialog = () => {
       }
     >
       <DialogContent>
-        {status === 'error' ? (
+        {status === 'error' && params.length === 0 ? (
+          // A failed refresh keeps the previously fetched list in the cache
+          // (see rtlsParamsFetchFailed) — only a failure with nothing cached
+          // replaces the table with the error hint.
           <BackgroundHint
             text={`Failed to load parameters: ${paramsState?.error ?? 'unknown error'}`}
           />
@@ -205,7 +221,7 @@ const RtlsParameterDialog = () => {
                       <Search fontSize='small' />
                     </InputAdornment>
                   ),
-                  endAdornment: searching ? (
+                  endAdornment: hasText ? (
                     <InputAdornment position='end'>
                       <IconButton
                         size='small'
@@ -223,7 +239,7 @@ const RtlsParameterDialog = () => {
                 if (event.key === 'Enter') {
                   // Never let Enter fall through to a row commit.
                   event.preventDefault();
-                } else if (event.key === 'Escape' && searching) {
+                } else if (event.key === 'Escape' && hasText) {
                   // First Escape clears the search; only an empty search
                   // lets Escape bubble up and close the dialog.
                   event.stopPropagation();
@@ -234,7 +250,7 @@ const RtlsParameterDialog = () => {
             {searching && matchCount === 0 ? (
               <Box py={4}>
                 <BackgroundHint
-                  text={`No parameters match “${searchText.trim()}”`}
+                  text={`No parameters match “${query}”`}
                   button={
                     <Button onClick={() => setSearchText('')}>
                       Clear filter
@@ -253,8 +269,11 @@ const RtlsParameterDialog = () => {
                         ? group.matches.length > 0
                         : !collapsedGroups.has(group.key);
                       return [
+                        // The `group:` prefix keeps the header key disjoint
+                        // from row keys — an underscore-less param name IS
+                        // its own group key.
                         <GroupHeaderRow
-                          key={group.key}
+                          key={`group:${group.key}`}
                           label={group.label}
                           total={group.total}
                           matchCount={group.matches.length}
@@ -266,6 +285,9 @@ const RtlsParameterDialog = () => {
                           ? group.matches.map((param) => (
                               <RtlsParameterRow
                                 key={param.name}
+                                // deviceId is set whenever params exist:
+                                // the table only renders for a fetched
+                                // device.
                                 deviceId={deviceId!}
                                 param={param}
                               />

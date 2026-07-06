@@ -422,18 +422,14 @@ const ANCHOR_FIELD_TEMPLATES: Record<
   }),
 };
 
-type MetadataPattern = {
-  regex: RegExp;
-  resolve: (match: RegExpExecArray) => RtlsParamMetadata;
-};
+const ANCHOR_SLOT_REGEX = /^UWB_AN([0-7])_(X|Y|Z|MAC|BIAS_M)$/;
 
-/* Ordered; the first matching pattern wins. */
-const PATTERNS: MetadataPattern[] = [
-  {
-    regex: /^UWB_AN([0-7])_(X|Y|Z|MAC|BIAS_M)$/,
-    resolve: (match) => ANCHOR_FIELD_TEMPLATES[match[2]](match[1]),
-  },
-];
+/**
+ * Cache of template-resolved metadata so repeated lookups (the filter and
+ * every row render hit this per keystroke) are plain map reads returning
+ * stable object identities.
+ */
+const resolvedCache = new Map<string, RtlsParamMetadata>();
 
 /**
  * Returns the static metadata for the given RTLS parameter name, or
@@ -448,11 +444,16 @@ export function getRtlsParamMetadata(
     return exact;
   }
 
-  for (const { regex, resolve } of PATTERNS) {
-    const match = regex.exec(name);
-    if (match) {
-      return resolve(match);
-    }
+  const cached = resolvedCache.get(name);
+  if (cached) {
+    return cached;
+  }
+
+  const match = ANCHOR_SLOT_REGEX.exec(name);
+  if (match) {
+    const metadata = ANCHOR_FIELD_TEMPLATES[match[2]](match[1]);
+    resolvedCache.set(name, metadata);
+    return metadata;
   }
 
   return undefined;

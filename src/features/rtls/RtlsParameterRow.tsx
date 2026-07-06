@@ -11,7 +11,7 @@ import TableCell from '@mui/material/TableCell';
 import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
-import { useCallback, useEffect, useState } from 'react';
+import { memo, useCallback, useEffect, useState } from 'react';
 import { useDispatch } from 'react-redux';
 
 import { TooltipWithContainerFromContext as Tooltip } from '~/containerContext';
@@ -35,7 +35,14 @@ const enumLabelFor = (
     return undefined;
   }
 
-  const value = Number(draft.trim());
+  // Number('') is 0, which would show the label of wire value 0 under an
+  // emptied editor — treat a blank draft as "no value" instead.
+  const trimmed = draft.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+
+  const value = Number(trimmed);
   return Number.isInteger(value) ? metadata.enumLabels[value] : undefined;
 };
 
@@ -66,7 +73,7 @@ const MetadataTooltipContent = ({
   </>
 );
 
-export type RtlsParameterRowProps = {
+type RtlsParameterRowProps = {
   deviceId: string;
   param: RtlsParam;
 };
@@ -192,4 +199,7 @@ const RtlsParameterRow = ({ deviceId, param }: RtlsParameterRowProps) => {
   );
 };
 
-export default RtlsParameterRow;
+// Memoized: the dialog re-renders on every search keystroke and collapse
+// toggle, and the row props (deviceId, the param object from the cached
+// Redux array) are referentially stable across those renders.
+export default memo(RtlsParameterRow);
