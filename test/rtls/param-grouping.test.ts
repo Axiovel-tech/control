@@ -69,7 +69,7 @@ describe('groupRtlsParams', () => {
       param('UWB_CHANNEL'),
       param('UWB_AN0_X'),
     ]);
-    expect(groups[0]!.params.map((p) => p.name)).toEqual([
+    expect(groups[0].params.map((p) => p.name)).toEqual([
       'UWB_MAC',
       'UWB_CHANNEL',
       'UWB_AN0_X',

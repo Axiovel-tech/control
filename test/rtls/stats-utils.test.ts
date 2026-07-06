@@ -43,9 +43,9 @@ describe('rtls stats-utils', () => {
     });
 
     test('warning for a low solve rate or percentage', () => {
-      expect(
-        getDeviceHealth({ id: '1', solveRateHz: 0.5, fixAgeMs: 10 })
-      ).toBe(RtlsHealth.WARNING);
+      expect(getDeviceHealth({ id: '1', solveRateHz: 0.5, fixAgeMs: 10 })).toBe(
+        RtlsHealth.WARNING
+      );
       expect(getDeviceHealth({ id: '1', solvePct: 20, fixAgeMs: 10 })).toBe(
         RtlsHealth.WARNING
       );

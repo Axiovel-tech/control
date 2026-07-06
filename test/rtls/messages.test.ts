@@ -6,8 +6,7 @@ import { describe, expect, jest, test } from '@jest/globals';
 // use it to format error text.
 jest.mock('~/error-handling', () => ({
   errorToString: (error: unknown, prefix?: string): string => {
-    const base =
-      error instanceof Error ? error.message : String(error);
+    const base = error instanceof Error ? error.message : String(error);
     return prefix ? `${prefix}: ${base}` : base;
   },
 }));
@@ -29,7 +28,11 @@ const makeHub = (body: Record<string, unknown>) => {
     }),
   };
 
-  return { hub: hub as unknown as MessageHub, sent, sendMessage: hub.sendMessage };
+  return {
+    hub: hub as unknown as MessageHub,
+    sent,
+    sendMessage: hub.sendMessage,
+  };
 };
 
 describe('rtls messages', () => {
@@ -104,6 +107,10 @@ describe('rtls messages', () => {
     });
     const job = await startRtlsOta(hub, '7', 'fw.bin');
     expect(job).toMatchObject({ id: 'job-1', status: 'pending' });
-    expect(sent[0]).toMatchObject({ type: 'X-RTLS-OTA', id: '7', image: 'fw.bin' });
+    expect(sent[0]).toMatchObject({
+      type: 'X-RTLS-OTA',
+      id: '7',
+      image: 'fw.bin',
+    });
   });
 });
