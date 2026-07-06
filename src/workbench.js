@@ -147,15 +147,22 @@ export const componentRegistry = {
     component: Nothing,
     label: 'Placeholder',
   },
-  'rtls-device-list': {
-    component: views.RtlsDeviceList,
-    label: 'RTLS',
+  rtls: {
+    component: views.RtlsPanel,
+    label: 'RTLS Link',
     detachable: true,
   },
+  'rtls-device-list': {
+    // deprecated, kept there for compatibility with persisted layouts;
+    // renders the merged RTLS Link panel
+    component: views.RtlsPanel,
+    label: 'RTLS Link',
+  },
   'rtls-stats': {
-    component: views.RtlsStatsPanel,
-    label: 'RTLS health',
-    detachable: true,
+    // deprecated, kept there for compatibility with persisted layouts;
+    // renders the merged RTLS Link panel
+    component: views.RtlsPanel,
+    label: 'RTLS Link',
   },
   'saved-location-list': {
     component: views.SavedLocationList,

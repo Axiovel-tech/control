@@ -120,6 +120,7 @@ declare module 'config' {
         | 'mapFeatures' // (Objects that can be drawn and edited on the map.)
         | 'missionEditor'
         | 'perspectives'
+        | 'rtls'
         | 'safetySettings'
         | 'showControl'
         | 'threeDView'
