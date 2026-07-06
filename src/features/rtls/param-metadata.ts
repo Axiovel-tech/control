@@ -431,7 +431,7 @@ type MetadataPattern = {
 const PATTERNS: MetadataPattern[] = [
   {
     regex: /^UWB_AN([0-7])_(X|Y|Z|MAC|BIAS_M)$/,
-    resolve: (match) => ANCHOR_FIELD_TEMPLATES[match[2]!]!(match[1]!),
+    resolve: (match) => ANCHOR_FIELD_TEMPLATES[match[2]](match[1]),
   },
 ];
 
