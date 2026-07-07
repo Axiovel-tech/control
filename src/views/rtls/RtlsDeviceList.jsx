@@ -3,9 +3,11 @@
  * server, together with their online state and basic firmware information.
  */
 
+import Moon from '@mui/icons-material/NightsStay';
 import SystemUpdate from '@mui/icons-material/SystemUpdate';
 import Tune from '@mui/icons-material/Tune';
 import Box from '@mui/material/Box';
+import Divider from '@mui/material/Divider';
 import IconButton from '@mui/material/IconButton';
 import ListItem from '@mui/material/ListItem';
 import ListItemButton from '@mui/material/ListItemButton';
@@ -16,11 +18,23 @@ import { connect } from 'react-redux';
 import { StatusLight, Tooltip } from '@skybrush/mui-components';
 
 import { listOf } from '~/components/helpers/lists';
+import {
+  sleepAllRtlsDevices,
+  toggleRtlsDeviceSleep,
+  wakeAllRtlsDevices,
+} from '~/features/rtls/sleep-actions';
 import { openRtlsOtaDialog, openRtlsParamDialog } from '~/features/rtls/slice';
 import {
   getRtlsDeviceDisplayName,
   getRtlsDevicesInOrder,
 } from '~/features/rtls/selectors';
+import Bolt from '~/icons/Bolt';
+
+/**
+ * Sleep mode only applies to drones (tags): anchors have no power rails to
+ * cut and no SLEEP parameter.
+ */
+const isSleepable = (device) => !device.role || device.role === 'tag';
 
 /**
  * Builds the secondary text line for a device, combining firmware version and
@@ -28,6 +42,10 @@ import {
  */
 const describeDevice = (device) => {
   const parts = [];
+  if (device.sleeping) {
+    parts.push('sleeping');
+  }
+
   if (device.firmwareVersion) {
     parts.push(`fw ${device.firmwareVersion}`);
   }
@@ -50,6 +68,21 @@ const RtlsDeviceListPresentation = listOf(
   (device, props) => {
     const secondaryAction = (
       <Box>
+        {isSleepable(device) && (
+          <Tooltip content={device.sleeping ? 'Wake' : 'Sleep'}>
+            <IconButton
+              edge='end'
+              size='small'
+              onClick={() => props.onToggleSleep(device.id, !device.sleeping)}
+            >
+              {device.sleeping ? (
+                <Bolt fontSize='small' />
+              ) : (
+                <Moon fontSize='small' />
+              )}
+            </IconButton>
+          </Tooltip>
+        )}
         <Tooltip content='Parameters'>
           <IconButton
             edge='end'
@@ -78,7 +111,11 @@ const RtlsDeviceListPresentation = listOf(
         secondaryAction={secondaryAction}
       >
         <ListItemButton>
-          <StatusLight status={device.online ? 'success' : 'error'} />
+          <StatusLight
+            status={
+              device.online ? (device.sleeping ? 'off' : 'success') : 'error'
+            }
+          />
           <ListItemText
             primary={getRtlsDeviceDisplayName(device)}
             secondary={describeDevice(device)}
@@ -97,13 +134,42 @@ const RtlsDeviceListPresentation = listOf(
  * React component that shows the state of the known RTLS devices in a Skybrush
  * server.
  */
-const RtlsDeviceList = ({ onShowOta, onShowParameters, ...rest }) => (
+const RtlsDeviceList = ({
+  onShowOta,
+  onShowParameters,
+  onSleepAll,
+  onToggleSleep,
+  onWakeAll,
+  ...rest
+}) => (
   <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <Box
+      sx={{
+        display: 'flex',
+        justifyContent: 'flex-end',
+        gap: 0.5,
+        px: 1,
+        py: 0.5,
+      }}
+    >
+      <Tooltip content='Sleep all drones'>
+        <IconButton size='small' onClick={onSleepAll}>
+          <Moon fontSize='small' />
+        </IconButton>
+      </Tooltip>
+      <Tooltip content='Wake all drones'>
+        <IconButton size='small' onClick={onWakeAll}>
+          <Bolt fontSize='small' />
+        </IconButton>
+      </Tooltip>
+    </Box>
+    <Divider />
     <Box sx={{ height: '100%', overflow: 'auto' }}>
       <RtlsDeviceListPresentation
         dense
         onShowOta={onShowOta}
         onShowParameters={onShowParameters}
+        onToggleSleep={onToggleSleep}
         {...rest}
       />
     </Box>
@@ -113,6 +179,9 @@ const RtlsDeviceList = ({ onShowOta, onShowParameters, ...rest }) => (
 RtlsDeviceList.propTypes = {
   onShowOta: PropTypes.func,
   onShowParameters: PropTypes.func,
+  onSleepAll: PropTypes.func,
+  onToggleSleep: PropTypes.func,
+  onWakeAll: PropTypes.func,
 };
 
 export default connect(
@@ -124,5 +193,8 @@ export default connect(
   {
     onShowOta: openRtlsOtaDialog,
     onShowParameters: openRtlsParamDialog,
+    onSleepAll: sleepAllRtlsDevices,
+    onToggleSleep: toggleRtlsDeviceSleep,
+    onWakeAll: wakeAllRtlsDevices,
   }
 )(RtlsDeviceList);

@@ -104,6 +104,10 @@ export function mapRtlsDeviceStatus(
     result.otaStatus = otaStatus;
   }
 
+  if (typeof raw.sleeping === 'boolean') {
+    result.sleeping = raw.sleeping;
+  }
+
   const twr = mapTwrPeers(raw.twr);
   if (twr !== undefined) {
     result.twr = twr;

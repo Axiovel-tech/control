@@ -145,6 +145,61 @@ export async function setRtlsParameter(
 }
 
 /**
+ * Per-device outcome of an X-RTLS-SLEEP request.
+ *
+ * `accepted: false` with a `detail` is a normal outcome (e.g. the firmware's
+ * arming gate refused to sleep while the drone is armed); only transport
+ * failures and malformed responses reject the promise.
+ */
+export type RtlsSleepResult = {
+  requested?: boolean;
+  accepted: boolean;
+  sleeping?: boolean | null;
+  detail?: string;
+};
+
+/**
+ * Puts the given RTLS devices to sleep (`sleeping: true`) or wakes them.
+ * Returns the per-device result map keyed by the device id as a string.
+ */
+export async function sendRtlsSleep(
+  hub: MessageHub,
+  deviceIds: Iterable<string>,
+  sleeping: boolean
+): Promise<Record<string, RtlsSleepResult>> {
+  const ids = Array.from(deviceIds, (id) => Number(id)).filter((id) =>
+    Number.isInteger(id)
+  );
+  if (ids.length === 0) {
+    throw new Error('No valid RTLS device ids to command');
+  }
+
+  let response: Message<AnyMessageBody>;
+  try {
+    // The server verifies the sleep outcome on each device (including a
+    // settle delay for the firmware's arming gate), so allow a longer wait
+    // than the default message timeout.
+    response = await hub.sendMessage(
+      { type: 'X-RTLS-SLEEP', ids, sleeping },
+      { timeout: 30 }
+    );
+  } catch (error) {
+    throw new Error(
+      `Failed to ${sleeping ? 'sleep' : 'wake'} RTLS devices: ${errorToString(
+        error
+      )}`
+    );
+  }
+
+  const body = ensureResponseType(response.body, 'X-RTLS-SLEEP');
+  const result = body.result;
+  return (result && typeof result === 'object' ? result : {}) as Record<
+    string,
+    RtlsSleepResult
+  >;
+}
+
+/**
  * Queries the current OTA job (if any) for a single RTLS device.
  */
 export async function queryRtlsOtaStatus(

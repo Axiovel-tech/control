@@ -13,6 +13,7 @@ jest.mock('~/error-handling', () => ({
 
 import {
   queryRtlsParameterList,
+  sendRtlsSleep,
   setRtlsParameter,
   startRtlsOta,
 } from '~/features/rtls/messages';
@@ -112,5 +113,49 @@ describe('rtls messages', () => {
       id: '7',
       image: 'fw.bin',
     });
+  });
+});
+
+describe('sendRtlsSleep', () => {
+  test('sends numeric ids and returns the per-device result map', async () => {
+    const { hub, sendMessage, sent } = makeHub({
+      type: 'X-RTLS-SLEEP',
+      sleeping: true,
+      result: {
+        '7': { requested: true, accepted: true, sleeping: true },
+        '8': {
+          requested: true,
+          accepted: false,
+          sleeping: false,
+          detail: 'refused by device (arming gate)',
+        },
+      },
+    });
+
+    const result = await sendRtlsSleep(hub, ['7', '8'], true);
+
+    expect(sendMessage).toHaveBeenCalledTimes(1);
+    expect(sent[0]).toEqual({
+      type: 'X-RTLS-SLEEP',
+      ids: [7, 8],
+      sleeping: true,
+    });
+    expect(result['7'].accepted).toBe(true);
+    expect(result['8'].accepted).toBe(false);
+    expect(result['8'].detail).toMatch(/arming gate/);
+  });
+
+  test('drops non-numeric ids and rejects when none remain', async () => {
+    const { hub } = makeHub({ type: 'X-RTLS-SLEEP', result: {} });
+    await expect(sendRtlsSleep(hub, ['bogus'], true)).rejects.toThrow(
+      /No valid RTLS device ids/
+    );
+  });
+
+  test('throws a descriptive error on an ACK-NAK response', async () => {
+    const { hub } = makeHub({ type: 'ACK-NAK', reason: 'nope' });
+    await expect(sendRtlsSleep(hub, ['7'], false)).rejects.toThrow(
+      /X-RTLS-SLEEP/
+    );
   });
 });
