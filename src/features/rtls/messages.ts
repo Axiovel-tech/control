@@ -167,9 +167,12 @@ export async function sendRtlsSleep(
   deviceIds: Iterable<string>,
   sleeping: boolean
 ): Promise<Record<string, RtlsSleepResult>> {
-  const ids = Array.from(deviceIds, (id) => Number(id)).filter((id) =>
-    Number.isInteger(id)
-  );
+  // Strict digits-only parsing: Number('') is 0 and Number('0x10') is 16,
+  // either of which would silently command the wrong device.
+  const requested = Array.from(deviceIds, (id) => String(id));
+  const ids = requested
+    .filter((id) => /^\d+$/.test(id))
+    .map((id) => Number(id));
   if (ids.length === 0) {
     throw new Error('No valid RTLS device ids to command');
   }
@@ -192,11 +195,27 @@ export async function sendRtlsSleep(
   }
 
   const body = ensureResponseType(response.body, 'X-RTLS-SLEEP');
-  const result = body.result;
-  return (result && typeof result === 'object' ? result : {}) as Record<
+  const raw = body.result;
+  const result = (raw && typeof raw === 'object' ? { ...raw } : {}) as Record<
     string,
     RtlsSleepResult
   >;
+
+  // Every requested device must have an outcome: a dropped (non-numeric) id
+  // or an entry the server omitted is a failure, not a silent success.
+  for (const id of requested) {
+    if (!(id in result)) {
+      result[id] = {
+        requested: sleeping,
+        accepted: false,
+        detail: /^\d+$/.test(id)
+          ? 'no response from server for this device'
+          : 'invalid device id',
+      };
+    }
+  }
+
+  return result;
 }
 
 /**

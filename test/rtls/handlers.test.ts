@@ -104,7 +104,10 @@ describe('rtls handlers', () => {
       expect(
         mapRtlsDeviceStatus('7', { age: 1, sleeping: 'yes' }).sleeping
       ).toBeUndefined();
-      expect(mapRtlsDeviceStatus('7', { age: 1 }).sleeping).toBeUndefined();
+      // the key is present-but-undefined so a merge clears a stale flag
+      const mapped = mapRtlsDeviceStatus('7', { age: 1 });
+      expect(mapped.sleeping).toBeUndefined();
+      expect('sleeping' in mapped).toBe(true);
     });
 
     test('omits TWR when absent or not a non-empty array', () => {

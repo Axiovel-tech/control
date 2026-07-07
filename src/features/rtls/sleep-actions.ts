@@ -95,8 +95,11 @@ export const toggleRtlsDeviceSleep = (
  */
 export const sleepAllRtlsDevices =
   (): AppThunk<Promise<void>> => async (dispatch, getState) => {
+    // Offline drones are skipped: commanding them can only fail. Wake-all
+    // deliberately keeps targeting everything, since a sleeping drone that
+    // aged out of the list should still get its wake command.
     const ids = getRtlsDevicesInOrder(getState())
-      .filter(isSleepable)
+      .filter((device) => isSleepable(device) && device.online)
       .map((device) => device.id);
     await dispatch(setRtlsDevicesSleeping(ids, true));
   };

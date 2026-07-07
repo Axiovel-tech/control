@@ -147,9 +147,37 @@ describe('sendRtlsSleep', () => {
 
   test('drops non-numeric ids and rejects when none remain', async () => {
     const { hub } = makeHub({ type: 'X-RTLS-SLEEP', result: {} });
-    await expect(sendRtlsSleep(hub, ['bogus'], true)).rejects.toThrow(
-      /No valid RTLS device ids/
-    );
+    for (const bad of ['bogus', '', ' ', '0x10', '1e2', '-3']) {
+      await expect(sendRtlsSleep(hub, [bad], true)).rejects.toThrow(
+        /No valid RTLS device ids/
+      );
+    }
+  });
+
+  test('reports invalid ids and server-omitted devices as failures', async () => {
+    const { hub, sent } = makeHub({
+      type: 'X-RTLS-SLEEP',
+      sleeping: true,
+      result: { '7': { requested: true, accepted: true, sleeping: true } },
+    });
+
+    const result = await sendRtlsSleep(hub, ['7', '8', 'bogus'], true);
+
+    // only the parseable ids go on the wire
+    expect((sent[0] as { ids: number[] }).ids).toEqual([7, 8]);
+    expect(result['7'].accepted).toBe(true);
+    // the server said nothing about 8 -> failure, not silent success
+    expect(result['8'].accepted).toBe(false);
+    expect(result['8'].detail).toMatch(/no response/);
+    // the dropped id is reported too
+    expect(result['bogus'].accepted).toBe(false);
+    expect(result['bogus'].detail).toMatch(/invalid device id/);
+  });
+
+  test('an empty result map marks every device as unconfirmed', async () => {
+    const { hub } = makeHub({ type: 'X-RTLS-SLEEP', sleeping: true });
+    const result = await sendRtlsSleep(hub, ['7'], true);
+    expect(result['7'].accepted).toBe(false);
   });
 
   test('throws a descriptive error on an ACK-NAK response', async () => {
