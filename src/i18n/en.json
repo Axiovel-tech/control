@@ -960,6 +960,16 @@
     }
   },
   "show": {
+    "adaptToVenue": {
+      "button": "Adapt to venue",
+      "description": "Fit show origin and orientation to the current drone positions",
+      "inProgress": "Fitting coordinate system to drone positions…",
+      "prerequisites": {
+        "drones": "At least one drone with a known position must be active",
+        "loaded": "A show file must be loaded",
+        "outdoor": "The show must use an outdoor (georeferenced) environment"
+      }
+    },
     "authorizationReq": "Authorization required before takeoff",
     "authorizeTheStart": "Authorize start of show",
     "authorized": "Show authorized to start",

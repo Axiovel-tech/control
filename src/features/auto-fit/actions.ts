@@ -6,7 +6,6 @@ import {
   setOutdoorShowAltitudeReferenceToAverageAMSL,
   updateOutdoorShowSettings,
 } from '~/features/show/actions';
-import { isMapCoordinateSystemSpecified } from '~/selectors/map';
 import type { AppThunk } from '~/store/reducers';
 import { createAsyncAction } from '~/utils/redux';
 import workers from '~/workers';
@@ -77,15 +76,13 @@ export const estimateShowCoordinateSystemFromActiveUAVs =
     dispatch(setOutdoorShowAltitudeReferenceToAverageAMSL());
     dispatch(recalculateMapping());
 
-    if (!isMapCoordinateSystemSpecified(getState())) {
-      /* To make the life of the user easier at first setup, let us put the origin
-       * of the map coordinate system to where the show coordinate system is */
-      dispatch(
-        updateFlatEarthCoordinateSystem({
-          position: origin,
-          angle: orientation.toFixed(1),
-          type,
-        })
-      );
-    }
+    /* Keep the origin of the map coordinate system in sync with the show
+     * coordinate system so map-local coordinates stay aligned with the venue */
+    dispatch(
+      updateFlatEarthCoordinateSystem({
+        position: origin,
+        angle: orientation.toFixed(1),
+        type,
+      })
+    );
   };

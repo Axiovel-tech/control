@@ -9,13 +9,13 @@ import {
 } from '~/features/show/selectors';
 import type { RootState } from '~/store/reducers';
 
+import AdaptToVenueButton from './AdaptToVenueButton';
 import EnvironmentButton from './EnvironmentButton';
 import GeofenceButton from './GeofenceButton';
 import LargeControlButtonGroup from './LargeControlButtonGroup';
 import LoadShowFromFileButton from './LoadShowFromFileButton';
 import ManualPreflightChecksButton from './ManualPreflightChecksButton';
 import OnboardPreflightChecksButton from './OnboardPreflightChecksButton';
-import ShowConfiguratorButton from './ShowConfiguratorButton';
 import ShowUploadDialogButton from './ShowUploadDialogButton';
 import StartTimeButton from './StartTimeButton';
 import TakeoffAreaButton from './TakeoffAreaButton';
@@ -41,7 +41,7 @@ const ShowControlPanelUpperSegment = ({
         <Divider />
 
         <EnvironmentButton />
-        {environmentType === 'outdoor' && <ShowConfiguratorButton />}
+        {environmentType === 'outdoor' && <AdaptToVenueButton />}
         <TakeoffAreaButton />
         {environmentType === 'outdoor' && <GeofenceButton />}
         <ShowUploadDialogButton />

@@ -48,6 +48,7 @@ import {
 type Stage =
   | 'selectShowFile'
   | 'setupEnvironment'
+  | 'adaptToVenue'
   | 'showConfigurator'
   | 'setupTakeoffArea'
   | 'setupGeofence'
@@ -101,6 +102,12 @@ const stages: Record<Stage, StageSpecification> = {
   setupEnvironment: {
     evaluate: (state) =>
       hasLoadedShowFile(state) && (hasShowOrigin(state) || isShowIndoor(state)),
+    requires: ['selectShowFile'],
+  },
+
+  adaptToVenue: {
+    evaluate: (state) =>
+      hasLoadedShowFile(state) && isShowOutdoor(state) && hasShowOrigin(state),
     requires: ['selectShowFile'],
   },
 
@@ -200,6 +207,7 @@ const stages: Record<Stage, StageSpecification> = {
 const stageOrder: Stage[] = [
   'selectShowFile',
   'setupEnvironment',
+  'adaptToVenue',
   'showConfigurator',
   'setupTakeoffArea',
   'setupGeofence',

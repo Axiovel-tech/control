@@ -193,6 +193,13 @@ export const getEnvironmentState: AppSelector<EnvironmentState> = (state) =>
   state.show.environment;
 
 /**
+ * Selector that returns whether the show coordinate system is currently being
+ * estimated from the positions of the drones.
+ */
+export const isEstimatingShowCoordinateSystem: AppSelector<boolean> = (state) =>
+  Boolean(state.show.environment.estimatingCoordinateSystem);
+
+/**
  * Returns the entire swarm specification if it exists.
  */
 export const getSwarmSpecification: AppSelector<
