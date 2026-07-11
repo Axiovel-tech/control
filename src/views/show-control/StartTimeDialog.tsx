@@ -100,7 +100,7 @@ const makeFormValidator =
     } else if (values.clock === LocalClockId.ABSOLUTE) {
       /* both start date and start time are valid. We need to check whether
        * they are in the past only if the start time is based on an absolute
-       * timestamp and not a fixed delay (or MIDI timecode).
+       * timestamp and not a fixed delay (or SMPTE timecode).
        */
       if (isPast(endOfDay(values.utcDate))) {
         errors.utcDate = t('startTimeDialog.errors.pastDate');
