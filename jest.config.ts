@@ -188,7 +188,7 @@ const config: Config = {
   // babel-jest, otherwise importing them (transitively, e.g. via
   // ~/utils/redux) throws "Cannot use import statement outside a module".
   transformIgnorePatterns: [
-    '/node_modules/(?!(lodash-es|p-min-delay|yoctodelay)/)',
+    '/node_modules/(?!(lodash-es|ol|p-min-delay|quickselect|rbush|yoctodelay)/)',
   ],
   // extensionsToTreatAsEsm: ['.ts', '.tsx'],
 

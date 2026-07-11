@@ -9,6 +9,7 @@ import {
 } from '~/features/show/selectors';
 import type { RootState } from '~/store/reducers';
 
+import AdaptToVenueButton from './AdaptToVenueButton';
 import EnvironmentButton from './EnvironmentButton';
 import GeofenceButton from './GeofenceButton';
 import LargeControlButtonGroup from './LargeControlButtonGroup';
@@ -41,6 +42,7 @@ const ShowControlPanelUpperSegment = ({
         <Divider />
 
         <EnvironmentButton />
+        {environmentType === 'outdoor' && <AdaptToVenueButton />}
         {environmentType === 'outdoor' && <ShowConfiguratorButton />}
         <TakeoffAreaButton />
         {environmentType === 'outdoor' && <GeofenceButton />}
