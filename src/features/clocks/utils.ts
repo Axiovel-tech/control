@@ -34,8 +34,8 @@ const clockIdToProps: Record<
   },
 
   [CommonClockId.MTC]: {
-    label: 'MIDI timecode',
-    abbreviation: 'MTC',
+    label: 'SMPTE timecode',
+    abbreviation: 'LTC',
   },
 
   [CommonClockId.SHOW]: {
