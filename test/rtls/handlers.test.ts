@@ -94,6 +94,22 @@ describe('rtls handlers', () => {
       ]);
     });
 
+    test('maps the sleeping flag only when boolean', () => {
+      expect(
+        mapRtlsDeviceStatus('7', { age: 1, sleeping: true })
+      ).toMatchObject({ sleeping: true });
+      expect(
+        mapRtlsDeviceStatus('7', { age: 1, sleeping: false })
+      ).toMatchObject({ sleeping: false });
+      expect(
+        mapRtlsDeviceStatus('7', { age: 1, sleeping: 'yes' }).sleeping
+      ).toBeUndefined();
+      // the key is present-but-undefined so a merge clears a stale flag
+      const mapped = mapRtlsDeviceStatus('7', { age: 1 });
+      expect(mapped.sleeping).toBeUndefined();
+      expect('sleeping' in mapped).toBe(true);
+    });
+
     test('omits TWR when absent or not a non-empty array', () => {
       expect(mapRtlsDeviceStatus('5', {}).twr).toBeUndefined();
       expect(mapRtlsDeviceStatus('5', { twr: [] }).twr).toBeUndefined();

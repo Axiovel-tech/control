@@ -104,6 +104,12 @@ export function mapRtlsDeviceStatus(
     result.otaStatus = otaStatus;
   }
 
+  // Always assigned (undefined when the server does not know): the device
+  // update merges per-field, so omitting the key would let a stale
+  // `sleeping: true` outlive a snapshot that no longer reports it.
+  result.sleeping =
+    typeof raw.sleeping === 'boolean' ? raw.sleeping : undefined;
+
   const twr = mapTwrPeers(raw.twr);
   if (twr !== undefined) {
     result.twr = twr;

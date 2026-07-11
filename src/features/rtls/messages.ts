@@ -145,6 +145,80 @@ export async function setRtlsParameter(
 }
 
 /**
+ * Per-device outcome of an X-RTLS-SLEEP request.
+ *
+ * `accepted: false` with a `detail` is a normal outcome (e.g. the firmware's
+ * arming gate refused to sleep while the drone is armed); only transport
+ * failures and malformed responses reject the promise.
+ */
+export type RtlsSleepResult = {
+  requested?: boolean;
+  accepted: boolean;
+  sleeping?: boolean | null;
+  detail?: string;
+};
+
+/**
+ * Puts the given RTLS devices to sleep (`sleeping: true`) or wakes them.
+ * Returns the per-device result map keyed by the device id as a string.
+ */
+export async function sendRtlsSleep(
+  hub: MessageHub,
+  deviceIds: Iterable<string>,
+  sleeping: boolean
+): Promise<Record<string, RtlsSleepResult>> {
+  // Strict digits-only parsing: Number('') is 0 and Number('0x10') is 16,
+  // either of which would silently command the wrong device.
+  const requested = Array.from(deviceIds, (id) => String(id));
+  const ids = requested
+    .filter((id) => /^\d+$/.test(id))
+    .map((id) => Number(id));
+  if (ids.length === 0) {
+    throw new Error('No valid RTLS device ids to command');
+  }
+
+  let response: Message<AnyMessageBody>;
+  try {
+    // The server verifies the sleep outcome on each device (including a
+    // settle delay for the firmware's arming gate), so allow a longer wait
+    // than the default message timeout.
+    response = await hub.sendMessage(
+      { type: 'X-RTLS-SLEEP', ids, sleeping },
+      { timeout: 30 }
+    );
+  } catch (error) {
+    throw new Error(
+      `Failed to ${sleeping ? 'sleep' : 'wake'} RTLS devices: ${errorToString(
+        error
+      )}`
+    );
+  }
+
+  const body = ensureResponseType(response.body, 'X-RTLS-SLEEP');
+  const raw = body.result;
+  const result = (raw && typeof raw === 'object' ? { ...raw } : {}) as Record<
+    string,
+    RtlsSleepResult
+  >;
+
+  // Every requested device must have an outcome: a dropped (non-numeric) id
+  // or an entry the server omitted is a failure, not a silent success.
+  for (const id of requested) {
+    if (!(id in result)) {
+      result[id] = {
+        requested: sleeping,
+        accepted: false,
+        detail: /^\d+$/.test(id)
+          ? 'no response from server for this device'
+          : 'invalid device id',
+      };
+    }
+  }
+
+  return result;
+}
+
+/**
  * Queries the current OTA job (if any) for a single RTLS device.
  */
 export async function queryRtlsOtaStatus(

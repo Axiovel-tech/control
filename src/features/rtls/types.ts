@@ -82,6 +82,13 @@ export type RtlsDevice = {
   otaStatus?: string;
 
   /**
+   * Whether the drone is in sleep mode (power rails to the motors/flight
+   * controller, ELRS receiver and UWB module cut; WiFi and the management
+   * link still up). Live from the device heartbeat via X-RTLS-INF.
+   */
+  sleeping?: boolean;
+
+  /**
    * Inter-anchor TWR telemetry (anchors only), freshest first: one row per
    * peer anchor heard on the UWB ether. Absent for tags and for anchors that
    * are not yet hearing peers.
