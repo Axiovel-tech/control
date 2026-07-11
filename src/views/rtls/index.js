@@ -1,1 +1,1 @@
-export { default } from './RtlsDeviceList';
+export { default } from './RtlsPanel';

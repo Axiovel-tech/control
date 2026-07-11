@@ -12,6 +12,7 @@ import Grain from '@mui/icons-material/Grain';
 import Layers from '@mui/icons-material/Layers';
 import Map from '@mui/icons-material/Map';
 import Place from '@mui/icons-material/Place';
+import Radar from '@mui/icons-material/Radar';
 // import Storage from '@mui/icons-material/Storage';
 import ThreeDRotation from '@mui/icons-material/ThreeDRotation';
 import WbSunny from '@mui/icons-material/WbSunny';
@@ -132,17 +133,9 @@ const Sidebar = ({
         {hasFeature('rtls') && (
           <Module
             id='rtls'
-            icon={<Grain />}
-            label={t('view.rtls-device-list')}
-            component='rtls-device-list'
-          />
-        )}
-        {hasFeature('rtls') && (
-          <Module
-            id='rtlsStats'
-            icon={<Grain />}
-            label={t('view.rtls-stats')}
-            component='rtls-stats'
+            icon={<Radar />}
+            label={t('view.rtls')}
+            component='rtls'
           />
         )}
         {hasFeature('docks') && experimentalFeaturesEnabled && (

@@ -26,7 +26,9 @@ const NUMERIC_PARAM_TYPES: ReadonlySet<RtlsParamType> = new Set([
  * Returns whether the given parameter type is an integer type.
  */
 export function isIntegerParamType(type: RtlsParamType): boolean {
-  return type !== 'real32' && type !== 'real64' && NUMERIC_PARAM_TYPES.has(type);
+  return (
+    type !== 'real32' && type !== 'real64' && NUMERIC_PARAM_TYPES.has(type)
+  );
 }
 
 /**

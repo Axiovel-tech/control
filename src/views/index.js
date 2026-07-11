@@ -16,8 +16,7 @@ import SavedLocationList from './locations';
 import LogPanel from './log';
 import MessagesPanelView from './messages';
 import MissionOverviewPanel from './mission-editor';
-import RtlsDeviceList from './rtls';
-import RtlsStatsPanel from './rtls/RtlsStatsPanel';
+import RtlsPanel from './rtls';
 import ShowControlPanel from './show-control';
 import ThreeDTopLevelView from './three-d';
 import UAVDetailsPanel from './uav-details';
@@ -38,8 +37,7 @@ const views = {
   LogPanel,
   MessagesPanelView,
   MissionOverviewPanel,
-  RtlsDeviceList,
-  RtlsStatsPanel,
+  RtlsPanel,
   SavedLocationList,
   ShowControlPanel,
   UAVDetailsPanel,

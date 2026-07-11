@@ -20,6 +20,9 @@ import {
 } from './types';
 import { updateStateOfRtlsDevice } from './utils';
 
+/** Tabs of the RTLS Link workbench panel. */
+export type RtlsPanelTab = 'devices' | 'health';
+
 /** Cached read-only parameter list for a single device. */
 export type RtlsDeviceParamsState = {
   /** Fetch status of the parameter list. */
@@ -63,6 +66,11 @@ export type RtlsSliceState = {
     open: boolean;
     deviceId?: string;
   };
+
+  /** UI state of the RTLS Link workbench panel. Not persisted. */
+  panel: {
+    selectedTab: RtlsPanelTab;
+  };
 };
 
 const initialState: RtlsSliceState = {
@@ -80,6 +88,9 @@ const initialState: RtlsSliceState = {
   otaDialog: {
     open: false,
     deviceId: undefined,
+  },
+  panel: {
+    selectedTab: 'devices',
   },
 };
 
@@ -166,6 +177,11 @@ const { actions, reducer } = createSlice({
       state.paramDialog = { open: false, deviceId: undefined };
     },
 
+    /** Selects a tab of the RTLS Link workbench panel. */
+    setSelectedTabInRtlsPanel(state, { payload }: PayloadAction<RtlsPanelTab>) {
+      state.panel.selectedTab = payload;
+    },
+
     /** Opens the OTA dialog for a device. */
     openRtlsOtaDialog(state, { payload: deviceId }: PayloadAction<string>) {
       state.otaDialog = { open: true, deviceId };
@@ -231,9 +247,7 @@ const { actions, reducer } = createSlice({
     /** Records the latest OTA job state for a single device. */
     setRtlsOtaJob(
       state,
-      {
-        payload: { id, job },
-      }: PayloadAction<{ id: string; job: RtlsOtaJob }>
+      { payload: { id, job } }: PayloadAction<{ id: string; job: RtlsOtaJob }>
     ) {
       state.otaJobs[id] = job;
     },
@@ -252,6 +266,7 @@ export const {
   rtlsParamValueUpdated,
   setRtlsDevicesFromStatus,
   setRtlsOtaJob,
+  setSelectedTabInRtlsPanel,
   updateRtlsStats,
 } = actions;
 
