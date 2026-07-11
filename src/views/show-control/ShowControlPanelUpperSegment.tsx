@@ -16,7 +16,6 @@ import LargeControlButtonGroup from './LargeControlButtonGroup';
 import LoadShowFromFileButton from './LoadShowFromFileButton';
 import ManualPreflightChecksButton from './ManualPreflightChecksButton';
 import OnboardPreflightChecksButton from './OnboardPreflightChecksButton';
-import ShowConfiguratorButton from './ShowConfiguratorButton';
 import ShowUploadDialogButton from './ShowUploadDialogButton';
 import StartTimeButton from './StartTimeButton';
 import TakeoffAreaButton from './TakeoffAreaButton';
@@ -43,7 +42,6 @@ const ShowControlPanelUpperSegment = ({
 
         <EnvironmentButton />
         {environmentType === 'outdoor' && <AdaptToVenueButton />}
-        {environmentType === 'outdoor' && <ShowConfiguratorButton />}
         <TakeoffAreaButton />
         {environmentType === 'outdoor' && <GeofenceButton />}
         <ShowUploadDialogButton />
