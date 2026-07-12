@@ -18,6 +18,7 @@ import {
   type RtlsDevice,
   type RtlsDeviceStats,
   type RtlsOtaJob,
+  type ShowSyncStatus,
 } from './types';
 
 /**
@@ -61,6 +62,11 @@ export const getRtlsStatsById: AppSelector<Record<string, RtlsDeviceStats>> = (
 export const getRtlsStatsLastUpdatedAt: AppSelector<number | undefined> = (
   state
 ) => state.rtls.stats.lastUpdatedAt;
+
+/** Flight-controller show synchronization state keyed by UAV id. */
+export const getShowSyncStatusByUavId: AppSelector<
+  Record<string, ShowSyncStatus>
+> = (state) => state.rtls.showSyncByUavId;
 
 /**
  * Selector factory that returns the last known OTA job for a single device.

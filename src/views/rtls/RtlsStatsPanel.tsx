@@ -7,6 +7,7 @@
 import Box from '@mui/material/Box';
 import Divider from '@mui/material/Divider';
 import Typography from '@mui/material/Typography';
+import { useTranslation } from 'react-i18next';
 import { useSelector } from 'react-redux';
 
 import {
@@ -100,6 +101,7 @@ const AnchorTelemetryRows = ({ twr }: { twr: RtlsTwrPeer[] | undefined }) => {
 };
 
 const DeviceStatsRow = ({ device, stats }: DeviceStatsRowProps) => {
+  const { t } = useTranslation();
   const { id, role: rawRole } = device;
   const name = device.name ?? device.id;
   const role = classifyRole(rawRole);
@@ -111,6 +113,12 @@ const DeviceStatsRow = ({ device, stats }: DeviceStatsRowProps) => {
   const anchorsSeen =
     stats?.anchorsSeen ?? countAnchorsInMask(stats?.anchorMask);
   const roleLabel = ROLE_LABELS[role];
+  const showSync = stats?.showSync;
+  const showTime = showSync?.secondsToStart;
+  const formattedShowTime =
+    showTime === undefined
+      ? undefined
+      : `${showTime >= 0 ? 'T−' : 'T+'}${Math.abs(showTime).toFixed(1)} s`;
 
   return (
     <Box sx={{ px: 1, py: 1 }}>
@@ -137,7 +145,23 @@ const DeviceStatsRow = ({ device, stats }: DeviceStatsRowProps) => {
         )}
       </Box>
       {anchor ? (
-        <AnchorTelemetryRows twr={device.twr} />
+        <>
+          <AnchorTelemetryRows twr={device.twr} />
+          {role === RtlsRole.ANCHOR_INITIATOR && showSync && (
+            <MiniList>
+              <MiniListItem
+                primaryText={t('rtls.showSync.ltc', 'LTC input')}
+                secondaryText={
+                  showSync.ltcLocked === undefined
+                    ? '—'
+                    : showSync.ltcLocked
+                      ? t('rtls.showSync.locked', 'Locked')
+                      : t('rtls.showSync.unlocked', 'Not locked')
+                }
+              />
+            </MiniList>
+          )}
+        </>
       ) : (
         <MiniList>
           <MiniListItem
@@ -164,6 +188,30 @@ const DeviceStatsRow = ({ device, stats }: DeviceStatsRowProps) => {
             primaryText='Anchors seen'
             secondaryText={String(anchorsSeen)}
           />
+          {showSync && (
+            <MiniListItem
+              primaryText={t('rtls.showSync.deadline', 'Show synchronization')}
+              secondaryText={
+                showSync.deadlineValid
+                  ? [
+                      t('rtls.showSync.ready', 'Ready'),
+                      formattedShowTime,
+                      showSync.generation === undefined
+                        ? undefined
+                        : t(
+                            'rtls.showSync.generation',
+                            'generation {{generation}}',
+                            {
+                              generation: showSync.generation,
+                            }
+                          ),
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')
+                  : t('rtls.showSync.noDeadline', 'No valid deadline')
+              }
+            />
+          )}
         </MiniList>
       )}
       <Typography

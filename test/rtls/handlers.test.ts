@@ -6,6 +6,7 @@ import {
   handleRtlsInformationMessage,
   handleRtlsOtaMessage,
   handleRtlsStatsMessage,
+  handleShowSyncMessage,
   mapRtlsDeviceStats,
   mapRtlsDeviceStatus,
   mapRtlsOtaJob,
@@ -13,7 +14,9 @@ import {
 import {
   setRtlsDevicesFromStatus,
   setRtlsOtaJob,
+  replaceShowSyncStatus,
   updateRtlsStats,
+  updateShowSyncStatus,
 } from '~/features/rtls/slice';
 import { type AppDispatch } from '~/store/reducers';
 
@@ -156,6 +159,12 @@ describe('rtls handlers', () => {
           fixAgeMs: 30,
           clockPpm: -1.2,
           anchorMask: 0b1011,
+          showSync: {
+            ltcLocked: true,
+            deadlineValid: true,
+            generation: 7,
+            secondsToStart: 12.25,
+          },
         })
       ).toEqual({
         id: '3',
@@ -166,6 +175,12 @@ describe('rtls handlers', () => {
         fixAgeMs: 30,
         clockPpm: -1.2,
         anchorMask: 0b1011,
+        showSync: {
+          ltcLocked: true,
+          deadlineValid: true,
+          generation: 7,
+          secondsToStart: 12.25,
+        },
       });
     });
 
@@ -215,6 +230,77 @@ describe('rtls handlers', () => {
       expect(action.payload.byId['3']).toMatchObject({ id: '3' });
       expect(typeof action.payload.lastUpdatedAt).toBe('number');
     });
+  });
+
+  test('maps X-SHOW-SYNC status without inventing missing time', () => {
+    const dispatch = createMockDispatch();
+    handleShowSyncMessage(
+      {
+        type: 'X-SHOW-SYNC',
+        status: {
+          '1': {
+            source: 'uwb-ltc',
+            locked: true,
+            committed: false,
+            scheduled: true,
+            secondsToStart: 12,
+          },
+          invalid: { source: 'other' },
+        },
+      },
+      dispatch
+    );
+    expect(dispatch).toHaveBeenCalledWith(
+      updateShowSyncStatus({
+        '1': {
+          source: 'uwb-ltc',
+          locked: true,
+          committed: false,
+          scheduled: true,
+          secondsToStart: 12,
+        },
+      })
+    );
+  });
+
+  test('replaces stale X-SHOW-SYNC entries for a full query snapshot', () => {
+    const dispatch = createMockDispatch();
+    handleShowSyncMessage(
+      {
+        type: 'X-SHOW-SYNC',
+        status: {
+          '2': {
+            source: 'none',
+            locked: false,
+            committed: false,
+            scheduled: false,
+            secondsToStart: null,
+          },
+        },
+      },
+      dispatch,
+      { replace: true }
+    );
+    expect(dispatch).toHaveBeenCalledWith(
+      replaceShowSyncStatus({
+        '2': {
+          source: 'none',
+          locked: false,
+          committed: false,
+          scheduled: false,
+          secondsToStart: undefined,
+        },
+      })
+    );
+  });
+
+  test('passes X-SHOW-SYNC tombstones through to the merge reducer', () => {
+    const dispatch = createMockDispatch();
+    handleShowSyncMessage(
+      { type: 'X-SHOW-SYNC', status: { '1': null } },
+      dispatch
+    );
+    expect(dispatch).toHaveBeenCalledWith(updateShowSyncStatus({ '1': null }));
   });
 
   describe('ota', () => {

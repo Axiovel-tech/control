@@ -7,6 +7,7 @@ import {
   getShowEnvironmentType,
   isShowAuthorizedToStartLocally,
 } from '~/features/show/selectors';
+import ShowSyncStatusSummary from '~/features/rtls/ShowSyncStatusSummary';
 import type { RootState } from '~/store/reducers';
 
 import AdaptToVenueButton from './AdaptToVenueButton';
@@ -17,7 +18,6 @@ import LoadShowFromFileButton from './LoadShowFromFileButton';
 import ManualPreflightChecksButton from './ManualPreflightChecksButton';
 import OnboardPreflightChecksButton from './OnboardPreflightChecksButton';
 import ShowUploadDialogButton from './ShowUploadDialogButton';
-import StartTimeButton from './StartTimeButton';
 import TakeoffAreaButton from './TakeoffAreaButton';
 
 type Props = {
@@ -35,6 +35,8 @@ const ShowControlPanelUpperSegment = ({
 }: Props) => (
   <MultiPagePanel flex={1} selectedPage={isAuthorized ? 'execution' : 'setup'}>
     <Page scrollable id='setup'>
+      <ShowSyncStatusSummary />
+      <Divider />
       <List dense>
         <LoadShowFromFileButton />
 
@@ -50,13 +52,11 @@ const ShowControlPanelUpperSegment = ({
 
         <OnboardPreflightChecksButton />
         <ManualPreflightChecksButton />
-
-        <Divider />
-
-        <StartTimeButton />
       </List>
     </Page>
     <Page scrollable id='execution' display='flex' flexDirection='column'>
+      <ShowSyncStatusSummary />
+      <Divider />
       <LargeControlButtonGroup />
     </Page>
   </MultiPagePanel>

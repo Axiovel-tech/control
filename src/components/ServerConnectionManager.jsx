@@ -24,6 +24,7 @@ import { addLogItem } from '~/features/log/slice';
 import {
   handleRtlsInformationMessage,
   handleRtlsStatsMessage,
+  handleShowSyncMessage,
 } from '~/features/rtls/handlers';
 import { clearRtlsDevices } from '~/features/rtls/slice';
 import {
@@ -582,6 +583,17 @@ async function executeTasksAfterConnection(dispatch, getState) {
       }
     } catch {
       /* RTLS not supported by this server; ignore */
+    }
+
+    // Flight-controller start state belongs to the MAVLink extension and is
+    // useful for the physical RC fallback even when RTLS management is absent.
+    try {
+      response = await messageHub.sendMessage({ type: 'X-SHOW-SYNC' });
+      if (response.body?.type === 'X-SHOW-SYNC') {
+        handleShowSyncMessage(response.body, dispatch, { replace: true });
+      }
+    } catch {
+      /* Show synchronization status not supported by this server; ignore */
     }
 
     // Check whether the server supports the following optional features
