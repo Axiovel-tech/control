@@ -15,6 +15,7 @@ import {
 const TAB_LABELS: Record<RtlsPanelTab, string> = {
   devices: 'Devices',
   health: 'Health',
+  positions: 'Debug Pos Estimates',
 };
 
 const RtlsPanelTabs = () => {

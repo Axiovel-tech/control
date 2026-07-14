@@ -8,9 +8,11 @@ import reducer, {
   rtlsParamsFetchStarted,
   rtlsParamsFetchSucceeded,
   rtlsParamValueUpdated,
+  setRtlsAnchors,
   setRtlsDevicesFromStatus,
   setRtlsOtaJob,
   setSelectedTabInRtlsPanel,
+  updateRtlsPositions,
   updateRtlsStats,
 } from '~/features/rtls/slice';
 
@@ -225,6 +227,77 @@ describe('rtls slice', () => {
     });
   });
 
+  describe('position-estimate debug stream', () => {
+    test('updateRtlsPositions merges per device', () => {
+      let state = reducer(
+        initial(),
+        updateRtlsPositions({
+          byId: { '1': { id: '1', north: 1, east: 2, down: -0.5 } },
+        })
+      );
+      state = reducer(
+        state,
+        updateRtlsPositions({
+          byId: { '2': { id: '2', north: -1, east: 0, down: 0 } },
+        })
+      );
+
+      // a single-device broadcast must not clobber the other device
+      expect(Object.keys(state.positions.byId).sort()).toEqual(['1', '2']);
+
+      state = reducer(
+        state,
+        updateRtlsPositions({
+          byId: { '1': { id: '1', north: 1.5, east: 2.5, down: -0.6 } },
+        })
+      );
+      expect(state.positions.byId['1']).toMatchObject({ north: 1.5 });
+      expect(state.positions.byId['2']).toMatchObject({ north: -1 });
+    });
+
+    test('setRtlsDevicesFromStatus prunes positions of vanished devices', () => {
+      let state = reducer(
+        initial(),
+        setRtlsDevicesFromStatus({
+          '1': { online: true },
+          '2': { online: true },
+        })
+      );
+      state = reducer(
+        state,
+        updateRtlsPositions({
+          byId: {
+            '1': { id: '1', north: 1, east: 2 },
+            '2': { id: '2', north: 3, east: 4 },
+          },
+        })
+      );
+
+      state = reducer(
+        state,
+        setRtlsDevicesFromStatus({ '1': { online: true } })
+      );
+      expect(Object.keys(state.positions.byId)).toEqual(['1']);
+    });
+
+    test('setRtlsAnchors replaces the anchor list wholesale', () => {
+      let state = reducer(
+        initial(),
+        setRtlsAnchors([
+          { id: 'rtls::default::anchor_0', index: 0, active: true },
+          { id: 'rtls::default::anchor_1', index: 1, active: false },
+        ])
+      );
+      expect(state.anchors).toHaveLength(2);
+
+      state = reducer(
+        state,
+        setRtlsAnchors([{ id: 'rtls::default::anchor_0', index: 0 }])
+      );
+      expect(state.anchors).toHaveLength(1);
+    });
+  });
+
   test('clearRtlsDevices resets everything', () => {
     let state = reducer(
       initial(),
@@ -235,6 +308,11 @@ describe('rtls slice', () => {
       state,
       updateRtlsStats({ byId: { '1': { id: '1' } }, lastUpdatedAt: 1 })
     );
+    state = reducer(
+      state,
+      updateRtlsPositions({ byId: { '1': { id: '1', north: 1, east: 2 } } })
+    );
+    state = reducer(state, setRtlsAnchors([{ id: 'rtls::default::anchor_0' }]));
 
     state = reducer(state, rtlsParamsFetchSucceeded({ id: '1', params: [] }));
 
@@ -242,6 +320,8 @@ describe('rtls slice', () => {
     expect(state.devices.order).toEqual([]);
     expect(state.devices.byId).toEqual({});
     expect(state.stats.byId).toEqual({});
+    expect(state.positions.byId).toEqual({});
+    expect(state.anchors).toEqual([]);
     expect(state.otaJobs).toEqual({});
     expect(state.paramsByDevice).toEqual({});
   });

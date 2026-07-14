@@ -23,6 +23,7 @@ import { shouldManageLocalServer } from '~/features/local-server/selectors';
 import { addLogItem } from '~/features/log/slice';
 import {
   handleRtlsInformationMessage,
+  handleRtlsPositionMessage,
   handleRtlsStatsMessage,
 } from '~/features/rtls/handlers';
 import { clearRtlsDevices } from '~/features/rtls/slice';
@@ -579,6 +580,11 @@ async function executeTasksAfterConnection(dispatch, getState) {
       response = await messageHub.sendMessage({ type: 'X-RTLS-STATS' });
       if (response.body?.type === 'X-RTLS-STATS') {
         handleRtlsStatsMessage(response.body, dispatch);
+      }
+
+      response = await messageHub.sendMessage({ type: 'X-RTLS-POS' });
+      if (response.body?.type === 'X-RTLS-POS') {
+        handleRtlsPositionMessage(response.body, dispatch);
       }
     } catch {
       /* RTLS not supported by this server; ignore */

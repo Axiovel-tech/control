@@ -23,6 +23,7 @@ import { handleObjectDeletionMessage } from './model/objects';
 import {
   handleRtlsInformationMessage,
   handleRtlsOtaMessage,
+  handleRtlsPositionMessage,
   handleRtlsStatsMessage,
 } from './features/rtls/handlers';
 
@@ -99,6 +100,7 @@ messageHub.registerNotificationHandlers({
   'X-RTLS-INF': (message) =>
     handleRtlsInformationMessage(message.body, dispatch),
   'X-RTLS-OTA': (message) => handleRtlsOtaMessage(message.body, dispatch),
+  'X-RTLS-POS': (message) => handleRtlsPositionMessage(message.body, dispatch),
   'X-RTLS-STATS': (message) => handleRtlsStatsMessage(message.body, dispatch),
 });
 /* eslint-enable object-shorthand */

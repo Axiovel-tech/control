@@ -12,6 +12,7 @@ jest.mock('~/error-handling', () => ({
 }));
 
 import {
+  getRtlsParameter,
   queryRtlsParameterList,
   sendRtlsSleep,
   setRtlsParameter,
@@ -49,6 +50,32 @@ describe('rtls messages', () => {
     });
     const params = await queryRtlsParameterList(hub, '7');
     expect(params.map((p) => p.name)).toEqual(['ALPHA', 'BETA', 'GAMMA']);
+  });
+
+  describe('getRtlsParameter', () => {
+    test('returns the value reported by the device', async () => {
+      const { hub, sent } = makeHub({
+        type: 'X-RTLS-PARAM-GET',
+        id: '7',
+        name: 'POS_DBG_HZ',
+        value: 10,
+        paramType: 'uint8',
+      });
+      const value = await getRtlsParameter(hub, '7', 'POS_DBG_HZ');
+      expect(value).toBe(10);
+      expect(sent[0]).toEqual({
+        type: 'X-RTLS-PARAM-GET',
+        id: '7',
+        name: 'POS_DBG_HZ',
+      });
+    });
+
+    test('throws a descriptive error on an ACK-NAK', async () => {
+      const { hub } = makeHub({ type: 'ACK-NAK', reason: 'No such device' });
+      await expect(getRtlsParameter(hub, '9', 'POS_DBG_HZ')).rejects.toThrow(
+        /No such device/
+      );
+    });
   });
 
   describe('setRtlsParameter', () => {

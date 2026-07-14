@@ -92,6 +92,33 @@ export async function queryRtlsParameterList(
 }
 
 /**
+ * Reads the value of a single parameter from an RTLS device.
+ */
+export async function getRtlsParameter(
+  hub: MessageHub,
+  deviceId: string,
+  name: string
+): Promise<RtlsParamValue> {
+  let response: Message<AnyMessageBody>;
+  try {
+    response = await hub.sendMessage({
+      type: 'X-RTLS-PARAM-GET',
+      id: deviceId,
+      name,
+    });
+  } catch (error) {
+    throw new Error(
+      `Failed to read parameter ${name} of device ${deviceId}: ${errorToString(
+        error
+      )}`
+    );
+  }
+
+  const body = ensureResponseType(response.body, 'X-RTLS-PARAM-GET');
+  return body.value as RtlsParamValue;
+}
+
+/**
  * Result of an X-RTLS-PARAM-SET request.
  *
  * A response with `accepted: false` is a normal "the device rejected this
