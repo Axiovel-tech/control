@@ -1,18 +1,26 @@
 /**
- * @file Thunk actions for the position-estimate debug stream (X-RTLS-POS).
+ * @file Wiring of the position-estimate debug stream controller to the
+ * live message hub.
  *
  * The stream is gated device-side by the tag firmware's `POS_DBG_HZ`
- * parameter (0 = off, the default; otherwise the emit rate in Hz), so
- * enabling the "Debug Pos Estimates" view means writing that parameter on
- * every online tag. The parameter persists on the device, so whoever
- * enables it owns disabling it again (see `pos-stream-guard.ts`).
+ * parameter (0 = off, the default; otherwise the emit rate in Hz). All
+ * enable/disable lifecycle logic — ownership, teardown, retry and the
+ * unmount/remount races — lives in `PosStreamController`
+ * (`pos-stream-guard.ts`); this module only supplies the real parameter
+ * I/O and constructs the application-wide singleton. The controller must
+ * be a singleton: stream ownership has to survive panel unmount/remount,
+ * and its single FIFO queue is what serializes a new panel's enable behind
+ * the previous panel's teardown.
  */
 
 import messageHub from '~/message-hub';
-import { type AppThunk } from '~/store/reducers';
+import { showError } from '~/features/snackbar/actions';
 
-import { setRtlsParameter } from './messages';
-import { getOnlineRtlsTags } from './selectors';
+import { getRtlsParameter, setRtlsParameter } from './messages';
+import {
+  PosStreamController,
+  type PosStreamParamOps,
+} from './pos-stream-guard';
 
 /** Name of the firmware parameter gating the debug stream. */
 export const POS_DEBUG_RATE_PARAM = 'POS_DBG_HZ';
@@ -24,67 +32,36 @@ export const POS_DEBUG_RATE_PARAM = 'POS_DBG_HZ';
  */
 export const POS_DEBUG_DEFAULT_RATE_HZ = 10;
 
-/** Per-device outcome of a debug-stream toggle. */
-export type PosDebugStreamResult = {
-  id: string;
-  accepted: boolean;
-  error?: string;
+const paramOps: PosStreamParamOps = {
+  async readRate(id) {
+    const value = await getRtlsParameter(messageHub, id, POS_DEBUG_RATE_PARAM);
+    const rate = Number(value);
+    return Number.isFinite(rate) ? rate : 0;
+  },
+
+  async writeRate(id, rateHz) {
+    const result = await setRtlsParameter(
+      messageHub,
+      id,
+      POS_DEBUG_RATE_PARAM,
+      rateHz,
+      'uint8'
+    );
+    return result.accepted;
+  },
 };
 
 /**
- * Writes the debug-stream rate parameter on the given devices. Individual
- * device failures are reported in the result rather than thrown, so one
- * unreachable tag does not abort the rest of the fleet.
+ * The application-wide debug-stream controller. The release-failure toast
+ * is wired here (not in the panel) because a failing teardown outlives the
+ * panel that triggered it.
  */
-async function writePosDebugRate(
-  ids: Iterable<string>,
-  rateHz: number
-): Promise<PosDebugStreamResult[]> {
-  return Promise.all(
-    Array.from(ids, async (id): Promise<PosDebugStreamResult> => {
-      try {
-        const result = await setRtlsParameter(
-          messageHub,
-          id,
-          POS_DEBUG_RATE_PARAM,
-          rateHz,
-          'uint8'
-        );
-        return { id, accepted: result.accepted };
-      } catch (error) {
-        return {
-          id,
-          accepted: false,
-          error: error instanceof Error ? error.message : String(error),
-        };
-      }
-    })
-  );
-}
-
-/**
- * Thunk that enables or disables the position-estimate debug stream on every
- * online tag by writing its `POS_DBG_HZ` parameter.
- */
-export const setPosDebugStreamEnabled =
-  (
-    enabled: boolean,
-    rateHz: number = POS_DEBUG_DEFAULT_RATE_HZ
-  ): AppThunk<Promise<PosDebugStreamResult[]>> =>
-  async (_dispatch, getState) => {
-    const tags = getOnlineRtlsTags(getState());
-    return writePosDebugRate(
-      tags.map(({ id }) => id),
-      enabled ? rateHz : 0
-    );
-  };
-
-/**
- * Thunk that disables the position-estimate debug stream on an explicit set
- * of devices, best-effort and idempotent — the teardown path of the panel
- * (which must only touch the devices it enabled itself).
- */
-export const disablePosDebugStreamOn =
-  (ids: string[]): AppThunk<Promise<PosDebugStreamResult[]>> =>
-  async () =>
-    writePosDebugRate(ids, 0);
+export const posStreamController = new PosStreamController(paramOps, {
+  onReleaseFailure(ids) {
+    const message =
+      `Could not stop the position debug stream on tag(s) ` +
+      `${ids.join(', ')}; set POS_DBG_HZ=0 from the Devices tab`;
+    console.error(`rtls: ${message}`);
+    showError(message);
+  },
+});

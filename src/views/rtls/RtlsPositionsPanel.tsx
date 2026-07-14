@@ -17,15 +17,15 @@ import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 import type React from 'react';
 import { useEffect, useRef, useState } from 'react';
-import { useDispatch, useSelector, useStore } from 'react-redux';
+import { useSelector, useStore } from 'react-redux';
 
 import { BackgroundHint } from '@skybrush/mui-components';
 
 import {
-  disablePosDebugStreamOn,
-  setPosDebugStreamEnabled,
+  POS_DEBUG_DEFAULT_RATE_HZ,
+  posStreamController,
 } from '~/features/rtls/pos-actions';
-import { PosStreamGuard } from '~/features/rtls/pos-stream-guard';
+import { type PosStreamFailure } from '~/features/rtls/pos-stream-guard';
 import {
   appendToTrail,
   boundsContain,
@@ -48,7 +48,7 @@ import {
 } from '~/features/rtls/selectors';
 import { type RtlsAnchor, type RtlsPosEstimate } from '~/features/rtls/types';
 import { showError } from '~/features/snackbar/actions';
-import { type AppDispatch, type RootState } from '~/store/reducers';
+import { type RootState } from '~/store/reducers';
 
 /** Distinct colors assigned to tags, keyed stably by system id. */
 const TAG_COLORS = [
@@ -110,7 +110,6 @@ const formatAge = (ageMs: number | undefined): string => {
 };
 
 const RtlsPositionsPanel = (): React.JSX.Element => {
-  const dispatch = useDispatch<AppDispatch>();
   const store = useStore<RootState>();
   const theme = useTheme();
   const onlineTags = useSelector(getOnlineRtlsTags);
@@ -122,27 +121,54 @@ const RtlsPositionsPanel = (): React.JSX.Element => {
   const [positionsById, setPositionsById] = useState<
     Record<string, RtlsPosEstimate>
   >(() => getRtlsPositionsById(store.getState()));
+  const [sharedIds, setSharedIds] = useState<string[]>([]);
   const trailsRef = useRef<Record<string, TrailPoint[]>>({});
   const trailGeomRef = useRef<Record<string, TrailGeomCache>>({});
+  const lastSampledRef = useRef<Record<string, RtlsPosEstimate> | null>(null);
   const boundsCacheRef = useRef<{
     anchors: RtlsAnchor[];
     bounds: SceneBounds | undefined;
   }>({ anchors: [], bounds: undefined });
-  //: devices whose stream THIS panel enabled and therefore owes a disable
-  //: on teardown
-  const guardRef = useRef<PosStreamGuard | null>(null);
-  guardRef.current ??= new PosStreamGuard();
+  //: generation token of this panel instance in the stream controller; the
+  //: controller serializes this generation's operations behind the previous
+  //: instance's teardown
+  const generationRef = useRef<number>(0);
+
+  // Register with the stream controller for the lifetime of the panel;
+  // teardown pays the stream-ownership debt (POS_DBG_HZ=0 on every device
+  // this panel enabled), serialized after any in-flight enable. A killed
+  // browser/tab cannot run this; recovery is the Devices tab (the
+  // controller's release-failure toast names the remedy, too).
+  useEffect(() => {
+    const generation = posStreamController.acquire();
+    generationRef.current = generation;
+    return () => {
+      void posStreamController.release(generation);
+    };
+  }, []);
 
   // Sample the estimate stream (and advance the staleness clock) at a
-  // bounded rate; both setters bail out when nothing changed, so an idle
-  // panel does not re-render at all.
+  // bounded rate. When no new data arrived, the clock only advances while
+  // an estimate still has fading left to do — a fully-stale (or empty)
+  // scene stops re-rendering entirely until the next notification.
   useEffect(() => {
     const timer = setInterval(() => {
       const next = getRtlsPositionsById(store.getState());
-      setPositionsById((prev) => (next === prev ? prev : next));
-      if (Object.keys(next).length > 0) {
+      if (next !== lastSampledRef.current) {
+        lastSampledRef.current = next;
+        setPositionsById(next);
         setNow(Date.now());
+        return;
       }
+
+      setNow((previous) =>
+        Object.values(next).some(
+          (estimate) =>
+            getPosStaleness(estimate, previous) !== PosStaleness.GONE
+        )
+          ? Date.now()
+          : previous
+      );
     }, SAMPLE_INTERVAL_MS);
     return () => {
       clearInterval(timer);
@@ -166,21 +192,6 @@ const RtlsPositionsPanel = (): React.JSX.Element => {
     }
   }, [positionsById]);
 
-  // The stream is a persistent per-device parameter, so it MUST be turned
-  // off again when the panel goes away (tab switch / panel close) — and
-  // only on the devices this panel enabled itself. Best-effort and
-  // idempotent; a killed browser cannot run this, in which case the stream
-  // stays on until disabled from the Devices tab (see the PR notes).
-  useEffect(() => {
-    const guard = guardRef.current;
-    return () => {
-      const ids = guard?.takeForRelease() ?? [];
-      if (ids.length > 0) {
-        void dispatch(disablePosDebugStreamOn(ids));
-      }
-    };
-  }, [dispatch]);
-
   const estimates = Object.values(positionsById);
 
   // Scene bounds are cached and recomputed only when the anchor set changes
@@ -197,25 +208,38 @@ const RtlsPositionsPanel = (): React.JSX.Element => {
     boundsCacheRef.current = { anchors, bounds };
   }
 
+  const reportFailures = (verb: string, failed: PosStreamFailure[]): void => {
+    if (failed.length > 0) {
+      showError(
+        `Failed to ${verb} the position debug stream on tag(s) ` +
+          `${failed.map(({ id }) => id).join(', ')}; ` +
+          `set POS_DBG_HZ from the Devices tab if this persists`
+      );
+    }
+  };
+
   const toggleStream = async (enabled: boolean): Promise<void> => {
     setBusy(true);
     try {
-      const results = await dispatch(setPosDebugStreamEnabled(enabled));
-      const guard = guardRef.current;
+      const generation = generationRef.current;
       if (enabled) {
-        guard?.noteEnabled(results);
-      } else {
-        guard?.noteDisabled(results);
-      }
-
-      const failed = results.filter((result) => !result.accepted);
-      if (failed.length > 0) {
-        showError(
-          `Failed to ${enabled ? 'enable' : 'disable'} the position ` +
-            `debug stream on tag(s) ${failed
-              .map((result) => result.id)
-              .join(', ')}`
+        const outcome = await posStreamController.enable(
+          generation,
+          onlineTags.map(({ id }) => id),
+          POS_DEBUG_DEFAULT_RATE_HZ
         );
+        if (!outcome.ran) {
+          return; // this panel instance was torn down mid-request
+        }
+
+        setSharedIds(outcome.shared);
+        reportFailures('enable', outcome.failed);
+      } else {
+        // Disables only the streams this panel owns; a stream that was
+        // already running when we arrived belongs to whoever started it.
+        const outcome = await posStreamController.disable(generation);
+        setSharedIds([]);
+        reportFailures('disable', outcome.failed);
       }
     } finally {
       setBusy(false);
@@ -431,7 +455,12 @@ const RtlsPositionsPanel = (): React.JSX.Element => {
           Disable
         </Button>
         <Typography variant='caption' color='textSecondary'>
-          Sets POS_DBG_HZ on every online tag ({onlineTags.length} online).
+          Enable starts the stream (POS_DBG_HZ) on every online tag not already
+          streaming ({onlineTags.length} online); Disable stops only the streams
+          this panel started.
+          {sharedIds.length > 0 &&
+            ` ${sharedIds.length} stream(s) were already on and stay ` +
+              `under their owner's control.`}{' '}
           Top-down view, north up; grid in metres.
         </Typography>
       </Box>
