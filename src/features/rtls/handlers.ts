@@ -12,14 +12,18 @@ import isNil from 'lodash-es/isNil';
 import { type AppDispatch } from '~/store/reducers';
 
 import {
+  setRtlsAnchors,
   setRtlsDevicesFromStatus,
   setRtlsOtaJob,
+  updateRtlsPositions,
   updateRtlsStats,
 } from './slice';
 import {
+  type RtlsAnchor,
   type RtlsDevice,
   type RtlsDeviceStats,
   type RtlsOtaJob,
+  type RtlsPosEstimate,
   type RtlsTwrPeer,
 } from './types';
 
@@ -139,12 +143,49 @@ export function buildRtlsDeviceStatusMap(
  * Handles an X-RTLS-INF message (response or notification) by updating the RTLS
  * device registry wholesale from the `status` mapping.
  */
+/**
+ * Maps the server's site-level anchor list (X-RTLS-INF `anchors`) into the
+ * shape stored in the Redux state. Entries without a stable id are dropped;
+ * non-array input yields an empty list.
+ */
+export function mapRtlsAnchors(value: unknown): RtlsAnchor[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  const result: RtlsAnchor[] = [];
+  for (const raw of value) {
+    const row = (raw ?? {}) as AnyRecord;
+    const id = toString(row.id);
+    if (id === undefined) {
+      continue;
+    }
+
+    const ned = (row.ned ?? {}) as AnyRecord;
+    result.push({
+      id,
+      cell: toString(row.cell),
+      index: toNumber(row.index),
+      mac: toNumber(row.mac),
+      ned: {
+        north: toNumber(ned.north),
+        east: toNumber(ned.east),
+        down: toNumber(ned.down),
+      },
+      active: typeof row.active === 'boolean' ? row.active : undefined,
+    });
+  }
+
+  return result;
+}
+
 export function handleRtlsInformationMessage(
   body: AnyRecord,
   dispatch: AppDispatch
 ): void {
   const status = body?.status as Record<string, AnyRecord> | undefined;
   dispatch(setRtlsDevicesFromStatus(buildRtlsDeviceStatusMap(status)));
+  dispatch(setRtlsAnchors(mapRtlsAnchors(body?.anchors)));
 }
 
 /**
@@ -197,6 +238,63 @@ export function handleRtlsStatsMessage(
     updateRtlsStats({
       byId: buildRtlsStatsMap(stats),
       lastUpdatedAt: Date.now(),
+    })
+  );
+}
+
+/**
+ * Maps a single per-device position estimate from an X-RTLS-POS body into the
+ * shape stored in the Redux state. `receivedAt` is stamped client-side from
+ * `now`, corrected by the server-reported age of the estimate, so staleness
+ * fading works for both live notifications and query responses answered from
+ * the server's cache.
+ */
+export function mapRtlsPosEstimate(
+  id: string,
+  raw: AnyRecord,
+  now: number
+): RtlsPosEstimate {
+  return {
+    id,
+    north: toNumber(raw.north),
+    east: toNumber(raw.east),
+    down: toNumber(raw.down),
+    sigma: toNumber(raw.sigma),
+    timeBootMs: toNumber(raw.timeBootMs),
+    receivedAt: now - (toNumber(raw.ageMs) ?? 0),
+  };
+}
+
+/**
+ * Builds the position mapping consumed by `updateRtlsPositions` from the
+ * `positions` field of an X-RTLS-POS message body.
+ */
+export function buildRtlsPositionsMap(
+  positions: Record<string, AnyRecord> | undefined,
+  now: number
+): Record<string, RtlsPosEstimate> {
+  const byId: Record<string, RtlsPosEstimate> = {};
+  if (positions && typeof positions === 'object') {
+    for (const [id, raw] of Object.entries(positions)) {
+      byId[id] = mapRtlsPosEstimate(id, raw ?? {}, now);
+    }
+  }
+
+  return byId;
+}
+
+/**
+ * Handles an X-RTLS-POS message (response or notification) by merging the
+ * carried position estimates into the per-device store.
+ */
+export function handleRtlsPositionMessage(
+  body: AnyRecord,
+  dispatch: AppDispatch
+): void {
+  const positions = body?.positions as Record<string, AnyRecord> | undefined;
+  dispatch(
+    updateRtlsPositions({
+      byId: buildRtlsPositionsMap(positions, Date.now()),
     })
   );
 }

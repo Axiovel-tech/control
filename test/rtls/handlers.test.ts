@@ -2,15 +2,20 @@ import { describe, expect, jest, test } from '@jest/globals';
 
 import {
   buildRtlsDeviceStatusMap,
+  buildRtlsPositionsMap,
   buildRtlsStatsMap,
   handleRtlsInformationMessage,
   handleRtlsOtaMessage,
+  handleRtlsPositionMessage,
   handleRtlsStatsMessage,
+  mapRtlsAnchors,
   mapRtlsDeviceStats,
   mapRtlsDeviceStatus,
   mapRtlsOtaJob,
+  mapRtlsPosEstimate,
 } from '~/features/rtls/handlers';
 import {
+  setRtlsAnchors,
   setRtlsDevicesFromStatus,
   setRtlsOtaJob,
   updateRtlsStats,
@@ -133,16 +138,77 @@ describe('rtls handlers', () => {
       { type: 'X-RTLS-INF', status: { '1': { online: true } } },
       dispatch
     );
-    expect(dispatch).toHaveBeenCalledTimes(1);
+    expect(dispatch).toHaveBeenCalledTimes(2);
     expect(dispatch).toHaveBeenCalledWith(
       setRtlsDevicesFromStatus({ '1': { online: true } })
     );
+    expect(dispatch).toHaveBeenCalledWith(setRtlsAnchors([]));
   });
 
   test('handleRtlsInformationMessage tolerates a missing status field', () => {
     const dispatch = createMockDispatch();
     handleRtlsInformationMessage({ type: 'X-RTLS-INF' }, dispatch);
     expect(dispatch).toHaveBeenCalledWith(setRtlsDevicesFromStatus({}));
+  });
+
+  test('handleRtlsInformationMessage dispatches the site anchor list', () => {
+    const dispatch = createMockDispatch();
+    handleRtlsInformationMessage(
+      {
+        type: 'X-RTLS-INF',
+        status: {},
+        anchors: [
+          {
+            id: 'rtls::default::anchor_0',
+            cell: 'default',
+            index: 0,
+            mac: 1,
+            position: { lat: 41.39, lon: 2.15, amsl: 10 },
+            ned: { north: -10, east: -10, down: 0 },
+            active: true,
+          },
+        ],
+      },
+      dispatch
+    );
+    expect(dispatch).toHaveBeenCalledWith(
+      setRtlsAnchors([
+        {
+          id: 'rtls::default::anchor_0',
+          cell: 'default',
+          index: 0,
+          mac: 1,
+          ned: { north: -10, east: -10, down: 0 },
+          active: true,
+        },
+      ])
+    );
+  });
+
+  describe('anchors', () => {
+    test('mapRtlsAnchors drops entries without a stable id', () => {
+      expect(
+        mapRtlsAnchors([
+          { index: 0 },
+          null,
+          { id: 'rtls::c::anchor_1', index: 1 },
+        ])
+      ).toEqual([
+        {
+          id: 'rtls::c::anchor_1',
+          cell: undefined,
+          index: 1,
+          mac: undefined,
+          ned: { north: undefined, east: undefined, down: undefined },
+          active: undefined,
+        },
+      ]);
+    });
+
+    test('mapRtlsAnchors yields an empty list for non-array input', () => {
+      expect(mapRtlsAnchors(undefined)).toEqual([]);
+      expect(mapRtlsAnchors({})).toEqual([]);
+    });
   });
 
   describe('stats', () => {
@@ -257,6 +323,71 @@ describe('rtls handlers', () => {
       const dispatch = createMockDispatch();
       handleRtlsOtaMessage({ type: 'X-RTLS-OTA' }, dispatch);
       expect(dispatch).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('position-estimate debug stream', () => {
+    test('mapRtlsPosEstimate maps the fields and stamps receivedAt', () => {
+      expect(
+        mapRtlsPosEstimate(
+          '42',
+          {
+            id: 42,
+            north: 1.204,
+            east: -0.351,
+            down: -0.82,
+            sigma: 0.12,
+            timeBootMs: 123_456,
+            ageMs: 40,
+          },
+          10_000
+        )
+      ).toEqual({
+        id: '42',
+        north: 1.204,
+        east: -0.351,
+        down: -0.82,
+        sigma: 0.12,
+        timeBootMs: 123_456,
+        // arrival stamp corrected by the server-reported age
+        receivedAt: 9960,
+      });
+    });
+
+    test('mapRtlsPosEstimate omits an absent sigma', () => {
+      const mapped = mapRtlsPosEstimate('1', { north: 1, east: 2 }, 1000);
+      expect(mapped.sigma).toBeUndefined();
+      expect(mapped.receivedAt).toBe(1000);
+    });
+
+    test('buildRtlsPositionsMap tolerates malformed input', () => {
+      expect(buildRtlsPositionsMap(undefined, 0)).toEqual({});
+      expect(buildRtlsPositionsMap({ '1': null as never }, 0)).toMatchObject({
+        '1': { id: '1' },
+      });
+    });
+
+    test('handleRtlsPositionMessage dispatches updateRtlsPositions', () => {
+      const dispatch = createMockDispatch();
+      handleRtlsPositionMessage(
+        {
+          type: 'X-RTLS-POS',
+          positions: {
+            '42': { id: 42, north: 1, east: 2, down: -0.5, ageMs: 0 },
+          },
+        },
+        dispatch
+      );
+      expect(dispatch).toHaveBeenCalledTimes(1);
+      const action = dispatch.mock.calls[0][0];
+      expect(action.type).toBe('rtls/updateRtlsPositions');
+      expect(action.payload.byId['42']).toMatchObject({
+        id: '42',
+        north: 1,
+        east: 2,
+        down: -0.5,
+      });
+      expect(typeof action.payload.byId['42'].receivedAt).toBe('number');
     });
   });
 });

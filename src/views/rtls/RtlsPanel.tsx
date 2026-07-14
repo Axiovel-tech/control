@@ -14,6 +14,7 @@ import { type RtlsPanelTab } from '~/features/rtls/slice';
 
 import RtlsDeviceList from './RtlsDeviceList';
 import RtlsPanelTabs from './RtlsPanelTabs';
+import RtlsPositionsPanel from './RtlsPositionsPanel';
 import RtlsStatsPanel from './RtlsStatsPanel';
 
 const useStyles = makeStyles((theme) => ({
@@ -34,6 +35,7 @@ const useStyles = makeStyles((theme) => ({
 const views: Record<RtlsPanelTab, React.ComponentType> = {
   devices: RtlsDeviceList,
   health: RtlsStatsPanel,
+  positions: RtlsPositionsPanel,
 };
 
 const RtlsPanel = () => {

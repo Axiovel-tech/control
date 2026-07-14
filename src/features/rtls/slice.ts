@@ -13,15 +13,17 @@ import {
 } from '~/utils/collections';
 
 import {
+  type RtlsAnchor,
   type RtlsDevice,
   type RtlsDeviceStats,
   type RtlsOtaJob,
   type RtlsParam,
+  type RtlsPosEstimate,
 } from './types';
 import { updateStateOfRtlsDevice } from './utils';
 
 /** Tabs of the RTLS Link workbench panel. */
-export type RtlsPanelTab = 'devices' | 'health';
+export type RtlsPanelTab = 'devices' | 'health' | 'positions';
 
 /** Cached read-only parameter list for a single device. */
 export type RtlsDeviceParamsState = {
@@ -48,6 +50,18 @@ export type RtlsSliceState = {
     byId: Record<string, RtlsDeviceStats>;
     lastUpdatedAt?: number;
   };
+
+  /**
+   * Live position-estimate debug stream (X-RTLS-POS) keyed by system id.
+   * Present only while a tag's `POS_DBG_HZ` parameter is nonzero; merged per
+   * id like the stats and pruned with the device from the X-RTLS-INF snapshot.
+   */
+  positions: {
+    byId: Record<string, RtlsPosEstimate>;
+  };
+
+  /** Site-level anchor list from X-RTLS-INF (configured cell geometry). */
+  anchors: RtlsAnchor[];
 
   /** Last known OTA job per device, keyed by system id. */
   otaJobs: Record<string, RtlsOtaJob>;
@@ -79,6 +93,10 @@ const initialState: RtlsSliceState = {
     byId: {},
     lastUpdatedAt: undefined,
   },
+  positions: {
+    byId: {},
+  },
+  anchors: [],
   otaJobs: {},
   paramsByDevice: {},
   paramDialog: {
@@ -102,6 +120,8 @@ const { actions, reducer } = createSlice({
     clearRtlsDevices(state) {
       clearOrderedCollection<RtlsDevice>(state.devices);
       state.stats = { byId: {}, lastUpdatedAt: undefined };
+      state.positions = { byId: {} };
+      state.anchors = [];
       state.otaJobs = {};
       state.paramsByDevice = {};
     },
@@ -212,6 +232,7 @@ const { actions, reducer } = createSlice({
           delete state.devices.byId[existingId];
           delete state.otaJobs[existingId];
           delete state.stats.byId[existingId];
+          delete state.positions.byId[existingId];
         }
       }
       state.devices.order = state.devices.order.filter((id) =>
@@ -244,6 +265,28 @@ const { actions, reducer } = createSlice({
       state.stats.lastUpdatedAt = payload.lastUpdatedAt ?? Date.now();
     },
 
+    /**
+     * Merges live position estimates into the per-device store. Like the
+     * stats, the server broadcasts one device per X-RTLS-POS notification, so
+     * updates merge per id; stale devices are pruned from the X-RTLS-INF
+     * snapshot in `setRtlsDevicesFromStatus`.
+     */
+    updateRtlsPositions(
+      state,
+      {
+        payload,
+      }: PayloadAction<{
+        byId: Record<string, RtlsPosEstimate>;
+      }>
+    ) {
+      Object.assign(state.positions.byId, payload.byId);
+    },
+
+    /** Replaces the site-level anchor list (from an X-RTLS-INF snapshot). */
+    setRtlsAnchors(state, { payload }: PayloadAction<RtlsAnchor[]>) {
+      state.anchors = payload;
+    },
+
     /** Records the latest OTA job state for a single device. */
     setRtlsOtaJob(
       state,
@@ -264,9 +307,11 @@ export const {
   rtlsParamsFetchStarted,
   rtlsParamsFetchSucceeded,
   rtlsParamValueUpdated,
+  setRtlsAnchors,
   setRtlsDevicesFromStatus,
   setRtlsOtaJob,
   setSelectedTabInRtlsPanel,
+  updateRtlsPositions,
   updateRtlsStats,
 } = actions;
 

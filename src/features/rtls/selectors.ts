@@ -15,9 +15,11 @@ import {
   type RtlsHealth,
 } from './stats-utils';
 import {
+  type RtlsAnchor,
   type RtlsDevice,
   type RtlsDeviceStats,
   type RtlsOtaJob,
+  type RtlsPosEstimate,
 } from './types';
 
 /**
@@ -61,6 +63,21 @@ export const getRtlsStatsById: AppSelector<Record<string, RtlsDeviceStats>> = (
 export const getRtlsStatsLastUpdatedAt: AppSelector<number | undefined> = (
   state
 ) => state.rtls.stats.lastUpdatedAt;
+
+/**
+ * Selector that returns the live position estimates (the X-RTLS-POS debug
+ * stream) keyed by device id.
+ */
+export const getRtlsPositionsById: AppSelector<
+  Record<string, RtlsPosEstimate>
+> = (state) => state.rtls.positions.byId;
+
+/**
+ * Selector that returns the site-level anchor list (configured cell geometry
+ * from X-RTLS-INF).
+ */
+export const getRtlsAnchors: AppSelector<RtlsAnchor[]> = (state) =>
+  state.rtls.anchors;
 
 /**
  * Selector factory that returns the last known OTA job for a single device.
