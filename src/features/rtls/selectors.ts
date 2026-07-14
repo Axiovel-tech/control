@@ -13,6 +13,7 @@ import {
   getDeviceHealthForRole,
   getOverallHealth,
   type RtlsHealth,
+  RtlsRole,
 } from './stats-utils';
 import {
   type RtlsAnchor,
@@ -63,6 +64,20 @@ export const getRtlsStatsById: AppSelector<Record<string, RtlsDeviceStats>> = (
 export const getRtlsStatsLastUpdatedAt: AppSelector<number | undefined> = (
   state
 ) => state.rtls.stats.lastUpdatedAt;
+
+/**
+ * Selector that returns the online tag devices in display order — the devices
+ * the position-estimate debug stream can be toggled on. Shared by the
+ * "Debug Pos Estimates" toolbar and the stream-toggle thunk so they agree on
+ * the target set.
+ */
+export const getOnlineRtlsTags: AppSelector<RtlsDevice[]> = createSelector(
+  getRtlsDevicesInOrder,
+  (devices) =>
+    devices.filter(
+      (device) => device.online && classifyRole(device.role) === RtlsRole.TAG
+    )
+);
 
 /**
  * Selector that returns the live position estimates (the X-RTLS-POS debug

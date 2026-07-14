@@ -135,7 +135,7 @@ describe('rtls handlers', () => {
   test('handleRtlsInformationMessage dispatches setRtlsDevicesFromStatus', () => {
     const dispatch = createMockDispatch();
     handleRtlsInformationMessage(
-      { type: 'X-RTLS-INF', status: { '1': { online: true } } },
+      { type: 'X-RTLS-INF', status: { '1': { online: true } }, anchors: [] },
       dispatch
     );
     expect(dispatch).toHaveBeenCalledTimes(2);
@@ -148,6 +148,15 @@ describe('rtls handlers', () => {
   test('handleRtlsInformationMessage tolerates a missing status field', () => {
     const dispatch = createMockDispatch();
     handleRtlsInformationMessage({ type: 'X-RTLS-INF' }, dispatch);
+    expect(dispatch).toHaveBeenCalledWith(setRtlsDevicesFromStatus({}));
+  });
+
+  test('an INF without an anchors field does not wipe the stored anchors', () => {
+    // a server that predates the anchors field must not clear the
+    // configured cell geometry off the debug position view
+    const dispatch = createMockDispatch();
+    handleRtlsInformationMessage({ type: 'X-RTLS-INF', status: {} }, dispatch);
+    expect(dispatch).toHaveBeenCalledTimes(1);
     expect(dispatch).toHaveBeenCalledWith(setRtlsDevicesFromStatus({}));
   });
 

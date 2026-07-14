@@ -185,7 +185,12 @@ export function handleRtlsInformationMessage(
 ): void {
   const status = body?.status as Record<string, AnyRecord> | undefined;
   dispatch(setRtlsDevicesFromStatus(buildRtlsDeviceStatusMap(status)));
-  dispatch(setRtlsAnchors(mapRtlsAnchors(body?.anchors)));
+  // Only an explicit anchor list may replace the stored one: an X-RTLS-INF
+  // from a server that predates the anchors field must not wipe the
+  // configured cell geometry off the debug position view.
+  if (Array.isArray(body?.anchors)) {
+    dispatch(setRtlsAnchors(mapRtlsAnchors(body.anchors)));
+  }
 }
 
 /**

@@ -16,7 +16,7 @@ import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 import type React from 'react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 
 import { BackgroundHint } from '@skybrush/mui-components';
@@ -35,15 +35,15 @@ import {
   type TrailPoint,
 } from '~/features/rtls/pos-view-utils';
 import {
+  getOnlineRtlsTags,
   getRtlsAnchors,
-  getRtlsDevicesInOrder,
   getRtlsPositionsById,
   getRtlsStatsById,
 } from '~/features/rtls/selectors';
-import { classifyRole, RtlsRole } from '~/features/rtls/stats-utils';
+import { showError } from '~/features/snackbar/actions';
 import { type AppDispatch } from '~/store/reducers';
 
-/** Distinct colors assigned to tags round-robin by display order. */
+/** Distinct colors assigned to tags, keyed stably by system id. */
 const TAG_COLORS = [
   '#2196f3',
   '#e91e63',
@@ -54,6 +54,14 @@ const TAG_COLORS = [
   '#cddc39',
   '#795548',
 ];
+
+/**
+ * Returns the display color of a tag. Derived from the system id (not the
+ * position of the tag in the current estimate map) so a tag keeps its color
+ * when other tags start/stop streaming mid-session.
+ */
+const colorForTag = (id: string): string =>
+  TAG_COLORS[Math.abs(Number.parseInt(id, 10) || 0) % TAG_COLORS.length];
 
 /** Repaint period (ms); drives staleness fading between store updates. */
 const REPAINT_INTERVAL_MS = 250;
@@ -80,7 +88,7 @@ const formatAge = (ageMs: number | undefined): string => {
 const RtlsPositionsPanel = (): React.JSX.Element => {
   const dispatch = useDispatch<AppDispatch>();
   const theme = useTheme();
-  const devices = useSelector(getRtlsDevicesInOrder);
+  const onlineTags = useSelector(getOnlineRtlsTags);
   const positionsById = useSelector(getRtlsPositionsById);
   const anchors = useSelector(getRtlsAnchors);
   const statsById = useSelector(getRtlsStatsById);
@@ -116,21 +124,22 @@ const RtlsPositionsPanel = (): React.JSX.Element => {
     }
   }, [positionsById]);
 
-  const onlineTags = useMemo(
-    () =>
-      devices.filter(
-        (device) => device.online && classifyRole(device.role) === RtlsRole.TAG
-      ),
-    [devices]
-  );
-
   const estimates = Object.values(positionsById);
   const bounds = computeSceneBounds(anchors, estimates);
 
   const toggleStream = async (enabled: boolean): Promise<void> => {
     setBusy(true);
     try {
-      await dispatch(setPosDebugStreamEnabled(enabled));
+      const results = await dispatch(setPosDebugStreamEnabled(enabled));
+      const failed = results.filter((result) => !result.accepted);
+      if (failed.length > 0) {
+        showError(
+          `Failed to ${enabled ? 'enable' : 'disable'} the position ` +
+            `debug stream on tag(s) ${failed
+              .map((result) => result.id)
+              .join(', ')}`
+        );
+      }
     } finally {
       setBusy(false);
     }
@@ -239,12 +248,12 @@ const RtlsPositionsPanel = (): React.JSX.Element => {
         })}
 
         {/* tags: trail + sigma circle + dot + label */}
-        {Object.entries(positionsById).map(([id, estimate], index) => {
+        {Object.entries(positionsById).map(([id, estimate]) => {
           if (!hasPlottablePosition(estimate)) {
             return null;
           }
 
-          const color = TAG_COLORS[index % TAG_COLORS.length];
+          const color = colorForTag(id);
           const opacity = OPACITY_BY_STALENESS[getPosStaleness(estimate, now)];
           const trail = trailsRef.current[id] ?? [];
           const cx = x(estimate.east);
@@ -330,14 +339,14 @@ const RtlsPositionsPanel = (): React.JSX.Element => {
 
       {estimates.length > 0 && (
         <Box sx={{ display: 'flex', flexWrap: 'wrap', columnGap: 2 }}>
-          {Object.entries(positionsById).map(([id, estimate], index) => {
+          {Object.entries(positionsById).map(([id, estimate]) => {
             const stats = statsById[id];
             const ageMs = getPosEstimateAgeMs(estimate, now);
             return (
               <Typography
                 key={id}
                 variant='caption'
-                style={{ color: TAG_COLORS[index % TAG_COLORS.length] }}
+                style={{ color: colorForTag(id) }}
               >
                 {`#${id} N ${formatMeters(estimate.north)} E ${formatMeters(
                   estimate.east

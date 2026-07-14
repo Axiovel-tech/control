@@ -11,8 +11,7 @@ import messageHub from '~/message-hub';
 import { type AppThunk } from '~/store/reducers';
 
 import { setRtlsParameter } from './messages';
-import { getRtlsDevicesInOrder } from './selectors';
-import { classifyRole, RtlsRole } from './stats-utils';
+import { getOnlineRtlsTags } from './selectors';
 
 /** Name of the firmware parameter gating the debug stream. */
 export const POS_DEBUG_RATE_PARAM = 'POS_DBG_HZ';
@@ -43,9 +42,7 @@ export const setPosDebugStreamEnabled =
     rateHz: number = POS_DEBUG_DEFAULT_RATE_HZ
   ): AppThunk<Promise<PosDebugStreamResult[]>> =>
   async (_dispatch, getState) => {
-    const tags = getRtlsDevicesInOrder(getState()).filter(
-      (device) => device.online && classifyRole(device.role) === RtlsRole.TAG
-    );
+    const tags = getOnlineRtlsTags(getState());
 
     return Promise.all(
       tags.map(async ({ id }): Promise<PosDebugStreamResult> => {
