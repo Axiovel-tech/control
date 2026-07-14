@@ -157,6 +157,7 @@ export function mapRtlsDeviceStats(
 ): RtlsDeviceStats {
   return {
     id,
+    batteryVoltage: toNumber(raw.batteryVoltage),
     solveRateHz: toNumber(raw.solveRateHz),
     solvePct: toNumber(raw.solvePct),
     anchorsSeen: toNumber(raw.anchorsSeen),

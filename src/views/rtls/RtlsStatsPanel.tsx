@@ -16,6 +16,7 @@ import {
   StatusLight,
 } from '@skybrush/mui-components';
 
+import BatteryIndicator from '~/components/BatteryIndicator';
 import AnchorBars from '~/features/rtls/AnchorBars';
 import { getStatusForHealth } from '~/features/rtls/health-status';
 import OverallRtlsStatusLight from '~/features/rtls/OverallRtlsStatusLight';
@@ -122,6 +123,11 @@ const DeviceStatsRow = ({ device, stats }: DeviceStatsRowProps) => {
           <Typography variant='caption' color='textSecondary'>
             {roleLabel}
           </Typography>
+        )}
+        {stats?.batteryVoltage !== undefined && (
+          <Box sx={{ width: 56 }}>
+            <BatteryIndicator voltage={stats.batteryVoltage} />
+          </Box>
         )}
         {!anchor && (
           <AnchorBars
