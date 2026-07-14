@@ -112,6 +112,7 @@ export type RtlsParam = {
  */
 export type RtlsDeviceStats = {
   id: Identifier;
+  batteryVoltage?: number;
   solveRateHz?: number;
   solvePct?: number;
   anchorsSeen?: number;

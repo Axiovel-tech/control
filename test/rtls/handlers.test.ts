@@ -149,6 +149,7 @@ describe('rtls handlers', () => {
     test('mapRtlsDeviceStats maps numeric fields', () => {
       expect(
         mapRtlsDeviceStats('3', {
+          batteryVoltage: 11.7,
           solveRateHz: 12.5,
           solvePct: 99,
           anchorsSeen: 4,
@@ -158,6 +159,7 @@ describe('rtls handlers', () => {
         })
       ).toEqual({
         id: '3',
+        batteryVoltage: 11.7,
         solveRateHz: 12.5,
         solvePct: 99,
         anchorsSeen: 4,
@@ -165,6 +167,26 @@ describe('rtls handlers', () => {
         clockPpm: -1.2,
         anchorMask: 0b1011,
       });
+    });
+
+    test('mapRtlsDeviceStats leaves batteryVoltage undefined for old firmware', () => {
+      // Boards without the VBAT divider (or pre-vbat firmware) never send the
+      // field; the mapper must not invent a value the panel would render.
+      expect(
+        mapRtlsDeviceStats('3', { solveRateHz: 1 }).batteryVoltage
+      ).toBeUndefined();
+      expect(
+        mapRtlsDeviceStats('3', { batteryVoltage: null, solveRateHz: 1 })
+          .batteryVoltage
+      ).toBeUndefined();
+      expect(
+        mapRtlsDeviceStats('3', { batteryVoltage: Number.NaN, solveRateHz: 1 })
+          .batteryVoltage
+      ).toBeUndefined();
+      expect(
+        mapRtlsDeviceStats('3', { batteryVoltage: '11.7', solveRateHz: 1 })
+          .batteryVoltage
+      ).toBeUndefined();
     });
 
     test('mapRtlsDeviceStats ignores inter-anchor TWR (it rides on X-RTLS-INF)', () => {
