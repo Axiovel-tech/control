@@ -140,6 +140,34 @@ export function computeSceneBounds(
 }
 
 /**
+ * Returns whether every plottable estimate lies within the given bounds —
+ * the cheap O(n) check that lets the view reuse its last computed scene
+ * bounds (and skip `computeSceneBounds`) until a point actually leaves the
+ * frame. Estimates without a plottable position are ignored.
+ */
+export function boundsContain(
+  bounds: SceneBounds,
+  estimates: RtlsPosEstimate[]
+): boolean {
+  for (const estimate of estimates) {
+    if (!hasPlottablePosition(estimate)) {
+      continue;
+    }
+
+    if (
+      estimate.north < bounds.minNorth ||
+      estimate.north > bounds.maxNorth ||
+      estimate.east < bounds.minEast ||
+      estimate.east > bounds.maxEast
+    ) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+/**
  * Picks a "nice" grid step (metres) for the given span so the view shows
  * roughly `maxLines` grid lines at most.
  */

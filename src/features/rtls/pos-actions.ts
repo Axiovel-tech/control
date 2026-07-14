@@ -4,7 +4,8 @@
  * The stream is gated device-side by the tag firmware's `POS_DBG_HZ`
  * parameter (0 = off, the default; otherwise the emit rate in Hz), so
  * enabling the "Debug Pos Estimates" view means writing that parameter on
- * every online tag.
+ * every online tag. The parameter persists on the device, so whoever
+ * enables it owns disabling it again (see `pos-stream-guard.ts`).
  */
 
 import messageHub from '~/message-hub';
@@ -31,10 +32,39 @@ export type PosDebugStreamResult = {
 };
 
 /**
+ * Writes the debug-stream rate parameter on the given devices. Individual
+ * device failures are reported in the result rather than thrown, so one
+ * unreachable tag does not abort the rest of the fleet.
+ */
+async function writePosDebugRate(
+  ids: Iterable<string>,
+  rateHz: number
+): Promise<PosDebugStreamResult[]> {
+  return Promise.all(
+    Array.from(ids, async (id): Promise<PosDebugStreamResult> => {
+      try {
+        const result = await setRtlsParameter(
+          messageHub,
+          id,
+          POS_DEBUG_RATE_PARAM,
+          rateHz,
+          'uint8'
+        );
+        return { id, accepted: result.accepted };
+      } catch (error) {
+        return {
+          id,
+          accepted: false,
+          error: error instanceof Error ? error.message : String(error),
+        };
+      }
+    })
+  );
+}
+
+/**
  * Thunk that enables or disables the position-estimate debug stream on every
- * online tag by writing its `POS_DBG_HZ` parameter. Individual device
- * failures are reported in the result rather than thrown, so one unreachable
- * tag does not abort the rest of the fleet.
+ * online tag by writing its `POS_DBG_HZ` parameter.
  */
 export const setPosDebugStreamEnabled =
   (
@@ -43,25 +73,18 @@ export const setPosDebugStreamEnabled =
   ): AppThunk<Promise<PosDebugStreamResult[]>> =>
   async (_dispatch, getState) => {
     const tags = getOnlineRtlsTags(getState());
-
-    return Promise.all(
-      tags.map(async ({ id }): Promise<PosDebugStreamResult> => {
-        try {
-          const result = await setRtlsParameter(
-            messageHub,
-            id,
-            POS_DEBUG_RATE_PARAM,
-            enabled ? rateHz : 0,
-            'uint8'
-          );
-          return { id, accepted: result.accepted };
-        } catch (error) {
-          return {
-            id,
-            accepted: false,
-            error: error instanceof Error ? error.message : String(error),
-          };
-        }
-      })
+    return writePosDebugRate(
+      tags.map(({ id }) => id),
+      enabled ? rateHz : 0
     );
   };
+
+/**
+ * Thunk that disables the position-estimate debug stream on an explicit set
+ * of devices, best-effort and idempotent — the teardown path of the panel
+ * (which must only touch the devices it enabled itself).
+ */
+export const disablePosDebugStreamOn =
+  (ids: string[]): AppThunk<Promise<PosDebugStreamResult[]>> =>
+  async () =>
+    writePosDebugRate(ids, 0);

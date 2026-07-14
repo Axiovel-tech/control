@@ -17,13 +17,18 @@ import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 import type React from 'react';
 import { useEffect, useRef, useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+import { useDispatch, useSelector, useStore } from 'react-redux';
 
 import { BackgroundHint } from '@skybrush/mui-components';
 
-import { setPosDebugStreamEnabled } from '~/features/rtls/pos-actions';
+import {
+  disablePosDebugStreamOn,
+  setPosDebugStreamEnabled,
+} from '~/features/rtls/pos-actions';
+import { PosStreamGuard } from '~/features/rtls/pos-stream-guard';
 import {
   appendToTrail,
+  boundsContain,
   computeSceneBounds,
   getGridLines,
   getGridStep,
@@ -32,6 +37,7 @@ import {
   hasPlottableAnchor,
   hasPlottablePosition,
   PosStaleness,
+  type SceneBounds,
   type TrailPoint,
 } from '~/features/rtls/pos-view-utils';
 import {
@@ -40,8 +46,9 @@ import {
   getRtlsPositionsById,
   getRtlsStatsById,
 } from '~/features/rtls/selectors';
+import { type RtlsAnchor, type RtlsPosEstimate } from '~/features/rtls/types';
 import { showError } from '~/features/snackbar/actions';
-import { type AppDispatch } from '~/store/reducers';
+import { type AppDispatch, type RootState } from '~/store/reducers';
 
 /** Distinct colors assigned to tags, keyed stably by system id. */
 const TAG_COLORS = [
@@ -63,8 +70,25 @@ const TAG_COLORS = [
 const colorForTag = (id: string): string =>
   TAG_COLORS[Math.abs(Number.parseInt(id, 10) || 0) % TAG_COLORS.length];
 
-/** Repaint period (ms); drives staleness fading between store updates. */
-const REPAINT_INTERVAL_MS = 250;
+/**
+ * Sampling / repaint period (ms). The estimate stream is deliberately NOT
+ * subscribed through useSelector: the server sends one notification per
+ * device (up to 10 Hz each), so a direct subscription would re-render the
+ * whole plot per message — quadratic with tag count. Instead the store is
+ * sampled on this tick, which bounds the panel to at most 10 renders/s no
+ * matter how many tags stream, and drives the staleness fading between
+ * updates. It matches the server's per-device broadcast cap, so no trail
+ * points are lost.
+ */
+const SAMPLE_INTERVAL_MS = 100;
+
+/** Cached per-tag trail geometry (see `trailPointsFor`). */
+type TrailGeomCache = {
+  stamp: number;
+  length: number;
+  bounds: SceneBounds;
+  points: string;
+};
 
 const OPACITY_BY_STALENESS: Record<PosStaleness, number> = {
   [PosStaleness.LIVE]: 1,
@@ -87,29 +111,46 @@ const formatAge = (ageMs: number | undefined): string => {
 
 const RtlsPositionsPanel = (): React.JSX.Element => {
   const dispatch = useDispatch<AppDispatch>();
+  const store = useStore<RootState>();
   const theme = useTheme();
   const onlineTags = useSelector(getOnlineRtlsTags);
-  const positionsById = useSelector(getRtlsPositionsById);
   const anchors = useSelector(getRtlsAnchors);
   const statsById = useSelector(getRtlsStatsById);
 
   const [busy, setBusy] = useState(false);
   const [now, setNow] = useState<number>(() => Date.now());
+  const [positionsById, setPositionsById] = useState<
+    Record<string, RtlsPosEstimate>
+  >(() => getRtlsPositionsById(store.getState()));
   const trailsRef = useRef<Record<string, TrailPoint[]>>({});
+  const trailGeomRef = useRef<Record<string, TrailGeomCache>>({});
+  const boundsCacheRef = useRef<{
+    anchors: RtlsAnchor[];
+    bounds: SceneBounds | undefined;
+  }>({ anchors: [], bounds: undefined });
+  //: devices whose stream THIS panel enabled and therefore owes a disable
+  //: on teardown
+  const guardRef = useRef<PosStreamGuard | null>(null);
+  guardRef.current ??= new PosStreamGuard();
 
-  // Periodic repaint so staleness fading progresses even when the stream
-  // stops (which is exactly when the fading matters).
+  // Sample the estimate stream (and advance the staleness clock) at a
+  // bounded rate; both setters bail out when nothing changed, so an idle
+  // panel does not re-render at all.
   useEffect(() => {
     const timer = setInterval(() => {
-      setNow(Date.now());
-    }, REPAINT_INTERVAL_MS);
+      const next = getRtlsPositionsById(store.getState());
+      setPositionsById((prev) => (next === prev ? prev : next));
+      if (Object.keys(next).length > 0) {
+        setNow(Date.now());
+      }
+    }, SAMPLE_INTERVAL_MS);
     return () => {
       clearInterval(timer);
     };
-  }, []);
+  }, [store]);
 
-  // Accumulate a short trail per tag from the estimate stream; drop trails
-  // of tags whose estimates were pruned.
+  // Accumulate a short trail per tag from the sampled stream; drop trails
+  // (and their cached geometry) of tags whose estimates were pruned.
   useEffect(() => {
     const trails = trailsRef.current;
     for (const [id, estimate] of Object.entries(positionsById)) {
@@ -120,17 +161,53 @@ const RtlsPositionsPanel = (): React.JSX.Element => {
     for (const id of Object.keys(trails)) {
       if (!(id in positionsById)) {
         delete trails[id];
+        delete trailGeomRef.current[id];
       }
     }
   }, [positionsById]);
 
+  // The stream is a persistent per-device parameter, so it MUST be turned
+  // off again when the panel goes away (tab switch / panel close) — and
+  // only on the devices this panel enabled itself. Best-effort and
+  // idempotent; a killed browser cannot run this, in which case the stream
+  // stays on until disabled from the Devices tab (see the PR notes).
+  useEffect(() => {
+    const guard = guardRef.current;
+    return () => {
+      const ids = guard?.takeForRelease() ?? [];
+      if (ids.length > 0) {
+        void dispatch(disablePosDebugStreamOn(ids));
+      }
+    };
+  }, [dispatch]);
+
   const estimates = Object.values(positionsById);
-  const bounds = computeSceneBounds(anchors, estimates);
+
+  // Scene bounds are cached and recomputed only when the anchor set changes
+  // or an estimate leaves the current frame: a cheap O(n) containment check
+  // per render instead of a full recompute, which also keeps the frame from
+  // jittering while tags move inside it.
+  let bounds = boundsCacheRef.current.bounds;
+  if (
+    boundsCacheRef.current.anchors !== anchors ||
+    bounds === undefined ||
+    !boundsContain(bounds, estimates)
+  ) {
+    bounds = computeSceneBounds(anchors, estimates);
+    boundsCacheRef.current = { anchors, bounds };
+  }
 
   const toggleStream = async (enabled: boolean): Promise<void> => {
     setBusy(true);
     try {
       const results = await dispatch(setPosDebugStreamEnabled(enabled));
+      const guard = guardRef.current;
+      if (enabled) {
+        guard?.noteEnabled(results);
+      } else {
+        guard?.noteDisabled(results);
+      }
+
       const failed = results.filter((result) => !result.accepted);
       if (failed.length > 0) {
         showError(
@@ -166,9 +243,35 @@ const RtlsPositionsPanel = (): React.JSX.Element => {
     const unit = Math.max(width, height);
     const fontSize = unit * 0.03;
     const dotRadius = unit * 0.012;
-    const x = (east: number): number => east - bounds.minEast;
-    const y = (north: number): number => bounds.maxNorth - north;
+    const scene = bounds;
+    const x = (east: number): number => east - scene.minEast;
+    const y = (north: number): number => scene.maxNorth - north;
     const step = getGridStep(unit);
+
+    // Memoized per-tag polyline geometry: rebuilt only when the trail
+    // gained a sample or the (cached, identity-stable) bounds changed, not
+    // on every staleness repaint.
+    const trailPointsFor = (id: string, trail: TrailPoint[]): string => {
+      const stamp = trail.at(-1)?.receivedAt ?? 0;
+      const cached = trailGeomRef.current[id];
+      if (
+        cached &&
+        cached.stamp === stamp &&
+        cached.length === trail.length &&
+        cached.bounds === scene
+      ) {
+        return cached.points;
+      }
+
+      const points = trail.map((p) => `${x(p.east)},${y(p.north)}`).join(' ');
+      trailGeomRef.current[id] = {
+        stamp,
+        length: trail.length,
+        bounds: scene,
+        points,
+      };
+      return points;
+    };
 
     plot = (
       <svg
@@ -262,9 +365,7 @@ const RtlsPositionsPanel = (): React.JSX.Element => {
             <g key={id} opacity={opacity}>
               {trail.length > 1 && (
                 <polyline
-                  points={trail
-                    .map((p) => `${x(p.east)},${y(p.north)}`)
-                    .join(' ')}
+                  points={trailPointsFor(id, trail)}
                   fill='none'
                   stroke={color}
                   strokeWidth={unit * 0.004}

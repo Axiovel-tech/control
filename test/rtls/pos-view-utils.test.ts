@@ -2,6 +2,7 @@ import { describe, expect, test } from '@jest/globals';
 
 import {
   appendToTrail,
+  boundsContain,
   computeSceneBounds,
   getGridLines,
   getGridStep,
@@ -72,6 +73,30 @@ describe('rtls pos-view-utils', () => {
         minEast: -2,
         maxEast: 2,
       });
+    });
+  });
+
+  describe('boundsContain', () => {
+    const bounds = { minNorth: -2, maxNorth: 2, minEast: -3, maxEast: 3 };
+
+    test('true when every plottable estimate is inside', () => {
+      expect(
+        boundsContain(bounds, [
+          { id: '1', north: 0, east: 0 },
+          { id: '2', north: -2, east: 3 }, // on the edge counts as inside
+          { id: '3' }, // not plottable: ignored
+        ])
+      ).toBe(true);
+      expect(boundsContain(bounds, [])).toBe(true);
+    });
+
+    test('false as soon as one estimate leaves the frame', () => {
+      expect(boundsContain(bounds, [{ id: '1', north: 2.5, east: 0 }])).toBe(
+        false
+      );
+      expect(boundsContain(bounds, [{ id: '1', north: 0, east: -3.5 }])).toBe(
+        false
+      );
     });
   });
 
