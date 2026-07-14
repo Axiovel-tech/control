@@ -120,6 +120,26 @@ export type RtlsDeviceStats = {
   clockPpm?: number;
   /** Bitmask of anchors that contributed to the most recent fix. */
   anchorMask?: number;
+  /** Show-start synchronization health reported by the firmware. */
+  showSync?: {
+    /** Whether Anchor 0 currently has a stable analog LTC lock. */
+    ltcLocked?: boolean;
+    /** Whether this tag has a valid, fresh UWB show deadline. */
+    deadlineValid?: boolean;
+    /** Generation of the currently acquired UWB deadline. */
+    generation?: number;
+    /** Seconds remaining until the UWB deadline; negative after it passes. */
+    secondsToStart?: number;
+  };
+};
+
+/** Flight-controller show deadline state exposed by X-SHOW-SYNC. */
+export type ShowSyncStatus = {
+  source: 'none' | 'rc' | 'uwb-ltc';
+  locked: boolean;
+  committed: boolean;
+  scheduled: boolean;
+  secondsToStart?: number;
 };
 
 /**

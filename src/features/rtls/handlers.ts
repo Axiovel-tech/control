@@ -14,13 +14,16 @@ import { type AppDispatch } from '~/store/reducers';
 import {
   setRtlsDevicesFromStatus,
   setRtlsOtaJob,
+  replaceShowSyncStatus,
   updateRtlsStats,
+  updateShowSyncStatus,
 } from './slice';
 import {
   type RtlsDevice,
   type RtlsDeviceStats,
   type RtlsOtaJob,
   type RtlsTwrPeer,
+  type ShowSyncStatus,
 } from './types';
 
 type AnyRecord = Record<string, unknown>;
@@ -30,6 +33,9 @@ const toNumber = (value: unknown): number | undefined =>
 
 const toString = (value: unknown): string | undefined =>
   typeof value === 'string' ? value : undefined;
+
+const toBoolean = (value: unknown): boolean | undefined =>
+  typeof value === 'boolean' ? value : undefined;
 
 /**
  * Maps the server's inter-anchor TWR list (X-RTLS-INF `twr`) into the device
@@ -155,6 +161,19 @@ export function mapRtlsDeviceStats(
   id: string,
   raw: AnyRecord
 ): RtlsDeviceStats {
+  const rawShowSync =
+    raw.showSync && typeof raw.showSync === 'object'
+      ? (raw.showSync as AnyRecord)
+      : undefined;
+  const showSync = rawShowSync
+    ? {
+        ltcLocked: toBoolean(rawShowSync.ltcLocked),
+        deadlineValid: toBoolean(rawShowSync.deadlineValid),
+        generation: toNumber(rawShowSync.generation),
+        secondsToStart: toNumber(rawShowSync.secondsToStart),
+      }
+    : undefined;
+
   return {
     id,
     batteryVoltage: toNumber(raw.batteryVoltage),
@@ -164,6 +183,7 @@ export function mapRtlsDeviceStats(
     fixAgeMs: toNumber(raw.fixAgeMs),
     clockPpm: toNumber(raw.clockPpm),
     anchorMask: toNumber(raw.anchorMask),
+    showSync,
   };
 }
 
@@ -199,6 +219,51 @@ export function handleRtlsStatsMessage(
       lastUpdatedAt: Date.now(),
     })
   );
+}
+
+/** Handles an X-SHOW-SYNC query response or one-UAV notification. */
+export function handleShowSyncMessage(
+  body: AnyRecord,
+  dispatch: AppDispatch,
+  { replace = false }: { replace?: boolean } = {}
+): void {
+  const rawStatus = body?.status;
+  if (!rawStatus || typeof rawStatus !== 'object') {
+    return;
+  }
+  const byId: Record<string, ShowSyncStatus | null> = {};
+  for (const [id, raw] of Object.entries(
+    rawStatus as Record<string, AnyRecord | null>
+  )) {
+    if (raw === null) {
+      byId[id] = null;
+      continue;
+    }
+    if (typeof raw !== 'object') {
+      continue;
+    }
+    const source = raw.source;
+    if (source !== 'none' && source !== 'rc' && source !== 'uwb-ltc') {
+      continue;
+    }
+    byId[id] = {
+      source,
+      locked: raw.locked === true,
+      committed: raw.committed === true,
+      scheduled: raw.scheduled === true,
+      secondsToStart: toNumber(raw.secondsToStart),
+    };
+  }
+  if (replace) {
+    const snapshot = Object.fromEntries(
+      Object.entries(byId).filter(
+        (entry): entry is [string, ShowSyncStatus] => entry[1] !== null
+      )
+    );
+    dispatch(replaceShowSyncStatus(snapshot));
+  } else {
+    dispatch(updateShowSyncStatus(byId));
+  }
 }
 
 /**

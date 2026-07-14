@@ -24,6 +24,7 @@ import {
   handleRtlsInformationMessage,
   handleRtlsOtaMessage,
   handleRtlsStatsMessage,
+  handleShowSyncMessage,
 } from './features/rtls/handlers';
 
 import { batchAddInboundMessages } from './features/messages/slice';
@@ -100,6 +101,7 @@ messageHub.registerNotificationHandlers({
     handleRtlsInformationMessage(message.body, dispatch),
   'X-RTLS-OTA': (message) => handleRtlsOtaMessage(message.body, dispatch),
   'X-RTLS-STATS': (message) => handleRtlsStatsMessage(message.body, dispatch),
+  'X-SHOW-SYNC': (message) => handleShowSyncMessage(message.body, dispatch),
 });
 /* eslint-enable object-shorthand */
 

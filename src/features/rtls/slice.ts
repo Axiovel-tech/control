@@ -17,6 +17,7 @@ import {
   type RtlsDeviceStats,
   type RtlsOtaJob,
   type RtlsParam,
+  type ShowSyncStatus,
 } from './types';
 import { updateStateOfRtlsDevice } from './utils';
 
@@ -49,6 +50,9 @@ export type RtlsSliceState = {
     lastUpdatedAt?: number;
   };
 
+  /** Active flight-controller start source and deadline state by UAV id. */
+  showSyncByUavId: Record<string, ShowSyncStatus>;
+
   /** Last known OTA job per device, keyed by system id. */
   otaJobs: Record<string, RtlsOtaJob>;
 
@@ -79,6 +83,7 @@ const initialState: RtlsSliceState = {
     byId: {},
     lastUpdatedAt: undefined,
   },
+  showSyncByUavId: {},
   otaJobs: {},
   paramsByDevice: {},
   paramDialog: {
@@ -102,6 +107,7 @@ const { actions, reducer } = createSlice({
     clearRtlsDevices(state) {
       clearOrderedCollection<RtlsDevice>(state.devices);
       state.stats = { byId: {}, lastUpdatedAt: undefined };
+      state.showSyncByUavId = {};
       state.otaJobs = {};
       state.paramsByDevice = {};
     },
@@ -244,6 +250,28 @@ const { actions, reducer } = createSlice({
       state.stats.lastUpdatedAt = payload.lastUpdatedAt ?? Date.now();
     },
 
+    /** Merges a full query result or one-device change notification. */
+    updateShowSyncStatus(
+      state,
+      { payload }: PayloadAction<Record<string, ShowSyncStatus | null>>
+    ) {
+      for (const [id, status] of Object.entries(payload)) {
+        if (status === null) {
+          delete state.showSyncByUavId[id];
+        } else {
+          state.showSyncByUavId[id] = status;
+        }
+      }
+    },
+
+    /** Replaces the full X-SHOW-SYNC query snapshot. */
+    replaceShowSyncStatus(
+      state,
+      { payload }: PayloadAction<Record<string, ShowSyncStatus>>
+    ) {
+      state.showSyncByUavId = payload;
+    },
+
     /** Records the latest OTA job state for a single device. */
     setRtlsOtaJob(
       state,
@@ -268,6 +296,8 @@ export const {
   setRtlsOtaJob,
   setSelectedTabInRtlsPanel,
   updateRtlsStats,
+  updateShowSyncStatus,
+  replaceShowSyncStatus,
 } = actions;
 
 export default reducer;
