@@ -62,7 +62,6 @@ const overrides: ConfigOverrides = {
                     component: 'saved-location-list',
                     id: 'locations',
                   },
-                  { type: 'panel', component: 'layer-list', id: 'layers' },
                 ],
                 height: 25,
               },

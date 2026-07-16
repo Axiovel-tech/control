@@ -14,7 +14,6 @@ import collectiveRTHReducer from '~/features/collective-rth/slice';
 import dockDetailsDialogReducer from '~/features/docks/details';
 import errorHandlingReducer from '~/features/error-handling/slice';
 import featureEditorReducer from '~/features/map-features/editor';
-import layerSettingsReducer from '~/features/map/layer-settings-dialog';
 import promptReducer from '~/features/prompt/slice';
 import savedLocationEditorReducer from '~/features/saved-locations/editor';
 import selectionReducer from '~/features/selection/slice';
@@ -87,7 +86,6 @@ const dialogsReducer = combineReducers({
   dockDetails: dockDetailsDialogReducer,
   error: errorHandlingReducer,
   featureEditor: featureEditorReducer,
-  layerSettings: layerSettingsReducer,
   prompt: promptReducer,
   savedLocationEditor: savedLocationEditorReducer,
   serverSettings: serverSettingsReducer,

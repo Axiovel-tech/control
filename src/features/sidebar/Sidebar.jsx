@@ -9,7 +9,6 @@ import Flight from '@mui/icons-material/Flight';
 import FormatListBulleted from '@mui/icons-material/FormatListBulleted';
 import Gamepad from '@mui/icons-material/Gamepad';
 import Grain from '@mui/icons-material/Grain';
-import Layers from '@mui/icons-material/Layers';
 import Map from '@mui/icons-material/Map';
 import Place from '@mui/icons-material/Place';
 // import Storage from '@mui/icons-material/Storage';
@@ -82,12 +81,6 @@ const Sidebar = ({
           label={t('view.three-d-view')}
           component='three-d-view'
           reorderEnabled={false}
-        />
-        <Module
-          id='layers'
-          icon={<Layers />}
-          label={t('view.layer-list')}
-          component='layer-list'
         />
         {hasFeature('mapFeatures') && (
           <Module
