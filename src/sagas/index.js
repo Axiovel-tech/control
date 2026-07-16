@@ -10,6 +10,7 @@ import beaconSaga from '~/features/beacons/saga';
 import hotkeySaga from '~/features/hotkeys/saga';
 import localServerSaga from '~/features/local-server/saga';
 import measurementSaga from '~/features/measurement/saga';
+import rtlsSaga from '~/features/rtls/saga';
 import serversSaga from '~/features/servers/saga';
 import showSaga from '~/features/show/saga';
 import sessionSaga from '~/features/session/saga';
@@ -31,6 +32,7 @@ export default function* rootSaga() {
     hotkeySaga(),
     measurementSaga(),
     onboardingSaga(),
+    rtlsSaga(),
     serversSaga(),
     showSaga(),
     threeDViewSaga(),
