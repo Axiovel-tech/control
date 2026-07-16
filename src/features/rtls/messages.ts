@@ -43,6 +43,20 @@ function ensureResponseType(
 }
 
 /**
+ * Requests the current RTLS device inventory (an X-RTLS-INF status snapshot).
+ * Returns the raw message body; servers without the RTLS extension make this
+ * throw (ACK-NAK response).
+ */
+export async function queryRtlsInformation(
+  hub: MessageHub
+): Promise<AnyMessageBody> {
+  const response: Message<AnyMessageBody> = await hub.sendMessage({
+    type: 'X-RTLS-INF',
+  });
+  return ensureResponseType(response.body, 'X-RTLS-INF');
+}
+
+/**
  * Requests the full parameter list of a single RTLS device.
  */
 export async function queryRtlsParameterList(
