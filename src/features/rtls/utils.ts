@@ -32,3 +32,30 @@ export function updateStateOfRtlsDevice(
     devices.order.push(id);
   }
 }
+
+/**
+ * Returns the status light value to show for a device in the RTLS device
+ * list.
+ *
+ * `sleeping === undefined` on a drone (tag) renders as unknown (grey), never
+ * as awake/green: the server-side sleep latch may be stale or missing, and
+ * rendering such a device green inverted user intent on a live show
+ * (2026-07-21). Anchors have no sleep state, so they stay green while online.
+ */
+export function getRtlsDeviceListStatus(
+  device: RtlsDevice
+): 'error' | 'off' | 'success' {
+  if (!device.online) {
+    return 'error';
+  }
+
+  if (device.role && device.role !== 'tag') {
+    // Not sleepable; there is no sleep state to be unknown about.
+    return 'success';
+  }
+
+  // Grey for both "asleep" and "sleep state unknown"; the secondary text of
+  // the row distinguishes the two. Only an explicit `sleeping: false` may
+  // render green.
+  return device.sleeping === false ? 'success' : 'off';
+}

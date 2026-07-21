@@ -6,6 +6,7 @@ import {
   setOutdoorShowAltitudeReferenceToAverageAMSL,
   updateOutdoorShowSettings,
 } from '~/features/show/actions';
+import { normalizeShowOrientation } from '~/features/show/orientation';
 import type { AppThunk } from '~/store/reducers';
 import { createAsyncAction } from '~/utils/redux';
 import workers from '~/workers';
@@ -65,10 +66,14 @@ export const estimateShowCoordinateSystemFromActiveUAVs =
 
     const { origin, orientation, type } = args.result!;
 
+    // Normalized into [0, 360): a fitted negative angle (e.g. -1.4°) would
+    // otherwise end up in the drones' SHOW_ORIENTATION parameter, where any
+    // negative value silently means "show not configured" (see
+    // ~/features/show/orientation.ts).
     dispatch(
       updateOutdoorShowSettings({
         origin,
-        orientation: orientation.toFixed(1),
+        orientation: String(normalizeShowOrientation(orientation.toFixed(1))),
         setupMission: true,
       })
     );
@@ -81,7 +86,9 @@ export const estimateShowCoordinateSystemFromActiveUAVs =
     dispatch(
       updateFlatEarthCoordinateSystem({
         position: origin,
-        angle: orientation.toFixed(1),
+        // Normalized the same way as the show orientation above so the two
+        // coordinate systems keep the exact same angle string.
+        angle: String(normalizeShowOrientation(orientation.toFixed(1))),
         type,
       })
     );

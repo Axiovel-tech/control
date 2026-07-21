@@ -24,6 +24,14 @@ import {
 } from './types';
 
 /**
+ * Selector that returns the mapping of device ids whose sleep/wake
+ * transaction is currently in flight.
+ */
+export const getRtlsSleepPendingMap: AppSelector<Record<string, boolean>> = (
+  state
+) => state.rtls.sleepPending;
+
+/**
  * Selector that returns the collection of RTLS devices (IDs plus a mapping from
  * IDs to the information stored about them).
  */
