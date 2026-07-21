@@ -9,7 +9,6 @@ import CollectiveRTHPanel from './collective-rth';
 import ConnectionList from './connections';
 import DockList from './docks';
 import FeaturePanel from './features';
-import LayerList from './layers';
 import LCDClockPanel from './lcd-clock';
 import LightControlPanel from './light-control';
 import SavedLocationList from './locations';
@@ -30,7 +29,6 @@ const views = {
   ConnectionList,
   DockList,
   FeaturePanel,
-  LayerList,
   LCDClockPanel,
   LightControlPanel,
   LogPanel,

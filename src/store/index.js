@@ -76,7 +76,6 @@ const persistConfig = {
     createFilter('dialogs', [
       'appSettings',
       'featureEditor',
-      'layerSettings',
       'messages',
       'savedLocationEditor',
       'serverSettings',

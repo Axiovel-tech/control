@@ -10,7 +10,7 @@
 import loadable from '@loadable/component';
 import debounce from 'lodash-es/debounce';
 import React from 'react';
-import { WorkbenchBuilder } from 'react-flexible-workbench';
+import { filteredPanels, WorkbenchBuilder } from 'react-flexible-workbench';
 
 import { BackgroundHint } from '@skybrush/mui-components';
 
@@ -106,11 +106,6 @@ export const componentRegistry = {
     component: injectFlockFromContext(views.GroundControlView),
     label: 'Ground control',
   },
-  'layer-list': {
-    component: views.LayerList,
-    label: 'Layers',
-    detachable: true,
-  },
   'light-control': {
     component: views.LightControlPanel,
     label: 'Light control',
@@ -192,6 +187,14 @@ function constructDefaultWorkbench(store) {
 
   // Create the default perspective
   const workbench = workbenchBuilder.build();
+  // Remove the retired Layers panel from previously persisted layouts as well.
+  workbench.setStateGuard(
+    filteredPanels(
+      (panel) =>
+        panel.component !== 'layer-list' &&
+        panel.componentName !== 'layer-list'
+    )
+  );
   const { isFixed, state } = createPerspectiveBuilder(
     componentRegistry,
     workbench

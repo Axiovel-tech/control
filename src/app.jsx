@@ -165,7 +165,6 @@ const App = ({ onFirstRender }) => (
       <dialogs.FeatureEditorDialog />
       <dialogs.FlyToTargetDialog />
       <dialogs.GlobalErrorDialog />
-      <dialogs.LayerSettingsDialog />
       <dialogs.ServerSettingsDialog />
       {hasTimeLimitedSession && <dialogs.SessionExpiryDialog />}
       <dialogs.TimeSyncDialog />
