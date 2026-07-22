@@ -17,7 +17,12 @@ import { type AppDispatch, type AppThunk } from '~/store/reducers';
 
 import { handleRtlsInformationMessage } from './handlers';
 import { sendRtlsSleep } from './messages';
-import { getRtlsDevicesInOrder } from './selectors';
+import { getRtlsDevicesInOrder, getRtlsSleepPendingMap } from './selectors';
+import {
+  applyRtlsSleepResults,
+  rtlsSleepTransactionEnded,
+  rtlsSleepTransactionStarted,
+} from './slice';
 import { type RtlsDevice } from './types';
 
 /**
@@ -57,8 +62,22 @@ export const setRtlsDevicesSleeping =
     }
 
     const verb = sleeping ? 'sleep' : 'wake';
+    dispatch(rtlsSleepTransactionStarted(deviceIds));
     try {
       const result = await sendRtlsSleep(messageHub, deviceIds, sleeping);
+
+      // Each accepted per-device result carries the authoritative `sleeping`
+      // value verified by the server; apply it to the store as ground truth
+      // instead of relying on an INF re-poll (which may still read the stale
+      // pre-transition latch, see below).
+      const accepted: Record<string, boolean> = {};
+      for (const [id, entry] of Object.entries(result)) {
+        if (entry?.accepted && typeof entry.sleeping === 'boolean') {
+          accepted[id] = entry.sleeping;
+        }
+      }
+      dispatch(applyRtlsSleepResults(accepted));
+
       const failures = Object.entries(result).filter(
         ([, entry]) => !entry?.accepted
       );
@@ -76,31 +95,72 @@ export const setRtlsDevicesSleeping =
       }
     } catch (error) {
       showError(`RTLS ${verb} failed: ${errorToString(error)}`);
+    } finally {
+      dispatch(rtlsSleepTransactionEnded(deviceIds));
     }
 
-    await refreshRtlsDevices(dispatch);
+    // Only re-poll X-RTLS-INF after a sleep. A woken device reboots ~1.5 s
+    // after acking the wake, so an immediate poll only returns the stale
+    // pre-reboot STANDBY latch and would overwrite the authoritative
+    // `sleeping: false` applied above; the periodic INF refresh catches up
+    // once the device is back on the network.
+    if (sleeping) {
+      await refreshRtlsDevices(dispatch);
+    }
   };
 
 /**
- * Convenience action creator for the per-device list button: toggles a single
- * device into or out of sleep.
+ * Convenience action creators for the per-device list buttons. Each commits a
+ * fixed intent — deliberately NOT a toggle of the current `sleeping` flag,
+ * which may have changed between paint and click and would then invert the
+ * user's intent (observed live on 2026-07-21: a "sleep" click fired a wake).
  */
-export const toggleRtlsDeviceSleep = (
-  deviceId: string,
-  sleeping: boolean
-): AppThunk<Promise<void>> => setRtlsDevicesSleeping([deviceId], sleeping);
+export const sleepRtlsDevice = (deviceId: string): AppThunk<Promise<void>> =>
+  setRtlsDevicesSleeping([deviceId], true);
+
+export const wakeRtlsDevice = (deviceId: string): AppThunk<Promise<void>> =>
+  setRtlsDevicesSleeping([deviceId], false);
+
+/**
+ * Drops the devices that already have a sleep/wake transaction in flight from
+ * the given candidate list. Overlapping X-RTLS-SLEEP transactions targeting
+ * the same device could settle out of order and re-invert the state; the
+ * per-device buttons are hidden while pending, and the bulk actions filter
+ * here. Shows a snackbar note (and returns an empty list) when every
+ * candidate is busy.
+ */
+const withoutPendingDevices = (
+  ids: string[],
+  pending: Record<string, boolean>,
+  verb: string
+): string[] => {
+  const result = ids.filter((id) => !pending[id]);
+  if (result.length === 0 && ids.length > 0) {
+    showNotification(
+      `RTLS ${verb} skipped — a sleep/wake transaction is already in ` +
+        `flight for every drone`
+    );
+  }
+
+  return result;
+};
 
 /**
  * Thunk that puts every known drone (tag) to sleep.
  */
 export const sleepAllRtlsDevices =
   (): AppThunk<Promise<void>> => async (dispatch, getState) => {
+    const state = getState();
     // Offline drones are skipped: commanding them can only fail. Wake-all
     // deliberately keeps targeting everything, since a sleeping drone that
     // aged out of the list should still get its wake command.
-    const ids = getRtlsDevicesInOrder(getState())
-      .filter((device) => isSleepable(device) && device.online)
-      .map((device) => device.id);
+    const ids = withoutPendingDevices(
+      getRtlsDevicesInOrder(state)
+        .filter((device) => isSleepable(device) && device.online)
+        .map((device) => device.id),
+      getRtlsSleepPendingMap(state),
+      'sleep'
+    );
     await dispatch(setRtlsDevicesSleeping(ids, true));
   };
 
@@ -109,8 +169,13 @@ export const sleepAllRtlsDevices =
  */
 export const wakeAllRtlsDevices =
   (): AppThunk<Promise<void>> => async (dispatch, getState) => {
-    const ids = getRtlsDevicesInOrder(getState())
-      .filter(isSleepable)
-      .map((device) => device.id);
+    const state = getState();
+    const ids = withoutPendingDevices(
+      getRtlsDevicesInOrder(state)
+        .filter(isSleepable)
+        .map((device) => device.id),
+      getRtlsSleepPendingMap(state),
+      'wake'
+    );
     await dispatch(setRtlsDevicesSleeping(ids, false));
   };

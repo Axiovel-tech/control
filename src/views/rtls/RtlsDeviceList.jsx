@@ -7,6 +7,7 @@ import Moon from '@mui/icons-material/NightsStay';
 import SystemUpdate from '@mui/icons-material/SystemUpdate';
 import Tune from '@mui/icons-material/Tune';
 import Box from '@mui/material/Box';
+import CircularProgress from '@mui/material/CircularProgress';
 import Divider from '@mui/material/Divider';
 import IconButton from '@mui/material/IconButton';
 import ListItem from '@mui/material/ListItem';
@@ -20,14 +21,17 @@ import { StatusLight, Tooltip } from '@skybrush/mui-components';
 import { listOf } from '~/components/helpers/lists';
 import {
   sleepAllRtlsDevices,
-  toggleRtlsDeviceSleep,
+  sleepRtlsDevice,
   wakeAllRtlsDevices,
+  wakeRtlsDevice,
 } from '~/features/rtls/sleep-actions';
 import { openRtlsOtaDialog, openRtlsParamDialog } from '~/features/rtls/slice';
 import {
   getRtlsDeviceDisplayName,
   getRtlsDevicesInOrder,
+  getRtlsSleepPendingMap,
 } from '~/features/rtls/selectors';
+import { getRtlsDeviceListStatus } from '~/features/rtls/utils';
 import Bolt from '~/icons/Bolt';
 
 /**
@@ -44,6 +48,9 @@ const describeDevice = (device) => {
   const parts = [];
   if (device.sleeping) {
     parts.push('sleeping');
+  } else if (device.sleeping === undefined && isSleepable(device)) {
+    // Distinguishes the grey "unknown" light from the grey "asleep" light.
+    parts.push('sleep state unknown');
   }
 
   if (device.firmwareVersion) {
@@ -66,23 +73,40 @@ const describeDevice = (device) => {
  */
 const RtlsDeviceListPresentation = listOf(
   (device, props) => {
+    const busy = Boolean(props.sleepPending?.[device.id]);
     const secondaryAction = (
       <Box>
-        {isSleepable(device) && (
-          <Tooltip content={device.sleeping ? 'Wake' : 'Sleep'}>
-            <IconButton
-              edge='end'
-              size='small'
-              onClick={() => props.onToggleSleep(device.id, !device.sleeping)}
-            >
-              {device.sleeping ? (
-                <Bolt fontSize='small' />
-              ) : (
-                <Moon fontSize='small' />
-              )}
+        {/* Two fixed-intent buttons, like the sleep-all/wake-all pair above
+         * the list — deliberately NOT a toggle of the current `sleeping`
+         * flag, which may have changed between paint and click and would
+         * then invert the user's intent. */}
+        {isSleepable(device) &&
+          (busy ? (
+            <IconButton edge='end' size='small' disabled>
+              <CircularProgress size={18} color='inherit' />
             </IconButton>
-          </Tooltip>
-        )}
+          ) : (
+            <>
+              <Tooltip content='Sleep'>
+                <IconButton
+                  edge='end'
+                  size='small'
+                  onClick={() => props.onSleep(device.id)}
+                >
+                  <Moon fontSize='small' />
+                </IconButton>
+              </Tooltip>
+              <Tooltip content='Wake'>
+                <IconButton
+                  edge='end'
+                  size='small'
+                  onClick={() => props.onWake(device.id)}
+                >
+                  <Bolt fontSize='small' />
+                </IconButton>
+              </Tooltip>
+            </>
+          ))}
         <Tooltip content='Parameters'>
           <IconButton
             edge='end'
@@ -111,11 +135,7 @@ const RtlsDeviceListPresentation = listOf(
         secondaryAction={secondaryAction}
       >
         <ListItemButton>
-          <StatusLight
-            status={
-              device.online ? (device.sleeping ? 'off' : 'success') : 'error'
-            }
-          />
+          <StatusLight status={getRtlsDeviceListStatus(device)} />
           <ListItemText
             primary={getRtlsDeviceDisplayName(device)}
             secondary={describeDevice(device)}
@@ -137,9 +157,11 @@ const RtlsDeviceListPresentation = listOf(
 const RtlsDeviceList = ({
   onShowOta,
   onShowParameters,
+  onSleep,
   onSleepAll,
-  onToggleSleep,
+  onWake,
   onWakeAll,
+  sleepPending,
   ...rest
 }) => (
   <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -169,7 +191,9 @@ const RtlsDeviceList = ({
         dense
         onShowOta={onShowOta}
         onShowParameters={onShowParameters}
-        onToggleSleep={onToggleSleep}
+        onSleep={onSleep}
+        onWake={onWake}
+        sleepPending={sleepPending}
         {...rest}
       />
     </Box>
@@ -179,22 +203,26 @@ const RtlsDeviceList = ({
 RtlsDeviceList.propTypes = {
   onShowOta: PropTypes.func,
   onShowParameters: PropTypes.func,
+  onSleep: PropTypes.func,
   onSleepAll: PropTypes.func,
-  onToggleSleep: PropTypes.func,
+  onWake: PropTypes.func,
   onWakeAll: PropTypes.func,
+  sleepPending: PropTypes.object,
 };
 
 export default connect(
   // mapStateToProps
   (state) => ({
     devices: getRtlsDevicesInOrder(state),
+    sleepPending: getRtlsSleepPendingMap(state),
   }),
   // mapDispatchToProps
   {
     onShowOta: openRtlsOtaDialog,
     onShowParameters: openRtlsParamDialog,
+    onSleep: sleepRtlsDevice,
     onSleepAll: sleepAllRtlsDevices,
-    onToggleSleep: toggleRtlsDeviceSleep,
+    onWake: wakeRtlsDevice,
     onWakeAll: wakeAllRtlsDevices,
   }
 )(RtlsDeviceList);

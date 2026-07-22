@@ -14,6 +14,7 @@ import { JobScope } from '~/features/upload/jobs';
 import messageHub from '~/message-hub';
 
 import { JOB_TYPE } from './constants';
+import { normalizeShowOrientation } from './orientation';
 import {
   getCommonShowSettings,
   getDroneSwarmSpecification,
@@ -105,7 +106,16 @@ export function createShowConfigurationForUav(state, uavId) {
     ...getCommonShowSettings(state),
     ...settings,
     amslReference,
-    coordinateSystem,
+    // The orientation ends up in the drones' SHOW_ORIENTATION parameter,
+    // whose firmware treats any negative angle as the "not configured"
+    // sentinel (see ./orientation.ts) — normalize it into [0, 360).
+    coordinateSystem:
+      coordinateSystem && typeof coordinateSystem === 'object'
+        ? {
+            ...coordinateSystem,
+            orientation: normalizeShowOrientation(coordinateSystem.orientation),
+          }
+        : coordinateSystem,
     geofence,
     mission: {
       id: missionId,

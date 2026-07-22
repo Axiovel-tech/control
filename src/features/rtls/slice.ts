@@ -25,6 +25,13 @@ import { updateStateOfRtlsDevice } from './utils';
 /** Tabs of the RTLS Link workbench panel. */
 export type RtlsPanelTab = 'devices' | 'health' | 'positions';
 
+/**
+ * How long an applied sleep/wake transaction result guards the device's
+ * `sleeping` flag against contradicting X-RTLS-INF snapshot values, in
+ * milliseconds. Matches the worst-case transaction round trip.
+ */
+export const SLEEP_RESULT_GUARD_MS = 30 * 1000;
+
 /** Cached read-only parameter list for a single device. */
 export type RtlsDeviceParamsState = {
   /** Fetch status of the parameter list. */
@@ -66,6 +73,28 @@ export type RtlsSliceState = {
   /** Last known OTA job per device, keyed by system id. */
   otaJobs: Record<string, RtlsOtaJob>;
 
+  /**
+   * Devices with a sleep/wake transaction currently in flight (X-RTLS-SLEEP
+   * round trip; can take up to ~30 s), keyed by system id. Used to render a
+   * busy state on the device rows. Cleared deterministically when the
+   * transaction settles, so it is not pruned with the X-RTLS-INF snapshot (a
+   * waking device may drop out of the snapshot while it reboots).
+   */
+  sleepPending: Record<string, boolean>;
+
+  /**
+   * Authoritative per-device `sleeping` values recently applied from accepted
+   * X-RTLS-SLEEP transaction results, with the time they were applied. While
+   * an entry is fresh (`SLEEP_RESULT_GUARD_MS`), an X-RTLS-INF snapshot value
+   * that contradicts it must not overwrite it: pushes/polls already in flight
+   * — and older servers without the post-transaction sleep-state pin — may
+   * still carry the stale pre-transition latch. A confirming snapshot value
+   * (or expiry) clears the entry. Deliberately not pruned when a device drops
+   * out of a snapshot: a waking device disappears while it reboots, and the
+   * guard must still apply when it comes back.
+   */
+  recentSleepResults: Record<string, { sleeping: boolean; appliedAt: number }>;
+
   /** Cached read-only parameter lists keyed by device id. */
   paramsByDevice: Record<string, RtlsDeviceParamsState>;
 
@@ -98,6 +127,8 @@ const initialState: RtlsSliceState = {
   },
   anchors: [],
   otaJobs: {},
+  sleepPending: {},
+  recentSleepResults: {},
   paramsByDevice: {},
   paramDialog: {
     open: false,
@@ -123,7 +154,53 @@ const { actions, reducer } = createSlice({
       state.positions = { byId: {} };
       state.anchors = [];
       state.otaJobs = {};
+      state.sleepPending = {};
+      state.recentSleepResults = {};
       state.paramsByDevice = {};
+    },
+
+    /**
+     * Applies the authoritative per-device `sleeping` values carried by the
+     * accepted results of an X-RTLS-SLEEP transaction. Unlike an X-RTLS-INF
+     * snapshot this touches only the devices listed; ids that are not in the
+     * registry are ignored rather than created.
+     */
+    applyRtlsSleepResults(
+      state,
+      { payload }: PayloadAction<Record<string, boolean>>
+    ) {
+      const now = Date.now();
+      for (const [id, sleeping] of Object.entries(payload)) {
+        const device = state.devices.byId[id];
+        if (device) {
+          device.sleeping = sleeping;
+        }
+
+        // Recorded even when the device is not in the registry right now: a
+        // woken device may have aged out of the snapshot and must still be
+        // guarded against the stale latch when it reappears.
+        state.recentSleepResults[id] = { sleeping, appliedAt: now };
+      }
+    },
+
+    /** Marks a sleep/wake transaction as in flight for the given devices. */
+    rtlsSleepTransactionStarted(
+      state,
+      { payload: ids }: PayloadAction<string[]>
+    ) {
+      for (const id of ids) {
+        state.sleepPending[id] = true;
+      }
+    },
+
+    /** Marks the sleep/wake transaction of the given devices as settled. */
+    rtlsSleepTransactionEnded(
+      state,
+      { payload: ids }: PayloadAction<string[]>
+    ) {
+      for (const id of ids) {
+        delete state.sleepPending[id];
+      }
     },
 
     /** Marks the parameter list of a device as being loaded. */
@@ -239,8 +316,25 @@ const { actions, reducer } = createSlice({
         ids.includes(id)
       );
 
+      const now = Date.now();
       for (const [id, device] of Object.entries(payload)) {
         updateStateOfRtlsDevice(state.devices, id, device);
+
+        // Recent-result guard: while a sleep/wake transaction result applied
+        // for this device is fresh, a snapshot value that contradicts it (or
+        // reports unknown) must not overwrite it — the snapshot may still
+        // carry the stale pre-transition latch. A confirming value retires
+        // the guard, as does expiry.
+        const recent = state.recentSleepResults[id];
+        if (recent) {
+          if (now - recent.appliedAt > SLEEP_RESULT_GUARD_MS) {
+            delete state.recentSleepResults[id];
+          } else if (device.sleeping === recent.sleeping) {
+            delete state.recentSleepResults[id];
+          } else {
+            state.devices.byId[id].sleeping = recent.sleeping;
+          }
+        }
       }
     },
 
@@ -298,6 +392,7 @@ const { actions, reducer } = createSlice({
 });
 
 export const {
+  applyRtlsSleepResults,
   clearRtlsDevices,
   closeRtlsOtaDialog,
   closeRtlsParamDialog,
@@ -307,6 +402,8 @@ export const {
   rtlsParamsFetchStarted,
   rtlsParamsFetchSucceeded,
   rtlsParamValueUpdated,
+  rtlsSleepTransactionEnded,
+  rtlsSleepTransactionStarted,
   setRtlsAnchors,
   setRtlsDevicesFromStatus,
   setRtlsOtaJob,

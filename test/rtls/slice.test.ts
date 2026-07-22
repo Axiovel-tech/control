@@ -1,6 +1,8 @@
-import { describe, expect, test } from '@jest/globals';
+import { describe, expect, jest, test } from '@jest/globals';
 
 import reducer, {
+  applyRtlsSleepResults,
+  SLEEP_RESULT_GUARD_MS,
   clearRtlsDevices,
   closeRtlsParamDialog,
   openRtlsParamDialog,
@@ -8,6 +10,8 @@ import reducer, {
   rtlsParamsFetchStarted,
   rtlsParamsFetchSucceeded,
   rtlsParamValueUpdated,
+  rtlsSleepTransactionEnded,
+  rtlsSleepTransactionStarted,
   setRtlsAnchors,
   setRtlsDevicesFromStatus,
   setRtlsOtaJob,
@@ -324,5 +328,132 @@ describe('rtls slice', () => {
     expect(state.anchors).toEqual([]);
     expect(state.otaJobs).toEqual({});
     expect(state.paramsByDevice).toEqual({});
+  });
+
+  test('applyRtlsSleepResults updates only the devices that exist', () => {
+    let state = reducer(
+      initial(),
+      setRtlsDevicesFromStatus({
+        '1': { online: true, sleeping: true },
+        '2': { online: true, sleeping: true },
+      })
+    );
+
+    state = reducer(state, applyRtlsSleepResults({ '1': false, '99': false }));
+
+    expect(state.devices.byId['1'].sleeping).toBe(false);
+    expect(state.devices.byId['2'].sleeping).toBe(true);
+    // Ids that are not in the registry are ignored, not created.
+    expect(state.devices.byId['99']).toBeUndefined();
+    expect(state.devices.order).toEqual(['1', '2']);
+  });
+
+  test('sleep transaction markers track the in-flight devices', () => {
+    let state = reducer(initial(), rtlsSleepTransactionStarted(['1', '2']));
+    expect(state.sleepPending).toEqual({ '1': true, '2': true });
+
+    // The pending map survives an INF snapshot that drops a device (a waking
+    // device may fall out of the snapshot while it reboots).
+    state = reducer(state, setRtlsDevicesFromStatus({ '1': { online: true } }));
+    expect(state.sleepPending).toEqual({ '1': true, '2': true });
+
+    state = reducer(state, rtlsSleepTransactionEnded(['1', '2']));
+    expect(state.sleepPending).toEqual({});
+
+    state = reducer(state, rtlsSleepTransactionStarted(['1']));
+    state = reducer(state, clearRtlsDevices());
+    expect(state.sleepPending).toEqual({});
+  });
+
+  test('a fresh sleep result guards against contradicting snapshot values', () => {
+    const nowSpy = jest.spyOn(Date, 'now');
+    try {
+      nowSpy.mockReturnValue(1000);
+      let state = reducer(
+        initial(),
+        setRtlsDevicesFromStatus({ '1': { online: true, sleeping: true } })
+      );
+      state = reducer(state, applyRtlsSleepResults({ '1': false }));
+      expect(state.devices.byId['1'].sleeping).toBe(false);
+
+      // A snapshot still carrying the stale pre-transition latch arrives
+      // within the guard window: it must not overwrite the applied result.
+      nowSpy.mockReturnValue(1000 + 5000);
+      state = reducer(
+        state,
+        setRtlsDevicesFromStatus({ '1': { online: true, sleeping: true } })
+      );
+      expect(state.devices.byId['1'].sleeping).toBe(false);
+
+      // Neither may an "unknown" snapshot value.
+      state = reducer(
+        state,
+        setRtlsDevicesFromStatus({ '1': { online: true, sleeping: undefined } })
+      );
+      expect(state.devices.byId['1'].sleeping).toBe(false);
+
+      // A confirming snapshot retires the guard...
+      state = reducer(
+        state,
+        setRtlsDevicesFromStatus({ '1': { online: true, sleeping: false } })
+      );
+      // ...after which the snapshot is authoritative again.
+      state = reducer(
+        state,
+        setRtlsDevicesFromStatus({ '1': { online: true, sleeping: true } })
+      );
+      expect(state.devices.byId['1'].sleeping).toBe(true);
+    } finally {
+      nowSpy.mockRestore();
+    }
+  });
+
+  test('the sleep-result guard expires after its window', () => {
+    const nowSpy = jest.spyOn(Date, 'now');
+    try {
+      nowSpy.mockReturnValue(1000);
+      let state = reducer(
+        initial(),
+        setRtlsDevicesFromStatus({ '1': { online: true, sleeping: true } })
+      );
+      state = reducer(state, applyRtlsSleepResults({ '1': false }));
+
+      nowSpy.mockReturnValue(1000 + SLEEP_RESULT_GUARD_MS + 1);
+      state = reducer(
+        state,
+        setRtlsDevicesFromStatus({ '1': { online: true, sleeping: true } })
+      );
+      expect(state.devices.byId['1'].sleeping).toBe(true);
+    } finally {
+      nowSpy.mockRestore();
+    }
+  });
+
+  test('the sleep-result guard survives the device dropping out of a snapshot', () => {
+    const nowSpy = jest.spyOn(Date, 'now');
+    try {
+      nowSpy.mockReturnValue(1000);
+      let state = reducer(
+        initial(),
+        setRtlsDevicesFromStatus({ '1': { online: true, sleeping: true } })
+      );
+      state = reducer(state, applyRtlsSleepResults({ '1': false }));
+
+      // The waking device drops out of the snapshot while it reboots...
+      nowSpy.mockReturnValue(1000 + 5000);
+      state = reducer(state, setRtlsDevicesFromStatus({}));
+      expect(state.devices.byId['1']).toBeUndefined();
+
+      // ...and reappears within the window still reporting the stale latch:
+      // the guard must still hold.
+      nowSpy.mockReturnValue(1000 + 10_000);
+      state = reducer(
+        state,
+        setRtlsDevicesFromStatus({ '1': { online: true, sleeping: true } })
+      );
+      expect(state.devices.byId['1'].sleeping).toBe(false);
+    } finally {
+      nowSpy.mockRestore();
+    }
   });
 });
