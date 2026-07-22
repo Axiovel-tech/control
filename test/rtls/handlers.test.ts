@@ -115,6 +115,17 @@ describe('rtls handlers', () => {
       expect('sleeping' in mapped).toBe(true);
     });
 
+    test('maps the paired UAV id only when a string, always assigning the key', () => {
+      expect(mapRtlsDeviceStatus('7', { age: 1, uav: '05' })).toMatchObject({
+        uav: '05',
+      });
+      expect(mapRtlsDeviceStatus('7', { age: 1, uav: 5 }).uav).toBeUndefined();
+      // the key is present-but-undefined so a merge clears a stale pairing
+      const mapped = mapRtlsDeviceStatus('7', { age: 1 });
+      expect(mapped.uav).toBeUndefined();
+      expect('uav' in mapped).toBe(true);
+    });
+
     test('omits TWR when absent or not a non-empty array', () => {
       expect(mapRtlsDeviceStatus('5', {}).twr).toBeUndefined();
       expect(mapRtlsDeviceStatus('5', { twr: [] }).twr).toBeUndefined();

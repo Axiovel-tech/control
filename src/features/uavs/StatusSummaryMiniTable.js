@@ -5,6 +5,7 @@ import TimeAgo from 'react-timeago';
 import { StatusText } from '@skybrush/mui-components';
 
 import MiniTable, { naText } from '~/components/MiniTable';
+import { getRtlsDevicePairedToUav } from '~/features/rtls/selectors';
 import {
   abbreviateGPSFixType,
   getFlightModeLabel,
@@ -28,6 +29,7 @@ const StatusSummaryMiniTable = ({
   mode,
   position,
   rssi,
+  rtlsTag,
 }) => {
   const { lat, lon, amsl, ahl, agl } = position || {};
   const hasLocalPosition = localPosition && Array.isArray(localPosition);
@@ -136,6 +138,13 @@ const StatusSummaryMiniTable = ({
     ]
   );
 
+  // The RTLS tag whose WiFi-UART bridge carries this drone's MAVLink
+  // (derived server-side from the shared source IP); shown only when the
+  // pairing is known.
+  if (rtlsTag !== undefined) {
+    rows.push('sep5', ['RTLS tag', rtlsTag]);
+  }
+
   return <MiniTable items={rows} />;
 };
 
@@ -158,11 +167,15 @@ StatusSummaryMiniTable.propTypes = {
     agl: PropTypes.number,
   }),
   rssi: PropTypes.arrayOf(PropTypes.number),
+  rtlsTag: PropTypes.string,
 };
 
 export default connect(
   // mapStateToProps
-  (state, ownProps) => getUAVById(state, ownProps.uavId),
+  (state, ownProps) => ({
+    ...getUAVById(state, ownProps.uavId),
+    rtlsTag: getRtlsDevicePairedToUav(state, ownProps.uavId)?.id,
+  }),
 
   // mapDispatchToProps
   {}

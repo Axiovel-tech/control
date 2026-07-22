@@ -94,6 +94,14 @@ export type RtlsDevice = {
    * are not yet hearing peers.
    */
   twr?: RtlsTwrPeer[];
+
+  /**
+   * Flockwave id of the UAV (drone) associated with this device, derived by
+   * the server from the network: the drone's flight-controller MAVLink
+   * reaches the server through this tag's WiFi-UART bridge, so they share a
+   * source IP. Absent for unassociated devices (anchors, spare tags).
+   */
+  uav?: string;
 };
 
 /**

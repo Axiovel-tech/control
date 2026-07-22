@@ -56,6 +56,22 @@ describe('rtls slice', () => {
     });
   });
 
+  test('setRtlsDevicesFromStatus updates and clears the tag<->drone pairing', () => {
+    let state = reducer(
+      initial(),
+      setRtlsDevicesFromStatus({ '42': { online: true, uav: '05' } })
+    );
+    expect(state.devices.byId['42'].uav).toBe('05');
+
+    // the update merges per-field, so the handler always assigns the key;
+    // a snapshot without a pairing must clear the stale one
+    state = reducer(
+      state,
+      setRtlsDevicesFromStatus({ '42': { online: true, uav: undefined } })
+    );
+    expect(state.devices.byId['42'].uav).toBeUndefined();
+  });
+
   test('setRtlsDevicesFromStatus drops stale OTA jobs', () => {
     let state = reducer(
       initial(),

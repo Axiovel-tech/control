@@ -16,9 +16,10 @@ import ListItemText from '@mui/material/ListItemText';
 import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
 
-import { StatusLight, Tooltip } from '@skybrush/mui-components';
+import { StatusLight, StatusPill, Tooltip } from '@skybrush/mui-components';
 
 import { listOf } from '~/components/helpers/lists';
+import { Status } from '~/components/semantics';
 import {
   sleepAllRtlsDevices,
   sleepRtlsDevice,
@@ -29,6 +30,7 @@ import { openRtlsOtaDialog, openRtlsParamDialog } from '~/features/rtls/slice';
 import {
   getRtlsDeviceDisplayName,
   getRtlsDevicesInOrder,
+  getRtlsPairedUavStatuses,
   getRtlsSleepPendingMap,
 } from '~/features/rtls/selectors';
 import { getRtlsDeviceListStatus } from '~/features/rtls/utils';
@@ -67,6 +69,24 @@ const describeDevice = (device) => {
 
   return parts.length > 0 ? parts.join(' · ') : undefined;
 };
+
+/**
+ * Builds the primary line for a device row. A device the server has paired
+ * with a drone (their MAVLink traffic shares the tag's WiFi-UART bridge, so
+ * they share a source IP) renders the drone id next to its name as a pill in
+ * the drone's UAV-list status color; unpaired devices render just the name.
+ */
+export const describeDeviceWithPairedUav = (device, uavStatuses) =>
+  device.uav === undefined ? (
+    getRtlsDeviceDisplayName(device)
+  ) : (
+    <Box component='span' sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+      {getRtlsDeviceDisplayName(device)}
+      <StatusPill inline status={uavStatuses?.[device.uav] ?? Status.OFF}>
+        drone {device.uav}
+      </StatusPill>
+    </Box>
+  );
 
 /**
  * Presentation component for the entire RTLS device list.
@@ -137,7 +157,7 @@ const RtlsDeviceListPresentation = listOf(
         <ListItemButton>
           <StatusLight status={getRtlsDeviceListStatus(device)} />
           <ListItemText
-            primary={getRtlsDeviceDisplayName(device)}
+            primary={describeDeviceWithPairedUav(device, props.uavStatuses)}
             secondary={describeDevice(device)}
           />
         </ListItemButton>
@@ -215,6 +235,7 @@ export default connect(
   (state) => ({
     devices: getRtlsDevicesInOrder(state),
     sleepPending: getRtlsSleepPendingMap(state),
+    uavStatuses: getRtlsPairedUavStatuses(state),
   }),
   // mapDispatchToProps
   {
