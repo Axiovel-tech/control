@@ -92,7 +92,12 @@ const config: Config = {
   ],
 
   // A map from regular expressions to module names or to arrays of module names that allow to stub out resources with a single module
+  // NOTE: the i18n module initializes i18next with a top-level await, which
+  // the CommonJS transform cannot represent, and stylesheet imports exist
+  // only for the bundler — both are stubbed out.
   moduleNameMapper: {
+    '\\.css$': '<rootDir>/test/stubs/style-stub.ts',
+    '^~/i18n$': '<rootDir>/test/stubs/i18n-stub.ts',
     '^~/(.*)$': '<rootDir>/src/$1',
   },
 
@@ -188,7 +193,7 @@ const config: Config = {
   // babel-jest, otherwise importing them (transitively, e.g. via
   // ~/utils/redux) throws "Cannot use import statement outside a module".
   transformIgnorePatterns: [
-    '/node_modules/(?!(lodash-es|ol|p-min-delay|quickselect|rbush|yoctodelay)/)',
+    '/node_modules/(?!(@react-hookz|@skybrush|@ver0|color|color-convert|color-name|color-string|lodash-es|ol|p-min-delay|quickselect|rbush|yoctodelay)/)',
   ],
   // extensionsToTreatAsEsm: ['.ts', '.tsx'],
 

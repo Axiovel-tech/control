@@ -114,6 +114,11 @@ export function mapRtlsDeviceStatus(
   result.sleeping =
     typeof raw.sleeping === 'boolean' ? raw.sleeping : undefined;
 
+  // Always assigned for the same reason: the server clears the tag<->drone
+  // association by dropping the key, and a stale pairing that outlives the
+  // snapshot would mis-attribute the tag — the very thing it exists to fix.
+  result.uav = toString(raw.uav);
+
   const twr = mapTwrPeers(raw.twr);
   if (twr !== undefined) {
     result.twr = twr;

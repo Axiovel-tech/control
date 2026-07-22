@@ -1,5 +1,10 @@
 import { createSelector } from '@reduxjs/toolkit';
 
+import { type Status } from '~/components/semantics';
+import {
+  getSingleUAVStatusSummary,
+  getUAVIdToStateMapping,
+} from '~/features/uavs/selectors';
 import { type AppSelector } from '~/store/reducers';
 import {
   type Collection,
@@ -86,6 +91,47 @@ export const getOnlineRtlsTags: AppSelector<RtlsDevice[]> = createSelector(
       (device) => device.online && classifyRole(device.role) === RtlsRole.TAG
     )
 );
+
+/**
+ * Selector that returns the status of each UAV paired with an RTLS device,
+ * keyed by UAV id — the same status semantics the UAV list colors its
+ * avatars with, so the paired-drone pill on a device row stays visually
+ * consistent with the UAV list.
+ */
+export const getRtlsPairedUavStatuses: AppSelector<
+  Record<string, Status | undefined>
+> = createSelector(
+  getRtlsDevicesInOrder,
+  getUAVIdToStateMapping,
+  (devices, uavsById) => {
+    const result: Record<string, Status | undefined> = {};
+    for (const device of devices) {
+      if (device.uav !== undefined && !(device.uav in result)) {
+        result[device.uav] = getSingleUAVStatusSummary(
+          uavsById[device.uav]
+        ).status;
+      }
+    }
+
+    return result;
+  }
+);
+
+/**
+ * Selector that returns the RTLS device that is paired with the given UAV
+ * (the tag whose WiFi-UART bridge carries the UAV's MAVLink), or `undefined`
+ * when there is none.
+ */
+export const getRtlsDevicePairedToUav: AppSelector<
+  RtlsDevice | undefined,
+  [Identifier]
+> = (state, uavId) => {
+  const devices = state.rtls.devices;
+  const id = devices.order.find(
+    (deviceId) => devices.byId[deviceId]?.uav === uavId
+  );
+  return id === undefined ? undefined : devices.byId[id];
+};
 
 /**
  * Selector that returns the live position estimates (the X-RTLS-POS debug
