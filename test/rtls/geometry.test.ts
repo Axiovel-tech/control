@@ -5,10 +5,7 @@ jest.mock('~/error-handling', () => ({
     error instanceof Error ? error.message : String(error),
 }));
 
-import {
-  checkRtlsGeometry,
-  syncRtlsGeometry,
-} from '~/features/rtls/messages';
+import { checkRtlsGeometry, syncRtlsGeometry } from '~/features/rtls/messages';
 import {
   getRtlsGeometryDriftCount,
   isRtlsGeometryBusy,

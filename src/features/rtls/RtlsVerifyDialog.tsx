@@ -17,7 +17,7 @@ import ListItem from '@mui/material/ListItem';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
 import Typography from '@mui/material/Typography';
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 
 import { StatusLight, StatusPill } from '@skybrush/mui-components';
@@ -59,7 +59,7 @@ const RtlsVerifyDialog = () => {
     if (open && !running) {
       void dispatch(runFleetVerification({ inDepth: false }));
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // (re-)runs only when the dialog is (re-)opened, by design
   }, [open]);
 
   const close = () => dispatch(closeRtlsVerifyDialog());

@@ -138,8 +138,7 @@ export function syncGeometryToFleet({
     } else if (written > 0) {
       showNotification(
         `Geometry written to ${written} tag(s)` +
-          (rebootNote ||
-            (reboot ? '; rewritten tags are rebooting' : ''))
+          (rebootNote || (reboot ? '; rewritten tags are rebooting' : ''))
       );
     } else {
       showNotification('Geometry already consistent — no changes');
@@ -165,8 +164,8 @@ export function adoptGeometryFromFleet() {
     try {
       const body = await adoptRtlsGeometry(messageHub);
       showNotification(
-        `Adopted the geometry of tag ${body.reference} as canonical ` +
-          `for cell '${body.cell}'`
+        `Adopted the geometry of tag ${String(body.reference)} as canonical ` +
+          `for cell '${String(body.cell)}'`
       );
     } catch (error) {
       showError(`Adopt failed: ${errorToString(error)}`);

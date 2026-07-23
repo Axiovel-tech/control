@@ -44,8 +44,10 @@ describe('rtls messages', () => {
       type: 'X-RTLS-GEO',
       op: 'fit',
       mode: 'strict',
+      cell: 'default',
       summary: {
         systemId: 10,
+        version: 1,
         sequence: 42,
         timeBootMs: 1000,
         validMask: 0xfe,
@@ -74,6 +76,159 @@ describe('rtls messages', () => {
         summarySequence: 42,
       },
     ]);
+  });
+
+  test('a strict fit response passes the server field names through verbatim', async () => {
+    // the exact server response shape; the client must not rename anything
+    const response = {
+      type: 'X-RTLS-GEO',
+      op: 'fit',
+      mode: 'strict',
+      cell: 'default',
+      summary: {
+        systemId: 10,
+        version: 1,
+        sequence: 42,
+        timeBootMs: 123_456,
+        validMask: 0xfe,
+        ageMs: 50,
+        ranges: [
+          {
+            anchorIndex: 1,
+            peerMac: 0x1a2b,
+            distanceM: 14.1,
+            madM: 0.02,
+            count: 240,
+          },
+        ],
+      },
+      strict: {
+        model: 'strict',
+        accepted: true,
+        parameters: { lengthM: 14.1, widthM: 9.8, heightM: 2.5 },
+        anchors: [
+          { index: 0, xM: 0, yM: 0, zM: 0 },
+          { index: 1, xM: 14.1, yM: 0, zM: 0 },
+        ],
+        rmsM: 0.031,
+        weightedObjective: 0.42,
+        residuals: [
+          {
+            anchorIndex: 1,
+            peerMac: 0x1a2b,
+            measuredM: 14.1,
+            predictedM: 14.13,
+            residualM: -0.03,
+            madM: 0.02,
+            count: 240,
+            weight: 1,
+          },
+        ],
+        reasons: [],
+        warnings: ['height is close to its lower bound'],
+      },
+      refined: null,
+      selectedModel: 'strict',
+      applyGeometry: { UWB_AN1_X: 14.1 },
+    };
+    const { hub } = makeHub(response);
+
+    const parsed = await fitRtlsGeometry(hub, { mode: 'strict' });
+
+    // pin the contract: parameters, fitted anchors and residuals keep the
+    // exact server field names (lengthM/widthM/heightM, xM/yM/zM, …)
+    expect(parsed).toEqual(response);
+    expect(parsed.strict.parameters).toEqual({
+      lengthM: 14.1,
+      widthM: 9.8,
+      heightM: 2.5,
+    });
+    expect(parsed.strict.anchors[1]).toEqual({
+      index: 1,
+      xM: 14.1,
+      yM: 0,
+      zM: 0,
+    });
+    expect(parsed.strict.residuals[0]).toMatchObject({
+      anchorIndex: 1,
+      measuredM: 14.1,
+      predictedM: 14.13,
+      residualM: -0.03,
+      madM: 0.02,
+      count: 240,
+      weight: 1,
+    });
+    expect(parsed.summary.sequence).toBe(42);
+    // the apply payload must be forwarded verbatim to the sync op
+    expect(parsed.applyGeometry).toEqual({ UWB_AN1_X: 14.1 });
+  });
+
+  test('a refined fit response carries its parameters and the comparison', async () => {
+    const refined = {
+      model: 'refined',
+      accepted: true,
+      parameters: {
+        bottomLengthM: 14.1,
+        bottomWidthM: 9.8,
+        topLengthM: 14.05,
+        topWidthM: 9.75,
+        heightM: 2.5,
+        angleDeg: 0.4,
+      },
+      anchors: [{ index: 0, xM: 0, yM: 0, zM: 0 }],
+      rmsM: 0.02,
+      weightedObjective: 0.3,
+      residuals: [],
+      reasons: [],
+      warnings: [],
+    };
+    const { hub } = makeHub({
+      type: 'X-RTLS-GEO',
+      op: 'fit',
+      mode: 'refined',
+      cell: 'default',
+      summary: {
+        systemId: 10,
+        version: 1,
+        sequence: 42,
+        timeBootMs: 123_456,
+        validMask: 0xfe,
+        ageMs: 50,
+        ranges: [],
+      },
+      strict: { model: 'strict', accepted: true, rmsM: 0.031 },
+      refined,
+      selectedModel: 'refined',
+      applyGeometry: { UWB_AN1_X: 14.05 },
+      comparison: {
+        rmsImprovementM: 0.011,
+        noiseFloorM: 0.004,
+        meaningfulImprovement: true,
+      },
+    });
+
+    const parsed = await fitRtlsGeometry(hub, {
+      mode: 'refined',
+      summarySequence: 42,
+    });
+
+    expect(parsed.refined).toEqual(refined);
+    expect(parsed.selectedModel).toBe('refined');
+    expect(parsed.comparison).toEqual({
+      rmsImprovementM: 0.011,
+      noiseFloorM: 0.004,
+      meaningfulImprovement: true,
+    });
+  });
+
+  test('a rejected fit surfaces the actionable ACK-NAK reason', async () => {
+    const { hub } = makeHub({
+      type: 'ACK-NAK',
+      reason: 'no fresh rolling TWR summary arrived within 3.0 seconds',
+    });
+    await expect(fitRtlsGeometry(hub, { mode: 'strict' })).rejects.toThrow(
+      /no fresh rolling TWR summary arrived within 3\.0 seconds/
+    );
   });
 
   test('queryRtlsParameterList sorts by index then name', async () => {

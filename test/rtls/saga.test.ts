@@ -104,9 +104,9 @@ describe('rtls root saga', () => {
     expect(saga.next(false).value).toEqual(
       take(setCurrentServerConnectionState.type)
     );
-    expect(
-      saga.next(setCurrentServerConnectionState(CONNECTED)).value
-    ).toEqual(select(isConnected));
+    expect(saga.next(setCurrentServerConnectionState(CONNECTED)).value).toEqual(
+      select(isConnected)
+    );
   });
 
   test('a stale response from the previous connection is not applied after a reconnect', async () => {

@@ -265,6 +265,7 @@ export type RtlsCalibrationModel = 'refined' | 'strict';
 
 /** One range in the coherent A0 rolling summary used by a geometry fit. */
 export type RtlsRangeSummary = {
+  anchorIndex: number;
   peerMac: number;
   distanceM: number;
   madM: number;
@@ -274,6 +275,7 @@ export type RtlsRangeSummary = {
 /** The firmware summary pinned by a strict fit and reused by a refined fit. */
 export type RtlsCalibrationSummary = {
   systemId: number;
+  version: number;
   sequence: number;
   timeBootMs: number;
   validMask: number;
@@ -305,11 +307,11 @@ export type RtlsFitResidual = {
   residualM: number;
   madM: number;
   count: number;
+  weight: number;
 };
 
 export type RtlsFittedAnchor = {
   index: number;
-  mac?: number;
   xM: number;
   yM: number;
   zM: number;
@@ -347,6 +349,7 @@ export type RtlsCalibrationResponse = {
   type: 'X-RTLS-GEO';
   op: 'fit';
   mode: RtlsCalibrationModel;
+  cell: string;
   summary: RtlsCalibrationSummary;
   strict: RtlsGeometryFit;
   refined: RtlsGeometryFit | null;

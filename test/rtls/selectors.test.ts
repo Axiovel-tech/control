@@ -100,4 +100,37 @@ describe('role-scoped RTLS health', () => {
     expect(getRtlsAnchorHealth(state)).toBe(RtlsHealth.OK);
     expect(getRtlsTagHealth(state)).toBe(RtlsHealth.ERROR);
   });
+
+  test('anchor loss does not degrade the tag solve health', () => {
+    const state = {
+      rtls: {
+        devices: {
+          byId: {
+            '10': {
+              id: '10',
+              role: 'anchor-initiator',
+              online: false,
+            },
+            '11': {
+              id: '11',
+              role: 'anchor-responder',
+              online: true,
+              // heard from too long ago -> stale, an ERROR for the anchors
+              age: 12,
+            },
+            '20': { id: '20', role: 'tag', online: true },
+          },
+          order: ['10', '11', '20'],
+        },
+        stats: {
+          byId: {
+            '20': { id: '20', solveRateHz: 8, solvePct: 97, fixAgeMs: 120 },
+          },
+        },
+      },
+    } as unknown as RootState;
+
+    expect(getRtlsAnchorHealth(state)).toBe(RtlsHealth.ERROR);
+    expect(getRtlsTagHealth(state)).toBe(RtlsHealth.OK);
+  });
 });

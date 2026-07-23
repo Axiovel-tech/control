@@ -213,10 +213,7 @@ const { actions, reducer } = createSlice({
     },
 
     /** An X-RTLS-VERIFY run completed. */
-    rtlsVerifySucceeded(
-      state,
-      { payload }: PayloadAction<RtlsVerifyResult>
-    ) {
+    rtlsVerifySucceeded(state, { payload }: PayloadAction<RtlsVerifyResult>) {
       state.verify.running = false;
       state.verify.lastResult = payload;
     },

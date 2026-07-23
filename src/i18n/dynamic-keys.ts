@@ -270,5 +270,23 @@
  * t("uavOperationConfirmationStyle.never")
  * t("uavOperationConfirmationStyle.onlyMultiple")
  * t("uavOperationConfirmationStyle.always")
+ *
+ * RTLS calibration models
+ * t("rtlsCalibration.model.strict")
+ * t("rtlsCalibration.model.refined")
+ *
+ * RTLS health lights
+ * t("rtlsHealth.all.ok")
+ * t("rtlsHealth.all.warning")
+ * t("rtlsHealth.all.error")
+ * t("rtlsHealth.all.unknown")
+ * t("rtlsHealth.anchors.ok")
+ * t("rtlsHealth.anchors.warning")
+ * t("rtlsHealth.anchors.error")
+ * t("rtlsHealth.anchors.unknown")
+ * t("rtlsHealth.tags.ok")
+ * t("rtlsHealth.tags.warning")
+ * t("rtlsHealth.tags.error")
+ * t("rtlsHealth.tags.unknown")
  */
 export {};

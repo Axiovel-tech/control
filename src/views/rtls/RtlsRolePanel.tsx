@@ -18,7 +18,7 @@ import CircularProgress from '@mui/material/CircularProgress';
 import Divider from '@mui/material/Divider';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDispatch, useSelector } from 'react-redux';
 
@@ -181,7 +181,7 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
                 <IconButton
                   size='small'
                   disabled={geometryBusy}
-                  onClick={() => dispatch(checkGeometryConsistency())}
+                  onClick={() => void dispatch(checkGeometryConsistency())}
                 >
                   <Rule fontSize='small' />
                 </IconButton>
@@ -193,7 +193,7 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
                 <IconButton
                   size='small'
                   disabled={geometryBusy}
-                  onClick={() => dispatch(adoptGeometryFromFleet())}
+                  onClick={() => void dispatch(adoptGeometryFromFleet())}
                 >
                   <BookmarkAdd fontSize='small' />
                 </IconButton>
@@ -232,7 +232,7 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
               <Tooltip content='Sleep all drones'>
                 <IconButton
                   size='small'
-                  onClick={() => dispatch(sleepAllRtlsDevices())}
+                  onClick={() => void dispatch(sleepAllRtlsDevices())}
                 >
                   <Moon fontSize='small' />
                 </IconButton>
@@ -240,7 +240,7 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
               <Tooltip content='Wake all drones'>
                 <IconButton
                   size='small'
-                  onClick={() => dispatch(wakeAllRtlsDevices())}
+                  onClick={() => void dispatch(wakeAllRtlsDevices())}
                 >
                   <Bolt fontSize='small' />
                 </IconButton>

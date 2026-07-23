@@ -21,7 +21,7 @@ import TableCell from '@mui/material/TableCell';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import Typography from '@mui/material/Typography';
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDispatch, useSelector } from 'react-redux';
 
@@ -337,7 +337,7 @@ const RtlsCalibrationWizard = () => {
               <Button
                 variant='contained'
                 disabled={busyModel !== undefined}
-                onClick={runStrictFit}
+                onClick={() => void runStrictFit()}
               >
                 {failure
                   ? t('rtlsCalibration.action.retry')
@@ -418,7 +418,7 @@ const RtlsCalibrationWizard = () => {
                 <Button
                   variant='outlined'
                   disabled={busyModel !== undefined}
-                  onClick={runRefinedFit}
+                  onClick={() => void runRefinedFit()}
                 >
                   {busyModel === 'refined' && (
                     <CircularProgress size={14} sx={{ mr: 1 }} />
@@ -493,7 +493,7 @@ const RtlsCalibrationWizard = () => {
               color='primary'
               variant='contained'
               disabled={syncing}
-              onClick={apply}
+              onClick={() => void apply()}
             >
               {reboot
                 ? t('rtlsCalibration.action.writeReboot')
