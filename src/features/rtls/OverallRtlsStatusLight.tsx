@@ -1,4 +1,5 @@
 import { useSelector } from 'react-redux';
+import { useTranslation } from 'react-i18next';
 
 import { Status } from '@skybrush/app-theme-mui';
 import {
@@ -7,30 +8,44 @@ import {
 } from '@skybrush/mui-components';
 
 import { getStatusForHealth } from './health-status';
-import { getOverallRtlsHealth } from './selectors';
+import {
+  getOverallRtlsHealth,
+  getRtlsAnchorHealth,
+  getRtlsTagHealth,
+} from './selectors';
 import { RtlsHealth } from './stats-utils';
 
-const HEALTH_LABELS: Record<RtlsHealth, string> = {
-  [RtlsHealth.OK]: 'RTLS healthy',
-  [RtlsHealth.WARNING]: 'RTLS degraded',
-  [RtlsHealth.ERROR]: 'RTLS fix lost',
-  [RtlsHealth.UNKNOWN]: 'No RTLS data',
+const HEALTH_KEYS: Record<RtlsHealth, string> = {
+  [RtlsHealth.OK]: 'ok',
+  [RtlsHealth.WARNING]: 'warning',
+  [RtlsHealth.ERROR]: 'error',
+  [RtlsHealth.UNKNOWN]: 'unknown',
 };
 
-type Props = Omit<LabeledStatusLightProps, 'children' | 'status'>;
+type Props = Omit<LabeledStatusLightProps, 'children' | 'status'> & {
+  scope?: 'all' | 'anchors' | 'tags';
+};
 
 /**
- * A single status light summarising the overall health of all RTLS devices.
+ * A status light for all devices or one role. The global error label remains
+ * neutral because the worst signal may be either anchor liveness or a tag fix.
  */
-const OverallRtlsStatusLight = (props: Props) => {
-  const health = useSelector(getOverallRtlsHealth);
+const OverallRtlsStatusLight = ({ scope = 'all', ...props }: Props) => {
+  const { t } = useTranslation();
+  const selector =
+    scope === 'anchors'
+      ? getRtlsAnchorHealth
+      : scope === 'tags'
+        ? getRtlsTagHealth
+        : getOverallRtlsHealth;
+  const health = useSelector(selector);
 
   return (
     <LabeledStatusLight
       status={getStatusForHealth(health) ?? Status.OFF}
       {...props}
     >
-      {HEALTH_LABELS[health]}
+      {t(`rtlsHealth.${scope}.${HEALTH_KEYS[health]}`)}
     </LabeledStatusLight>
   );
 };

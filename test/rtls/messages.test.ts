@@ -12,6 +12,7 @@ jest.mock('~/error-handling', () => ({
 }));
 
 import {
+  fitRtlsGeometry,
   getRtlsParameter,
   queryRtlsParameterList,
   sendRtlsSleep,
@@ -38,6 +39,43 @@ const makeHub = (body: Record<string, unknown>) => {
 };
 
 describe('rtls messages', () => {
+  test('strict and refined fits use the same explicit summary generation', async () => {
+    const response = {
+      type: 'X-RTLS-GEO',
+      op: 'fit',
+      mode: 'strict',
+      summary: {
+        systemId: 10,
+        sequence: 42,
+        timeBootMs: 1000,
+        validMask: 0xfe,
+        ageMs: 50,
+        ranges: [],
+      },
+      strict: {},
+      refined: null,
+      selectedModel: null,
+      applyGeometry: null,
+    };
+    const { hub, sent } = makeHub(response);
+
+    await fitRtlsGeometry(hub, { mode: 'strict' });
+    await fitRtlsGeometry(hub, {
+      mode: 'refined',
+      summarySequence: response.summary.sequence,
+    });
+
+    expect(sent).toEqual([
+      { type: 'X-RTLS-GEO', op: 'fit', mode: 'strict' },
+      {
+        type: 'X-RTLS-GEO',
+        op: 'fit',
+        mode: 'refined',
+        summarySequence: 42,
+      },
+    ]);
+  });
+
   test('queryRtlsParameterList sorts by index then name', async () => {
     const { hub } = makeHub({
       type: 'X-RTLS-PARAM-LIST',

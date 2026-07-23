@@ -230,6 +230,33 @@ export const getOverallRtlsHealth: AppSelector<RtlsHealth> = createSelector(
     )
 );
 
+const getHealthForDevices = (
+  devices: RtlsDevice[],
+  byId: Record<string, RtlsDeviceStats>
+): RtlsHealth =>
+  getOverallHealth(
+    devices.map((device) =>
+      getDeviceHealthForRole(classifyRole(device.role), byId[device.id], {
+        online: device.online,
+        age: device.age,
+      })
+    )
+  );
+
+/** Anchor-only infrastructure health; tag solve loss cannot affect it. */
+export const getRtlsAnchorHealth: AppSelector<RtlsHealth> = createSelector(
+  getRtlsAnchorDevices,
+  getRtlsStatsById,
+  getHealthForDevices
+);
+
+/** Tag-only solve health; anchor liveness cannot affect it. */
+export const getRtlsTagHealth: AppSelector<RtlsHealth> = createSelector(
+  getRtlsTagDevices,
+  getRtlsStatsById,
+  getHealthForDevices
+);
+
 /** Selector that returns the last X-RTLS-GEO consistency snapshot, if any. */
 export const getRtlsGeometryCheck: AppSelector<
   RtlsGeometryCheck | undefined
@@ -262,18 +289,18 @@ export const getRtlsGeometryDriftCount: AppSelector<number> = createSelector(
 );
 
 /** Selector: tags whose geometry was written but not rebooted yet. */
-export const getRtlsGeometryPendingReboot: AppSelector<
-  Record<string, true>
-> = (state) => state.rtls.geometry.pendingReboot;
+export const getRtlsGeometryPendingReboot: AppSelector<Record<string, true>> = (
+  state
+) => state.rtls.geometry.pendingReboot;
 
 /** Selector that returns whether a fleet verification is running. */
 export const isRtlsVerifyRunning: AppSelector<boolean> = (state) =>
   state.rtls.verify.running;
 
 /** Selector that returns the last fleet-verification result, if any. */
-export const getRtlsVerifyResult: AppSelector<
-  RtlsVerifyResult | undefined
-> = (state) => state.rtls.verify.lastResult;
+export const getRtlsVerifyResult: AppSelector<RtlsVerifyResult | undefined> = (
+  state
+) => state.rtls.verify.lastResult;
 
 /** Selector that returns whether the verification dialog is open. */
 export const isRtlsVerifyDialogOpen: AppSelector<boolean> = (state) =>
