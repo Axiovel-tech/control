@@ -16,6 +16,8 @@ import {
   type RtlsAnchor,
   type RtlsDevice,
   type RtlsDeviceStats,
+  type RtlsGeometryCheck,
+  type RtlsGeometrySync,
   type RtlsOtaJob,
   type RtlsParam,
   type RtlsPosEstimate,
@@ -107,6 +109,15 @@ export type RtlsSliceState = {
     deviceId?: string;
   };
 
+  /** Fleet geometry-consistency state (X-RTLS-GEO check/sync). */
+  geometry: {
+    checking: boolean;
+    syncing: boolean;
+    lastCheck?: RtlsGeometryCheck;
+    lastSync?: RtlsGeometrySync;
+    /** Whether the sync confirmation dialog is open. */
+    syncDialogOpen: boolean;
+  };
 };
 
 const initialState: RtlsSliceState = {
@@ -131,6 +142,13 @@ const initialState: RtlsSliceState = {
     open: false,
     deviceId: undefined,
   },
+  geometry: {
+    checking: false,
+    syncing: false,
+    lastCheck: undefined,
+    lastSync: undefined,
+    syncDialogOpen: false,
+  },
 };
 
 const { actions, reducer } = createSlice({
@@ -147,6 +165,61 @@ const { actions, reducer } = createSlice({
       state.sleepPending = {};
       state.recentSleepResults = {};
       state.paramsByDevice = {};
+      // a consistency snapshot describes the fleet we just dropped
+      state.geometry.checking = false;
+      state.geometry.syncing = false;
+      state.geometry.lastCheck = undefined;
+      state.geometry.lastSync = undefined;
+      state.geometry.syncDialogOpen = false;
+    },
+
+    /** An X-RTLS-GEO check left the client. */
+    rtlsGeometryCheckStarted(state) {
+      state.geometry.checking = true;
+    },
+
+    /** An X-RTLS-GEO check failed or was NAKed. */
+    rtlsGeometryCheckFailed(state) {
+      state.geometry.checking = false;
+    },
+
+    /** An X-RTLS-GEO check completed; stores the fleet snapshot. */
+    rtlsGeometryCheckSucceeded(
+      state,
+      { payload }: PayloadAction<RtlsGeometryCheck>
+    ) {
+      state.geometry.checking = false;
+      state.geometry.lastCheck = payload;
+    },
+
+    /** An X-RTLS-GEO sync left the client (closes the confirm dialog). */
+    rtlsGeometrySyncStarted(state) {
+      state.geometry.syncing = true;
+      state.geometry.syncDialogOpen = false;
+    },
+
+    /** An X-RTLS-GEO sync failed or was NAKed. */
+    rtlsGeometrySyncFailed(state) {
+      state.geometry.syncing = false;
+    },
+
+    /** An X-RTLS-GEO sync completed; stores the per-device outcomes. */
+    rtlsGeometrySyncSucceeded(
+      state,
+      { payload }: PayloadAction<RtlsGeometrySync>
+    ) {
+      state.geometry.syncing = false;
+      state.geometry.lastSync = payload;
+    },
+
+    /** Opens the geometry-sync confirmation dialog. */
+    openRtlsGeometrySyncDialog(state) {
+      state.geometry.syncDialogOpen = true;
+    },
+
+    /** Closes the geometry-sync confirmation dialog. */
+    closeRtlsGeometrySyncDialog(state) {
+      state.geometry.syncDialogOpen = false;
     },
 
     /**
@@ -379,10 +452,18 @@ const { actions, reducer } = createSlice({
 export const {
   applyRtlsSleepResults,
   clearRtlsDevices,
+  closeRtlsGeometrySyncDialog,
   closeRtlsOtaDialog,
   closeRtlsParamDialog,
+  openRtlsGeometrySyncDialog,
   openRtlsOtaDialog,
   openRtlsParamDialog,
+  rtlsGeometryCheckFailed,
+  rtlsGeometryCheckStarted,
+  rtlsGeometryCheckSucceeded,
+  rtlsGeometrySyncFailed,
+  rtlsGeometrySyncStarted,
+  rtlsGeometrySyncSucceeded,
   rtlsParamsFetchFailed,
   rtlsParamsFetchStarted,
   rtlsParamsFetchSucceeded,

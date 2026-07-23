@@ -8,23 +8,31 @@
  */
 
 import Moon from '@mui/icons-material/NightsStay';
+import Rule from '@mui/icons-material/Rule';
 import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
+import CircularProgress from '@mui/material/CircularProgress';
 import Divider from '@mui/material/Divider';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import React, { useMemo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 
-import { BackgroundHint, Tooltip } from '@skybrush/mui-components';
+import { BackgroundHint, StatusPill, Tooltip } from '@skybrush/mui-components';
 
+import { Status } from '~/components/semantics';
+import { checkGeometryConsistency } from '~/features/rtls/geometry-actions';
 import OverallRtlsStatusLight from '~/features/rtls/OverallRtlsStatusLight';
 import {
   getRtlsAnchorDevices,
+  getRtlsGeometryCheck,
+  getRtlsGeometryDriftCount,
   getRtlsPairedUavStatuses,
   getRtlsSleepPendingMap,
   getRtlsStatsById,
   getRtlsStatsLastUpdatedAt,
   getRtlsTagDevices,
+  isRtlsGeometryBusy,
 } from '~/features/rtls/selectors';
 import {
   sleepAllRtlsDevices,
@@ -32,11 +40,50 @@ import {
   wakeAllRtlsDevices,
   wakeRtlsDevice,
 } from '~/features/rtls/sleep-actions';
-import { openRtlsOtaDialog, openRtlsParamDialog } from '~/features/rtls/slice';
+import {
+  openRtlsGeometrySyncDialog,
+  openRtlsOtaDialog,
+  openRtlsParamDialog,
+} from '~/features/rtls/slice';
+import { type RtlsGeometryCheck } from '~/features/rtls/types';
 import Bolt from '~/icons/Bolt';
 import type { AppDispatch } from '~/store/reducers';
 
 import DeviceStatsRow, { type DeviceRowHandlers } from './DeviceStatsRow';
+
+/**
+ * The geometry-consistency pill of one tag row, derived from the last
+ * X-RTLS-GEO check: the reference tag is marked as such, targets carry
+ * their verdict. No pill before the first check.
+ */
+const geometryPillFor = (
+  deviceId: string,
+  check: RtlsGeometryCheck | undefined
+): { label?: string; status?: Status } => {
+  if (!check) {
+    return {};
+  }
+  if (String(check.reference) === deviceId) {
+    return { label: 'geometry ref', status: Status.INFO };
+  }
+  const entry = check.devices[deviceId];
+  if (!entry) {
+    return {};
+  }
+  switch (entry.status) {
+    case 'consistent':
+      return { label: 'geometry ok', status: Status.SUCCESS };
+    case 'mismatch':
+      return {
+        label: `geometry drift (${Object.keys(entry.deltas ?? {}).length})`,
+        status: Status.ERROR,
+      };
+    case 'incomplete':
+      return { label: 'geometry incomplete', status: Status.WARNING };
+    default:
+      return { label: 'geometry error', status: Status.ERROR };
+  }
+};
 
 type RtlsRolePanelProps = {
   variant: 'anchors' | 'tags';
@@ -50,6 +97,9 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
   const uavStatuses = useSelector(getRtlsPairedUavStatuses);
   const sleepPending = useSelector(getRtlsSleepPendingMap);
   const lastUpdatedAt = useSelector(getRtlsStatsLastUpdatedAt);
+  const geometryCheck = useSelector(getRtlsGeometryCheck);
+  const geometryDrift = useSelector(getRtlsGeometryDriftCount);
+  const geometryBusy = useSelector(isRtlsGeometryBusy);
   // stable identity so the memoized rows are not re-rendered by the parent
   const handlers: DeviceRowHandlers = useMemo(
     () => ({
@@ -72,7 +122,47 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
           py: 0.5,
         }}
       >
-        <OverallRtlsStatusLight />
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <OverallRtlsStatusLight />
+          {tags && (
+            <>
+              {geometryBusy ? (
+                <CircularProgress size={16} />
+              ) : geometryCheck ? (
+                <StatusPill
+                  inline
+                  status={geometryDrift === 0 ? Status.SUCCESS : Status.ERROR}
+                >
+                  {geometryDrift === 0
+                    ? 'geometry consistent'
+                    : `geometry: ${geometryDrift} out of sync`}
+                </StatusPill>
+              ) : (
+                <StatusPill inline status={Status.OFF}>
+                  geometry unchecked
+                </StatusPill>
+              )}
+              <Tooltip content='Check geometry consistency'>
+                <IconButton
+                  size='small'
+                  disabled={geometryBusy}
+                  onClick={() => dispatch(checkGeometryConsistency())}
+                >
+                  <Rule fontSize='small' />
+                </IconButton>
+              </Tooltip>
+              <Button
+                size='small'
+                disabled={
+                  geometryBusy || !geometryCheck || geometryDrift === 0
+                }
+                onClick={() => dispatch(openRtlsGeometrySyncDialog())}
+              >
+                Sync…
+              </Button>
+            </>
+          )}
+        </Box>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
           {/* TWR freshness is per-row (each peer carries its age); a global
             * stats timestamp only describes TAG telemetry, so it is only
@@ -113,22 +203,29 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
             text={tags ? 'No RTLS tags' : 'No RTLS anchors'}
           />
         ) : (
-          devices.map((device, index) => (
-            <Box key={device.id}>
-              {index > 0 && <Divider />}
-              <DeviceStatsRow
-                busy={Boolean(sleepPending?.[device.id])}
-                device={device}
-                handlers={handlers}
-                stats={statsById[device.id]}
-                uavStatus={
-                  device.uav === undefined
-                    ? undefined
-                    : uavStatuses?.[device.uav]
-                }
-              />
-            </Box>
-          ))
+          devices.map((device, index) => {
+            const geometry = tags
+              ? geometryPillFor(device.id, geometryCheck)
+              : {};
+            return (
+              <Box key={device.id}>
+                {index > 0 && <Divider />}
+                <DeviceStatsRow
+                  busy={Boolean(sleepPending?.[device.id])}
+                  device={device}
+                  geometryLabel={geometry.label}
+                  geometryStatus={geometry.status}
+                  handlers={handlers}
+                  stats={statsById[device.id]}
+                  uavStatus={
+                    device.uav === undefined
+                      ? undefined
+                      : uavStatuses?.[device.uav]
+                  }
+                />
+              </Box>
+            );
+          })
         )}
       </Box>
     </Box>

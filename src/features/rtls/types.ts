@@ -193,3 +193,44 @@ export type RtlsOtaJob = {
   version?: string;
   error?: string;
 };
+
+/** Per-device verdict of an X-RTLS-GEO `check`. */
+export type RtlsGeometryCheckEntry = {
+  status: 'consistent' | 'error' | 'incomplete' | 'mismatch';
+  /** Reference parameter names missing from this device. */
+  missing?: string[];
+  /** Mismatched parameters with the expected/actual value pair. */
+  deltas?: Record<string, { expected: unknown; actual: unknown }>;
+  detail?: string;
+};
+
+/** Result of an X-RTLS-GEO `check`: the fleet-consistency snapshot. */
+export type RtlsGeometryCheck = {
+  /** System id of the reference tag the fleet was diffed against. */
+  reference: number;
+  cell?: string;
+  consistent: boolean;
+  /** Per-target verdicts, keyed by system id (the reference is not a target). */
+  devices: Record<string, RtlsGeometryCheckEntry>;
+  /** Client-side timestamp of when the result was received. */
+  receivedAt: number;
+};
+
+/** Per-device outcome of an X-RTLS-GEO `sync`. */
+export type RtlsGeometrySyncEntry = {
+  status: 'error' | 'partial' | 'synced';
+  written?: string[];
+  skipped?: string[];
+  failures?: Record<string, string>;
+  rebooted?: boolean;
+  rebootDetail?: string;
+  detail?: string;
+};
+
+/** Result of an X-RTLS-GEO `sync`. */
+export type RtlsGeometrySync = {
+  reference: number;
+  cell?: string;
+  devices: Record<string, RtlsGeometrySyncEntry>;
+  receivedAt: number;
+};

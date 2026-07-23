@@ -25,6 +25,7 @@ import {
   type RtlsAnchor,
   type RtlsDevice,
   type RtlsDeviceStats,
+  type RtlsGeometryCheck,
   type RtlsOtaJob,
   type RtlsPosEstimate,
 } from './types';
@@ -226,4 +227,35 @@ export const getOverallRtlsHealth: AppSelector<RtlsHealth> = createSelector(
         );
       })
     )
+);
+
+/** Selector that returns the last X-RTLS-GEO consistency snapshot, if any. */
+export const getRtlsGeometryCheck: AppSelector<
+  RtlsGeometryCheck | undefined
+> = (state) => state.rtls.geometry.lastCheck;
+
+/** Selector that returns whether a geometry check or sync is in flight. */
+export const isRtlsGeometryBusy: AppSelector<boolean> = (state) =>
+  state.rtls.geometry.checking || state.rtls.geometry.syncing;
+
+/** Selector that returns whether a geometry sync is in flight. */
+export const isRtlsGeometrySyncing: AppSelector<boolean> = (state) =>
+  state.rtls.geometry.syncing;
+
+/** Selector that returns whether the sync confirmation dialog is open. */
+export const isRtlsGeometrySyncDialogOpen: AppSelector<boolean> = (state) =>
+  state.rtls.geometry.syncDialogOpen;
+
+/**
+ * Selector that returns the number of devices the last consistency check
+ * found out of sync (mismatched, incomplete or erroring); 0 with no check.
+ */
+export const getRtlsGeometryDriftCount: AppSelector<number> = createSelector(
+  getRtlsGeometryCheck,
+  (check) =>
+    check
+      ? Object.values(check.devices).filter(
+          (entry) => entry.status !== 'consistent'
+        ).length
+      : 0
 );

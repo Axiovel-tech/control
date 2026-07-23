@@ -302,3 +302,49 @@ export async function startRtlsOta(
   const body = ensureResponseType(response.body, 'X-RTLS-OTA');
   return (body.job as RtlsOtaJob) ?? {};
 }
+
+/**
+ * Diffs the cell geometry of every live tag against the reference tag (the
+ * cell source by default) via X-RTLS-GEO `check`. Returns the raw response
+ * body (reference, cell, consistent flag and per-device verdicts).
+ */
+export async function checkRtlsGeometry(
+  hub: MessageHub,
+  options: { reference?: number } = {}
+): Promise<AnyMessageBody> {
+  const response: Message<AnyMessageBody> = await hub.sendMessage(
+    {
+      type: 'X-RTLS-GEO',
+      op: 'check',
+      ...(options.reference === undefined
+        ? {}
+        : { reference: options.reference }),
+    },
+    { timeout: 15 }
+  );
+  return ensureResponseType(response.body, 'X-RTLS-GEO');
+}
+
+/**
+ * Writes the reference tag's cell geometry to the out-of-date tags via
+ * X-RTLS-GEO `sync`; the server verifies every write and reboots the fully
+ * rewritten tags (unless `reboot` is false) so the geometry takes effect.
+ * The generous timeout covers a fleet's writes plus the reboot round.
+ */
+export async function syncRtlsGeometry(
+  hub: MessageHub,
+  options: { reboot?: boolean; reference?: number } = {}
+): Promise<AnyMessageBody> {
+  const response: Message<AnyMessageBody> = await hub.sendMessage(
+    {
+      type: 'X-RTLS-GEO',
+      op: 'sync',
+      ...(options.reference === undefined
+        ? {}
+        : { reference: options.reference }),
+      ...(options.reboot === undefined ? {} : { reboot: options.reboot }),
+    },
+    { timeout: 60 }
+  );
+  return ensureResponseType(response.body, 'X-RTLS-GEO');
+}

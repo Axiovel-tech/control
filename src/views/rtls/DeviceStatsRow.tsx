@@ -231,6 +231,10 @@ export type DeviceStatsRowProps = {
   /** Whether a sleep/wake transaction is in flight for this device. */
   busy?: boolean;
   device: RtlsDevice;
+  /** Label of the geometry-consistency pill; the pill is hidden if unset. */
+  geometryLabel?: string;
+  /** Status coloring the geometry-consistency pill. */
+  geometryStatus?: Status;
   /** Stable action handlers; the actions are hidden when omitted. */
   handlers?: DeviceRowHandlers;
   stats: RtlsDeviceStats | undefined;
@@ -246,6 +250,8 @@ export type DeviceStatsRowProps = {
 const DeviceStatsRow = ({
   busy = false,
   device,
+  geometryLabel,
+  geometryStatus,
   handlers,
   stats,
   uavStatus,
@@ -262,6 +268,11 @@ const DeviceStatsRow = ({
         <Typography variant='subtitle2' sx={{ flexGrow: 1 }} component='div'>
           {describeDeviceWithPairedUav(device, uavStatus)}
         </Typography>
+        {geometryLabel && (
+          <StatusPill inline status={geometryStatus ?? Status.OFF}>
+            {geometryLabel}
+          </StatusPill>
+        )}
         {role === RtlsRole.ANCHOR_INITIATOR && (
           <Typography variant='caption' color='textSecondary'>
             initiator
