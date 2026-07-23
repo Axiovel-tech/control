@@ -211,6 +211,7 @@ describe('fleet verification state', () => {
     expect(state.verify.dialogOpen).toBe(true);
     state = reducer(state, rtlsVerifyStarted());
     expect(state.verify.running).toBe(true);
+    expect(state.verify.lastResult).toBeUndefined();
     state = reducer(
       state,
       rtlsVerifySucceeded({

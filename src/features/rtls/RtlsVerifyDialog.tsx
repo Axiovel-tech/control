@@ -52,9 +52,11 @@ const RtlsVerifyDialog = () => {
   const [inDepth, setInDepth] = useState(false);
 
   // opening the dialog runs the standard verification right away — that IS
-  // the action the operator asked for by clicking Verify
+  // the action the operator asked for by clicking Verify. It runs on EVERY
+  // open: showing a verdict from an earlier session as if it were current
+  // would be a stale pre-flight pass.
   useEffect(() => {
-    if (open && !running && !result) {
+    if (open && !running) {
       void dispatch(runFleetVerification({ inDepth: false }));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

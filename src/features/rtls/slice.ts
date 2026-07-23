@@ -195,9 +195,12 @@ const { actions, reducer } = createSlice({
       state.verify.lastResult = undefined;
     },
 
-    /** An X-RTLS-VERIFY run left the client. */
+    /** An X-RTLS-VERIFY run left the client. The previous result is
+     * dropped immediately: a failed re-run must never leave an obsolete
+     * pass verdict on screen. */
     rtlsVerifyStarted(state) {
       state.verify.running = true;
+      state.verify.lastResult = undefined;
     },
 
     /** An X-RTLS-VERIFY run failed or was NAKed. */
