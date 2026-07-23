@@ -70,8 +70,8 @@ const RtlsGeometrySyncDialog = () => {
       <DialogContent>
         <DialogContentText>
           {check
-            ? `The geometry of reference tag ${check.reference} will be ` +
-              `written to ${drifted.length} out-of-sync tag(s):`
+            ? `The canonical geometry will be written to ` +
+              `${drifted.length} out-of-sync tag(s):`
             : 'Run a consistency check first.'}
         </DialogContentText>
         <List dense>

@@ -41,7 +41,6 @@ const makeHub = (body: Record<string, unknown>) => {
 const initial = () => reducer(undefined, { type: 'noop' });
 
 const CHECK: RtlsGeometryCheck = {
-  reference: 61,
   cell: 'default',
   consistent: false,
   devices: {
@@ -61,6 +60,21 @@ describe('X-RTLS-GEO message helpers', () => {
     const body = await checkRtlsGeometry(hub);
     expect(sent[0]).toEqual({ type: 'X-RTLS-GEO', op: 'check' });
     expect(body.op).toBe('check');
+  });
+
+  test('adopt passes the reference through', async () => {
+    const { adoptRtlsGeometry } = require('~/features/rtls/messages');
+    const { hub, sent } = makeHub({
+      type: 'X-RTLS-GEO',
+      op: 'adopt',
+      reference: 61,
+    });
+    await adoptRtlsGeometry(hub, { reference: 61 });
+    expect(sent[0]).toEqual({
+      type: 'X-RTLS-GEO',
+      op: 'adopt',
+      reference: 61,
+    });
   });
 
   test('sync passes reboot=false through and NAKs become errors', async () => {
@@ -100,7 +114,6 @@ describe('geometry slice state', () => {
     const state = reducer(
       initial(),
       rtlsGeometrySyncSucceeded({
-        reference: 61,
         devices: { '63': { status: 'synced', written: ['UWB_AN1_X'] } },
         receivedAt: 456,
       })
@@ -152,7 +165,6 @@ describe('geometry certification lifecycle (audit)', () => {
     let state = reducer(
       initial(),
       rtlsGeometrySyncSucceeded({
-        reference: 61,
         devices: {
           '63': { status: 'synced', written: ['UWB_AN1_X'], rebooted: false },
           '62': { status: 'synced', written: [], skipped: ['UWB_AN1_X'] },

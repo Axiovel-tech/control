@@ -10,7 +10,11 @@ import { showError, showNotification } from '~/features/snackbar/actions';
 import messageHub from '~/message-hub';
 import { type AppDispatch, type RootState } from '~/store/reducers';
 
-import { checkRtlsGeometry, syncRtlsGeometry } from './messages';
+import {
+  adoptRtlsGeometry,
+  checkRtlsGeometry,
+  syncRtlsGeometry,
+} from './messages';
 import {
   rtlsGeometryCheckFailed,
   rtlsGeometryCheckStarted,
@@ -39,7 +43,6 @@ export function checkGeometryConsistency({ silent = false } = {}) {
       const body = await checkRtlsGeometry(messageHub);
       dispatch(
         rtlsGeometryCheckSucceeded({
-          reference: Number(body.reference),
           cell: typeof body.cell === 'string' ? body.cell : undefined,
           consistent: Boolean(body.consistent),
           devices: (body.devices ?? {}) as Record<
@@ -97,7 +100,6 @@ export function syncGeometryToFleet({
     >;
     dispatch(
       rtlsGeometrySyncSucceeded({
-        reference: body.reference == null ? null : Number(body.reference),
         cell: typeof body.cell === 'string' ? body.cell : undefined,
         devices,
         receivedAt: Date.now(),
@@ -150,5 +152,26 @@ export function syncGeometryToFleet({
     await dispatch(checkGeometryConsistency({ silent: true }));
 
     return failedIds.length > 0 ? 'partial' : written > 0 ? 'synced' : 'noop';
+  };
+}
+
+/**
+ * Adopts the fleet's geometry as the canonical one (unanimity-gated on
+ * the server; NAK reasons — e.g. a disagreeing fleet — land in the
+ * snackbar), then re-checks so the verdicts appear immediately.
+ */
+export function adoptGeometryFromFleet() {
+  return async (dispatch: AppDispatch): Promise<void> => {
+    try {
+      const body = await adoptRtlsGeometry(messageHub);
+      showNotification(
+        `Adopted the geometry of tag ${body.reference} as canonical ` +
+          `for cell '${body.cell}'`
+      );
+    } catch (error) {
+      showError(`Adopt failed: ${errorToString(error)}`);
+      return;
+    }
+    await dispatch(checkGeometryConsistency({ silent: true }));
   };
 }
