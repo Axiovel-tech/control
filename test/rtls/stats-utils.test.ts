@@ -171,6 +171,19 @@ describe('rtls stats-utils', () => {
       ).toBe(RtlsHealth.ERROR);
     });
 
+    test('an offline tag is unhealthy even with retained good stats', () => {
+      // regression: the overall (header) health stayed green on a tag that
+      // dropped off the network, because its cached solve stats still
+      // looked healthy
+      expect(
+        getDeviceHealthForRole(
+          RtlsRole.TAG,
+          { id: '1', solveRateHz: 12, solvePct: 99, fixAgeMs: 50 },
+          { online: false }
+        )
+      ).toBe(RtlsHealth.ERROR);
+    });
+
     test('a disabled device contributes no health signal', () => {
       expect(
         getDeviceHealthForRole(

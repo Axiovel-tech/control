@@ -154,12 +154,21 @@ export function getDeviceHealthForRole(
   stats: RtlsDeviceStats | undefined,
   liveness: DeviceLiveness | undefined
 ): RtlsHealth {
-  if (isAnchorRole(role)) {
-    return getAnchorHealth(liveness);
+  if (role === RtlsRole.DISABLED) {
+    // deliberately out of service: contributes no health signal, not even
+    // its offline-ness — alarming on a device someone disabled is noise
+    return RtlsHealth.UNKNOWN;
   }
 
-  if (role === RtlsRole.DISABLED) {
-    return RtlsHealth.UNKNOWN;
+  if (liveness && !liveness.online) {
+    // an offline device is never healthy, no matter how good its RETAINED
+    // stats look — without this, a tag that dropped off the network kept
+    // the overall (header) health green on its cached solve stats
+    return RtlsHealth.ERROR;
+  }
+
+  if (isAnchorRole(role)) {
+    return getAnchorHealth(liveness);
   }
 
   return getDeviceHealth(stats);

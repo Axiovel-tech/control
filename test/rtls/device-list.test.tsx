@@ -30,17 +30,14 @@ describe('RTLS device row primary line', () => {
   const tag: RtlsDevice = { id: '199', name: 'RTLS tag 199', online: true };
 
   test('renders just the display name without a pairing', () => {
-    const markup = render(describeDeviceWithPairedUav(tag, {}));
+    const markup = render(describeDeviceWithPairedUav(tag, undefined));
     expect(markup).toContain('RTLS tag 199');
     expect(markup).not.toContain('drone');
   });
 
   test('renders the paired drone as a pill in the UAV status color', () => {
     const markup = render(
-      describeDeviceWithPairedUav(
-        { ...tag, uav: '05' },
-        { '05': Status.SUCCESS }
-      )
+      describeDeviceWithPairedUav({ ...tag, uav: '05' }, Status.SUCCESS)
     );
     expect(markup).toContain('RTLS tag 199');
     expect(markup).toContain('drone 05');
@@ -48,7 +45,7 @@ describe('RTLS device row primary line', () => {
   });
 
   test('falls back to the "off" pill color for an unknown UAV', () => {
-    const markup = render(describeDeviceWithPairedUav({ ...tag, uav: '07' }, {}));
+    const markup = render(describeDeviceWithPairedUav({ ...tag, uav: '07' }, undefined));
     expect(markup).toContain('drone 07');
     expect(markup).toContain('StatusPill-status-off');
   });

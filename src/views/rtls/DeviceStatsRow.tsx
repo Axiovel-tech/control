@@ -5,7 +5,12 @@
  * the tag/anchor panels need no separate "health" view.
  */
 
+import Moon from '@mui/icons-material/NightsStay';
+import SystemUpdate from '@mui/icons-material/SystemUpdate';
+import Tune from '@mui/icons-material/Tune';
 import Box from '@mui/material/Box';
+import CircularProgress from '@mui/material/CircularProgress';
+import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import React from 'react';
 
@@ -14,6 +19,7 @@ import {
   MiniListItem,
   StatusLight,
   StatusPill,
+  Tooltip,
 } from '@skybrush/mui-components';
 
 import BatteryIndicator from '~/components/BatteryIndicator';
@@ -34,6 +40,7 @@ import {
   type RtlsTwrPeer,
 } from '~/features/rtls/types';
 import { getRtlsDeviceListStatus } from '~/features/rtls/utils';
+import Bolt from '~/icons/Bolt';
 
 const formatNumber = (
   value: number | undefined,
@@ -62,14 +69,14 @@ export const isSleepableRtlsDevice = (device: RtlsDevice): boolean =>
  */
 export const describeDeviceWithPairedUav = (
   device: RtlsDevice,
-  uavStatuses: Record<string, Status | undefined> | undefined
+  uavStatus: Status | undefined
 ): React.ReactNode =>
   device.uav === undefined ? (
     getRtlsDeviceDisplayName(device)
   ) : (
     <Box component='span' sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
       {getRtlsDeviceDisplayName(device)}
-      <StatusPill inline status={uavStatuses?.[device.uav] ?? Status.OFF}>
+      <StatusPill inline status={uavStatus ?? Status.OFF}>
         drone {device.uav}
       </StatusPill>
     </Box>
@@ -154,13 +161,81 @@ export const AnchorTelemetryRows = ({
   );
 };
 
-export type DeviceStatsRowProps = {
-  /** Action buttons rendered at the right edge of the header line. */
-  actions?: React.ReactNode;
+export type DeviceRowHandlers = {
+  onShowOta: (id: string) => void;
+  onShowParameters: (id: string) => void;
+  onSleep: (id: string) => void;
+  onWake: (id: string) => void;
+};
+
+/**
+ * The per-row action cluster: sleep / wake (sleepable devices only),
+ * parameters and firmware update.
+ */
+const RowActions = ({
+  busy,
+  device,
+  handlers,
+}: {
+  busy: boolean;
   device: RtlsDevice;
+  handlers: DeviceRowHandlers;
+}) => (
+  <Box sx={{ whiteSpace: 'nowrap' }}>
+    {/* Two fixed-intent buttons, like the sleep-all/wake-all pair above the
+     * list — deliberately NOT a toggle of the current `sleeping` flag, which
+     * may have changed between paint and click and would then invert the
+     * user's intent. */}
+    {isSleepableRtlsDevice(device) &&
+      (busy ? (
+        <IconButton size='small' disabled>
+          <CircularProgress size={18} color='inherit' />
+        </IconButton>
+      ) : (
+        <>
+          <Tooltip content='Sleep'>
+            <IconButton
+              size='small'
+              onClick={() => handlers.onSleep(device.id)}
+            >
+              <Moon fontSize='small' />
+            </IconButton>
+          </Tooltip>
+          <Tooltip content='Wake'>
+            <IconButton
+              size='small'
+              onClick={() => handlers.onWake(device.id)}
+            >
+              <Bolt fontSize='small' />
+            </IconButton>
+          </Tooltip>
+        </>
+      ))}
+    <Tooltip content='Parameters'>
+      <IconButton
+        size='small'
+        onClick={() => handlers.onShowParameters(device.id)}
+      >
+        <Tune fontSize='small' />
+      </IconButton>
+    </Tooltip>
+    <Tooltip content='Firmware update'>
+      <IconButton size='small' onClick={() => handlers.onShowOta(device.id)}>
+        <SystemUpdate fontSize='small' />
+      </IconButton>
+    </Tooltip>
+  </Box>
+);
+
+export type DeviceStatsRowProps = {
+  /** Whether a sleep/wake transaction is in flight for this device. */
+  busy?: boolean;
+  device: RtlsDevice;
+  /** Stable action handlers; the actions are hidden when omitted. */
+  handlers?: DeviceRowHandlers;
   stats: RtlsDeviceStats | undefined;
-  /** UAV-status map used to color the paired-drone pill. */
-  uavStatuses?: Record<string, Status | undefined>;
+  /** Status of the paired UAV, used to color the drone pill. */
+  uavStatus?: Status;
 };
 
 /**
@@ -169,10 +244,11 @@ export type DeviceStatsRowProps = {
  * and the caption.
  */
 const DeviceStatsRow = ({
-  actions,
+  busy = false,
   device,
+  handlers,
   stats,
-  uavStatuses,
+  uavStatus,
 }: DeviceStatsRowProps) => {
   const role = classifyRole(device.role);
   const anchor = isAnchorRole(role);
@@ -184,7 +260,7 @@ const DeviceStatsRow = ({
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
         <StatusLight status={getRowStatus(device, stats)} />
         <Typography variant='subtitle2' sx={{ flexGrow: 1 }} component='div'>
-          {describeDeviceWithPairedUav(device, uavStatuses)}
+          {describeDeviceWithPairedUav(device, uavStatus)}
         </Typography>
         {role === RtlsRole.ANCHOR_INITIATOR && (
           <Typography variant='caption' color='textSecondary'>
@@ -202,7 +278,9 @@ const DeviceStatsRow = ({
             anchorsSeen={anchorsSeen}
           />
         )}
-        {actions}
+        {handlers && (
+          <RowActions busy={busy} device={device} handlers={handlers} />
+        )}
       </Box>
       {anchor ? (
         <AnchorTelemetryRows twr={device.twr} />
@@ -245,4 +323,9 @@ const DeviceStatsRow = ({
   );
 };
 
-export default DeviceStatsRow;
+/**
+ * Memoized: telemetry notifications arrive at a steady cadence and replace
+ * the stats-map / UAV-status-map identities on every message — per-row
+ * primitive props keep the untouched rows from re-rendering with them.
+ */
+export default React.memo(DeviceStatsRow);
