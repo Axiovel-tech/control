@@ -107,7 +107,9 @@ const RtlsCalibrationWizard = () => {
     let consecutiveFailures = 0;
     pollTimer.current = setInterval(async () => {
       if (session.current !== token) {
-        stopPolling();
+        // NEVER touch the shared poller ref from a stale session: it may
+        // already hold the CURRENT session's interval (our own interval
+        // was cleared when the new session started polling)
         return;
       }
       try {
@@ -127,15 +129,11 @@ const RtlsCalibrationWizard = () => {
         // transient losses retry; a DEAD status stream must not leave
         // the wizard busy-locked forever
         consecutiveFailures += 1;
-        if (consecutiveFailures >= 5) {
+        if (consecutiveFailures >= 5 && session.current === token) {
           stopPolling();
-          if (session.current === token) {
-            setBusy(false);
-            setProgress(undefined);
-            showError(
-              `Lost the capture status: ${errorToString(error)}`
-            );
-          }
+          setBusy(false);
+          setProgress(undefined);
+          showError(`Lost the capture status: ${errorToString(error)}`);
         }
       }
     }, 2000);
