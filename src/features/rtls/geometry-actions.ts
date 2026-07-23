@@ -76,9 +76,9 @@ export function syncGeometryToFleet({
   return async (
     dispatch: AppDispatch,
     getState: () => RootState
-  ): Promise<void> => {
+  ): Promise<'failed' | 'noop' | 'partial' | 'synced'> => {
     if (getState().rtls.geometry.syncing) {
-      return;
+      return 'failed';
     }
 
     dispatch(rtlsGeometrySyncStarted());
@@ -88,7 +88,7 @@ export function syncGeometryToFleet({
     } catch (error) {
       dispatch(rtlsGeometrySyncFailed());
       showError(`Geometry sync failed: ${errorToString(error)}`);
-      return;
+      return 'failed';
     }
 
     const devices = (body.devices ?? {}) as Record<
@@ -148,5 +148,7 @@ export function syncGeometryToFleet({
     // network for a few seconds — that shows up as incomplete entries and
     // the operator can re-check from the toolbar.
     await dispatch(checkGeometryConsistency({ silent: true }));
+
+    return failedIds.length > 0 ? 'partial' : written > 0 ? 'synced' : 'noop';
   };
 }

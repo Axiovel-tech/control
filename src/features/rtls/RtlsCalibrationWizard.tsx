@@ -65,12 +65,18 @@ const RtlsCalibrationWizard = () => {
 
   const [step, setStep] = useState<Step>('capture');
   const [busy, setBusy] = useState(false);
+  const [fitting, setFitting] = useState(false);
   const [progress, setProgress] = useState<CaptureProgress | undefined>();
   const [fit, setFit] = useState<RtlsFitResult | undefined>();
   const [reboot, setReboot] = useState(true);
   const pollTimer = useRef<ReturnType<typeof setInterval> | undefined>(
     undefined
   );
+  // every open/close/restart bumps the session: any async continuation
+  // from an EARLIER session (a late capture response, a straggler poll,
+  // an outstanding fit) must be a no-op, or it would corrupt the current
+  // session with stale data
+  const session = useRef(0);
 
   const stopPolling = () => {
     if (pollTimer.current !== undefined) {
@@ -79,13 +85,15 @@ const RtlsCalibrationWizard = () => {
     }
   };
 
-  // reset the wizard whenever it opens; stop the poller when it closes
+  // reset the wizard whenever it opens; invalidate + stop on close
   useEffect(() => {
+    session.current += 1;
     if (open) {
       setStep('capture');
       setProgress(undefined);
       setFit(undefined);
       setBusy(false);
+      setFitting(false);
     } else {
       stopPolling();
     }
@@ -94,45 +102,85 @@ const RtlsCalibrationWizard = () => {
 
   const close = () => dispatch(closeRtlsCalibrationWizard());
 
+  const startPolling = (token: number) => {
+    stopPolling();
+    let consecutiveFailures = 0;
+    pollTimer.current = setInterval(async () => {
+      if (session.current !== token) {
+        stopPolling();
+        return;
+      }
+      try {
+        const status = (await getRtlsCaptureStatus(
+          messageHub
+        )) as unknown as CaptureProgress;
+        if (session.current !== token) {
+          return;
+        }
+        consecutiveFailures = 0;
+        setProgress(status);
+        if (!status.running) {
+          stopPolling();
+          setBusy(false);
+        }
+      } catch (error) {
+        // transient losses retry; a DEAD status stream must not leave
+        // the wizard busy-locked forever
+        consecutiveFailures += 1;
+        if (consecutiveFailures >= 5) {
+          stopPolling();
+          if (session.current === token) {
+            setBusy(false);
+            setProgress(undefined);
+            showError(
+              `Lost the capture status: ${errorToString(error)}`
+            );
+          }
+        }
+      }
+    }, 2000);
+  };
+
   const startCapture = async () => {
+    const token = ++session.current; // invalidates older continuations
     setBusy(true);
     setFit(undefined);
+    setProgress(undefined); // a failed restart must not resurrect old data
     try {
       const body = await captureRtlsGeometry(messageHub, {
         duration: CAPTURE_DURATION_S,
       });
+      if (session.current !== token) {
+        return;
+      }
       setProgress(body as unknown as CaptureProgress);
-      stopPolling();
-      pollTimer.current = setInterval(async () => {
-        try {
-          const status = (await getRtlsCaptureStatus(
-            messageHub
-          )) as unknown as CaptureProgress;
-          setProgress(status);
-          if (!status.running) {
-            stopPolling();
-            setBusy(false);
-          }
-        } catch {
-          // a lost poll is not fatal; the next tick retries
-        }
-      }, 2000);
+      startPolling(token);
     } catch (error) {
-      setBusy(false);
+      if (session.current === token) {
+        setBusy(false);
+      }
       showError(`Capture failed: ${errorToString(error)}`);
     }
   };
 
   const runFit = async () => {
+    const token = session.current;
     setBusy(true);
+    setFitting(true);
     try {
       const body = await fitRtlsGeometry(messageHub);
+      if (session.current !== token) {
+        return;
+      }
       setFit(body as unknown as RtlsFitResult);
       setStep('fit');
     } catch (error) {
       showError(`Fit failed: ${errorToString(error)}`);
     } finally {
-      setBusy(false);
+      if (session.current === token) {
+        setBusy(false);
+        setFitting(false);
+      }
     }
   };
 
@@ -140,9 +188,16 @@ const RtlsCalibrationWizard = () => {
     if (!fit) {
       return;
     }
-    await dispatch(
+    const token = session.current;
+    const outcome = await dispatch(
       syncGeometryToFleet({ geometry: fit.applyGeometry, reboot })
     );
+    if (session.current !== token) {
+      return;
+    }
+    if (outcome === 'failed') {
+      return; // the error toast is up; stay here so the operator can retry
+    }
     setStep('done');
   };
 
@@ -180,7 +235,7 @@ const RtlsCalibrationWizard = () => {
             )}
             <Button
               variant='outlined'
-              disabled={busy && Boolean(progress?.running)}
+              disabled={fitting}
               onClick={startCapture}
             >
               {progress ? 'Restart capture' : 'Start capture'}
@@ -188,7 +243,7 @@ const RtlsCalibrationWizard = () => {
             <Button
               sx={{ ml: 1 }}
               variant='contained'
-              disabled={!captureDone || busy}
+              disabled={!captureDone || busy || fitting}
               onClick={runFit}
             >
               Fit geometry
