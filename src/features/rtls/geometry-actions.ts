@@ -64,7 +64,15 @@ export function checkGeometryConsistency({ silent = false } = {}) {
  * consistency snapshot reflects the repair. Summarizes the per-device
  * outcomes in the snackbar.
  */
-export function syncGeometryToFleet({ reboot = true } = {}) {
+export function syncGeometryToFleet({
+  reboot = true,
+  geometry,
+}: {
+  reboot?: boolean;
+  /** Explicit geometry payload (the fit's apply path): written to EVERY
+   * tag instead of a reference tag's geometry. */
+  geometry?: Record<string, unknown>;
+} = {}) {
   return async (
     dispatch: AppDispatch,
     getState: () => RootState
@@ -76,7 +84,7 @@ export function syncGeometryToFleet({ reboot = true } = {}) {
     dispatch(rtlsGeometrySyncStarted());
     let body;
     try {
-      body = await syncRtlsGeometry(messageHub, { reboot });
+      body = await syncRtlsGeometry(messageHub, { geometry, reboot });
     } catch (error) {
       dispatch(rtlsGeometrySyncFailed());
       showError(`Geometry sync failed: ${errorToString(error)}`);
@@ -89,7 +97,7 @@ export function syncGeometryToFleet({ reboot = true } = {}) {
     >;
     dispatch(
       rtlsGeometrySyncSucceeded({
-        reference: Number(body.reference),
+        reference: body.reference == null ? null : Number(body.reference),
         cell: typeof body.cell === 'string' ? body.cell : undefined,
         devices,
         receivedAt: Date.now(),

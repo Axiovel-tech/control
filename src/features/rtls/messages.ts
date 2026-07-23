@@ -333,12 +333,19 @@ export async function checkRtlsGeometry(
  */
 export async function syncRtlsGeometry(
   hub: MessageHub,
-  options: { reboot?: boolean; reference?: number } = {}
+  options: {
+    geometry?: Record<string, unknown>;
+    reboot?: boolean;
+    reference?: number;
+  } = {}
 ): Promise<AnyMessageBody> {
   const response: Message<AnyMessageBody> = await hub.sendMessage(
     {
       type: 'X-RTLS-GEO',
       op: 'sync',
+      ...(options.geometry === undefined
+        ? {}
+        : { geometry: options.geometry }),
       ...(options.reference === undefined
         ? {}
         : { reference: options.reference }),
@@ -366,4 +373,53 @@ export async function verifyRtlsFleet(
     { timeout: 120 }
   );
   return ensureResponseType(response.body, 'X-RTLS-VERIFY');
+}
+
+/** Starts (or restarts) a TWR capture window for the geometry fit. */
+export async function captureRtlsGeometry(
+  hub: MessageHub,
+  options: { duration?: number } = {}
+): Promise<AnyMessageBody> {
+  const response: Message<AnyMessageBody> = await hub.sendMessage(
+    {
+      type: 'X-RTLS-GEO',
+      op: 'capture',
+      ...(options.duration === undefined
+        ? {}
+        : { duration: options.duration }),
+    },
+    { timeout: 15 }
+  );
+  return ensureResponseType(response.body, 'X-RTLS-GEO');
+}
+
+/** Queries the progress of the running TWR capture window. */
+export async function getRtlsCaptureStatus(
+  hub: MessageHub
+): Promise<AnyMessageBody> {
+  const response: Message<AnyMessageBody> = await hub.sendMessage(
+    { type: 'X-RTLS-GEO', op: 'capture-status' },
+    { timeout: 15 }
+  );
+  return ensureResponseType(response.body, 'X-RTLS-GEO');
+}
+
+/**
+ * Runs the rectangular geometry fit over the captured TWR window. The
+ * response carries the rigid/relaxed solutions, per-anchor move
+ * suggestions, the residual table and an apply-ready geometry payload.
+ */
+export async function fitRtlsGeometry(
+  hub: MessageHub,
+  options: { margin?: number } = {}
+): Promise<AnyMessageBody> {
+  const response: Message<AnyMessageBody> = await hub.sendMessage(
+    {
+      type: 'X-RTLS-GEO',
+      op: 'fit',
+      ...(options.margin === undefined ? {} : { margin: options.margin }),
+    },
+    { timeout: 30 }
+  );
+  return ensureResponseType(response.body, 'X-RTLS-GEO');
 }

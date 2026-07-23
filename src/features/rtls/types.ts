@@ -236,7 +236,8 @@ export type RtlsGeometrySyncEntry = {
 
 /** Result of an X-RTLS-GEO `sync`. */
 export type RtlsGeometrySync = {
-  reference: number;
+  /** Reference tag; null for an explicit-geometry (fit apply) sync. */
+  reference: number | null;
   cell?: string;
   devices: Record<string, RtlsGeometrySyncEntry>;
   receivedAt: number;
@@ -261,4 +262,29 @@ export type RtlsVerifyResult = {
   passed: boolean;
   rules: RtlsVerifyRule[];
   receivedAt: number;
+};
+
+/** One per-anchor move suggestion of an X-RTLS-GEO `fit`. */
+export type RtlsFitMove = {
+  index: number;
+  mac: number;
+  dxM: number;
+  dyM: number;
+  dzM: number;
+  distM: number;
+};
+
+/** Result of an X-RTLS-GEO `fit`. */
+export type RtlsFitResult = {
+  cell?: string;
+  coverage: {
+    pairsMeasured: number;
+    pairsExpected: number;
+    missingPairs: number[][];
+  };
+  rigid: { rmsM: number };
+  relaxed: { rmsM: number; marginM: number };
+  moves: RtlsFitMove[];
+  /** Apply-ready payload for the sync op's explicit `geometry`. */
+  applyGeometry: Record<string, unknown>;
 };
