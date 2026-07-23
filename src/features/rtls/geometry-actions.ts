@@ -100,32 +100,36 @@ export function syncGeometryToFleet({ reboot = true } = {}) {
     const written = entries.filter(
       ([, entry]) => (entry.written?.length ?? 0) > 0
     ).length;
-    const failed = entries.filter(
-      ([, entry]) => entry.status !== 'synced'
-    ).length;
-    const rebootsFailed = entries.filter(
-      ([, entry]) =>
-        entry.status === 'synced' &&
-        (entry.written?.length ?? 0) > 0 &&
-        entry.rebooted === false
-    ).length;
+    const failedIds = entries
+      .filter(([, entry]) => entry.status !== 'synced')
+      .map(([id]) => id);
+    const unrebootedIds = entries
+      .filter(
+        ([, entry]) =>
+          entry.status === 'synced' &&
+          (entry.written?.length ?? 0) > 0 &&
+          entry.rebooted !== true
+      )
+      .map(([id]) => id);
+    // a written-but-not-rebooted tag still flies on its OLD geometry, so
+    // it must be called out in EVERY branch, not only the all-clean one
+    const rebootNote =
+      unrebootedIds.length > 0
+        ? `; tag(s) ${unrebootedIds.join(', ')} written but not ` +
+          `rebooted — the new geometry is inactive until they reboot`
+        : '';
 
-    if (failed > 0) {
-      const ids = entries
-        .filter(([, entry]) => entry.status !== 'synced')
-        .map(([id]) => id)
-        .join(', ');
+    if (failedIds.length > 0) {
       showError(
-        `Geometry sync: ${failed} device(s) did not sync cleanly ` +
-          `(${ids}) — re-run the sync`
+        `Geometry sync: ${failedIds.length} device(s) did not sync ` +
+          `cleanly (${failedIds.join(', ')}) — re-run the sync` +
+          rebootNote
       );
     } else if (written > 0) {
       showNotification(
-        rebootsFailed > 0
-          ? `Geometry written to ${written} tag(s); ${rebootsFailed} ` +
-              `reboot(s) failed — reboot those tags manually`
-          : `Geometry written to ${written} tag(s)` +
-              (reboot ? '; rewritten tags are rebooting' : '')
+        `Geometry written to ${written} tag(s)` +
+          (rebootNote ||
+            (reboot ? '; rewritten tags are rebooting' : ''))
       );
     } else {
       showNotification('Geometry already consistent — no changes');

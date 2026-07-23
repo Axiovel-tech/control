@@ -15,6 +15,7 @@ import {
 } from '~/features/rtls/selectors';
 import reducer, {
   clearRtlsDevices,
+  setRtlsDevicesFromStatus,
   closeRtlsGeometrySyncDialog,
   openRtlsGeometrySyncDialog,
   rtlsGeometryCheckStarted,
@@ -143,5 +144,57 @@ describe('geometry selectors', () => {
         asRoot({ geometry: { checking: false, syncing: false } })
       )
     ).toBe(false);
+  });
+});
+
+describe('geometry certification lifecycle (audit)', () => {
+  test('write-only sync marks tags pending reboot; a reboot clears it', () => {
+    let state = reducer(
+      initial(),
+      rtlsGeometrySyncSucceeded({
+        reference: 61,
+        devices: {
+          '63': { status: 'synced', written: ['UWB_AN1_X'], rebooted: false },
+          '62': { status: 'synced', written: [], skipped: ['UWB_AN1_X'] },
+        },
+        receivedAt: 1,
+      })
+    );
+    expect(state.geometry.pendingReboot).toEqual({ '63': true });
+
+    // the device is seen with a LOWER uptime -> it rebooted
+    state = reducer(
+      state,
+      setRtlsDevicesFromStatus({ '63': { online: true, uptimeMs: 100_000 } })
+    );
+    state = reducer(
+      state,
+      setRtlsDevicesFromStatus({ '63': { online: true, uptimeMs: 5000 } })
+    );
+    expect(state.geometry.pendingReboot).toEqual({});
+  });
+
+  test('a new tag joining voids the certification', () => {
+    let state = reducer(
+      initial(),
+      setRtlsDevicesFromStatus({ '61': { online: true } })
+    );
+    state = reducer(state, rtlsGeometryCheckSucceeded(CHECK));
+    expect(state.geometry.lastCheck).toBeDefined();
+    // same set again: certification survives
+    state = reducer(
+      state,
+      setRtlsDevicesFromStatus({ '61': { online: true } })
+    );
+    expect(state.geometry.lastCheck).toBeDefined();
+    // a new tag joins: certification void
+    state = reducer(
+      state,
+      setRtlsDevicesFromStatus({
+        '61': { online: true },
+        '99': { online: true },
+      })
+    );
+    expect(state.geometry.lastCheck).toBeUndefined();
   });
 });

@@ -89,6 +89,13 @@ export type RtlsDevice = {
   sleeping?: boolean;
 
   /**
+   * Device uptime in milliseconds (from the state advertisement, when the
+   * firmware sends one). A decrease between snapshots means the device
+   * rebooted — used to clear the geometry pending-reboot mark.
+   */
+  uptimeMs?: number;
+
+  /**
    * Inter-anchor TWR telemetry (anchors only), freshest first: one row per
    * peer anchor heard on the UWB ether. Absent for tags and for anchors that
    * are not yet hearing peers.

@@ -98,6 +98,11 @@ export function mapRtlsDeviceStatus(
     result.firmwareVersion = firmwareVersion;
   }
 
+  const uptimeMs = toNumber(raw.uptimeMs);
+  if (uptimeMs !== undefined) {
+    result.uptimeMs = uptimeMs;
+  }
+
   const paramCount = toNumber(raw.paramCount);
   if (paramCount !== undefined) {
     result.paramCount = paramCount;

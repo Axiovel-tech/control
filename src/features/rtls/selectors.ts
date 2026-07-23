@@ -259,3 +259,8 @@ export const getRtlsGeometryDriftCount: AppSelector<number> = createSelector(
         ).length
       : 0
 );
+
+/** Selector: tags whose geometry was written but not rebooted yet. */
+export const getRtlsGeometryPendingReboot: AppSelector<
+  Record<string, true>
+> = (state) => state.rtls.geometry.pendingReboot;

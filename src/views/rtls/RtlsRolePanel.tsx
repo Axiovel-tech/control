@@ -27,6 +27,7 @@ import {
   getRtlsAnchorDevices,
   getRtlsGeometryCheck,
   getRtlsGeometryDriftCount,
+  getRtlsGeometryPendingReboot,
   getRtlsPairedUavStatuses,
   getRtlsSleepPendingMap,
   getRtlsStatsById,
@@ -58,8 +59,14 @@ import DeviceStatsRow, { type DeviceRowHandlers } from './DeviceStatsRow';
  */
 const geometryPillFor = (
   deviceId: string,
-  check: RtlsGeometryCheck | undefined
+  check: RtlsGeometryCheck | undefined,
+  pendingReboot: Record<string, true>
 ): { label?: string; status?: Status } => {
+  if (pendingReboot[deviceId]) {
+    // the registry says "consistent" but the solver still runs on the
+    // OLD geometry until the tag reboots
+    return { label: 'geometry pending reboot', status: Status.WARNING };
+  }
   if (!check) {
     return {};
   }
@@ -99,6 +106,8 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
   const lastUpdatedAt = useSelector(getRtlsStatsLastUpdatedAt);
   const geometryCheck = useSelector(getRtlsGeometryCheck);
   const geometryDrift = useSelector(getRtlsGeometryDriftCount);
+  const pendingReboot = useSelector(getRtlsGeometryPendingReboot);
+  const pendingRebootCount = Object.keys(pendingReboot).length;
   const geometryBusy = useSelector(isRtlsGeometryBusy);
   // stable identity so the memoized rows are not re-rendered by the parent
   const handlers: DeviceRowHandlers = useMemo(
@@ -131,11 +140,19 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
               ) : geometryCheck ? (
                 <StatusPill
                   inline
-                  status={geometryDrift === 0 ? Status.SUCCESS : Status.ERROR}
+                  status={
+                    geometryDrift > 0
+                      ? Status.ERROR
+                      : pendingRebootCount > 0
+                        ? Status.WARNING
+                        : Status.SUCCESS
+                  }
                 >
-                  {geometryDrift === 0
-                    ? 'geometry consistent'
-                    : `geometry: ${geometryDrift} out of sync`}
+                  {geometryDrift > 0
+                    ? `geometry: ${geometryDrift} out of sync`
+                    : pendingRebootCount > 0
+                      ? `geometry: ${pendingRebootCount} pending reboot`
+                      : 'geometry consistent'}
                 </StatusPill>
               ) : (
                 <StatusPill inline status={Status.OFF}>
@@ -205,7 +222,7 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
         ) : (
           devices.map((device, index) => {
             const geometry = tags
-              ? geometryPillFor(device.id, geometryCheck)
+              ? geometryPillFor(device.id, geometryCheck, pendingReboot)
               : {};
             return (
               <Box key={device.id}>

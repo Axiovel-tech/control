@@ -115,6 +115,10 @@ export type RtlsSliceState = {
     syncing: boolean;
     lastCheck?: RtlsGeometryCheck;
     lastSync?: RtlsGeometrySync;
+    /** Tags whose geometry was written but not (yet) rebooted: their
+     * solver still runs on the OLD geometry until a reboot. Cleared when
+     * a device's uptime is seen going backwards. */
+    pendingReboot: Record<string, true>;
     /** Whether the sync confirmation dialog is open. */
     syncDialogOpen: boolean;
   };
@@ -147,6 +151,7 @@ const initialState: RtlsSliceState = {
     syncing: false,
     lastCheck: undefined,
     lastSync: undefined,
+    pendingReboot: {},
     syncDialogOpen: false,
   },
 };
@@ -170,6 +175,7 @@ const { actions, reducer } = createSlice({
       state.geometry.syncing = false;
       state.geometry.lastCheck = undefined;
       state.geometry.lastSync = undefined;
+      state.geometry.pendingReboot = {};
       state.geometry.syncDialogOpen = false;
     },
 
@@ -203,13 +209,23 @@ const { actions, reducer } = createSlice({
       state.geometry.syncing = false;
     },
 
-    /** An X-RTLS-GEO sync completed; stores the per-device outcomes. */
+    /** An X-RTLS-GEO sync completed; stores the per-device outcomes and
+     * marks written-but-not-rebooted tags as pending a reboot. */
     rtlsGeometrySyncSucceeded(
       state,
       { payload }: PayloadAction<RtlsGeometrySync>
     ) {
       state.geometry.syncing = false;
       state.geometry.lastSync = payload;
+      for (const [id, entry] of Object.entries(payload.devices)) {
+        if (
+          entry.status === 'synced' &&
+          (entry.written?.length ?? 0) > 0 &&
+          entry.rebooted !== true
+        ) {
+          state.geometry.pendingReboot[id] = true;
+        }
+      }
     },
 
     /** Opens the geometry-sync confirmation dialog. */
@@ -357,6 +373,33 @@ const { actions, reducer } = createSlice({
       { payload }: PayloadAction<Record<string, Omit<RtlsDevice, 'id'>>>
     ) {
       const ids = Object.keys(payload);
+
+      // A consistency snapshot certifies a specific fleet: when the device
+      // ID SET changes (a tag joined or left), the certification is void —
+      // keeping a green "consistent" verdict over a fleet it never saw
+      // would be a false pre-flight pass.
+      if (
+        state.geometry.lastCheck &&
+        (ids.length !== state.devices.order.length ||
+          ids.some((id) => !state.devices.byId[id]))
+      ) {
+        state.geometry.lastCheck = undefined;
+      }
+
+      // A rewritten-but-not-rebooted tag still flies on its OLD geometry;
+      // the pending-reboot mark clears when the device is seen to have
+      // rebooted (its uptime went backwards).
+      for (const id of ids) {
+        const uptime = payload[id]?.uptimeMs;
+        const previous = state.devices.byId[id]?.uptimeMs;
+        if (
+          uptime !== undefined &&
+          previous !== undefined &&
+          uptime < previous
+        ) {
+          delete state.geometry.pendingReboot[id];
+        }
+      }
 
       // Drop devices that are no longer present in the snapshot, along with
       // their now-stale stats and OTA jobs. Device disappearance is the single
