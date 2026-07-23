@@ -198,3 +198,42 @@ describe('geometry certification lifecycle (audit)', () => {
     expect(state.geometry.lastCheck).toBeUndefined();
   });
 });
+
+describe('fleet verification state', () => {
+  test('verify lifecycle stores the result', () => {
+    const {
+      rtlsVerifyStarted,
+      rtlsVerifySucceeded,
+      openRtlsVerifyDialog,
+      closeRtlsVerifyDialog,
+    } = require('~/features/rtls/slice');
+    let state = reducer(initial(), openRtlsVerifyDialog());
+    expect(state.verify.dialogOpen).toBe(true);
+    state = reducer(state, rtlsVerifyStarted());
+    expect(state.verify.running).toBe(true);
+    state = reducer(
+      state,
+      rtlsVerifySucceeded({
+        inDepth: false,
+        passed: false,
+        rules: [
+          {
+            id: 'geometry',
+            label: 'Cell geometry consistency',
+            severity: 'error',
+            status: 'fail',
+            detail: '1 tag(s) disagree',
+          },
+        ],
+        receivedAt: 1,
+      })
+    );
+    expect(state.verify.running).toBe(false);
+    expect(state.verify.lastResult?.passed).toBe(false);
+    state = reducer(state, closeRtlsVerifyDialog());
+    expect(state.verify.dialogOpen).toBe(false);
+    // disconnecting clears the verdict
+    state = reducer(state, clearRtlsDevices());
+    expect(state.verify.lastResult).toBeUndefined();
+  });
+});

@@ -31,6 +31,7 @@ import PromptDialog from './features/prompt/PromptDialog';
 import RTKCoordinateRestorationDialog from './features/rtk/RTKCoordinateRestorationDialog';
 import RTKSetupDialog from './features/rtk/RTKSetupDialog';
 import RtlsGeometrySyncDialog from './features/rtls/RtlsGeometrySyncDialog';
+import RtlsVerifyDialog from './features/rtls/RtlsVerifyDialog';
 import RtlsOtaDialog from './features/rtls/RtlsOtaDialog';
 import RtlsParameterDialog from './features/rtls/RtlsParameterDialog';
 import SafetyDialog from './features/safety/SafetyDialog';
@@ -186,6 +187,7 @@ const App = ({ onFirstRender }) => (
       <RTKCoordinateRestorationDialog />
       <RTKSetupDialog />
       <RtlsGeometrySyncDialog />
+      <RtlsVerifyDialog />
       <RtlsOtaDialog />
       <RtlsParameterDialog />
       <SafetyDialog />

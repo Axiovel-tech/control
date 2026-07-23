@@ -348,3 +348,22 @@ export async function syncRtlsGeometry(
   );
   return ensureResponseType(response.body, 'X-RTLS-GEO');
 }
+
+/**
+ * Runs the fleet pre-flight verification rule set (X-RTLS-VERIFY). The
+ * in-depth pass reads the ArduPilot tuning set from every paired drone
+ * over live MAVLink, hence the generous timeout.
+ */
+export async function verifyRtlsFleet(
+  hub: MessageHub,
+  options: { inDepth?: boolean } = {}
+): Promise<AnyMessageBody> {
+  const response: Message<AnyMessageBody> = await hub.sendMessage(
+    {
+      type: 'X-RTLS-VERIFY',
+      ...(options.inDepth === undefined ? {} : { inDepth: options.inDepth }),
+    },
+    { timeout: 120 }
+  );
+  return ensureResponseType(response.body, 'X-RTLS-VERIFY');
+}
