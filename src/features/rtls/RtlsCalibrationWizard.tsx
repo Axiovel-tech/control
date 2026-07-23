@@ -44,6 +44,7 @@ import { closeRtlsCalibrationWizard } from './slice';
 import {
   type RtlsCalibrationModel,
   type RtlsCalibrationResponse,
+  type RtlsGeometryCheck,
   type RtlsGeometryFit,
 } from './types';
 
@@ -178,6 +179,48 @@ const FitPanel = ({ fit, selected }: FitPanelProps) => {
   );
 };
 
+type CalibrationDoneMessageProps = {
+  syncing: boolean;
+  check: RtlsGeometryCheck | undefined;
+};
+
+/**
+ * Body of the `done` step. The wizard switches to this step the instant the
+ * fleet write STARTS (not after it finishes), so while `syncing` is true this
+ * shows the same spinner + status-text treatment the `measure` step uses for
+ * the strict request — the operator sees an active "Writing…" indicator for
+ * the whole write + reboot + consistency re-check window. Once the sync
+ * settles (`syncing` flips false) it renders the consistency verdict.
+ */
+export const CalibrationDoneMessage = ({
+  syncing,
+  check,
+}: CalibrationDoneMessageProps) => {
+  const { t } = useTranslation();
+
+  if (syncing) {
+    return (
+      <Typography
+        variant='body2'
+        sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
+      >
+        <CircularProgress size={16} />
+        {t('rtlsCalibration.done.writing')}
+      </Typography>
+    );
+  }
+
+  return (
+    <Typography variant='body2'>
+      {check
+        ? check.consistent
+          ? t('rtlsCalibration.done.consistent')
+          : t('rtlsCalibration.done.outOfSync')
+        : t('rtlsCalibration.done.unchecked')}
+    </Typography>
+  );
+};
+
 const RtlsCalibrationWizard = () => {
   const { t } = useTranslation();
   const dispatch: AppDispatch = useDispatch();
@@ -294,14 +337,25 @@ const RtlsCalibrationWizard = () => {
       return;
     }
     const token = session.current;
+    // Switch to the `done` step as the write STARTS, before awaiting the fleet
+    // write + reboot + consistency re-check, so the operator sees the active
+    // "Writing…" spinner for that whole window. rtlsGeometrySyncStarted flips
+    // `syncing` true synchronously inside the dispatch below, so this render
+    // lands on the syncing-true branch of CalibrationDoneMessage rather than a
+    // silent, greyed-out apply screen.
+    setStep('done');
     const outcome = await dispatch(
       syncGeometryToFleet({
         geometry: selectedResponse.applyGeometry,
         reboot,
       })
     );
-    if (session.current === token && outcome !== 'failed') {
-      setStep('done');
+    // A sync that never left the client (threw before any write) must not
+    // strand the operator on a "Geometry written" verdict — roll back to the
+    // apply step so they can retry. The session guard suppresses this rollback
+    // when a close/remeasure raced the write.
+    if (session.current === token && outcome === 'failed') {
+      setStep('apply');
     }
   };
 
@@ -454,15 +508,7 @@ const RtlsCalibrationWizard = () => {
         )}
 
         {step === 'done' && (
-          <Typography variant='body2'>
-            {syncing
-              ? t('rtlsCalibration.done.writing')
-              : check
-                ? check.consistent
-                  ? t('rtlsCalibration.done.consistent')
-                  : t('rtlsCalibration.done.outOfSync')
-                : t('rtlsCalibration.done.unchecked')}
-          </Typography>
+          <CalibrationDoneMessage syncing={syncing} check={check} />
         )}
       </DialogContent>
       <DialogActions>
