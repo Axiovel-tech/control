@@ -21,7 +21,7 @@ jest.mock('~/error-handling', () => ({
 
 import { Status } from '~/components/semantics';
 import { type RtlsDevice } from '~/features/rtls/types';
-import { describeDeviceWithPairedUav } from '~/views/rtls/RtlsDeviceList';
+import { describeDeviceWithPairedUav } from '~/views/rtls/DeviceStatsRow';
 
 const render = (node: React.ReactNode): string =>
   renderToStaticMarkup(<>{node}</>);

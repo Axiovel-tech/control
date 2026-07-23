@@ -14,6 +14,8 @@ const commonLayouts: Record<PerspectiveName, PerspectiveObject> = {
           contents: [
             { type: 'panel', component: 'map', id: 'map' },
             { type: 'panel', component: 'uav-list', id: 'uavList' },
+            { type: 'panel', component: 'rtls-tags', id: 'rtlsTags' },
+            { type: 'panel', component: 'rtls-anchors', id: 'rtlsAnchors' },
             { type: 'panel', component: 'three-d-view', id: 'threeDView' },
           ],
         },

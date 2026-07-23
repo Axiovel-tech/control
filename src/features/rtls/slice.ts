@@ -22,9 +22,6 @@ import {
 } from './types';
 import { updateStateOfRtlsDevice } from './utils';
 
-/** Tabs of the RTLS Link workbench panel. */
-export type RtlsPanelTab = 'devices' | 'health' | 'positions';
-
 /**
  * How long an applied sleep/wake transaction result guards the device's
  * `sleeping` flag against contradicting X-RTLS-INF snapshot values, in
@@ -110,10 +107,6 @@ export type RtlsSliceState = {
     deviceId?: string;
   };
 
-  /** UI state of the RTLS Link workbench panel. Not persisted. */
-  panel: {
-    selectedTab: RtlsPanelTab;
-  };
 };
 
 const initialState: RtlsSliceState = {
@@ -137,9 +130,6 @@ const initialState: RtlsSliceState = {
   otaDialog: {
     open: false,
     deviceId: undefined,
-  },
-  panel: {
-    selectedTab: 'devices',
   },
 };
 
@@ -274,11 +264,6 @@ const { actions, reducer } = createSlice({
       state.paramDialog = { open: false, deviceId: undefined };
     },
 
-    /** Selects a tab of the RTLS Link workbench panel. */
-    setSelectedTabInRtlsPanel(state, { payload }: PayloadAction<RtlsPanelTab>) {
-      state.panel.selectedTab = payload;
-    },
-
     /** Opens the OTA dialog for a device. */
     openRtlsOtaDialog(state, { payload: deviceId }: PayloadAction<string>) {
       state.otaDialog = { open: true, deviceId };
@@ -407,7 +392,6 @@ export const {
   setRtlsAnchors,
   setRtlsDevicesFromStatus,
   setRtlsOtaJob,
-  setSelectedTabInRtlsPanel,
   updateRtlsPositions,
   updateRtlsStats,
 } = actions;

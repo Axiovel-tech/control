@@ -15,7 +15,6 @@ import reducer, {
   setRtlsAnchors,
   setRtlsDevicesFromStatus,
   setRtlsOtaJob,
-  setSelectedTabInRtlsPanel,
   updateRtlsPositions,
   updateRtlsStats,
 } from '~/features/rtls/slice';
@@ -231,19 +230,6 @@ describe('rtls slice', () => {
       expect(state.paramDialog).toEqual({ open: true, deviceId: '7' });
       state = reducer(state, closeRtlsParamDialog());
       expect(state.paramDialog).toEqual({ open: false, deviceId: undefined });
-    });
-  });
-
-  describe('panel tab', () => {
-    test('defaults to the devices tab', () => {
-      expect(initial().panel.selectedTab).toBe('devices');
-    });
-
-    test('setSelectedTabInRtlsPanel switches tabs', () => {
-      let state = reducer(initial(), setSelectedTabInRtlsPanel('health'));
-      expect(state.panel.selectedTab).toBe('health');
-      state = reducer(state, setSelectedTabInRtlsPanel('devices'));
-      expect(state.panel.selectedTab).toBe('devices');
     });
   });
 

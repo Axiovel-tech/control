@@ -7,6 +7,7 @@ import Shapeshifter from 'react-shapeshifter';
 import UAVStatusSummary from '~/components/uavs/UAVStatusSummary';
 import PerspectiveBar from '~/features/perspectives/PerspectiveBar';
 import RTKStatusHeaderButton from '~/features/rtk/RTKStatusHeaderButton';
+import RtlsStatusHeaderButton from '~/features/rtls/RtlsStatusHeaderButton';
 import SelectionGroupsHeaderButton from '~/features/selection/SelectionGroupsHeaderButton';
 import { BROADCAST_MODE_TIMEOUT_LENGTH } from '~/features/settings/constants';
 import { toggleSidebar } from '~/features/sidebar/actions';
@@ -59,6 +60,8 @@ const componentRegistry: Record<string, React.ComponentType> = {
   'help-button': () => (config.urls.help ? <HelpButton /> : null),
   'rtk-status-header-button': () =>
     hasFeature('toolboxMenu') && <RTKStatusHeaderButton />,
+  'rtls-status-header-button': () =>
+    hasFeature('rtls') && <RtlsStatusHeaderButton />,
   'safety-button': SafetyButton,
   'server-connection-settings-button': () => (
     <ServerConnectionSettingsButton

@@ -12,11 +12,12 @@ import {
   selectOrdered,
 } from '~/utils/collections';
 
-import { type RtlsDeviceParamsState, type RtlsPanelTab } from './slice';
+import { type RtlsDeviceParamsState } from './slice';
 import {
   classifyRole,
   getDeviceHealthForRole,
   getOverallHealth,
+  isAnchorRole,
   type RtlsHealth,
   RtlsRole,
 } from './stats-utils';
@@ -90,6 +91,27 @@ export const getOnlineRtlsTags: AppSelector<RtlsDevice[]> = createSelector(
     devices.filter(
       (device) => device.online && classifyRole(device.role) === RtlsRole.TAG
     )
+);
+
+/**
+ * Selector that returns every non-anchor device, online or not, for the
+ * "RTLS Tags" panel. Devices whose role is not yet known are included: a tag
+ * whose UWB_ROLE param has not arrived must not vanish from the UI.
+ */
+export const getRtlsTagDevices: AppSelector<RtlsDevice[]> = createSelector(
+  getRtlsDevicesInOrder,
+  (devices) =>
+    devices.filter((device) => !isAnchorRole(classifyRole(device.role)))
+);
+
+/**
+ * Selector that returns every anchor device (initiator or responder), online
+ * or not, for the "RTLS Anchors" panel.
+ */
+export const getRtlsAnchorDevices: AppSelector<RtlsDevice[]> = createSelector(
+  getRtlsDevicesInOrder,
+  (devices) =>
+    devices.filter((device) => isAnchorRole(classifyRole(device.role)))
 );
 
 /**
@@ -172,10 +194,6 @@ export const isRtlsParamDialogOpen: AppSelector<boolean> = (state) =>
 export const getRtlsParamDialogDeviceId: AppSelector<string | undefined> = (
   state
 ) => state.rtls.paramDialog.deviceId;
-
-/** Selector that returns the selected tab of the RTLS Link panel. */
-export const getSelectedTabInRtlsPanel: AppSelector<RtlsPanelTab> = (state) =>
-  state.rtls.panel.selectedTab;
 
 /** Selector that returns whether the OTA dialog is open. */
 export const isRtlsOtaDialogOpen: AppSelector<boolean> = (state) =>
