@@ -211,10 +211,10 @@ describe('rtls messages', () => {
   test('a rejected fit surfaces the actionable ACK-NAK reason', async () => {
     const { hub } = makeHub({
       type: 'ACK-NAK',
-      reason: 'no fresh rolling TWR summary arrived within 3.0 seconds',
+      reason: 'no fresh rolling TWR summary from A7 within 4.0 seconds',
     });
     await expect(fitRtlsGeometry(hub, { mode: 'strict' })).rejects.toThrow(
-      /no fresh rolling TWR summary arrived within 3\.0 seconds/
+      /no fresh rolling TWR summary from A7 within 4\.0 seconds/
     );
   });
 
