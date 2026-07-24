@@ -124,6 +124,9 @@ export type RtlsSliceState = {
     syncDialogOpen: boolean;
   };
 
+  /** Whether the anchor-calibration wizard is open. */
+  calibrationWizardOpen: boolean;
+
   /** Fleet pre-flight verification state (X-RTLS-VERIFY). */
   verify: {
     running: boolean;
@@ -163,6 +166,7 @@ const initialState: RtlsSliceState = {
     pendingReboot: {},
     syncDialogOpen: false,
   },
+  calibrationWizardOpen: false,
   verify: {
     running: false,
     lastResult: undefined,
@@ -215,6 +219,16 @@ const { actions, reducer } = createSlice({
     ) {
       state.verify.running = false;
       state.verify.lastResult = payload;
+    },
+
+    /** Opens the anchor-calibration wizard. */
+    openRtlsCalibrationWizard(state) {
+      state.calibrationWizardOpen = true;
+    },
+
+    /** Closes the anchor-calibration wizard. */
+    closeRtlsCalibrationWizard(state) {
+      state.calibrationWizardOpen = false;
     },
 
     /** Opens the fleet-verification dialog. */
@@ -546,7 +560,9 @@ export const {
   closeRtlsGeometrySyncDialog,
   closeRtlsOtaDialog,
   closeRtlsParamDialog,
+  closeRtlsCalibrationWizard,
   closeRtlsVerifyDialog,
+  openRtlsCalibrationWizard,
   openRtlsGeometrySyncDialog,
   openRtlsOtaDialog,
   openRtlsParamDialog,

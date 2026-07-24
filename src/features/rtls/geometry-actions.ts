@@ -64,23 +64,31 @@ export function checkGeometryConsistency({ silent = false } = {}) {
  * consistency snapshot reflects the repair. Summarizes the per-device
  * outcomes in the snackbar.
  */
-export function syncGeometryToFleet({ reboot = true } = {}) {
+export function syncGeometryToFleet({
+  reboot = true,
+  geometry,
+}: {
+  reboot?: boolean;
+  /** Explicit geometry payload (the fit's apply path): written to EVERY
+   * tag instead of a reference tag's geometry. */
+  geometry?: Record<string, unknown>;
+} = {}) {
   return async (
     dispatch: AppDispatch,
     getState: () => RootState
-  ): Promise<void> => {
+  ): Promise<'failed' | 'noop' | 'partial' | 'synced'> => {
     if (getState().rtls.geometry.syncing) {
-      return;
+      return 'failed';
     }
 
     dispatch(rtlsGeometrySyncStarted());
     let body;
     try {
-      body = await syncRtlsGeometry(messageHub, { reboot });
+      body = await syncRtlsGeometry(messageHub, { geometry, reboot });
     } catch (error) {
       dispatch(rtlsGeometrySyncFailed());
       showError(`Geometry sync failed: ${errorToString(error)}`);
-      return;
+      return 'failed';
     }
 
     const devices = (body.devices ?? {}) as Record<
@@ -89,7 +97,7 @@ export function syncGeometryToFleet({ reboot = true } = {}) {
     >;
     dispatch(
       rtlsGeometrySyncSucceeded({
-        reference: Number(body.reference),
+        reference: body.reference == null ? null : Number(body.reference),
         cell: typeof body.cell === 'string' ? body.cell : undefined,
         devices,
         receivedAt: Date.now(),
@@ -140,5 +148,7 @@ export function syncGeometryToFleet({ reboot = true } = {}) {
     // network for a few seconds — that shows up as incomplete entries and
     // the operator can re-check from the toolbar.
     await dispatch(checkGeometryConsistency({ silent: true }));
+
+    return failedIds.length > 0 ? 'partial' : written > 0 ? 'synced' : 'noop';
   };
 }

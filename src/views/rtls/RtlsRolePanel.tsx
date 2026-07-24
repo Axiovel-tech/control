@@ -7,6 +7,7 @@
  * next to Map / UAVs / 3D View.
  */
 
+import Architecture from '@mui/icons-material/Architecture';
 import FactCheck from '@mui/icons-material/FactCheck';
 import Moon from '@mui/icons-material/NightsStay';
 import Rule from '@mui/icons-material/Rule';
@@ -43,6 +44,7 @@ import {
   wakeRtlsDevice,
 } from '~/features/rtls/sleep-actions';
 import {
+  openRtlsCalibrationWizard,
   openRtlsGeometrySyncDialog,
   openRtlsOtaDialog,
   openRtlsParamDialog,
@@ -135,6 +137,17 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <OverallRtlsStatusLight />
+          {!tags && (
+            <Tooltip content='Calibrate the anchor geometry from live TWR'>
+              <Button
+                size='small'
+                startIcon={<Architecture fontSize='small' />}
+                onClick={() => dispatch(openRtlsCalibrationWizard())}
+              >
+                Calibrate…
+              </Button>
+            </Tooltip>
+          )}
           {tags && (
             <>
               {geometryBusy ? (

@@ -278,3 +278,7 @@ export const getRtlsVerifyResult: AppSelector<
 /** Selector that returns whether the verification dialog is open. */
 export const isRtlsVerifyDialogOpen: AppSelector<boolean> = (state) =>
   state.rtls.verify.dialogOpen;
+
+/** Selector that returns whether the calibration wizard is open. */
+export const isRtlsCalibrationWizardOpen: AppSelector<boolean> = (state) =>
+  state.rtls.calibrationWizardOpen;
