@@ -135,32 +135,10 @@ describe('rtls messages', () => {
 
     const parsed = await fitRtlsGeometry(hub, { mode: 'strict' });
 
-    // pin the contract: parameters, fitted anchors and residuals keep the
-    // exact server field names (lengthM/widthM/heightM, xM/yM/zM, …)
+    // the body (with its exact server field names — lengthM/widthM/heightM,
+    // xM/yM/zM, weight, applyGeometry) is returned verbatim; the strong
+    // field-name contract lives in the RtlsCalibrationResponse type (tsc)
     expect(parsed).toEqual(response);
-    expect(parsed.strict.parameters).toEqual({
-      lengthM: 14.1,
-      widthM: 9.8,
-      heightM: 2.5,
-    });
-    expect(parsed.strict.anchors[1]).toEqual({
-      index: 1,
-      xM: 14.1,
-      yM: 0,
-      zM: 0,
-    });
-    expect(parsed.strict.residuals[0]).toMatchObject({
-      anchorIndex: 1,
-      measuredM: 14.1,
-      predictedM: 14.13,
-      residualM: -0.03,
-      madM: 0.02,
-      count: 240,
-      weight: 1,
-    });
-    expect(parsed.summary.sequence).toBe(42);
-    // the apply payload must be forwarded verbatim to the sync op
-    expect(parsed.applyGeometry).toEqual({ UWB_AN1_X: 14.1 });
   });
 
   test('a refined fit response carries its parameters and the comparison', async () => {
