@@ -309,13 +309,28 @@ export async function startRtlsOta(
  * body (reference, cell, consistent flag and per-device verdicts).
  */
 export async function checkRtlsGeometry(
+  hub: MessageHub
+): Promise<AnyMessageBody> {
+  const response: Message<AnyMessageBody> = await hub.sendMessage(
+    { type: 'X-RTLS-GEO', op: 'check' },
+    { timeout: 15 }
+  );
+  return ensureResponseType(response.body, 'X-RTLS-GEO');
+}
+
+/**
+ * Adopts a tag's geometry as the CANONICAL cell geometry (the bootstrap
+ * of the server-owned-truth model). Without a reference the fleet must
+ * be unanimous; with one, that tag's geometry is taken verbatim.
+ */
+export async function adoptRtlsGeometry(
   hub: MessageHub,
   options: { reference?: number } = {}
 ): Promise<AnyMessageBody> {
   const response: Message<AnyMessageBody> = await hub.sendMessage(
     {
       type: 'X-RTLS-GEO',
-      op: 'check',
+      op: 'adopt',
       ...(options.reference === undefined
         ? {}
         : { reference: options.reference }),
@@ -336,7 +351,6 @@ export async function syncRtlsGeometry(
   options: {
     geometry?: Record<string, unknown>;
     reboot?: boolean;
-    reference?: number;
   } = {}
 ): Promise<AnyMessageBody> {
   const response: Message<AnyMessageBody> = await hub.sendMessage(
@@ -346,9 +360,6 @@ export async function syncRtlsGeometry(
       ...(options.geometry === undefined
         ? {}
         : { geometry: options.geometry }),
-      ...(options.reference === undefined
-        ? {}
-        : { reference: options.reference }),
       ...(options.reboot === undefined ? {} : { reboot: options.reboot }),
     },
     { timeout: 60 }

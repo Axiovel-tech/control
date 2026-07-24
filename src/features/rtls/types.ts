@@ -211,13 +211,12 @@ export type RtlsGeometryCheckEntry = {
   detail?: string;
 };
 
-/** Result of an X-RTLS-GEO `check`: the fleet-consistency snapshot. */
+/** Result of an X-RTLS-GEO `check`: the fleet-consistency snapshot
+ * against the server's CANONICAL geometry. */
 export type RtlsGeometryCheck = {
-  /** System id of the reference tag the fleet was diffed against. */
-  reference: number;
   cell?: string;
   consistent: boolean;
-  /** Per-target verdicts, keyed by system id (the reference is not a target). */
+  /** Per-tag verdicts, keyed by system id (every live tag is a target). */
   devices: Record<string, RtlsGeometryCheckEntry>;
   /** Client-side timestamp of when the result was received. */
   receivedAt: number;
@@ -236,8 +235,6 @@ export type RtlsGeometrySyncEntry = {
 
 /** Result of an X-RTLS-GEO `sync`. */
 export type RtlsGeometrySync = {
-  /** Reference tag; null for an explicit-geometry (fit apply) sync. */
-  reference: number | null;
   cell?: string;
   devices: Record<string, RtlsGeometrySyncEntry>;
   receivedAt: number;

@@ -8,6 +8,7 @@
  */
 
 import Architecture from '@mui/icons-material/Architecture';
+import BookmarkAdd from '@mui/icons-material/BookmarkAdd';
 import FactCheck from '@mui/icons-material/FactCheck';
 import Moon from '@mui/icons-material/NightsStay';
 import Rule from '@mui/icons-material/Rule';
@@ -23,7 +24,10 @@ import { useDispatch, useSelector } from 'react-redux';
 import { BackgroundHint, StatusPill, Tooltip } from '@skybrush/mui-components';
 
 import { Status } from '~/components/semantics';
-import { checkGeometryConsistency } from '~/features/rtls/geometry-actions';
+import {
+  adoptGeometryFromFleet,
+  checkGeometryConsistency,
+} from '~/features/rtls/geometry-actions';
 import OverallRtlsStatusLight from '~/features/rtls/OverallRtlsStatusLight';
 import {
   getRtlsAnchorDevices,
@@ -73,9 +77,6 @@ const geometryPillFor = (
   }
   if (!check) {
     return {};
-  }
-  if (String(check.reference) === deviceId) {
-    return { label: 'geometry ref', status: Status.INFO };
   }
   const entry = check.devices[deviceId];
   if (!entry) {
@@ -181,6 +182,18 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
                   onClick={() => dispatch(checkGeometryConsistency())}
                 >
                   <Rule fontSize='small' />
+                </IconButton>
+              </Tooltip>
+              <Tooltip
+                content='Adopt the current fleet geometry as canonical
+                  (refused unless the fleet is unanimous)'
+              >
+                <IconButton
+                  size='small'
+                  disabled={geometryBusy}
+                  onClick={() => dispatch(adoptGeometryFromFleet())}
+                >
+                  <BookmarkAdd fontSize='small' />
                 </IconButton>
               </Tooltip>
               <Button
