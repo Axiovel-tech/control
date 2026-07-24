@@ -18,6 +18,7 @@ import {
   type RtlsDeviceStats,
   type RtlsGeometryCheck,
   type RtlsGeometrySync,
+  type RtlsVerifyResult,
   type RtlsOtaJob,
   type RtlsParam,
   type RtlsPosEstimate,
@@ -122,6 +123,14 @@ export type RtlsSliceState = {
     /** Whether the sync confirmation dialog is open. */
     syncDialogOpen: boolean;
   };
+
+  /** Fleet pre-flight verification state (X-RTLS-VERIFY). */
+  verify: {
+    running: boolean;
+    lastResult?: RtlsVerifyResult;
+    /** Whether the verification dialog is open. */
+    dialogOpen: boolean;
+  };
 };
 
 const initialState: RtlsSliceState = {
@@ -154,6 +163,11 @@ const initialState: RtlsSliceState = {
     pendingReboot: {},
     syncDialogOpen: false,
   },
+  verify: {
+    running: false,
+    lastResult: undefined,
+    dialogOpen: false,
+  },
 };
 
 const { actions, reducer } = createSlice({
@@ -177,6 +191,40 @@ const { actions, reducer } = createSlice({
       state.geometry.lastSync = undefined;
       state.geometry.pendingReboot = {};
       state.geometry.syncDialogOpen = false;
+      state.verify.running = false;
+      state.verify.lastResult = undefined;
+    },
+
+    /** An X-RTLS-VERIFY run left the client. The previous result is
+     * dropped immediately: a failed re-run must never leave an obsolete
+     * pass verdict on screen. */
+    rtlsVerifyStarted(state) {
+      state.verify.running = true;
+      state.verify.lastResult = undefined;
+    },
+
+    /** An X-RTLS-VERIFY run failed or was NAKed. */
+    rtlsVerifyFailed(state) {
+      state.verify.running = false;
+    },
+
+    /** An X-RTLS-VERIFY run completed. */
+    rtlsVerifySucceeded(
+      state,
+      { payload }: PayloadAction<RtlsVerifyResult>
+    ) {
+      state.verify.running = false;
+      state.verify.lastResult = payload;
+    },
+
+    /** Opens the fleet-verification dialog. */
+    openRtlsVerifyDialog(state) {
+      state.verify.dialogOpen = true;
+    },
+
+    /** Closes the fleet-verification dialog. */
+    closeRtlsVerifyDialog(state) {
+      state.verify.dialogOpen = false;
     },
 
     /** An X-RTLS-GEO check left the client. */
@@ -498,9 +546,14 @@ export const {
   closeRtlsGeometrySyncDialog,
   closeRtlsOtaDialog,
   closeRtlsParamDialog,
+  closeRtlsVerifyDialog,
   openRtlsGeometrySyncDialog,
   openRtlsOtaDialog,
   openRtlsParamDialog,
+  openRtlsVerifyDialog,
+  rtlsVerifyFailed,
+  rtlsVerifyStarted,
+  rtlsVerifySucceeded,
   rtlsGeometryCheckFailed,
   rtlsGeometryCheckStarted,
   rtlsGeometryCheckSucceeded,

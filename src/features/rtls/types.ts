@@ -241,3 +241,24 @@ export type RtlsGeometrySync = {
   devices: Record<string, RtlsGeometrySyncEntry>;
   receivedAt: number;
 };
+
+/** One rule outcome of an X-RTLS-VERIFY run. */
+export type RtlsVerifyRule = {
+  id: string;
+  label: string;
+  severity: 'error' | 'warning';
+  status: 'fail' | 'pass' | 'skipped';
+  detail: string;
+  /** Per-drone findings of the yaw-source rule. */
+  devices?: Record<string, Record<string, unknown>>;
+  /** Per-parameter cross-drone differences of the in-depth rule. */
+  diffs?: Record<string, Record<string, number>>;
+};
+
+/** Result of an X-RTLS-VERIFY run. */
+export type RtlsVerifyResult = {
+  inDepth: boolean;
+  passed: boolean;
+  rules: RtlsVerifyRule[];
+  receivedAt: number;
+};

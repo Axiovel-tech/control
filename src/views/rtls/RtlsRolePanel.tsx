@@ -7,6 +7,7 @@
  * next to Map / UAVs / 3D View.
  */
 
+import FactCheck from '@mui/icons-material/FactCheck';
 import Moon from '@mui/icons-material/NightsStay';
 import Rule from '@mui/icons-material/Rule';
 import Box from '@mui/material/Box';
@@ -45,6 +46,7 @@ import {
   openRtlsGeometrySyncDialog,
   openRtlsOtaDialog,
   openRtlsParamDialog,
+  openRtlsVerifyDialog,
 } from '~/features/rtls/slice';
 import { type RtlsGeometryCheck } from '~/features/rtls/types';
 import Bolt from '~/icons/Bolt';
@@ -177,6 +179,14 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
               >
                 Sync…
               </Button>
+              <Tooltip content='Run the fleet pre-flight verification'>
+                <IconButton
+                  size='small'
+                  onClick={() => dispatch(openRtlsVerifyDialog())}
+                >
+                  <FactCheck fontSize='small' />
+                </IconButton>
+              </Tooltip>
             </>
           )}
         </Box>

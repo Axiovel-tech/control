@@ -27,6 +27,7 @@ import {
   type RtlsDeviceStats,
   type RtlsGeometryCheck,
   type RtlsOtaJob,
+  type RtlsVerifyResult,
   type RtlsPosEstimate,
 } from './types';
 
@@ -264,3 +265,16 @@ export const getRtlsGeometryDriftCount: AppSelector<number> = createSelector(
 export const getRtlsGeometryPendingReboot: AppSelector<
   Record<string, true>
 > = (state) => state.rtls.geometry.pendingReboot;
+
+/** Selector that returns whether a fleet verification is running. */
+export const isRtlsVerifyRunning: AppSelector<boolean> = (state) =>
+  state.rtls.verify.running;
+
+/** Selector that returns the last fleet-verification result, if any. */
+export const getRtlsVerifyResult: AppSelector<
+  RtlsVerifyResult | undefined
+> = (state) => state.rtls.verify.lastResult;
+
+/** Selector that returns whether the verification dialog is open. */
+export const isRtlsVerifyDialogOpen: AppSelector<boolean> = (state) =>
+  state.rtls.verify.dialogOpen;
