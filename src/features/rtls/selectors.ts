@@ -5,7 +5,7 @@ import {
   getSingleUAVStatusSummary,
   getUAVIdToStateMapping,
 } from '~/features/uavs/selectors';
-import { type AppSelector } from '~/store/reducers';
+import { type AppSelector, type RootState } from '~/store/reducers';
 import {
   type Collection,
   type Identifier,
@@ -171,6 +171,38 @@ export const getRtlsPositionsById: AppSelector<
  */
 export const getRtlsAnchors: AppSelector<RtlsAnchor[]> = (state) =>
   state.rtls.anchors;
+
+/** Unique cell IDs advertised by the live site-level anchor inventory. */
+export const getRtlsCellIds: AppSelector<string[]> = createSelector(
+  getRtlsAnchors,
+  (anchors) =>
+    Array.from(
+      new Set(
+        anchors
+          .map((anchor) => anchor.cell)
+          .filter((cell): cell is string => Boolean(cell))
+      )
+    ).sort()
+);
+
+/**
+ * Resolves the only live RTLS cell for operations that cannot safely guess.
+ * Multi-cell sites must pass an explicit selection from their UI surface.
+ */
+export const requireSingleRtlsCell = (state: RootState): string => {
+  const cells = getRtlsCellIds(state);
+  if (cells.length === 0) {
+    throw new Error(
+      'No active RTLS geometry cell is available; check that a configured tag is online'
+    );
+  }
+  if (cells.length > 1) {
+    throw new Error(
+      `Multiple active RTLS cells are available (${cells.join(', ')}); select a cell`
+    );
+  }
+  return cells[0];
+};
 
 /**
  * Selector factory that returns the last known OTA job for a single device.

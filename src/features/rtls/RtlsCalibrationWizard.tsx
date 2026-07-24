@@ -26,7 +26,7 @@ import TableCell from '@mui/material/TableCell';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import Typography from '@mui/material/Typography';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDispatch, useSelector } from 'react-redux';
 
@@ -41,7 +41,7 @@ import type { AppDispatch } from '~/store/reducers';
 import { syncGeometryToFleet } from './geometry-actions';
 import { fitRtlsGeometry } from './messages';
 import {
-  getRtlsAnchors,
+  getRtlsCellIds,
   getRtlsGeometryCheck,
   isRtlsCalibrationWizardOpen,
   isRtlsGeometrySyncing,
@@ -233,18 +233,7 @@ const RtlsCalibrationWizard = () => {
   const open = useSelector(isRtlsCalibrationWizardOpen);
   const syncing = useSelector(isRtlsGeometrySyncing);
   const check = useSelector(getRtlsGeometryCheck);
-  const anchors = useSelector(getRtlsAnchors);
-  const cells = useMemo(
-    () =>
-      Array.from(
-        new Set(
-          anchors
-            .map((anchor) => anchor.cell)
-            .filter((cell): cell is string => Boolean(cell))
-        )
-      ).sort(),
-    [anchors]
-  );
+  const cells = useSelector(getRtlsCellIds);
   const cellSignature = cells.join('\n');
 
   const [step, setStep] = useState<Step>('measure');
@@ -383,6 +372,7 @@ const RtlsCalibrationWizard = () => {
     setStep('done');
     const outcome = await dispatch(
       syncGeometryToFleet({
+        cell: selectedResponse.cell,
         geometry: selectedResponse.applyGeometry,
         reboot,
       })

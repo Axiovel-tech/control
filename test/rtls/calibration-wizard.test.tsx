@@ -73,6 +73,7 @@ describe('CalibrationDoneMessage (the done-step body)', () => {
 
   test('a consistent verdict renders once syncing clears, without a spinner', () => {
     const check: RtlsGeometryCheck = {
+      cell: 'default',
       consistent: true,
       devices: {},
       receivedAt: 1,
@@ -86,6 +87,7 @@ describe('CalibrationDoneMessage (the done-step body)', () => {
 
   test('an out-of-sync verdict renders once syncing clears, without a spinner', () => {
     const check: RtlsGeometryCheck = {
+      cell: 'default',
       consistent: false,
       devices: { '63': { status: 'mismatch' } },
       receivedAt: 1,
@@ -144,7 +146,11 @@ describe('write-start ordering (what the corrected apply() lands on)', () => {
     expect(isRtlsGeometrySyncing(store.getState())).toBe(false);
 
     const pending = store.dispatch(
-      syncGeometryToFleet({ geometry: { UWB_AN1_X: 10 }, reboot: true })
+      syncGeometryToFleet({
+        cell: 'default',
+        geometry: { UWB_AN1_X: 10 },
+        reboot: true,
+      })
     );
 
     // Synchronously after dispatch — before the sync round-trip resolves —

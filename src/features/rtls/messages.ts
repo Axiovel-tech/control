@@ -310,10 +310,11 @@ export async function startRtlsOta(
  * body (reference, cell, consistent flag and per-device verdicts).
  */
 export async function checkRtlsGeometry(
-  hub: MessageHub
+  hub: MessageHub,
+  options: { cell: string }
 ): Promise<AnyMessageBody> {
   const response: Message<AnyMessageBody> = await hub.sendMessage(
-    { type: 'X-RTLS-GEO', op: 'check' },
+    { type: 'X-RTLS-GEO', op: 'check', cell: options.cell },
     { timeout: 15 }
   );
   return ensureResponseType(response.body, 'X-RTLS-GEO');
@@ -350,14 +351,16 @@ export async function adoptRtlsGeometry(
 export async function syncRtlsGeometry(
   hub: MessageHub,
   options: {
+    cell: string;
     geometry?: Record<string, unknown>;
     reboot?: boolean;
-  } = {}
+  }
 ): Promise<AnyMessageBody> {
   const response: Message<AnyMessageBody> = await hub.sendMessage(
     {
       type: 'X-RTLS-GEO',
       op: 'sync',
+      cell: options.cell,
       ...(options.geometry === undefined ? {} : { geometry: options.geometry }),
       ...(options.reboot === undefined ? {} : { reboot: options.reboot }),
     },
@@ -373,11 +376,12 @@ export async function syncRtlsGeometry(
  */
 export async function verifyRtlsFleet(
   hub: MessageHub,
-  options: { inDepth?: boolean } = {}
+  options: { cell: string; inDepth?: boolean }
 ): Promise<AnyMessageBody> {
   const response: Message<AnyMessageBody> = await hub.sendMessage(
     {
       type: 'X-RTLS-VERIFY',
+      cell: options.cell,
       ...(options.inDepth === undefined ? {} : { inDepth: options.inDepth }),
     },
     { timeout: 120 }

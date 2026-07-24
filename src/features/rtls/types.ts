@@ -214,7 +214,7 @@ export type RtlsGeometryCheckEntry = {
 /** Result of an X-RTLS-GEO `check`: the fleet-consistency snapshot
  * against the server's CANONICAL geometry. */
 export type RtlsGeometryCheck = {
-  cell?: string;
+  cell: string;
   consistent: boolean;
   /** Per-tag verdicts, keyed by system id (every live tag is a target). */
   devices: Record<string, RtlsGeometryCheckEntry>;
@@ -235,7 +235,7 @@ export type RtlsGeometrySyncEntry = {
 
 /** Result of an X-RTLS-GEO `sync`. */
 export type RtlsGeometrySync = {
-  cell?: string;
+  cell: string;
   devices: Record<string, RtlsGeometrySyncEntry>;
   receivedAt: number;
 };

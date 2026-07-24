@@ -5,10 +5,16 @@ jest.mock('~/error-handling', () => ({
     error instanceof Error ? error.message : String(error),
 }));
 
-import { checkRtlsGeometry, syncRtlsGeometry } from '~/features/rtls/messages';
+import {
+  checkRtlsGeometry,
+  syncRtlsGeometry,
+  verifyRtlsFleet,
+} from '~/features/rtls/messages';
 import {
   getRtlsGeometryDriftCount,
+  getRtlsCellIds,
   isRtlsGeometryBusy,
+  requireSingleRtlsCell,
 } from '~/features/rtls/selectors';
 import reducer, {
   clearRtlsDevices,
@@ -54,8 +60,12 @@ const CHECK: RtlsGeometryCheck = {
 describe('X-RTLS-GEO message helpers', () => {
   test('check sends the op and returns the body', async () => {
     const { hub, sent } = makeHub({ type: 'X-RTLS-GEO', op: 'check' });
-    const body = await checkRtlsGeometry(hub);
-    expect(sent[0]).toEqual({ type: 'X-RTLS-GEO', op: 'check' });
+    const body = await checkRtlsGeometry(hub, { cell: 'bench-4' });
+    expect(sent[0]).toEqual({
+      type: 'X-RTLS-GEO',
+      op: 'check',
+      cell: 'bench-4',
+    });
     expect(body.op).toBe('check');
   });
 
@@ -76,15 +86,31 @@ describe('X-RTLS-GEO message helpers', () => {
 
   test('sync passes reboot=false through and NAKs become errors', async () => {
     const { hub, sent } = makeHub({ type: 'X-RTLS-GEO', op: 'sync' });
-    await syncRtlsGeometry(hub, { reboot: false });
+    await syncRtlsGeometry(hub, { cell: 'bench-4', reboot: false });
     expect(sent[0]).toEqual({
       type: 'X-RTLS-GEO',
       op: 'sync',
+      cell: 'bench-4',
       reboot: false,
     });
 
     const nak = makeHub({ type: 'ACK-NAK', reason: 'no reference' });
-    await expect(syncRtlsGeometry(nak.hub)).rejects.toThrow('no reference');
+    await expect(
+      syncRtlsGeometry(nak.hub, { cell: 'bench-4' })
+    ).rejects.toThrow('no reference');
+  });
+
+  test('fleet verification passes the explicit geometry cell through', async () => {
+    const { hub, sent } = makeHub({
+      type: 'X-RTLS-VERIFY',
+      passed: true,
+    });
+    await verifyRtlsFleet(hub, { cell: 'bench-4', inDepth: true });
+    expect(sent[0]).toEqual({
+      type: 'X-RTLS-VERIFY',
+      cell: 'bench-4',
+      inDepth: true,
+    });
   });
 });
 
@@ -111,6 +137,7 @@ describe('geometry slice state', () => {
     const state = reducer(
       initial(),
       rtlsGeometrySyncSucceeded({
+        cell: 'default',
         devices: { '63': { status: 'synced', written: ['UWB_AN1_X'] } },
         receivedAt: 456,
       })
@@ -155,6 +182,28 @@ describe('geometry selectors', () => {
       )
     ).toBe(false);
   });
+
+  test('cell selection is unique, sorted, and refuses ambiguity', () => {
+    const oneCell = asRoot({
+      anchors: [
+        { id: 'a1', cell: 'bench-4' },
+        { id: 'a0', cell: 'bench-4' },
+      ],
+    });
+    expect(getRtlsCellIds(oneCell)).toEqual(['bench-4']);
+    expect(requireSingleRtlsCell(oneCell)).toBe('bench-4');
+
+    const multipleCells = asRoot({
+      anchors: [
+        { id: 'b', cell: 'z-cell' },
+        { id: 'a', cell: 'a-cell' },
+      ],
+    });
+    expect(getRtlsCellIds(multipleCells)).toEqual(['a-cell', 'z-cell']);
+    expect(() => requireSingleRtlsCell(multipleCells)).toThrow(
+      /Multiple active RTLS cells/
+    );
+  });
 });
 
 describe('geometry certification lifecycle (audit)', () => {
@@ -162,6 +211,7 @@ describe('geometry certification lifecycle (audit)', () => {
     let state = reducer(
       initial(),
       rtlsGeometrySyncSucceeded({
+        cell: 'default',
         devices: {
           '63': { status: 'synced', written: ['UWB_AN1_X'], rebooted: false },
           '62': { status: 'synced', written: [], skipped: ['UWB_AN1_X'] },

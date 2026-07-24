@@ -15,6 +15,7 @@ import {
   checkRtlsGeometry,
   syncRtlsGeometry,
 } from './messages';
+import { requireSingleRtlsCell } from './selectors';
 import {
   rtlsGeometryCheckFailed,
   rtlsGeometryCheckStarted,
@@ -36,14 +37,26 @@ import {
  * snackbar; a silent variant is used for the automatic re-check after a
  * sync, where the sync outcome is already on screen.
  */
-export function checkGeometryConsistency({ silent = false } = {}) {
-  return async (dispatch: AppDispatch): Promise<void> => {
+export function checkGeometryConsistency({
+  silent = false,
+  cell,
+}: {
+  silent?: boolean;
+  cell?: string;
+} = {}) {
+  return async (
+    dispatch: AppDispatch,
+    getState: () => RootState
+  ): Promise<void> => {
     dispatch(rtlsGeometryCheckStarted());
     try {
-      const body = await checkRtlsGeometry(messageHub);
+      const selectedCell = cell ?? requireSingleRtlsCell(getState());
+      const body = await checkRtlsGeometry(messageHub, {
+        cell: selectedCell,
+      });
       dispatch(
         rtlsGeometryCheckSucceeded({
-          cell: typeof body.cell === 'string' ? body.cell : undefined,
+          cell: typeof body.cell === 'string' ? body.cell : selectedCell,
           consistent: Boolean(body.consistent),
           devices: (body.devices ?? {}) as Record<
             string,
@@ -68,9 +81,11 @@ export function checkGeometryConsistency({ silent = false } = {}) {
  * outcomes in the snackbar.
  */
 export function syncGeometryToFleet({
+  cell,
   reboot = true,
   geometry,
 }: {
+  cell?: string;
   reboot?: boolean;
   /** Explicit geometry payload (the fit's apply path): written to EVERY
    * tag instead of a reference tag's geometry. */
@@ -86,8 +101,17 @@ export function syncGeometryToFleet({
 
     dispatch(rtlsGeometrySyncStarted());
     let body;
+    let selectedCell: string;
     try {
-      body = await syncRtlsGeometry(messageHub, { geometry, reboot });
+      selectedCell =
+        cell ??
+        getState().rtls.geometry.lastCheck?.cell ??
+        requireSingleRtlsCell(getState());
+      body = await syncRtlsGeometry(messageHub, {
+        cell: selectedCell,
+        geometry,
+        reboot,
+      });
     } catch (error) {
       dispatch(rtlsGeometrySyncFailed());
       showError(`Geometry sync failed: ${errorToString(error)}`);
@@ -100,7 +124,7 @@ export function syncGeometryToFleet({
     >;
     dispatch(
       rtlsGeometrySyncSucceeded({
-        cell: typeof body.cell === 'string' ? body.cell : undefined,
+        cell: typeof body.cell === 'string' ? body.cell : selectedCell,
         devices,
         receivedAt: Date.now(),
       } satisfies RtlsGeometrySync)
@@ -148,7 +172,12 @@ export function syncGeometryToFleet({
     // sync outcome is already on screen. Rebooted tags may be off the
     // network for a few seconds — that shows up as incomplete entries and
     // the operator can re-check from the toolbar.
-    await dispatch(checkGeometryConsistency({ silent: true }));
+    await dispatch(
+      checkGeometryConsistency({
+        silent: true,
+        cell: typeof body.cell === 'string' ? body.cell : selectedCell,
+      })
+    );
 
     return failedIds.length > 0 ? 'partial' : written > 0 ? 'synced' : 'noop';
   };
@@ -161,16 +190,26 @@ export function syncGeometryToFleet({
  */
 export function adoptGeometryFromFleet() {
   return async (dispatch: AppDispatch): Promise<void> => {
+    let adoptedCell: string;
     try {
       const body = await adoptRtlsGeometry(messageHub);
+      if (typeof body.cell !== 'string') {
+        throw new Error('Adopt response did not identify its geometry cell');
+      }
+      adoptedCell = body.cell;
       showNotification(
         `Adopted the geometry of tag ${String(body.reference)} as canonical ` +
-          `for cell '${String(body.cell)}'`
+          `for cell '${adoptedCell}'`
       );
     } catch (error) {
       showError(`Adopt failed: ${errorToString(error)}`);
       return;
     }
-    await dispatch(checkGeometryConsistency({ silent: true }));
+    await dispatch(
+      checkGeometryConsistency({
+        silent: true,
+        cell: adoptedCell,
+      })
+    );
   };
 }
