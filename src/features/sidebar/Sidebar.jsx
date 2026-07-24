@@ -13,6 +13,8 @@ import Layers from '@mui/icons-material/Layers';
 import Map from '@mui/icons-material/Map';
 import Place from '@mui/icons-material/Place';
 import Radar from '@mui/icons-material/Radar';
+import SettingsInputAntenna from '@mui/icons-material/SettingsInputAntenna';
+import TrackChanges from '@mui/icons-material/TrackChanges';
 // import Storage from '@mui/icons-material/Storage';
 import ThreeDRotation from '@mui/icons-material/ThreeDRotation';
 import WbSunny from '@mui/icons-material/WbSunny';
@@ -132,10 +134,26 @@ const Sidebar = ({
             would be a larger change; tracked as follow-up. */}
         {hasFeature('rtls') && (
           <Module
-            id='rtls'
+            id='rtls-tags'
             icon={<Radar />}
-            label={t('view.rtls')}
-            component='rtls'
+            label={t('view.rtls-tags')}
+            component='rtls-tags'
+          />
+        )}
+        {hasFeature('rtls') && (
+          <Module
+            id='rtls-anchors'
+            icon={<SettingsInputAntenna />}
+            label={t('view.rtls-anchors')}
+            component='rtls-anchors'
+          />
+        )}
+        {hasFeature('rtls') && (
+          <Module
+            id='rtls-positions'
+            icon={<TrackChanges />}
+            label={t('view.rtls-positions')}
+            component='rtls-positions'
           />
         )}
         {hasFeature('docks') && experimentalFeaturesEnabled && (

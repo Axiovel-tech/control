@@ -147,25 +147,45 @@ export const componentRegistry = {
     component: Nothing,
     label: 'Placeholder',
   },
+  'rtls-tags': {
+    component: views.RtlsTagsPanel,
+    label: 'RTLS Tags',
+    detachable: true,
+    feature: 'rtls',
+  },
+  'rtls-anchors': {
+    component: views.RtlsAnchorsPanel,
+    label: 'RTLS Anchors',
+    detachable: true,
+    feature: 'rtls',
+  },
+  'rtls-positions': {
+    // debug tool: registered so it can be opened from the sidebar, but
+    // deliberately NOT part of the default perspective layout
+    component: views.RtlsPositionsPanel,
+    label: 'Debug Pos Estimates',
+    detachable: true,
+    feature: 'rtls',
+  },
   rtls: {
-    component: views.RtlsPanel,
-    label: 'RTLS Link',
+    // deprecated, kept for compatibility with persisted layouts that still
+    // reference the old merged "RTLS Link" panel; renders the Tags panel
+    component: views.RtlsTagsPanel,
+    label: 'RTLS Tags',
     detachable: true,
     feature: 'rtls',
   },
   'rtls-device-list': {
-    // deprecated, kept there for compatibility with persisted layouts;
-    // renders the merged RTLS Link panel with the same flags as 'rtls'
-    component: views.RtlsPanel,
-    label: 'RTLS Link',
+    // deprecated, kept for compatibility with persisted layouts
+    component: views.RtlsTagsPanel,
+    label: 'RTLS Tags',
     detachable: true,
     feature: 'rtls',
   },
   'rtls-stats': {
-    // deprecated, kept there for compatibility with persisted layouts;
-    // renders the merged RTLS Link panel with the same flags as 'rtls'
-    component: views.RtlsPanel,
-    label: 'RTLS Link',
+    // deprecated, kept for compatibility with persisted layouts
+    component: views.RtlsTagsPanel,
+    label: 'RTLS Tags',
     detachable: true,
     feature: 'rtls',
   },
