@@ -74,7 +74,10 @@ export const describeDeviceWithPairedUav = (
   device.uav === undefined ? (
     getRtlsDeviceDisplayName(device)
   ) : (
-    <Box component='span' sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+    <Box
+      component='span'
+      sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
+    >
       {getRtlsDeviceDisplayName(device)}
       <StatusPill inline status={uavStatus ?? Status.OFF}>
         drone {device.uav}
@@ -202,10 +205,7 @@ const RowActions = ({
             </IconButton>
           </Tooltip>
           <Tooltip content='Wake'>
-            <IconButton
-              size='small'
-              onClick={() => handlers.onWake(device.id)}
-            >
+            <IconButton size='small' onClick={() => handlers.onWake(device.id)}>
               <Bolt fontSize='small' />
             </IconButton>
           </Tooltip>

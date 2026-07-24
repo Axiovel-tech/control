@@ -18,7 +18,8 @@ import CircularProgress from '@mui/material/CircularProgress';
 import Divider from '@mui/material/Divider';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useDispatch, useSelector } from 'react-redux';
 
 import { BackgroundHint, StatusPill, Tooltip } from '@skybrush/mui-components';
@@ -102,6 +103,7 @@ type RtlsRolePanelProps = {
 };
 
 const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
+  const { t } = useTranslation();
   const tags = variant === 'tags';
   const dispatch: AppDispatch = useDispatch();
   const devices = useSelector(tags ? getRtlsTagDevices : getRtlsAnchorDevices);
@@ -137,15 +139,15 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
         }}
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <OverallRtlsStatusLight />
+          <OverallRtlsStatusLight scope={tags ? 'tags' : 'anchors'} />
           {!tags && (
-            <Tooltip content='Calibrate the anchor geometry from live TWR'>
+            <Tooltip content={t('rtlsCalibration.intro')}>
               <Button
                 size='small'
                 startIcon={<Architecture fontSize='small' />}
                 onClick={() => dispatch(openRtlsCalibrationWizard())}
               >
-                Calibrate…
+                {t('rtlsCalibration.action.calibrate')}
               </Button>
             </Tooltip>
           )}
@@ -179,7 +181,7 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
                 <IconButton
                   size='small'
                   disabled={geometryBusy}
-                  onClick={() => dispatch(checkGeometryConsistency())}
+                  onClick={() => void dispatch(checkGeometryConsistency())}
                 >
                   <Rule fontSize='small' />
                 </IconButton>
@@ -191,16 +193,14 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
                 <IconButton
                   size='small'
                   disabled={geometryBusy}
-                  onClick={() => dispatch(adoptGeometryFromFleet())}
+                  onClick={() => void dispatch(adoptGeometryFromFleet())}
                 >
                   <BookmarkAdd fontSize='small' />
                 </IconButton>
               </Tooltip>
               <Button
                 size='small'
-                disabled={
-                  geometryBusy || !geometryCheck || geometryDrift === 0
-                }
+                disabled={geometryBusy || !geometryCheck || geometryDrift === 0}
                 onClick={() => dispatch(openRtlsGeometrySyncDialog())}
               >
                 Sync…
@@ -218,8 +218,8 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
         </Box>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
           {/* TWR freshness is per-row (each peer carries its age); a global
-            * stats timestamp only describes TAG telemetry, so it is only
-            * shown on the tags panel */}
+           * stats timestamp only describes TAG telemetry, so it is only
+           * shown on the tags panel */}
           {tags && (
             <Typography variant='caption' color='textSecondary'>
               {lastUpdatedAt
@@ -232,7 +232,7 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
               <Tooltip content='Sleep all drones'>
                 <IconButton
                   size='small'
-                  onClick={() => dispatch(sleepAllRtlsDevices())}
+                  onClick={() => void dispatch(sleepAllRtlsDevices())}
                 >
                   <Moon fontSize='small' />
                 </IconButton>
@@ -240,7 +240,7 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
               <Tooltip content='Wake all drones'>
                 <IconButton
                   size='small'
-                  onClick={() => dispatch(wakeAllRtlsDevices())}
+                  onClick={() => void dispatch(wakeAllRtlsDevices())}
                 >
                   <Bolt fontSize='small' />
                 </IconButton>
@@ -252,9 +252,7 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
       <Divider />
       <Box sx={{ height: '100%', overflow: 'auto' }}>
         {devices.length === 0 ? (
-          <BackgroundHint
-            text={tags ? 'No RTLS tags' : 'No RTLS anchors'}
-          />
+          <BackgroundHint text={tags ? 'No RTLS tags' : 'No RTLS anchors'} />
         ) : (
           devices.map((device, index) => {
             const geometry = tags

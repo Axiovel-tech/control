@@ -1,11 +1,12 @@
 /**
- * @file The anchor-geometry calibration wizard, launched from the RTLS
- * Anchors toolbar: capture a TWR window → review the fit (per-tripod move
- * suggestions, residual quality) → either go move tripods and re-capture,
- * or apply the relaxed geometry as-is — the final, explicit "Write &
- * reboot tags" step with a per-anchor preview.
+ * @file Fast anchor-geometry calibration over one server-coordinated capture
+ * of the seven responder-owned A0 range streams. Both constrained fit models
+ * run server-side; the refined model is an explicit opt-in and reuses the
+ * strict fit's pinned capture.
  */
 
+import Alert from '@mui/material/Alert';
+import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Checkbox from '@mui/material/Checkbox';
 import CircularProgress from '@mui/material/CircularProgress';
@@ -13,290 +14,536 @@ import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
+import FormControl from '@mui/material/FormControl';
 import FormControlLabel from '@mui/material/FormControlLabel';
+import InputLabel from '@mui/material/InputLabel';
+import MenuItem from '@mui/material/MenuItem';
+import Select from '@mui/material/Select';
+import Stack from '@mui/material/Stack';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import Typography from '@mui/material/Typography';
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useDispatch, useSelector } from 'react-redux';
 
+import { StatusPill } from '@skybrush/mui-components';
+
+import { Status } from '~/components/semantics';
 import { errorToString } from '~/error-handling';
 import { showError } from '~/features/snackbar/actions';
 import messageHub from '~/message-hub';
 import type { AppDispatch } from '~/store/reducers';
 
 import { syncGeometryToFleet } from './geometry-actions';
+import { fitRtlsGeometry } from './messages';
 import {
-  captureRtlsGeometry,
-  fitRtlsGeometry,
-  getRtlsCaptureStatus,
-} from './messages';
-import {
+  getRtlsCellIds,
   getRtlsGeometryCheck,
   isRtlsCalibrationWizardOpen,
   isRtlsGeometrySyncing,
 } from './selectors';
 import { closeRtlsCalibrationWizard } from './slice';
-import { type RtlsFitResult } from './types';
+import {
+  type RtlsCalibrationModel,
+  type RtlsCalibrationResponse,
+  type RtlsGeometryCheck,
+  type RtlsGeometryFit,
+} from './types';
 
-const CAPTURE_DURATION_S = 20;
+type Step = 'measure' | 'review' | 'apply' | 'done';
 
-type Step = 'capture' | 'fit' | 'apply' | 'done';
+const formatM = (meters: number): string => `${meters.toFixed(3)} m`;
+const formatCm = (meters: number): string => `${(meters * 100).toFixed(1)} cm`;
+const formatMac = (mac: number): string =>
+  `0x${Math.trunc(mac).toString(16).padStart(4, '0').toUpperCase()}`;
 
-type CaptureProgress = {
-  running: boolean;
-  elapsed?: number;
-  duration?: number;
-  pairs?: number;
-  samplesTotal?: number;
+type FitPanelProps = {
+  fit: RtlsGeometryFit;
+  selected: boolean;
 };
 
-const formatCm = (meters: number): string =>
-  `${(meters * 100).toFixed(1)} cm`;
+const FitParameters = ({ fit }: { fit: RtlsGeometryFit }) => {
+  const { t } = useTranslation();
+  const entries =
+    fit.model === 'strict'
+      ? [
+          [t('rtlsCalibration.parameter.length'), fit.parameters.lengthM],
+          [t('rtlsCalibration.parameter.width'), fit.parameters.widthM],
+          [t('rtlsCalibration.parameter.height'), fit.parameters.heightM],
+        ]
+      : [
+          [
+            t('rtlsCalibration.parameter.bottomLength'),
+            fit.parameters.bottomLengthM,
+          ],
+          [
+            t('rtlsCalibration.parameter.bottomWidth'),
+            fit.parameters.bottomWidthM,
+          ],
+          [t('rtlsCalibration.parameter.topLength'), fit.parameters.topLengthM],
+          [t('rtlsCalibration.parameter.topWidth'), fit.parameters.topWidthM],
+          [t('rtlsCalibration.parameter.height'), fit.parameters.heightM],
+        ];
+
+  return (
+    <Typography variant='body2'>
+      {entries
+        .map(([label, value]) => `${label}: ${formatM(Number(value))}`)
+        .join(' · ')}
+      {fit.model === 'refined'
+        ? ` · ${t('rtlsCalibration.parameter.angle')}: ${fit.parameters.angleDeg.toFixed(2)}°`
+        : ''}
+    </Typography>
+  );
+};
+
+const FitPanel = ({ fit, selected }: FitPanelProps) => {
+  const { t } = useTranslation();
+
+  return (
+    <Box>
+      <Stack direction='row' spacing={1} alignItems='center' sx={{ mb: 0.5 }}>
+        <Typography variant='subtitle2'>
+          {t(`rtlsCalibration.model.${fit.model}`)}
+        </Typography>
+        <StatusPill
+          inline
+          status={fit.accepted ? Status.SUCCESS : Status.ERROR}
+        >
+          {fit.accepted
+            ? t('rtlsCalibration.fit.accepted')
+            : t('rtlsCalibration.fit.rejected')}
+        </StatusPill>
+        {selected && (
+          <StatusPill inline status={Status.INFO}>
+            {t('rtlsCalibration.fit.selected')}
+          </StatusPill>
+        )}
+      </Stack>
+      <FitParameters fit={fit} />
+      <Typography variant='body2' color='textSecondary'>
+        {t('rtlsCalibration.fit.quality', {
+          rms: formatCm(fit.rmsM),
+          objective: fit.weightedObjective.toFixed(3),
+        })}
+      </Typography>
+      {fit.reasons.map((reason) => (
+        <Alert severity='error' key={reason} sx={{ mt: 1 }}>
+          {reason}
+        </Alert>
+      ))}
+      {fit.warnings.map((warning) => (
+        <Alert severity='warning' key={warning} sx={{ mt: 1 }}>
+          {warning}
+        </Alert>
+      ))}
+      <Table size='small' sx={{ mt: 1 }}>
+        <TableHead>
+          <TableRow>
+            <TableCell>{t('rtlsCalibration.residual.anchor')}</TableCell>
+            <TableCell align='right'>
+              {t('rtlsCalibration.residual.measured')}
+            </TableCell>
+            <TableCell align='right'>
+              {t('rtlsCalibration.residual.predicted')}
+            </TableCell>
+            <TableCell align='right'>
+              {t('rtlsCalibration.residual.error')}
+            </TableCell>
+            <TableCell align='right'>
+              {t('rtlsCalibration.residual.mad')}
+            </TableCell>
+            <TableCell align='right'>
+              {t('rtlsCalibration.residual.samples')}
+            </TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {fit.residuals.map((residual) => (
+            <TableRow key={residual.anchorIndex}>
+              <TableCell>
+                {`A0–A${residual.anchorIndex} (${formatMac(residual.peerMac)})`}
+              </TableCell>
+              <TableCell align='right'>{formatM(residual.measuredM)}</TableCell>
+              <TableCell align='right'>
+                {formatM(residual.predictedM)}
+              </TableCell>
+              <TableCell align='right'>
+                {formatCm(residual.residualM)}
+              </TableCell>
+              <TableCell align='right'>{formatCm(residual.madM)}</TableCell>
+              <TableCell align='right'>{residual.count}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </Box>
+  );
+};
+
+type CalibrationDoneMessageProps = {
+  syncing: boolean;
+  check: RtlsGeometryCheck | undefined;
+};
+
+/**
+ * Body of the `done` step. The wizard switches to this step the instant the
+ * fleet write STARTS (not after it finishes), so while `syncing` is true this
+ * shows the same spinner + status-text treatment the `measure` step uses for
+ * the strict request — the operator sees an active "Writing…" indicator for
+ * the whole write + reboot + consistency re-check window. Once the sync
+ * settles (`syncing` flips false) it renders the consistency verdict.
+ */
+export const CalibrationDoneMessage = ({
+  syncing,
+  check,
+}: CalibrationDoneMessageProps) => {
+  const { t } = useTranslation();
+
+  if (syncing) {
+    return (
+      <Typography
+        variant='body2'
+        sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
+      >
+        <CircularProgress size={16} />
+        {t('rtlsCalibration.done.writing')}
+      </Typography>
+    );
+  }
+
+  return (
+    <Typography variant='body2'>
+      {check
+        ? check.consistent
+          ? t('rtlsCalibration.done.consistent')
+          : t('rtlsCalibration.done.outOfSync')
+        : t('rtlsCalibration.done.unchecked')}
+    </Typography>
+  );
+};
 
 const RtlsCalibrationWizard = () => {
+  const { t } = useTranslation();
   const dispatch: AppDispatch = useDispatch();
   const open = useSelector(isRtlsCalibrationWizardOpen);
   const syncing = useSelector(isRtlsGeometrySyncing);
   const check = useSelector(getRtlsGeometryCheck);
+  const cells = useSelector(getRtlsCellIds);
+  const cellSignature = cells.join('\n');
 
-  const [step, setStep] = useState<Step>('capture');
-  const [busy, setBusy] = useState(false);
-  const [fitting, setFitting] = useState(false);
-  const [progress, setProgress] = useState<CaptureProgress | undefined>();
-  const [fit, setFit] = useState<RtlsFitResult | undefined>();
+  const [step, setStep] = useState<Step>('measure');
+  const [busyModel, setBusyModel] = useState<RtlsCalibrationModel>();
+  const [failure, setFailure] = useState<string>();
+  const [strictResponse, setStrictResponse] =
+    useState<RtlsCalibrationResponse>();
+  const [refinedResponse, setRefinedResponse] =
+    useState<RtlsCalibrationResponse>();
+  const [selectedModel, setSelectedModel] =
+    useState<RtlsCalibrationModel>('strict');
+  const [selectedCell, setSelectedCell] = useState('');
   const [reboot, setReboot] = useState(true);
-  const pollTimer = useRef<ReturnType<typeof setInterval> | undefined>(
-    undefined
-  );
-  // every open/close/restart bumps the session: any async continuation
-  // from an EARLIER session (a late capture response, a straggler poll,
-  // an outstanding fit) must be a no-op, or it would corrupt the current
-  // session with stale data
   const session = useRef(0);
 
-  const stopPolling = () => {
-    if (pollTimer.current !== undefined) {
-      clearInterval(pollTimer.current);
-      pollTimer.current = undefined;
-    }
-  };
-
-  // reset the wizard whenever it opens; invalidate + stop on close
   useEffect(() => {
     session.current += 1;
     if (open) {
-      setStep('capture');
-      setProgress(undefined);
-      setFit(undefined);
-      setBusy(false);
-      setFitting(false);
-    } else {
-      stopPolling();
+      setStep('measure');
+      setBusyModel(undefined);
+      setFailure(undefined);
+      setStrictResponse(undefined);
+      setRefinedResponse(undefined);
+      setSelectedModel('strict');
     }
-    return stopPolling;
   }, [open]);
 
-  const close = () => dispatch(closeRtlsCalibrationWizard());
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    const availableCells = cellSignature ? cellSignature.split('\n') : [];
+    setSelectedCell((current) =>
+      availableCells.includes(current) ? current : (availableCells[0] ?? '')
+    );
+  }, [cellSignature, open]);
 
-  const startPolling = (token: number) => {
-    stopPolling();
-    let consecutiveFailures = 0;
-    pollTimer.current = setInterval(async () => {
-      if (session.current !== token) {
-        // NEVER touch the shared poller ref from a stale session: it may
-        // already hold the CURRENT session's interval (our own interval
-        // was cleared when the new session started polling)
-        return;
-      }
-      try {
-        const status = (await getRtlsCaptureStatus(
-          messageHub
-        )) as unknown as CaptureProgress;
-        if (session.current !== token) {
-          return;
-        }
-        consecutiveFailures = 0;
-        setProgress(status);
-        if (!status.running) {
-          stopPolling();
-          setBusy(false);
-        }
-      } catch (error) {
-        // transient losses retry; a DEAD status stream must not leave
-        // the wizard busy-locked forever
-        consecutiveFailures += 1;
-        if (consecutiveFailures >= 5 && session.current === token) {
-          stopPolling();
-          setBusy(false);
-          setProgress(undefined);
-          showError(`Lost the capture status: ${errorToString(error)}`);
-        }
-      }
-    }, 2000);
+  const close = () => {
+    session.current += 1;
+    dispatch(closeRtlsCalibrationWizard());
   };
 
-  const startCapture = async () => {
-    const token = ++session.current; // invalidates older continuations
-    setBusy(true);
-    setFit(undefined);
-    setProgress(undefined); // a failed restart must not resurrect old data
+  const runStrictFit = async () => {
+    if (!selectedCell) {
+      return;
+    }
+    const token = ++session.current;
+    setBusyModel('strict');
+    setFailure(undefined);
+    setStrictResponse(undefined);
+    setRefinedResponse(undefined);
+    setSelectedModel('strict');
     try {
-      const body = await captureRtlsGeometry(messageHub, {
-        duration: CAPTURE_DURATION_S,
+      const response = await fitRtlsGeometry(messageHub, {
+        mode: 'strict',
+        cell: selectedCell,
       });
       if (session.current !== token) {
         return;
       }
-      setProgress(body as unknown as CaptureProgress);
-      startPolling(token);
+      setStrictResponse(response);
+      setStep('review');
     } catch (error) {
-      if (session.current === token) {
-        setBusy(false);
-      }
-      showError(`Capture failed: ${errorToString(error)}`);
-    }
-  };
-
-  const runFit = async () => {
-    const token = session.current;
-    setBusy(true);
-    setFitting(true);
-    try {
-      const body = await fitRtlsGeometry(messageHub);
       if (session.current !== token) {
         return;
       }
-      setFit(body as unknown as RtlsFitResult);
-      setStep('fit');
-    } catch (error) {
-      showError(`Fit failed: ${errorToString(error)}`);
+      const detail = errorToString(error);
+      setFailure(detail);
+      showError(t('rtlsCalibration.request.failed', { detail }));
     } finally {
       if (session.current === token) {
-        setBusy(false);
-        setFitting(false);
+        setBusyModel(undefined);
       }
     }
   };
 
+  const runRefinedFit = async () => {
+    if (!strictResponse) {
+      return;
+    }
+    const token = ++session.current;
+    setBusyModel('refined');
+    setFailure(undefined);
+    try {
+      const response = await fitRtlsGeometry(messageHub, {
+        mode: 'refined',
+        cell: strictResponse.cell,
+        captureId: strictResponse.summary.captureId,
+      });
+      if (session.current !== token) {
+        return;
+      }
+      setRefinedResponse(response);
+      if (
+        response.selectedModel === 'refined' &&
+        response.applyGeometry !== null
+      ) {
+        setSelectedModel('refined');
+      }
+    } catch (error) {
+      if (session.current !== token) {
+        return;
+      }
+      const detail = errorToString(error);
+      setFailure(detail);
+      showError(t('rtlsCalibration.refined.failed', { detail }));
+    } finally {
+      if (session.current === token) {
+        setBusyModel(undefined);
+      }
+    }
+  };
+
+  const selectedResponse =
+    selectedModel === 'refined' ? refinedResponse : strictResponse;
+  const selectedFit =
+    selectedModel === 'refined'
+      ? refinedResponse?.refined
+      : strictResponse?.strict;
+  const canApply =
+    selectedFit?.accepted === true &&
+    selectedResponse?.selectedModel === selectedModel &&
+    selectedResponse.applyGeometry !== null;
+
   const apply = async () => {
-    if (!fit) {
+    if (!canApply || !selectedResponse?.applyGeometry) {
       return;
     }
     const token = session.current;
-    const outcome = await dispatch(
-      syncGeometryToFleet({ geometry: fit.applyGeometry, reboot })
-    );
-    if (session.current !== token) {
-      return;
-    }
-    if (outcome === 'failed') {
-      return; // the error toast is up; stay here so the operator can retry
-    }
+    // Switch to the `done` step as the write STARTS, before awaiting the fleet
+    // write + reboot + consistency re-check, so the operator sees the active
+    // "Writing…" spinner for that whole window. rtlsGeometrySyncStarted flips
+    // `syncing` true synchronously inside the dispatch below, so this render
+    // lands on the syncing-true branch of CalibrationDoneMessage rather than a
+    // silent, greyed-out apply screen.
     setStep('done');
+    const outcome = await dispatch(
+      syncGeometryToFleet({
+        cell: selectedResponse.cell,
+        geometry: selectedResponse.applyGeometry,
+        reboot,
+      })
+    );
+    // A sync that never left the client (threw before any write) must not
+    // strand the operator on a "Geometry written" verdict — roll back to the
+    // apply step so they can retry. The session guard suppresses this rollback
+    // when a close/remeasure raced the write.
+    if (session.current === token && outcome === 'failed') {
+      setStep('apply');
+    }
   };
 
-  const captureDone =
-    progress !== undefined && !progress.running && (progress.pairs ?? 0) > 0;
-
   return (
-    <Dialog open={open} fullWidth maxWidth='sm' onClose={close}>
-      <DialogTitle>Anchor geometry calibration</DialogTitle>
+    <Dialog open={open} fullWidth maxWidth='md' onClose={close}>
+      <DialogTitle>{t('rtlsCalibration.title')}</DialogTitle>
       <DialogContent>
-        {step === 'capture' && (
-          <>
-            <Typography variant='body2' sx={{ mb: 1 }}>
-              The anchors measure each other continuously. Capture a{' '}
-              {CAPTURE_DURATION_S}-second window of those ranges to
-              measure the geometry the tripods actually stand in.
+        {step === 'measure' && (
+          <Stack spacing={1.5}>
+            <Typography variant='body2'>
+              {t('rtlsCalibration.intro')}
             </Typography>
-            {progress && (
-              <Typography variant='body2' sx={{ mb: 1 }}>
-                {progress.running ? (
-                  <>
-                    <CircularProgress size={14} />{' '}
-                    {`capturing… ${progress.elapsed ?? 0}/${
-                      progress.duration ?? CAPTURE_DURATION_S
-                    } s — ${progress.pairs ?? 0} pair(s), ${
-                      progress.samplesTotal ?? 0
-                    } sample(s)`}
-                  </>
-                ) : (
-                  `capture complete: ${progress.pairs ?? 0} pair(s), ${
-                    progress.samplesTotal ?? 0
-                  } sample(s)`
-                )}
+            <Typography variant='body2' color='textSecondary'>
+              {t('rtlsCalibration.constraints')}
+            </Typography>
+            <FormControl fullWidth size='small'>
+              <InputLabel id='rtls-calibration-cell-label'>
+                {t('rtlsCalibration.cell.label')}
+              </InputLabel>
+              <Select
+                labelId='rtls-calibration-cell-label'
+                value={selectedCell}
+                label={t('rtlsCalibration.cell.label')}
+                disabled={busyModel !== undefined || cells.length < 2}
+                onChange={(event) => setSelectedCell(event.target.value)}
+              >
+                {cells.map((cell) => (
+                  <MenuItem value={cell} key={cell}>
+                    {cell}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            {cells.length === 0 && (
+              <Alert severity='error'>
+                {t('rtlsCalibration.cell.missing')}
+              </Alert>
+            )}
+            {busyModel === 'strict' && (
+              <Typography
+                variant='body2'
+                sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
+              >
+                <CircularProgress size={16} />
+                {t('rtlsCalibration.request.waiting')}
               </Typography>
             )}
-            <Button
-              variant='outlined'
-              disabled={fitting}
-              onClick={startCapture}
-            >
-              {progress ? 'Restart capture' : 'Start capture'}
-            </Button>
-            <Button
-              sx={{ ml: 1 }}
-              variant='contained'
-              disabled={!captureDone || busy || fitting}
-              onClick={runFit}
-            >
-              Fit geometry
-            </Button>
-          </>
+            {failure && (
+              <Alert severity='error'>
+                {t('rtlsCalibration.request.actionableFailure', {
+                  detail: failure,
+                })}
+              </Alert>
+            )}
+            <Box>
+              <Button
+                variant='contained'
+                disabled={busyModel !== undefined || !selectedCell}
+                onClick={() => void runStrictFit()}
+              >
+                {failure
+                  ? t('rtlsCalibration.action.retry')
+                  : t('rtlsCalibration.action.calibrate')}
+              </Button>
+            </Box>
+          </Stack>
         )}
 
-        {step === 'fit' && fit && (
-          <>
-            <Typography variant='body2' sx={{ mb: 1 }}>
-              {`coverage ${fit.coverage.pairsMeasured}/${fit.coverage.pairsExpected} pairs · ` +
-                `fit explains the measurements to ${formatCm(
-                  fit.relaxed.rmsM
-                )} RMS ` +
-                `(rigid shape: ${formatCm(fit.rigid.rmsM)})`}
-            </Typography>
-            <Table size='small'>
-              <TableHead>
-                <TableRow>
-                  <TableCell>anchor</TableCell>
-                  <TableCell align='right'>off by</TableCell>
-                  <TableCell align='right'>Δx</TableCell>
-                  <TableCell align='right'>Δy</TableCell>
-                  <TableCell align='right'>Δz</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {[...fit.moves]
-                  .sort((a, b) => b.distM - a.distM)
-                  .map((move) => (
-                    <TableRow key={move.index}>
-                      <TableCell>{`A${move.index} (MAC ${move.mac})`}</TableCell>
-                      <TableCell align='right'>
-                        {formatCm(move.distM)}
-                      </TableCell>
-                      <TableCell align='right'>{formatCm(move.dxM)}</TableCell>
-                      <TableCell align='right'>{formatCm(move.dyM)}</TableCell>
-                      <TableCell align='right'>{formatCm(move.dzM)}</TableCell>
-                    </TableRow>
-                  ))}
-              </TableBody>
-            </Table>
-            <Typography variant='body2' sx={{ mt: 1 }}>
-              Either physically move the worst tripods and re-capture, or
-              accept the measured geometry as-is — the fleet then flies
-              with the anchors exactly where they stand.
-            </Typography>
-          </>
+        {step === 'review' && strictResponse && (
+          <Stack spacing={2}>
+            <Alert severity='info'>
+              {t('rtlsCalibration.summary', {
+                captureId: strictResponse.summary.captureId,
+                count: strictResponse.summary.ranges.length,
+                age: strictResponse.summary.ageMs,
+                skew: strictResponse.summary.maxSkewMs,
+              })}
+            </Alert>
+            <FitPanel
+              fit={strictResponse.strict}
+              selected={selectedModel === 'strict'}
+            />
+            {refinedResponse?.refined && (
+              <>
+                <Box>
+                  <Typography variant='subtitle2'>
+                    {t('rtlsCalibration.comparison.title')}
+                  </Typography>
+                  <Typography variant='body2'>
+                    {t('rtlsCalibration.comparison.detail', {
+                      strict: formatCm(refinedResponse.strict.rmsM),
+                      refined: formatCm(refinedResponse.refined.rmsM),
+                      improvement: formatCm(
+                        refinedResponse.comparison?.rmsImprovementM ?? 0
+                      ),
+                      noise: formatCm(
+                        refinedResponse.comparison?.noiseFloorM ?? 0
+                      ),
+                    })}
+                  </Typography>
+                  <Typography variant='body2' color='textSecondary'>
+                    {refinedResponse.comparison?.meaningfulImprovement
+                      ? t('rtlsCalibration.comparison.meaningful')
+                      : t('rtlsCalibration.comparison.notMeaningful')}
+                  </Typography>
+                </Box>
+                <FitPanel
+                  fit={refinedResponse.refined}
+                  selected={selectedModel === 'refined'}
+                />
+                <Stack direction='row' spacing={1}>
+                  <Button onClick={() => setSelectedModel('strict')}>
+                    {t('rtlsCalibration.action.useStrict')}
+                  </Button>
+                  <Button
+                    disabled={
+                      refinedResponse.selectedModel !== 'refined' ||
+                      refinedResponse.applyGeometry === null
+                    }
+                    onClick={() => setSelectedModel('refined')}
+                  >
+                    {t('rtlsCalibration.action.useRefined')}
+                  </Button>
+                </Stack>
+              </>
+            )}
+            {failure && <Alert severity='error'>{failure}</Alert>}
+            {!refinedResponse && (
+              <Box>
+                <Typography
+                  variant='body2'
+                  color='textSecondary'
+                  sx={{ mb: 1 }}
+                >
+                  {t('rtlsCalibration.refined.description')}
+                </Typography>
+                <Button
+                  variant='outlined'
+                  disabled={busyModel !== undefined}
+                  onClick={() => void runRefinedFit()}
+                >
+                  {busyModel === 'refined' && (
+                    <CircularProgress size={14} sx={{ mr: 1 }} />
+                  )}
+                  {t('rtlsCalibration.action.runRefined')}
+                </Button>
+              </Box>
+            )}
+          </Stack>
         )}
 
-        {step === 'apply' && fit && (
-          <>
-            <Typography variant='body2' sx={{ mb: 1 }}>
-              The measured geometry will be written to EVERY tag. Rewritten
-              tags must reboot for it to take effect.
+        {step === 'apply' && selectedFit && (
+          <Stack spacing={1}>
+            <Alert severity='warning'>
+              {t('rtlsCalibration.apply.warning', {
+                model: t(`rtlsCalibration.model.${selectedFit.model}`),
+              })}
+            </Alert>
+            <FitParameters fit={selectedFit} />
+            <Typography variant='body2' color='textSecondary'>
+              {t('rtlsCalibration.apply.frame')}
             </Typography>
             <FormControlLabel
               control={
@@ -305,52 +552,48 @@ const RtlsCalibrationWizard = () => {
                   onChange={(event) => setReboot(event.target.checked)}
                 />
               }
-              label='Reboot rewritten tags (they drop off the network for a
-                few seconds)'
+              label={t('rtlsCalibration.apply.reboot')}
             />
-          </>
+          </Stack>
         )}
 
         {step === 'done' && (
-          <Typography variant='body2'>
-            {syncing
-              ? 'writing the geometry to the fleet…'
-              : check
-                ? check.consistent
-                  ? 'Geometry applied — the fleet checks consistent.'
-                  : 'Geometry written; the automatic re-check found ' +
-                    'devices still out of sync (see the Tags panel).'
-                : 'Geometry written; run a consistency check on the Tags ' +
-                  'panel to confirm.'}
-          </Typography>
+          <CalibrationDoneMessage syncing={syncing} check={check} />
         )}
       </DialogContent>
       <DialogActions>
-        <Button onClick={close}>Close</Button>
-        {step === 'fit' && (
+        <Button onClick={close}>{t('general.action.close')}</Button>
+        {step === 'review' && (
           <>
-            <Button onClick={() => setStep('capture')}>
-              Re-capture
+            <Button onClick={() => setStep('measure')}>
+              {t('rtlsCalibration.action.remeasure')}
             </Button>
             <Button
               color='primary'
               variant='contained'
+              disabled={!canApply || busyModel !== undefined}
               onClick={() => setStep('apply')}
             >
-              Accept measured geometry…
+              {t('rtlsCalibration.action.reviewApply', {
+                model: t(`rtlsCalibration.model.${selectedModel}`),
+              })}
             </Button>
           </>
         )}
         {step === 'apply' && (
           <>
-            <Button onClick={() => setStep('fit')}>Back</Button>
+            <Button onClick={() => setStep('review')}>
+              {t('general.action.back')}
+            </Button>
             <Button
               color='primary'
               variant='contained'
               disabled={syncing}
-              onClick={apply}
+              onClick={() => void apply()}
             >
-              {reboot ? 'Write & reboot tags' : 'Write tags'}
+              {reboot
+                ? t('rtlsCalibration.action.writeReboot')
+                : t('rtlsCalibration.action.write')}
             </Button>
           </>
         )}

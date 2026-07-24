@@ -8,6 +8,7 @@ import messageHub from '~/message-hub';
 import { type AppDispatch, type RootState } from '~/store/reducers';
 
 import { verifyRtlsFleet } from './messages';
+import { requireSingleRtlsCell } from './selectors';
 import {
   rtlsVerifyFailed,
   rtlsVerifyStarted,
@@ -31,7 +32,10 @@ export function runFleetVerification({ inDepth = false } = {}) {
 
     dispatch(rtlsVerifyStarted());
     try {
-      const body = await verifyRtlsFleet(messageHub, { inDepth });
+      const body = await verifyRtlsFleet(messageHub, {
+        cell: requireSingleRtlsCell(getState()),
+        inDepth,
+      });
       dispatch(
         rtlsVerifySucceeded({
           inDepth: Boolean(body.inDepth),

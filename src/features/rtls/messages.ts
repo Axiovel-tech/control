@@ -13,6 +13,7 @@ import type MessageHub from '~/flockwave/messages';
 import { type Message, type MessageBody } from '~/flockwave/types';
 
 import {
+  type RtlsCalibrationResponse,
   type RtlsOtaJob,
   type RtlsParam,
   type RtlsParamType,
@@ -309,10 +310,11 @@ export async function startRtlsOta(
  * body (reference, cell, consistent flag and per-device verdicts).
  */
 export async function checkRtlsGeometry(
-  hub: MessageHub
+  hub: MessageHub,
+  options: { cell: string }
 ): Promise<AnyMessageBody> {
   const response: Message<AnyMessageBody> = await hub.sendMessage(
-    { type: 'X-RTLS-GEO', op: 'check' },
+    { type: 'X-RTLS-GEO', op: 'check', cell: options.cell },
     { timeout: 15 }
   );
   return ensureResponseType(response.body, 'X-RTLS-GEO');
@@ -349,17 +351,17 @@ export async function adoptRtlsGeometry(
 export async function syncRtlsGeometry(
   hub: MessageHub,
   options: {
+    cell: string;
     geometry?: Record<string, unknown>;
     reboot?: boolean;
-  } = {}
+  }
 ): Promise<AnyMessageBody> {
   const response: Message<AnyMessageBody> = await hub.sendMessage(
     {
       type: 'X-RTLS-GEO',
       op: 'sync',
-      ...(options.geometry === undefined
-        ? {}
-        : { geometry: options.geometry }),
+      cell: options.cell,
+      ...(options.geometry === undefined ? {} : { geometry: options.geometry }),
       ...(options.reboot === undefined ? {} : { reboot: options.reboot }),
     },
     { timeout: 60 }
@@ -374,11 +376,12 @@ export async function syncRtlsGeometry(
  */
 export async function verifyRtlsFleet(
   hub: MessageHub,
-  options: { inDepth?: boolean } = {}
+  options: { cell: string; inDepth?: boolean }
 ): Promise<AnyMessageBody> {
   const response: Message<AnyMessageBody> = await hub.sendMessage(
     {
       type: 'X-RTLS-VERIFY',
+      cell: options.cell,
       ...(options.inDepth === undefined ? {} : { inDepth: options.inDepth }),
     },
     { timeout: 120 }
@@ -386,51 +389,27 @@ export async function verifyRtlsFleet(
   return ensureResponseType(response.body, 'X-RTLS-VERIFY');
 }
 
-/** Starts (or restarts) a TWR capture window for the geometry fit. */
-export async function captureRtlsGeometry(
-  hub: MessageHub,
-  options: { duration?: number } = {}
-): Promise<AnyMessageBody> {
-  const response: Message<AnyMessageBody> = await hub.sendMessage(
-    {
-      type: 'X-RTLS-GEO',
-      op: 'capture',
-      ...(options.duration === undefined
-        ? {}
-        : { duration: options.duration }),
-    },
-    { timeout: 15 }
-  );
-  return ensureResponseType(response.body, 'X-RTLS-GEO');
-}
-
-/** Queries the progress of the running TWR capture window. */
-export async function getRtlsCaptureStatus(
-  hub: MessageHub
-): Promise<AnyMessageBody> {
-  const response: Message<AnyMessageBody> = await hub.sendMessage(
-    { type: 'X-RTLS-GEO', op: 'capture-status' },
-    { timeout: 15 }
-  );
-  return ensureResponseType(response.body, 'X-RTLS-GEO');
-}
-
 /**
- * Runs the rectangular geometry fit over the captured TWR window. The
- * response carries the rigid/relaxed solutions, per-anchor move
- * suggestions, the residual table and an apply-ready geometry payload.
+ * Fits one constrained geometry model. A strict request waits for and pins a
+ * fresh responder-owned A0 spokes. A refined request explicitly reuses that
+ * pinned server capture, so comparing the models never compares different data.
  */
 export async function fitRtlsGeometry(
   hub: MessageHub,
-  options: { margin?: number } = {}
-): Promise<AnyMessageBody> {
+  options:
+    | { mode: 'strict'; cell: string }
+    | { mode: 'refined'; cell: string; captureId: number }
+): Promise<RtlsCalibrationResponse> {
   const response: Message<AnyMessageBody> = await hub.sendMessage(
     {
       type: 'X-RTLS-GEO',
       op: 'fit',
-      ...(options.margin === undefined ? {} : { margin: options.margin }),
+      mode: options.mode,
+      cell: options.cell,
+      ...('captureId' in options ? { captureId: options.captureId } : {}),
     },
-    { timeout: 30 }
+    { timeout: 10 }
   );
-  return ensureResponseType(response.body, 'X-RTLS-GEO');
+  const body = ensureResponseType(response.body, 'X-RTLS-GEO');
+  return body as RtlsCalibrationResponse;
 }

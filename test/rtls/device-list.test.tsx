@@ -45,7 +45,9 @@ describe('RTLS device row primary line', () => {
   });
 
   test('falls back to the "off" pill color for an unknown UAV', () => {
-    const markup = render(describeDeviceWithPairedUav({ ...tag, uav: '07' }, undefined));
+    const markup = render(
+      describeDeviceWithPairedUav({ ...tag, uav: '07' }, undefined)
+    );
     expect(markup).toContain('drone 07');
     expect(markup).toContain('StatusPill-status-off');
   });

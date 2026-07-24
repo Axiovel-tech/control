@@ -59,7 +59,10 @@ describe('getRowStatus', () => {
     // the invariant from the 2026-07-21 live show: an unknown sleep latch
     // must render grey, or a sleeping drone can look awake
     expect(
-      getRowStatus({ id: '1', online: true, role: 'tag' } as RtlsDevice, undefined)
+      getRowStatus(
+        { id: '1', online: true, role: 'tag' } as RtlsDevice,
+        undefined
+      )
     ).toBe('off');
   });
 });

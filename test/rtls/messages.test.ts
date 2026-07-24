@@ -12,6 +12,7 @@ jest.mock('~/error-handling', () => ({
 }));
 
 import {
+  fitRtlsGeometry,
   getRtlsParameter,
   queryRtlsParameterList,
   sendRtlsSleep,
@@ -38,6 +39,198 @@ const makeHub = (body: Record<string, unknown>) => {
 };
 
 describe('rtls messages', () => {
+  test('strict and refined fits use the same explicit capture', async () => {
+    const response = {
+      type: 'X-RTLS-GEO',
+      op: 'fit',
+      mode: 'strict',
+      cell: 'default',
+      summary: {
+        captureId: 42,
+        version: 1,
+        validMask: 0xfe,
+        ageMs: 50,
+        maxSkewMs: 350,
+        sources: [],
+        ranges: [],
+      },
+      strict: {},
+      refined: null,
+      selectedModel: null,
+      applyGeometry: null,
+    };
+    const { hub, sent } = makeHub(response);
+
+    await fitRtlsGeometry(hub, { mode: 'strict', cell: 'bench-4' });
+    await fitRtlsGeometry(hub, {
+      mode: 'refined',
+      cell: 'bench-4',
+      captureId: response.summary.captureId,
+    });
+
+    expect(sent).toEqual([
+      {
+        type: 'X-RTLS-GEO',
+        op: 'fit',
+        mode: 'strict',
+        cell: 'bench-4',
+      },
+      {
+        type: 'X-RTLS-GEO',
+        op: 'fit',
+        mode: 'refined',
+        cell: 'bench-4',
+        captureId: 42,
+      },
+    ]);
+  });
+
+  test('a strict fit response passes the server field names through verbatim', async () => {
+    // the exact server response shape; the client must not rename anything
+    const response = {
+      type: 'X-RTLS-GEO',
+      op: 'fit',
+      mode: 'strict',
+      cell: 'default',
+      summary: {
+        captureId: 42,
+        version: 1,
+        validMask: 0xfe,
+        ageMs: 50,
+        maxSkewMs: 350,
+        sources: [
+          {
+            anchorIndex: 1,
+            anchorMac: 0x1a2b,
+            systemId: 10,
+            sequence: 42,
+            timeBootMs: 123_456,
+            ageMs: 50,
+          },
+        ],
+        ranges: [
+          {
+            anchorIndex: 1,
+            peerMac: 0x1a2b,
+            distanceM: 14.1,
+            madM: 0.02,
+            count: 240,
+          },
+        ],
+      },
+      strict: {
+        model: 'strict',
+        accepted: true,
+        parameters: { lengthM: 14.1, widthM: 9.8, heightM: 2.5 },
+        anchors: [
+          { index: 0, xM: 0, yM: 0, zM: 0 },
+          { index: 1, xM: 14.1, yM: 0, zM: 0 },
+        ],
+        rmsM: 0.031,
+        weightedObjective: 0.42,
+        residuals: [
+          {
+            anchorIndex: 1,
+            peerMac: 0x1a2b,
+            measuredM: 14.1,
+            predictedM: 14.13,
+            residualM: -0.03,
+            madM: 0.02,
+            count: 240,
+            weight: 1,
+          },
+        ],
+        reasons: [],
+        warnings: ['height is close to its lower bound'],
+      },
+      refined: null,
+      selectedModel: 'strict',
+      applyGeometry: { UWB_AN1_X: 14.1 },
+    };
+    const { hub } = makeHub(response);
+
+    const parsed = await fitRtlsGeometry(hub, {
+      mode: 'strict',
+      cell: 'default',
+    });
+
+    // the body (with its exact server field names — lengthM/widthM/heightM,
+    // xM/yM/zM, weight, applyGeometry) is returned verbatim; the strong
+    // field-name contract lives in the RtlsCalibrationResponse type (tsc)
+    expect(parsed).toEqual(response);
+  });
+
+  test('a refined fit response carries its parameters and the comparison', async () => {
+    const refined = {
+      model: 'refined',
+      accepted: true,
+      parameters: {
+        bottomLengthM: 14.1,
+        bottomWidthM: 9.8,
+        topLengthM: 14.05,
+        topWidthM: 9.75,
+        heightM: 2.5,
+        angleDeg: 0.4,
+      },
+      anchors: [{ index: 0, xM: 0, yM: 0, zM: 0 }],
+      rmsM: 0.02,
+      weightedObjective: 0.3,
+      residuals: [],
+      reasons: [],
+      warnings: [],
+    };
+    const { hub } = makeHub({
+      type: 'X-RTLS-GEO',
+      op: 'fit',
+      mode: 'refined',
+      cell: 'default',
+      summary: {
+        captureId: 42,
+        version: 1,
+        validMask: 0xfe,
+        ageMs: 50,
+        maxSkewMs: 350,
+        sources: [],
+        ranges: [],
+      },
+      strict: { model: 'strict', accepted: true, rmsM: 0.031 },
+      refined,
+      selectedModel: 'refined',
+      applyGeometry: { UWB_AN1_X: 14.05 },
+      comparison: {
+        rmsImprovementM: 0.011,
+        noiseFloorM: 0.004,
+        meaningfulImprovement: true,
+      },
+    });
+
+    const parsed = await fitRtlsGeometry(hub, {
+      mode: 'refined',
+      cell: 'default',
+      captureId: 42,
+    });
+
+    expect(parsed.refined).toEqual(refined);
+    expect(parsed.selectedModel).toBe('refined');
+    expect(parsed.comparison).toEqual({
+      rmsImprovementM: 0.011,
+      noiseFloorM: 0.004,
+      meaningfulImprovement: true,
+    });
+  });
+
+  test('a rejected fit surfaces the actionable ACK-NAK reason', async () => {
+    const { hub } = makeHub({
+      type: 'ACK-NAK',
+      reason: 'no fresh rolling TWR summary arrived within 3.0 seconds',
+    });
+    await expect(
+      fitRtlsGeometry(hub, { mode: 'strict', cell: 'default' })
+    ).rejects.toThrow(
+      /no fresh rolling TWR summary arrived within 3\.0 seconds/
+    );
+  });
+
   test('queryRtlsParameterList sorts by index then name', async () => {
     const { hub } = makeHub({
       type: 'X-RTLS-PARAM-LIST',

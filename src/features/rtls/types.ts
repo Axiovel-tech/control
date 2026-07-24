@@ -214,7 +214,7 @@ export type RtlsGeometryCheckEntry = {
 /** Result of an X-RTLS-GEO `check`: the fleet-consistency snapshot
  * against the server's CANONICAL geometry. */
 export type RtlsGeometryCheck = {
-  cell?: string;
+  cell: string;
   consistent: boolean;
   /** Per-tag verdicts, keyed by system id (every live tag is a target). */
   devices: Record<string, RtlsGeometryCheckEntry>;
@@ -235,7 +235,7 @@ export type RtlsGeometrySyncEntry = {
 
 /** Result of an X-RTLS-GEO `sync`. */
 export type RtlsGeometrySync = {
-  cell?: string;
+  cell: string;
   devices: Record<string, RtlsGeometrySyncEntry>;
   receivedAt: number;
 };
@@ -261,27 +261,110 @@ export type RtlsVerifyResult = {
   receivedAt: number;
 };
 
-/** One per-anchor move suggestion of an X-RTLS-GEO `fit`. */
-export type RtlsFitMove = {
-  index: number;
-  mac: number;
-  dxM: number;
-  dyM: number;
-  dzM: number;
-  distM: number;
+export type RtlsCalibrationModel = 'refined' | 'strict';
+
+/** One normalized responder-owned A0 spoke used by a geometry fit. */
+export type RtlsRangeSummary = {
+  anchorIndex: number;
+  peerMac: number;
+  distanceM: number;
+  madM: number;
+  count: number;
 };
 
-/** Result of an X-RTLS-GEO `fit`. */
-export type RtlsFitResult = {
-  cell?: string;
-  coverage: {
-    pairsMeasured: number;
-    pairsExpected: number;
-    missingPairs: number[][];
-  };
-  rigid: { rmsM: number };
-  relaxed: { rmsM: number; marginM: number };
-  moves: RtlsFitMove[];
-  /** Apply-ready payload for the sync op's explicit `geometry`. */
-  applyGeometry: Record<string, unknown>;
+/** One responder generation contributing its A0 spoke to a capture. */
+export type RtlsCalibrationSource = {
+  anchorIndex: number;
+  anchorMac: number;
+  systemId: number;
+  sequence: number;
+  timeBootMs: number;
+  ageMs: number;
+};
+
+/** The server capture pinned by a strict fit and reused by a refined fit. */
+export type RtlsCalibrationSummary = {
+  captureId: number;
+  version: number;
+  validMask: number;
+  ageMs: number;
+  maxSkewMs: number;
+  sources: RtlsCalibrationSource[];
+  ranges: RtlsRangeSummary[];
+};
+
+export type RtlsStrictFitParameters = {
+  lengthM: number;
+  widthM: number;
+  heightM: number;
+};
+
+export type RtlsRefinedFitParameters = {
+  bottomLengthM: number;
+  bottomWidthM: number;
+  topLengthM: number;
+  topWidthM: number;
+  heightM: number;
+  angleDeg: number;
+};
+
+/** One measured A0 spoke and the corresponding fitted-model prediction. */
+export type RtlsFitResidual = {
+  anchorIndex: number;
+  peerMac: number;
+  measuredM: number;
+  predictedM: number;
+  residualM: number;
+  madM: number;
+  count: number;
+  weight: number;
+};
+
+export type RtlsFittedAnchor = {
+  index: number;
+  xM: number;
+  yM: number;
+  zM: number;
+};
+
+type RtlsGeometryFitBase = {
+  accepted: boolean;
+  anchors: RtlsFittedAnchor[];
+  rmsM: number;
+  weightedObjective: number;
+  residuals: RtlsFitResidual[];
+  reasons: string[];
+  warnings: string[];
+};
+
+/** One constrained geometry model evaluated over a pinned server capture. */
+export type RtlsGeometryFit =
+  | (RtlsGeometryFitBase & {
+      model: 'strict';
+      parameters: RtlsStrictFitParameters;
+    })
+  | (RtlsGeometryFitBase & {
+      model: 'refined';
+      parameters: RtlsRefinedFitParameters;
+    });
+
+export type RtlsFitComparison = {
+  rmsImprovementM: number;
+  noiseFloorM: number;
+  meaningfulImprovement: boolean;
+};
+
+/** Response of an X-RTLS-GEO constrained fit request. */
+export type RtlsCalibrationResponse = {
+  type: 'X-RTLS-GEO';
+  op: 'fit';
+  mode: RtlsCalibrationModel;
+  cell: string;
+  summary: RtlsCalibrationSummary;
+  strict: RtlsGeometryFit;
+  refined: RtlsGeometryFit | null;
+  selectedModel: RtlsCalibrationModel | null;
+  /** Apply-ready payload for X-RTLS-GEO sync; absent on a rejected result. */
+  applyGeometry: Record<string, unknown> | null;
+  comparison?: RtlsFitComparison;
 };

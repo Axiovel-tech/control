@@ -736,6 +736,101 @@
       "unknown": "Unknown status"
     }
   },
+  "rtlsCalibration": {
+    "action": {
+      "calibrate": "Calibrate geometry",
+      "remeasure": "Read a new summary",
+      "retry": "Retry",
+      "reviewApply": "Review and apply {{model}}…",
+      "runRefined": "Run refined fit",
+      "useRefined": "Use refined result",
+      "useStrict": "Use strict result",
+      "write": "Write tags",
+      "writeReboot": "Write and reboot tags"
+    },
+    "apply": {
+      "frame": "The written geometry uses A0 as the origin, A0→A1 as absolute +X, local NED coordinates, and zero yaw.",
+      "reboot": "Reboot rewritten tags so the new geometry takes effect",
+      "warning": "Review complete. The {{model}} geometry will be written to every available tag."
+    },
+    "cell": {
+      "label": "Geometry cell",
+      "missing": "No active RTLS geometry cell is available. Check that at least one configured tag is online."
+    },
+    "comparison": {
+      "detail": "Strict RMS: {{strict}} · refined RMS: {{refined}} · improvement: {{improvement}} · noise floor: {{noise}}",
+      "meaningful": "The improvement is meaningful relative to the measured range noise.",
+      "notMeaningful": "The added freedom is not justified by the measured range noise; keep the strict result.",
+      "title": "Model comparison"
+    },
+    "constraints": "The default model is two identical rectangular planes on four tripods. A0 is the origin, A0→A1 is absolute +X, A0→A2 is +Y, and yaw is zero.",
+    "done": {
+      "consistent": "Geometry applied; the fleet checks consistent.",
+      "outOfSync": "Geometry written; the automatic check found tags still out of sync. See the Tags panel.",
+      "unchecked": "Geometry written. Run a consistency check on the Tags panel to confirm it.",
+      "writing": "Writing the geometry to the fleet…"
+    },
+    "fit": {
+      "accepted": "accepted",
+      "quality": "RMS {{rms}} · weighted objective {{objective}}",
+      "rejected": "rejected",
+      "selected": "selected"
+    },
+    "intro": "Read one fresh rolling range summary from A0 and fit the anchor geometry. Firmware collects the fast UWB rounds continuously, so this normally completes within a few seconds.",
+    "model": {
+      "refined": "refined fit",
+      "strict": "strict fit"
+    },
+    "parameter": {
+      "angle": "shared corner angle",
+      "bottomLength": "lower X",
+      "bottomWidth": "lower Y",
+      "height": "height",
+      "length": "X length",
+      "topLength": "upper X",
+      "topWidth": "upper Y",
+      "width": "Y width"
+    },
+    "refined": {
+      "description": "If real construction errors exceed the strict model, the refined fit reuses this exact summary and permits small upper/lower dimension differences and one bounded shared skew angle. The four-tripod and parallel-plane constraints remain.",
+      "failed": "Refined fit failed: {{detail}}"
+    },
+    "request": {
+      "actionableFailure": "{{detail}} Check that A0 and all seven responders are online, each responder supports rolling range summaries, and every A0 spoke is fresh with enough valid samples.",
+      "failed": "Calibration failed: {{detail}}",
+      "waiting": "Collecting fresh A0 spokes from all seven responders, then fitting the strict geometry…"
+    },
+    "residual": {
+      "anchor": "spoke",
+      "error": "residual",
+      "mad": "MAD",
+      "measured": "measured",
+      "predicted": "predicted",
+      "samples": "samples"
+    },
+    "summary": "Capture {{captureId}} · {{count}}/7 responder spokes · received age {{age}} ms · max skew {{skew}} ms",
+    "title": "Anchor geometry calibration"
+  },
+  "rtlsHealth": {
+    "all": {
+      "error": "RTLS attention required",
+      "ok": "RTLS healthy",
+      "unknown": "No RTLS data",
+      "warning": "RTLS degraded"
+    },
+    "anchors": {
+      "error": "Anchor attention required",
+      "ok": "Anchors ready",
+      "unknown": "No anchor data",
+      "warning": "Anchors degraded"
+    },
+    "tags": {
+      "error": "Tag RTLS fix lost",
+      "ok": "Tag fixes healthy",
+      "unknown": "No tag RTLS data",
+      "warning": "Tag fixes degraded"
+    }
+  },
   "safetyDialog": {
     "geofence": "Geofence",
     "geofenceTab": {

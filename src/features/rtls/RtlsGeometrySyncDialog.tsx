@@ -15,7 +15,7 @@ import FormControlLabel from '@mui/material/FormControlLabel';
 import List from '@mui/material/List';
 import ListItem from '@mui/material/ListItem';
 import ListItemText from '@mui/material/ListItemText';
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 
 import type { AppDispatch } from '~/store/reducers';
@@ -100,7 +100,7 @@ const RtlsGeometrySyncDialog = () => {
         <Button
           color='primary'
           disabled={!check || drifted.length === 0}
-          onClick={() => dispatch(syncGeometryToFleet({ reboot }))}
+          onClick={() => void dispatch(syncGeometryToFleet({ reboot }))}
         >
           {reboot ? 'Write & reboot' : 'Write only'}
         </Button>
