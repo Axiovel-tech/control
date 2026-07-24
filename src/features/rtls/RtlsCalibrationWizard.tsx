@@ -14,7 +14,11 @@ import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
+import FormControl from '@mui/material/FormControl';
 import FormControlLabel from '@mui/material/FormControlLabel';
+import InputLabel from '@mui/material/InputLabel';
+import MenuItem from '@mui/material/MenuItem';
+import Select from '@mui/material/Select';
 import Stack from '@mui/material/Stack';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
@@ -22,7 +26,7 @@ import TableCell from '@mui/material/TableCell';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import Typography from '@mui/material/Typography';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDispatch, useSelector } from 'react-redux';
 
@@ -37,6 +41,7 @@ import type { AppDispatch } from '~/store/reducers';
 import { syncGeometryToFleet } from './geometry-actions';
 import { fitRtlsGeometry } from './messages';
 import {
+  getRtlsAnchors,
   getRtlsGeometryCheck,
   isRtlsCalibrationWizardOpen,
   isRtlsGeometrySyncing,
@@ -228,6 +233,19 @@ const RtlsCalibrationWizard = () => {
   const open = useSelector(isRtlsCalibrationWizardOpen);
   const syncing = useSelector(isRtlsGeometrySyncing);
   const check = useSelector(getRtlsGeometryCheck);
+  const anchors = useSelector(getRtlsAnchors);
+  const cells = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          anchors
+            .map((anchor) => anchor.cell)
+            .filter((cell): cell is string => Boolean(cell))
+        )
+      ).sort(),
+    [anchors]
+  );
+  const cellSignature = cells.join('\n');
 
   const [step, setStep] = useState<Step>('measure');
   const [busyModel, setBusyModel] = useState<RtlsCalibrationModel>();
@@ -238,6 +256,7 @@ const RtlsCalibrationWizard = () => {
     useState<RtlsCalibrationResponse>();
   const [selectedModel, setSelectedModel] =
     useState<RtlsCalibrationModel>('strict');
+  const [selectedCell, setSelectedCell] = useState('');
   const [reboot, setReboot] = useState(true);
   const session = useRef(0);
 
@@ -253,12 +272,25 @@ const RtlsCalibrationWizard = () => {
     }
   }, [open]);
 
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    const availableCells = cellSignature ? cellSignature.split('\n') : [];
+    setSelectedCell((current) =>
+      availableCells.includes(current) ? current : (availableCells[0] ?? '')
+    );
+  }, [cellSignature, open]);
+
   const close = () => {
     session.current += 1;
     dispatch(closeRtlsCalibrationWizard());
   };
 
   const runStrictFit = async () => {
+    if (!selectedCell) {
+      return;
+    }
     const token = ++session.current;
     setBusyModel('strict');
     setFailure(undefined);
@@ -266,7 +298,10 @@ const RtlsCalibrationWizard = () => {
     setRefinedResponse(undefined);
     setSelectedModel('strict');
     try {
-      const response = await fitRtlsGeometry(messageHub, { mode: 'strict' });
+      const response = await fitRtlsGeometry(messageHub, {
+        mode: 'strict',
+        cell: selectedCell,
+      });
       if (session.current !== token) {
         return;
       }
@@ -296,6 +331,7 @@ const RtlsCalibrationWizard = () => {
     try {
       const response = await fitRtlsGeometry(messageHub, {
         mode: 'refined',
+        cell: strictResponse.cell,
         captureId: strictResponse.summary.captureId,
       });
       if (session.current !== token) {
@@ -372,6 +408,29 @@ const RtlsCalibrationWizard = () => {
             <Typography variant='body2' color='textSecondary'>
               {t('rtlsCalibration.constraints')}
             </Typography>
+            <FormControl fullWidth size='small'>
+              <InputLabel id='rtls-calibration-cell-label'>
+                {t('rtlsCalibration.cell.label')}
+              </InputLabel>
+              <Select
+                labelId='rtls-calibration-cell-label'
+                value={selectedCell}
+                label={t('rtlsCalibration.cell.label')}
+                disabled={busyModel !== undefined || cells.length < 2}
+                onChange={(event) => setSelectedCell(event.target.value)}
+              >
+                {cells.map((cell) => (
+                  <MenuItem value={cell} key={cell}>
+                    {cell}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            {cells.length === 0 && (
+              <Alert severity='error'>
+                {t('rtlsCalibration.cell.missing')}
+              </Alert>
+            )}
             {busyModel === 'strict' && (
               <Typography
                 variant='body2'
@@ -391,7 +450,7 @@ const RtlsCalibrationWizard = () => {
             <Box>
               <Button
                 variant='contained'
-                disabled={busyModel !== undefined}
+                disabled={busyModel !== undefined || !selectedCell}
                 onClick={() => void runStrictFit()}
               >
                 {failure

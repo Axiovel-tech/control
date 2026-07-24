@@ -753,6 +753,10 @@
       "reboot": "Reboot rewritten tags so the new geometry takes effect",
       "warning": "Review complete. The {{model}} geometry will be written to every available tag."
     },
+    "cell": {
+      "label": "Geometry cell",
+      "missing": "No active RTLS geometry cell is available. Check that at least one configured tag is online."
+    },
     "comparison": {
       "detail": "Strict RMS: {{strict}} · refined RMS: {{refined}} · improvement: {{improvement}} · noise floor: {{noise}}",
       "meaningful": "The improvement is meaningful relative to the measured range noise.",

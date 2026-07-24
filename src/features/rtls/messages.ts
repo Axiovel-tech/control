@@ -392,13 +392,16 @@ export async function verifyRtlsFleet(
  */
 export async function fitRtlsGeometry(
   hub: MessageHub,
-  options: { mode: 'strict' } | { mode: 'refined'; captureId: number }
+  options:
+    | { mode: 'strict'; cell: string }
+    | { mode: 'refined'; cell: string; captureId: number }
 ): Promise<RtlsCalibrationResponse> {
   const response: Message<AnyMessageBody> = await hub.sendMessage(
     {
       type: 'X-RTLS-GEO',
       op: 'fit',
       mode: options.mode,
+      cell: options.cell,
       ...('captureId' in options ? { captureId: options.captureId } : {}),
     },
     { timeout: 10 }

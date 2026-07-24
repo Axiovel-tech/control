@@ -61,18 +61,25 @@ describe('rtls messages', () => {
     };
     const { hub, sent } = makeHub(response);
 
-    await fitRtlsGeometry(hub, { mode: 'strict' });
+    await fitRtlsGeometry(hub, { mode: 'strict', cell: 'bench-4' });
     await fitRtlsGeometry(hub, {
       mode: 'refined',
+      cell: 'bench-4',
       captureId: response.summary.captureId,
     });
 
     expect(sent).toEqual([
-      { type: 'X-RTLS-GEO', op: 'fit', mode: 'strict' },
+      {
+        type: 'X-RTLS-GEO',
+        op: 'fit',
+        mode: 'strict',
+        cell: 'bench-4',
+      },
       {
         type: 'X-RTLS-GEO',
         op: 'fit',
         mode: 'refined',
+        cell: 'bench-4',
         captureId: 42,
       },
     ]);
@@ -142,7 +149,10 @@ describe('rtls messages', () => {
     };
     const { hub } = makeHub(response);
 
-    const parsed = await fitRtlsGeometry(hub, { mode: 'strict' });
+    const parsed = await fitRtlsGeometry(hub, {
+      mode: 'strict',
+      cell: 'default',
+    });
 
     // the body (with its exact server field names — lengthM/widthM/heightM,
     // xM/yM/zM, weight, applyGeometry) is returned verbatim; the strong
@@ -196,6 +206,7 @@ describe('rtls messages', () => {
 
     const parsed = await fitRtlsGeometry(hub, {
       mode: 'refined',
+      cell: 'default',
       captureId: 42,
     });
 
@@ -213,7 +224,9 @@ describe('rtls messages', () => {
       type: 'ACK-NAK',
       reason: 'no fresh rolling TWR summary arrived within 3.0 seconds',
     });
-    await expect(fitRtlsGeometry(hub, { mode: 'strict' })).rejects.toThrow(
+    await expect(
+      fitRtlsGeometry(hub, { mode: 'strict', cell: 'default' })
+    ).rejects.toThrow(
       /no fresh rolling TWR summary arrived within 3\.0 seconds/
     );
   });
