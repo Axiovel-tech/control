@@ -263,7 +263,7 @@ export type RtlsVerifyResult = {
 
 export type RtlsCalibrationModel = 'refined' | 'strict';
 
-/** One range in the coherent A0 rolling summary used by a geometry fit. */
+/** One normalized responder-owned A0 spoke used by a geometry fit. */
 export type RtlsRangeSummary = {
   anchorIndex: number;
   peerMac: number;
@@ -272,14 +272,24 @@ export type RtlsRangeSummary = {
   count: number;
 };
 
-/** The firmware summary pinned by a strict fit and reused by a refined fit. */
-export type RtlsCalibrationSummary = {
+/** One responder generation contributing its A0 spoke to a capture. */
+export type RtlsCalibrationSource = {
+  anchorIndex: number;
+  anchorMac: number;
   systemId: number;
-  version: number;
   sequence: number;
   timeBootMs: number;
+  ageMs: number;
+};
+
+/** The server capture pinned by a strict fit and reused by a refined fit. */
+export type RtlsCalibrationSummary = {
+  captureId: number;
+  version: number;
   validMask: number;
   ageMs: number;
+  maxSkewMs: number;
+  sources: RtlsCalibrationSource[];
   ranges: RtlsRangeSummary[];
 };
 
@@ -327,7 +337,7 @@ type RtlsGeometryFitBase = {
   warnings: string[];
 };
 
-/** One constrained geometry model evaluated over a pinned A0 summary. */
+/** One constrained geometry model evaluated over a pinned server capture. */
 export type RtlsGeometryFit =
   | (RtlsGeometryFitBase & {
       model: 'strict';

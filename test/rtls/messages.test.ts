@@ -39,19 +39,19 @@ const makeHub = (body: Record<string, unknown>) => {
 };
 
 describe('rtls messages', () => {
-  test('strict and refined fits use the same explicit summary generation', async () => {
+  test('strict and refined fits use the same explicit capture', async () => {
     const response = {
       type: 'X-RTLS-GEO',
       op: 'fit',
       mode: 'strict',
       cell: 'default',
       summary: {
-        systemId: 10,
+        captureId: 42,
         version: 1,
-        sequence: 42,
-        timeBootMs: 1000,
         validMask: 0xfe,
         ageMs: 50,
+        maxSkewMs: 350,
+        sources: [],
         ranges: [],
       },
       strict: {},
@@ -64,7 +64,7 @@ describe('rtls messages', () => {
     await fitRtlsGeometry(hub, { mode: 'strict' });
     await fitRtlsGeometry(hub, {
       mode: 'refined',
-      summarySequence: response.summary.sequence,
+      captureId: response.summary.captureId,
     });
 
     expect(sent).toEqual([
@@ -73,7 +73,7 @@ describe('rtls messages', () => {
         type: 'X-RTLS-GEO',
         op: 'fit',
         mode: 'refined',
-        summarySequence: 42,
+        captureId: 42,
       },
     ]);
   });
@@ -86,12 +86,21 @@ describe('rtls messages', () => {
       mode: 'strict',
       cell: 'default',
       summary: {
-        systemId: 10,
+        captureId: 42,
         version: 1,
-        sequence: 42,
-        timeBootMs: 123_456,
         validMask: 0xfe,
         ageMs: 50,
+        maxSkewMs: 350,
+        sources: [
+          {
+            anchorIndex: 1,
+            anchorMac: 0x1a2b,
+            systemId: 10,
+            sequence: 42,
+            timeBootMs: 123_456,
+            ageMs: 50,
+          },
+        ],
         ranges: [
           {
             anchorIndex: 1,
@@ -166,12 +175,12 @@ describe('rtls messages', () => {
       mode: 'refined',
       cell: 'default',
       summary: {
-        systemId: 10,
+        captureId: 42,
         version: 1,
-        sequence: 42,
-        timeBootMs: 123_456,
         validMask: 0xfe,
         ageMs: 50,
+        maxSkewMs: 350,
+        sources: [],
         ranges: [],
       },
       strict: { model: 'strict', accepted: true, rmsM: 0.031 },
@@ -187,7 +196,7 @@ describe('rtls messages', () => {
 
     const parsed = await fitRtlsGeometry(hub, {
       mode: 'refined',
-      summarySequence: 42,
+      captureId: 42,
     });
 
     expect(parsed.refined).toEqual(refined);

@@ -387,21 +387,19 @@ export async function verifyRtlsFleet(
 
 /**
  * Fits one constrained geometry model. A strict request waits for and pins a
- * fresh coherent A0 rolling summary. A refined request explicitly reuses that
- * pinned generation, so comparing the models never compares different data.
+ * fresh responder-owned A0 spokes. A refined request explicitly reuses that
+ * pinned server capture, so comparing the models never compares different data.
  */
 export async function fitRtlsGeometry(
   hub: MessageHub,
-  options: { mode: 'strict' } | { mode: 'refined'; summarySequence: number }
+  options: { mode: 'strict' } | { mode: 'refined'; captureId: number }
 ): Promise<RtlsCalibrationResponse> {
   const response: Message<AnyMessageBody> = await hub.sendMessage(
     {
       type: 'X-RTLS-GEO',
       op: 'fit',
       mode: options.mode,
-      ...('summarySequence' in options
-        ? { summarySequence: options.summarySequence }
-        : {}),
+      ...('captureId' in options ? { captureId: options.captureId } : {}),
     },
     { timeout: 10 }
   );

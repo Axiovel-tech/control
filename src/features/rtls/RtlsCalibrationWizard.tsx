@@ -1,7 +1,8 @@
 /**
- * @file Fast anchor-geometry calibration over one coherent A0 rolling-range
- * summary. Both constrained fit models run server-side; the refined model is
- * an explicit opt-in and reuses the strict fit's pinned summary.
+ * @file Fast anchor-geometry calibration over one server-coordinated capture
+ * of the seven responder-owned A0 range streams. Both constrained fit models
+ * run server-side; the refined model is an explicit opt-in and reuses the
+ * strict fit's pinned capture.
  */
 
 import Alert from '@mui/material/Alert';
@@ -295,7 +296,7 @@ const RtlsCalibrationWizard = () => {
     try {
       const response = await fitRtlsGeometry(messageHub, {
         mode: 'refined',
-        summarySequence: strictResponse.summary.sequence,
+        captureId: strictResponse.summary.captureId,
       });
       if (session.current !== token) {
         return;
@@ -405,10 +406,10 @@ const RtlsCalibrationWizard = () => {
           <Stack spacing={2}>
             <Alert severity='info'>
               {t('rtlsCalibration.summary', {
-                systemId: strictResponse.summary.systemId,
-                sequence: strictResponse.summary.sequence,
+                captureId: strictResponse.summary.captureId,
                 count: strictResponse.summary.ranges.length,
                 age: strictResponse.summary.ageMs,
+                skew: strictResponse.summary.maxSkewMs,
               })}
             </Alert>
             <FitPanel

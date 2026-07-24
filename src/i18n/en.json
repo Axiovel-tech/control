@@ -792,9 +792,9 @@
       "failed": "Refined fit failed: {{detail}}"
     },
     "request": {
-      "actionableFailure": "{{detail}} Check that A0 and all seven peers are online, A0 supports rolling range summaries, and every spoke is fresh with enough valid samples.",
+      "actionableFailure": "{{detail}} Check that A0 and all seven responders are online, each responder supports rolling range summaries, and every A0 spoke is fresh with enough valid samples.",
       "failed": "Calibration failed: {{detail}}",
-      "waiting": "Waiting for a fresh A0 summary, then checking all seven spokes and fitting the strict geometry…"
+      "waiting": "Collecting fresh A0 spokes from all seven responders, then fitting the strict geometry…"
     },
     "residual": {
       "anchor": "spoke",
@@ -804,7 +804,7 @@
       "predicted": "predicted",
       "samples": "samples"
     },
-    "summary": "A0 system {{systemId}} · summary {{sequence}} · {{count}}/7 spokes · received age {{age}} ms",
+    "summary": "Capture {{captureId}} · {{count}}/7 responder spokes · received age {{age}} ms · max skew {{skew}} ms",
     "title": "Anchor geometry calibration"
   },
   "rtlsHealth": {
