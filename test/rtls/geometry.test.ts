@@ -6,6 +6,7 @@ jest.mock('~/error-handling', () => ({
 }));
 
 import {
+  adoptRtlsGeometry,
   checkRtlsGeometry,
   syncRtlsGeometry,
   verifyRtlsFleet,
@@ -20,11 +21,15 @@ import reducer, {
   clearRtlsDevices,
   setRtlsDevicesFromStatus,
   closeRtlsGeometrySyncDialog,
+  closeRtlsVerifyDialog,
+  openRtlsVerifyDialog,
   openRtlsGeometrySyncDialog,
   rtlsGeometryCheckStarted,
   rtlsGeometryCheckSucceeded,
   rtlsGeometrySyncStarted,
   rtlsGeometrySyncSucceeded,
+  rtlsVerifyStarted,
+  rtlsVerifySucceeded,
 } from '~/features/rtls/slice';
 import { type RtlsGeometryCheck } from '~/features/rtls/types';
 import type MessageHub from '~/flockwave/messages';
@@ -70,7 +75,6 @@ describe('X-RTLS-GEO message helpers', () => {
   });
 
   test('adopt passes the reference through', async () => {
-    const { adoptRtlsGeometry } = require('~/features/rtls/messages');
     const { hub, sent } = makeHub({
       type: 'X-RTLS-GEO',
       op: 'adopt',
@@ -260,12 +264,6 @@ describe('geometry certification lifecycle (audit)', () => {
 
 describe('fleet verification state', () => {
   test('verify lifecycle stores the result', () => {
-    const {
-      rtlsVerifyStarted,
-      rtlsVerifySucceeded,
-      openRtlsVerifyDialog,
-      closeRtlsVerifyDialog,
-    } = require('~/features/rtls/slice');
     let state = reducer(initial(), openRtlsVerifyDialog());
     expect(state.verify.dialogOpen).toBe(true);
     state = reducer(state, rtlsVerifyStarted());

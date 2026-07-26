@@ -36,7 +36,8 @@ module.exports = {
   devtool: isDevelopment ? 'cheap-module-source-map' : undefined,
 
   devServer: {
-    hot: true,
+    hot: useHotModuleReloading,
+    liveReload: useHotModuleReloading,
   },
 
   plugins: [

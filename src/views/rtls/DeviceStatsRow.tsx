@@ -198,6 +198,7 @@ const RowActions = ({
         <>
           <Tooltip content='Sleep'>
             <IconButton
+              data-testid='rtls-device-sleep'
               size='small'
               onClick={() => handlers.onSleep(device.id)}
             >
@@ -205,7 +206,11 @@ const RowActions = ({
             </IconButton>
           </Tooltip>
           <Tooltip content='Wake'>
-            <IconButton size='small' onClick={() => handlers.onWake(device.id)}>
+            <IconButton
+              data-testid='rtls-device-wake'
+              size='small'
+              onClick={() => handlers.onWake(device.id)}
+            >
               <Bolt fontSize='small' />
             </IconButton>
           </Tooltip>
@@ -213,6 +218,7 @@ const RowActions = ({
       ))}
     <Tooltip content='Parameters'>
       <IconButton
+        data-testid='rtls-device-parameters'
         size='small'
         onClick={() => handlers.onShowParameters(device.id)}
       >
@@ -220,7 +226,11 @@ const RowActions = ({
       </IconButton>
     </Tooltip>
     <Tooltip content='Firmware update'>
-      <IconButton size='small' onClick={() => handlers.onShowOta(device.id)}>
+      <IconButton
+        data-testid='rtls-device-firmware'
+        size='small'
+        onClick={() => handlers.onShowOta(device.id)}
+      >
         <SystemUpdate fontSize='small' />
       </IconButton>
     </Tooltip>
@@ -262,7 +272,7 @@ const DeviceStatsRow = ({
     stats?.anchorsSeen ?? countAnchorsInMask(stats?.anchorMask);
 
   return (
-    <Box sx={{ px: 1, py: 1 }}>
+    <Box data-testid={`rtls-device-${device.id}`} sx={{ px: 1, py: 1 }}>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
         <StatusLight status={getRowStatus(device, stats)} />
         <Typography variant='subtitle2' sx={{ flexGrow: 1 }} component='div'>

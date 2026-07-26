@@ -32,11 +32,11 @@ Config for N virtual drones on a grid at a known origin/orientation:
       "enabled": true,
       "count": 20,
       "id_format": "{0:03}",
-      "origin": [2.1734, 41.3851, 100],   // lon, lat, AMSL
+      "origin": [2.1734, 41.3851, 100], // lon, lat, AMSL
       "orientation": 30,
-      "takeoff_area": { "type": "grid", "spacing": 5 }
-    }
-  }
+      "takeoff_area": { "type": "grid", "spacing": 5 },
+    },
+  },
 }
 ```
 

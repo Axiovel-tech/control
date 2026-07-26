@@ -1,0 +1,31 @@
+{
+  "browser": {
+    "browserName": "chromium",
+    "isolated": true,
+    "contextOptions": {
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      }
+    }
+  },
+  "outputDir": "e2e/artifacts/agent",
+  "outputMode": "stdout",
+  "console": {
+    "level": "warning"
+  },
+  "network": {
+    "allowedOrigins": [
+      "http://localhost:18080",
+      "http://localhost:15000",
+      "http://127.0.0.1:18080",
+      "http://127.0.0.1:15000"
+    ]
+  },
+  "testIdAttribute": "data-testid",
+  "timeouts": {
+    "action": 10000,
+    "navigation": 60000
+  },
+  "codegen": "typescript"
+}

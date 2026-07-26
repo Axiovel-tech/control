@@ -128,7 +128,10 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
   );
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <Box
+      data-testid={tags ? 'rtls-tags-panel' : 'rtls-anchors-panel'}
+      sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}
+    >
       <Box
         sx={{
           display: 'flex',

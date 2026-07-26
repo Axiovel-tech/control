@@ -251,7 +251,9 @@ function constructDefaultWorkbench(store) {
   workbench.on(
     'stateChanged',
     debounce(() => {
-      store.dispatch(saveWorkbenchState(workbench));
+      if (workbench.isRendered) {
+        store.dispatch(saveWorkbenchState(workbench));
+      }
     }, 1000)
   );
 
