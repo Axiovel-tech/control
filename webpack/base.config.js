@@ -55,6 +55,10 @@ module.exports = {
     new webpack.EnvironmentPlugin({
       NODE_ENV: 'development',
       DEPLOYMENT: '0',
+
+      // Set to '1' to compile in the E2E automation bridge (window.__AXIO_E2E__).
+      // Off by default so that shipped bundles carry no test surface.
+      AXIO_E2E: '0',
     }),
 
     // Resolve the git version number and commit hash in the code

@@ -69,6 +69,7 @@ const EnvironmentButton = ({
   return (
     <ListItem disablePadding>
       <ListItemButton
+        data-testid='show-control.environment'
         disabled={status === Status.OFF}
         onClick={onEditEnvironment}
         {...rest}

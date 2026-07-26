@@ -21,7 +21,7 @@ const StartTimeButton = ({ formattedStartTime, onClick, status }) => {
 
   return (
     <ListItem disablePadding>
-      <ListItemButton onClick={onClick}>
+      <ListItemButton data-testid='show-control.start-time' onClick={onClick}>
         <StatusLight status={status} />
         <ListItemText
           primary={t('show.chooseStartTime')}

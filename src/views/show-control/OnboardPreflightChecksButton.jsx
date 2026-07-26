@@ -31,7 +31,11 @@ const OnboardPreflightChecksButton = ({
 
   return (
     <ListItem disablePadding>
-      <ListItemButton disabled={status === Status.OFF} {...rest}>
+      <ListItemButton
+        data-testid='show-control.onboard-preflight'
+        disabled={status === Status.OFF}
+        {...rest}
+      >
         <StatusLight status={status} />
         <ListItemText
           primary={t('show.onboardPreflightChecks', 'Onboard preflight checks')}

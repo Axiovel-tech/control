@@ -33,7 +33,11 @@ const ShowUploadDialogButton = ({ loading, status, ...rest }: Props) => {
 
   return (
     <ListItem disablePadding>
-      <ListItemButton disabled={status === Status.OFF} {...rest}>
+      <ListItemButton
+        data-testid='show-control.upload'
+        disabled={status === Status.OFF}
+        {...rest}
+      >
         <StatusLight status={status} />
         <ListItemTextWithProgress
           primary={
