@@ -59,6 +59,10 @@ module.exports = {
       // Set to '1' to compile in the E2E automation bridge (window.__AXIO_E2E__).
       // Off by default so that shipped bundles carry no test surface.
       AXIO_E2E: '0',
+
+      // Endpoint an E2E build should connect to instead of the standard port.
+      // Read only when AXIO_E2E is '1'; see config/baseline.ts.
+      AXIO_E2E_SERVER_PORT: '',
     }),
 
     // Resolve the git version number and commit hash in the code

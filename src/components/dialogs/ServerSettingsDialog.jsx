@@ -420,9 +420,16 @@ class ServerSettingsDialogPresentation extends React.Component {
     return (
       <Translation>
         {(t) => (
-          <Dialog fullWidth open={open} maxWidth='xs' onClose={onClose}>
+          <Dialog
+            fullWidth
+            data-testid='server-settings.dialog'
+            open={open}
+            maxWidth='xs'
+            onClose={onClose}
+          >
             <DialogTabs value={selectedTab} onChange={onTabSelected}>
               <Tab
+                data-testid='server-settings.tab.auto'
                 value='auto'
                 label={
                   !manualSetupAllowed
@@ -431,7 +438,11 @@ class ServerSettingsDialogPresentation extends React.Component {
                 }
               />
               {manualSetupAllowed && (
-                <Tab value='manual' label={t('serverSettingsDialog.manual')} />
+                <Tab
+                  data-testid='server-settings.tab.manual'
+                  value='manual'
+                  label={t('serverSettingsDialog.manual')}
+                />
               )}
             </DialogTabs>
 

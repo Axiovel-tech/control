@@ -34,17 +34,33 @@ const snapshot = (body: unknown): unknown => {
   }
 };
 
-const record = (direction: 'out' | 'in', body: unknown): void => {
-  const type =
-    typeof body === 'object' && body !== null
-      ? (body as { type?: unknown }).type
-      : undefined;
+/**
+ * Extracts the Flockwave message type from a body.
+ *
+ * `sendMessage()` accepts either a body object or a bare type string — the hub
+ * expands the latter into `{ type }` on the way out. Recording only the object
+ * form would silently drop the type of every shorthand send, which is most of
+ * the connection handshake.
+ */
+const typeOf = (body: unknown): string | undefined => {
+  if (typeof body === 'string') {
+    return body;
+  }
 
+  if (typeof body === 'object' && body !== null) {
+    const { type } = body as { type?: unknown };
+    return typeof type === 'string' ? type : undefined;
+  }
+
+  return undefined;
+};
+
+const record = (direction: 'out' | 'in', body: unknown): void => {
   ring.push({
     seq: nextSeq++,
     at: Date.now(),
     direction,
-    type: typeof type === 'string' ? type : undefined,
+    type: typeOf(body),
     body: snapshot(body),
   });
 

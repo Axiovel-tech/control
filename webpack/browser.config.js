@@ -34,7 +34,16 @@ const plugins = [
 ];
 
 if (useHotModuleReloading) {
-  plugins.push(new ReactRefreshWebpackPlugin());
+  plugins.push(
+    new ReactRefreshWebpackPlugin({
+      // The refresh overlay is a fixed, full-viewport iframe at the maximum
+      // z-index, and it is mounted whether or not there is an error to show.
+      // It therefore swallows every pointer event aimed at the app, which no
+      // amount of retrying gets past. Compile and runtime errors still reach
+      // the console and the harness-captured webpack log.
+      overlay: process.env.AXIO_E2E === '1' ? false : undefined,
+    })
+  );
 
   optimization.runtimeChunk = 'single'; // hot module reloading needs this
 }

@@ -44,7 +44,11 @@ const baseline: Config = {
       'altitude-summary-header-button',
       'velocity-summary-header-button',
     ],
-    ['rtk-status-header-button', 'rtls-status-header-button', 'weather-header-button'],
+    [
+      'rtk-status-header-button',
+      'rtls-status-header-button',
+      'weather-header-button',
+    ],
     ['connection-status-button'],
     [
       'server-connection-settings-button',
@@ -153,7 +157,13 @@ const baseline: Config = {
     preventAutodetection: false,
     preventManualSetup: false,
     hostName: 'localhost',
-    port: null,
+    // A test build must never auto-connect to whatever owns the standard port —
+    // on a development bench that is the operator's live server. Under
+    // AXIO_E2E the harness passes the endpoint it just started.
+    port:
+      process.env.AXIO_E2E === '1' && process.env.AXIO_E2E_SERVER_PORT
+        ? Number(process.env.AXIO_E2E_SERVER_PORT)
+        : null,
     isSecure: null,
     warnClockSkew: true,
   },
