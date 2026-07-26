@@ -21,6 +21,9 @@ const RING_CAPACITY = 2000;
 const ring: TappedMessage[] = [];
 let nextSeq = 1;
 
+/** Attribution applied to the next recorded send. See {@link asBridgeOrigin}. */
+let currentOrigin: 'app' | 'bridge' = 'app';
+
 /**
  * Deep-clones a message body so that later in-place mutation by the app cannot
  * rewrite what the test observed. Falls back to a marker when the body carries
@@ -60,6 +63,7 @@ const record = (direction: 'out' | 'in', body: unknown): void => {
     seq: nextSeq++,
     at: Date.now(),
     direction,
+    origin: direction === 'out' ? currentOrigin : 'app',
     type: typeOf(body),
     body: snapshot(body),
   });
@@ -78,13 +82,24 @@ export const installMessageTap = (hub: MessageHub): void => {
   const originalSendNotification = hub.sendNotification.bind(hub);
   const originalProcessIncoming = hub.processIncomingMessage.bind(hub);
 
+  // Only record what actually leaves. Both send paths bail out when the hub has
+  // no emitter — the normal state while disconnected — and `sendNotification`
+  // does so silently. Recording regardless would let a test assert that the GUI
+  // asked the server for something it never sent, which is the exact failure
+  // this tap exists to catch.
   hub.sendMessage = async function sendMessage(body = {}, options) {
-    record('out', body);
+    if (hub.canSend()) {
+      record('out', body);
+    }
+
     return originalSendMessage(body, options);
   } as typeof hub.sendMessage;
 
   hub.sendNotification = function sendNotification(body = {}) {
-    record('out', body);
+    if (hub.canSend()) {
+      record('out', body);
+    }
+
     return originalSendNotification(body);
   };
 
@@ -94,19 +109,43 @@ export const installMessageTap = (hub: MessageHub): void => {
   };
 };
 
+/**
+ * Runs `send` with everything it records attributed to the bridge rather than
+ * to the application.
+ *
+ * The bridge's own `sendMessage()` goes through the same tapped hub, so without
+ * this a test could seed a precondition with a message and then "observe" the
+ * GUI sending it. The flag is safe to keep in a module variable because
+ * {@link record} runs synchronously inside the wrapped call.
+ */
+export const asBridgeOrigin = async <T>(send: () => Promise<T>): Promise<T> => {
+  currentOrigin = 'bridge';
+  try {
+    return await send();
+  } finally {
+    currentOrigin = 'app';
+  }
+};
+
 /** Returns recorded messages, oldest first, narrowed by an optional filter. */
 export const getMessages = (filter: MessageFilter = {}): TappedMessage[] => {
-  const { type, direction, since } = filter;
+  const { type, direction, origin, since } = filter;
   return ring.filter(
     (message) =>
       (type === undefined || message.type === type) &&
       (direction === undefined || message.direction === direction) &&
+      (origin === undefined || message.origin === origin) &&
       (since === undefined || message.seq > since)
   );
 };
 
-/** Drops every recorded message and restarts the sequence numbering. */
+/**
+ * Drops every recorded message.
+ *
+ * Sequence numbers keep counting: they are the cursor a `since` filter uses, so
+ * restarting them would make a cursor held across a clear silently match
+ * nothing.
+ */
 export const clearMessages = (): void => {
   ring.length = 0;
-  nextSeq = 1;
 };

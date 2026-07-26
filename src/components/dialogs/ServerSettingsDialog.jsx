@@ -422,9 +422,13 @@ class ServerSettingsDialogPresentation extends React.Component {
         {(t) => (
           <Dialog
             fullWidth
-            data-testid='server-settings.dialog'
             open={open}
             maxWidth='xs'
+            // On the Dialog itself the attribute would land on the Modal root,
+            // which is the full-viewport backdrop that closes the dialog when
+            // clicked. Put it on the paper so the test id identifies the thing
+            // a person would call "the dialog".
+            slotProps={{ paper: { 'data-testid': 'server-settings.dialog' } }}
             onClose={onClose}
           >
             <DialogTabs value={selectedTab} onChange={onTabSelected}>

@@ -83,6 +83,21 @@ module.exports = {
 
   resolve: {
     alias: {
+      // The E2E bridge is swapped out at resolution time rather than guarded at
+      // runtime. A runtime guard is erased by the minifier, but only after
+      // chunk assignment has already pulled the bridge's static imports (the
+      // store, the message hub) into whichever chunk referenced it — which for
+      // the app entry meant dragging the entire app graph out of the lazy
+      // workbench chunk. Aliasing keeps the bridge out of the module graph
+      // entirely, so a normal build emits none of it anywhere.
+      // Must precede the '~' prefix alias below: the first match wins.
+      '~/e2e$': path.resolve(
+        projectRoot,
+        'src',
+        'e2e',
+        process.env.AXIO_E2E === '1' ? 'index.ts' : 'disabled.ts'
+      ),
+
       '~': path.resolve(projectRoot, 'src'),
       config: path.resolve(projectRoot, 'config'),
       'config-overrides': path.resolve(

@@ -18,11 +18,20 @@ export const BRIDGE_GLOBAL_NAME = '__AXIO_E2E__';
 
 /** One recorded Flockwave message, in either direction. */
 export type TappedMessage = {
-  /** Monotonically increasing sequence number within the session. */
+  /**
+   * Monotonically increasing sequence number. Keeps counting across
+   * `clearMessages()` so that it stays usable as a cursor.
+   */
   seq: number;
   /** Milliseconds since the epoch, taken when the message was observed. */
   at: number;
   direction: 'out' | 'in';
+  /**
+   * Who sent it. `bridge` marks a message the harness injected through
+   * {@link E2EBridge.sendMessage}, so a test cannot mistake its own setup
+   * traffic for something the GUI did. Inbound messages are always `app`.
+   */
+  origin: 'app' | 'bridge';
   /**
    * Flockwave message type (`UAV-INF`, `X-RTLS-GEO`, ...) if one could be
    * determined from the body, otherwise `undefined`.
@@ -37,6 +46,8 @@ export type MessageFilter = {
   /** Only return messages of this Flockwave type. */
   type?: string;
   direction?: 'out' | 'in';
+  /** Only return messages the application (or the harness) sent. */
+  origin?: 'app' | 'bridge';
   /** Only return messages with `seq` strictly greater than this. */
   since?: number;
 };
@@ -45,16 +56,27 @@ export type MessageFilter = {
 export type ProbedFeature = {
   /** OpenLayers feature id, e.g. `uav$01` or `home$01`. */
   id: string;
-  /** Name of the layer the feature was found on. */
+  /**
+   * Best-effort layer name. OpenLayers has no canonical one and this app does
+   * not set any, so in practice this is the layer's class name — useful for
+   * telling a vector layer from a tile layer, not for telling the UAV layer
+   * from the mission-info layer. Identify features by their `id` prefix.
+   */
   layer: string;
-  /** Longitude/latitude in WGS84 degrees, if the geometry has a center. */
+  /**
+   * Longitude/latitude in WGS84 degrees, taken from the centre of the
+   * geometry's bounding box.
+   */
   lonLat?: [number, number];
   /**
    * Position in CSS pixels relative to the map viewport's top-left corner.
-   * Absent when the feature currently projects outside the viewport.
+   * Present for anything that projects at all, including features far outside
+   * the viewport, in which case the values are out of range. Absent only when
+   * the map has no frame state. Use `visible`, not this, to test for
+   * off-screen.
    */
   pixel?: [number, number];
-  /** True when the feature's pixel lies inside the viewport rectangle. */
+  /** True when the feature's bounding-box centre lies within the viewport. */
   visible: boolean;
 };
 

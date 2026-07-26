@@ -18,16 +18,25 @@ import { mapReferenceRequestSignal } from '~/signals';
 import type { MapProbeResult, ProbedFeature } from './types';
 
 /**
- * Returns the mounted OpenLayers map, or `undefined` when no map view is
- * currently mounted.
+ * Returns the live OpenLayers map, or `undefined` when none is mounted.
  *
  * `mapReferenceRequestSignal` invokes its listeners synchronously, so the
  * reference is available by the time `dispatch()` returns.
+ *
+ * The handler that answers the signal is registered in a constructor and never
+ * detached (`views/map/MapReferenceRequestHandler.ts`), so once a map has been
+ * mounted the signal keeps handing out a reference to it even after the panel
+ * is closed — the map view is detachable and closable. A detached map has no
+ * target element and projects nothing, which would surface as a confidently
+ * reported snapshot in which every feature is invisible. Checking the target
+ * turns that into an honest "no map".
  */
 const getMap = (): Map | undefined => {
   let map: Map | undefined;
   mapReferenceRequestSignal.dispatch((received: Map) => {
-    map = received;
+    if (received?.getTargetElement()) {
+      map = received;
+    }
   });
   return map;
 };

@@ -14,7 +14,12 @@ import store, { waitUntilStateRestored } from '~/store';
 import type { AppDispatch, RootState } from '~/store/reducers';
 
 import { mapProbe } from './map-probe';
-import { clearMessages, getMessages, installMessageTap } from './message-tap';
+import {
+  asBridgeOrigin,
+  clearMessages,
+  getMessages,
+  installMessageTap,
+} from './message-tap';
 import {
   BRIDGE_GLOBAL_NAME,
   BRIDGE_PROTOCOL_VERSION,
@@ -31,28 +36,70 @@ import {
  * call site keeps failures descriptive instead of opaque.
  */
 const toJsonSafe = (value: unknown): unknown => {
-  const seen = new WeakSet<object>();
-  return JSON.parse(
-    JSON.stringify(value, (_key, item: unknown) => {
-      if (typeof item === 'function') {
-        return '[Function]';
+  // Cycle detection has to track the chain of *ancestors*, not every object
+  // ever visited. A "seen" set would report the second occurrence of any
+  // repeated object as circular, and this store repeats objects constantly:
+  // `EMPTY_COLLECTION` from utils/collections is the literal initial state of
+  // the clocks, docks, connections and beacons slices, and none of them are
+  // rehydrated into fresh objects. A test reading `state.docks.order.length`
+  // would silently get 10 — the length of the string '[Circular]' — instead
+  // of 0.
+  //
+  // The replacer is called with `this` bound to the object the value came
+  // from, which is what lets the ancestor chain be unwound on the way back up.
+  const ancestors: unknown[] = [];
+
+  const replacer = function (
+    this: unknown,
+    _key: string,
+    item: unknown
+  ): unknown {
+    if (typeof item === 'function') {
+      return '[Function]';
+    }
+
+    if (typeof item === 'bigint') {
+      return item.toString();
+    }
+
+    if (typeof item === 'number' && !Number.isFinite(item)) {
+      // JSON turns NaN and Infinity into null, which is indistinguishable from
+      // a genuinely absent reading in telemetry.
+      return `[${String(item)}]`;
+    }
+
+    if (item instanceof Set) {
+      return [...item];
+    }
+
+    if (item instanceof Map) {
+      return Object.fromEntries(item);
+    }
+
+    if (typeof item === 'object' && item !== null) {
+      while (ancestors.length > 0 && ancestors.at(-1) !== this) {
+        ancestors.pop();
       }
 
-      if (typeof item === 'bigint') {
-        return item.toString();
+      if (ancestors.includes(item)) {
+        return '[Circular]';
       }
 
-      if (typeof item === 'object' && item !== null) {
-        if (seen.has(item)) {
-          return '[Circular]';
-        }
+      ancestors.push(item);
+    }
 
-        seen.add(item);
-      }
+    return item;
+  };
 
-      return item;
-    }) ?? 'null'
-  ) as unknown;
+  try {
+    return JSON.parse(JSON.stringify(value, replacer) ?? 'null') as unknown;
+  } catch (error) {
+    // A throwing getter anywhere in the tree would otherwise reject the whole
+    // getState() call with no indication of where the problem was.
+    return {
+      __unserializable: error instanceof Error ? error.message : String(error),
+    };
+  }
 };
 
 let stateRestored = false;
@@ -86,7 +133,9 @@ const createBridge = (): E2EBridge => ({
   clearMessages,
 
   async sendMessage(body) {
-    const response = await messageHub.sendMessage(body);
+    const response = await asBridgeOrigin(async () =>
+      messageHub.sendMessage(body)
+    );
     return toJsonSafe(response?.body);
   },
 
