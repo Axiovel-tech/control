@@ -68,27 +68,37 @@ const toJsonSafe = (value: unknown): unknown => {
       return `[${String(item)}]`;
     }
 
-    if (item instanceof Set) {
-      return [...item];
+    if (typeof item !== 'object' || item === null) {
+      return item;
     }
 
-    if (item instanceof Map) {
-      return Object.fromEntries(item);
+    while (ancestors.length > 0 && ancestors.at(-1) !== this) {
+      ancestors.pop();
     }
 
-    if (typeof item === 'object' && item !== null) {
-      while (ancestors.length > 0 && ancestors.at(-1) !== this) {
-        ancestors.pop();
-      }
-
-      if (ancestors.includes(item)) {
-        return '[Circular]';
-      }
-
-      ancestors.push(item);
+    if (ancestors.includes(item)) {
+      return '[Circular]';
     }
 
-    return item;
+    // Sets and Maps have to join the ancestor chain like anything else, and
+    // before being converted. Converting first and returning early would leave
+    // a set that (however indirectly) contains itself undetected, and the
+    // recursion would run to a stack overflow.
+    const replacement =
+      item instanceof Set
+        ? [...item]
+        : item instanceof Map
+          ? Object.fromEntries(item)
+          : item;
+
+    ancestors.push(item);
+    if (replacement !== item) {
+      // Children of a converted value arrive with `this` bound to the
+      // replacement, so that is what the unwinding above will look for.
+      ancestors.push(replacement);
+    }
+
+    return replacement;
   };
 
   try {
@@ -133,9 +143,9 @@ const createBridge = (): E2EBridge => ({
   clearMessages,
 
   async sendMessage(body) {
-    const response = await asBridgeOrigin(async () =>
-      messageHub.sendMessage(body)
-    );
+    // asBridgeOrigin returns the pending promise; the await happens outside it
+    // so the attribution flag is not held for the whole round trip.
+    const response = await asBridgeOrigin(() => messageHub.sendMessage(body));
     return toJsonSafe(response?.body);
   },
 

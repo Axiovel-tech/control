@@ -110,18 +110,23 @@ export const installMessageTap = (hub: MessageHub): void => {
 };
 
 /**
- * Runs `send` with everything it records attributed to the bridge rather than
- * to the application.
+ * Attributes whatever `send` records to the bridge rather than to the
+ * application, and returns whatever `send` returns.
  *
  * The bridge's own `sendMessage()` goes through the same tapped hub, so without
  * this a test could seed a precondition with a message and then "observe" the
- * GUI sending it. The flag is safe to keep in a module variable because
- * {@link record} runs synchronously inside the wrapped call.
+ * GUI sending it.
+ *
+ * Deliberately **not** async: `send` must be called and the flag cleared within
+ * one synchronous turn. The tap records at the top of the wrapped call, before
+ * it awaits anything, so that window is enough — whereas holding the flag until
+ * the server's response arrived would mislabel every message the application
+ * happened to send during the round trip.
  */
-export const asBridgeOrigin = async <T>(send: () => Promise<T>): Promise<T> => {
+export const asBridgeOrigin = <T>(send: () => T): T => {
   currentOrigin = 'bridge';
   try {
-    return await send();
+    return send();
   } finally {
     currentOrigin = 'app';
   }
