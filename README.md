@@ -1,11 +1,5 @@
 # Skybrush Live
 
-> **Axiovel status:** this fork is the current production Control GUI App for
-> Axiovel indoor drone-light-show operations. It loads and assigns `.skyc`
-> shows and sends per-UAV `__show_upload` commands to the production Axio
-> Server. AV-Desktop is maintained separately as an experimental successor
-> candidate.
-
 This is the official desktop and web frontend for the Skybrush server.
 
 ## Steps to install
