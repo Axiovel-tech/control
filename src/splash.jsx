@@ -12,7 +12,11 @@ const createAppComponent = ({ whenLoaded }) =>
   React.lazy(async () => {
     const App = await import(/* webpackChunkName: "workbench" */ './app');
 
-    if (process.env.NODE_ENV !== 'production') {
+    // The runtime error overlay mounts a fixed, full-viewport iframe at the
+    // maximum z-index, which intercepts every pointer event aimed at the app.
+    // That is fine for a developer reading a stack trace and fatal for
+    // automation, so E2E builds report runtime errors to the console instead.
+    if (process.env.NODE_ENV !== 'production' && process.env.AXIO_E2E !== '1') {
       const { startReportingRuntimeErrors } = await import(
         /* webpackChunkName: "error-overlay" */ 'react-error-overlay'
       );

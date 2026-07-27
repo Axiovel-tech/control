@@ -33,7 +33,11 @@ const ManualPreflightChecksButton = ({
 
   return hasManualChecks ? (
     <ListItem disablePadding>
-      <ListItemButton disabled={status === Status.OFF} {...rest}>
+      <ListItemButton
+        data-testid='show-control.manual-preflight'
+        disabled={status === Status.OFF}
+        {...rest}
+      >
         <StatusLight status={status} />
         <ListItemText
           primary={t('show.manualPreflightChecks', 'Manual preflight checks')}

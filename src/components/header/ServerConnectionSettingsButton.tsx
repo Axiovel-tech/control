@@ -17,7 +17,7 @@ type Props = {
 
 const ServerConnectionSettingsButton = ({ hideTooltip, ...rest }: Props) => {
   const body = (
-    <GenericHeaderButton {...rest}>
+    <GenericHeaderButton data-testid='header.server-connection' {...rest}>
       <ServerConnectionStatusBadge />
       <ConnectionIcon />
     </GenericHeaderButton>

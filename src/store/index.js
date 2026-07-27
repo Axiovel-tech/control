@@ -83,6 +83,21 @@ const persistConfig = {
       'serverSettings',
     ]),
 
+    // A test build must neither save nor restore a configured server. Both
+    // directions matter: a rehydrated hostname makes the onboarding saga skip
+    // initialization entirely, so AXIO_E2E_SERVER_PORT would be ignored and the
+    // app would reconnect to whatever this profile last used — on a development
+    // bench, the operator's live server. See config/baseline.ts.
+    ...(process.env.AXIO_E2E === '1'
+      ? [
+          createBlacklistFilter(
+            'dialogs',
+            ['serverSettings'],
+            ['serverSettings']
+          ),
+        ]
+      : []),
+
     // The pending UAV Id overlay should be temporary and reset on reload
     createBlacklistFilter('hotkeys', ['pendingUAVId']),
 

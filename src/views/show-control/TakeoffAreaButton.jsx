@@ -58,6 +58,7 @@ const TakeoffAreaButton = ({ maxDistance, onClick, status, ...rest }) => {
   return (
     <ListItem disablePadding>
       <ListItemButton
+        data-testid='show-control.takeoff-area'
         disabled={status === Status.OFF}
         onClick={onClick}
         {...rest}

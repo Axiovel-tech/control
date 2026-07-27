@@ -67,7 +67,11 @@ class FitAllFeaturesButton extends React.Component {
                 : t('fitAllFeaturesButton.fitAllFeatures')
             }
           >
-            <IconButton size='large' onClick={this._handleClick}>
+            <IconButton
+              data-testid={`map.fit-all-features.${target}`}
+              size='large'
+              onClick={this._handleClick}
+            >
               <ActionAllOut />
             </IconButton>
           </Tooltip>

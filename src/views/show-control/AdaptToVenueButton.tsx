@@ -70,7 +70,11 @@ const AdaptToVenueButton = (props: Props) => {
 
   return (
     <ListItem disablePadding ref={setTooltipTriggerTarget}>
-      <ListItemButton disabled={disabled} onClick={onAdaptToVenue}>
+      <ListItemButton
+        data-testid='show-control.adapt-to-venue'
+        disabled={disabled}
+        onClick={onAdaptToVenue}
+      >
         <StatusLight
           status={estimating ? Status.WAITING : disabled ? Status.OFF : status}
         />

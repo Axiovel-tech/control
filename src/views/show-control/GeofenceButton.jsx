@@ -45,6 +45,7 @@ const GeofenceButton = ({ onClick, status, ...rest }) => {
   return (
     <ListItem disablePadding>
       <ListItemButton
+        data-testid='show-control.geofence'
         disabled={status === Status.OFF}
         onClick={onClick}
         {...rest}

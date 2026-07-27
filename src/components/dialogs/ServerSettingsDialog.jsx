@@ -420,9 +420,20 @@ class ServerSettingsDialogPresentation extends React.Component {
     return (
       <Translation>
         {(t) => (
-          <Dialog fullWidth open={open} maxWidth='xs' onClose={onClose}>
+          <Dialog
+            fullWidth
+            open={open}
+            maxWidth='xs'
+            // On the Dialog itself the attribute would land on the Modal root,
+            // which is the full-viewport backdrop that closes the dialog when
+            // clicked. Put it on the paper so the test id identifies the thing
+            // a person would call "the dialog".
+            slotProps={{ paper: { 'data-testid': 'server-settings.dialog' } }}
+            onClose={onClose}
+          >
             <DialogTabs value={selectedTab} onChange={onTabSelected}>
               <Tab
+                data-testid='server-settings.tab.auto'
                 value='auto'
                 label={
                   !manualSetupAllowed
@@ -431,7 +442,11 @@ class ServerSettingsDialogPresentation extends React.Component {
                 }
               />
               {manualSetupAllowed && (
-                <Tab value='manual' label={t('serverSettingsDialog.manual')} />
+                <Tab
+                  data-testid='server-settings.tab.manual'
+                  value='manual'
+                  label={t('serverSettingsDialog.manual')}
+                />
               )}
             </DialogTabs>
 
