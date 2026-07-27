@@ -11,7 +11,7 @@
  * Version of the bridge contract. The harness refuses to drive an app whose
  * major version it does not recognize.
  */
-export const BRIDGE_PROTOCOL_VERSION = 1;
+export const BRIDGE_PROTOCOL_VERSION = 2;
 
 /** Name of the global under which the bridge installs itself. */
 export const BRIDGE_GLOBAL_NAME = '__AXIO_E2E__';
@@ -110,12 +110,6 @@ export type E2EBridge = {
    */
   getState(path?: string): unknown;
 
-  /**
-   * Dispatches a plain Redux action. Thunks cannot cross the bridge, so only
-   * serializable actions are accepted.
-   */
-  dispatch(action: { type: string; payload?: unknown }): void;
-
   /** Snapshot of the main map's view and features. */
   mapProbe(): MapProbeResult;
 
@@ -131,7 +125,4 @@ export type E2EBridge = {
    * would otherwise need many UI steps.
    */
   sendMessage(body: Record<string, unknown>): Promise<unknown>;
-
-  /** True once the app has finished restoring persisted state and mounted. */
-  isReady(): boolean;
 };

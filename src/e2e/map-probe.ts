@@ -42,23 +42,6 @@ const getMap = (): Map | undefined => {
 };
 
 /**
- * Best-effort human-readable name for a layer. OpenLayers has no canonical
- * "name" property, so fall back through the conventions this app uses before
- * settling for the class name.
- */
-const layerNameOf = (layer: BaseLayer): string => {
-  const candidates = ['id', 'name', 'title'];
-  for (const key of candidates) {
-    const value: unknown = layer.get(key);
-    if (typeof value === 'string' && value.length > 0) {
-      return value;
-    }
-  }
-
-  return layer.constructor.name;
-};
-
-/**
  * The slice of a feature the probe actually touches.
  *
  * Described structurally rather than via `ol`'s own generics: `VectorLayer`'s
@@ -71,27 +54,19 @@ type ProbeableFeature = {
   getGeometry(): { getExtent(): number[] } | undefined;
 };
 
-type ProbeableSource = {
-  getFeatures(): ProbeableFeature[];
-};
+/**
+ * The features of a layer that has an enumerable in-memory source, or none.
+ *
+ * Layer groups and tile layers have no `getSource`, or a source with no
+ * `getFeatures`; both fall through to an empty list.
+ */
+const featuresOf = (layer: BaseLayer): ProbeableFeature[] => {
+  const source = (layer as { getSource?: () => unknown }).getSource?.() as
+    | { getFeatures?: () => ProbeableFeature[] }
+    | null
+    | undefined;
 
-type ProbeableLayer = BaseLayer & {
-  getSource(): ProbeableSource | null | undefined;
-};
-
-/** Type guard for layers that expose an enumerable in-memory feature source. */
-const isProbeableLayer = (layer: BaseLayer): layer is ProbeableLayer => {
-  const getSource = (layer as Partial<ProbeableLayer>).getSource;
-  if (typeof getSource !== 'function') {
-    return false;
-  }
-
-  const source: unknown = getSource.call(layer);
-  return (
-    typeof source === 'object' &&
-    source !== null &&
-    typeof (source as { getFeatures?: unknown }).getFeatures === 'function'
-  );
+  return typeof source?.getFeatures === 'function' ? source.getFeatures() : [];
 };
 
 const probeFeaturesOfLayer = (
@@ -99,14 +74,13 @@ const probeFeaturesOfLayer = (
   layer: BaseLayer,
   size: [number, number]
 ): ProbedFeature[] => {
-  if (!isProbeableLayer(layer)) {
-    return [];
-  }
-
-  const layerName = layerNameOf(layer);
+  // OpenLayers has no canonical layer name and this app sets none — the only
+  // `layer.set()` calls in the repo are editable/selectable/triggersTooltip —
+  // so the class name is the best available, and is all the contract promises.
+  const layerName = layer.constructor.name;
   const features: ProbedFeature[] = [];
 
-  for (const feature of layer.getSource()?.getFeatures() ?? []) {
+  for (const feature of featuresOf(layer)) {
     const id = feature.getId();
     if (id === undefined) {
       // Unidentified features cannot be asserted on by name, and the map

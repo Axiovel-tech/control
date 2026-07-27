@@ -21,8 +21,26 @@ const RING_CAPACITY = 2000;
 const ring: TappedMessage[] = [];
 let nextSeq = 1;
 
-/** Attribution applied to the next recorded send. See {@link asBridgeOrigin}. */
-let currentOrigin: 'app' | 'bridge' = 'app';
+/**
+ * Bodies the bridge injected, identified by object identity.
+ *
+ * The bridge's own `sendMessage()` goes through the same tapped hub, so without
+ * this a test could seed a precondition with a message and then "observe" the
+ * GUI sending it. Marking the body itself rather than flipping a module-level
+ * flag around the call means the attribution cannot be thrown off by timing:
+ * the tap is the outermost wrapper, so it sees the exact object the bridge
+ * marked, whenever it gets around to recording it.
+ */
+const bridgeBodies = new WeakSet<object>();
+
+/** Marks a message body as harness-injected, and returns it unchanged. */
+export const markBridgeOrigin = <T>(body: T): T => {
+  if (typeof body === 'object' && body !== null) {
+    bridgeBodies.add(body);
+  }
+
+  return body;
+};
 
 /**
  * Deep-clones a message body so that later in-place mutation by the app cannot
@@ -63,7 +81,9 @@ const record = (direction: 'out' | 'in', body: unknown): void => {
     seq: nextSeq++,
     at: Date.now(),
     direction,
-    origin: direction === 'out' ? currentOrigin : 'app',
+    // `WeakSet.has` is false for primitives, and an inbound body is never
+    // marked, so neither case needs a guard of its own.
+    origin: bridgeBodies.has(body as object) ? 'bridge' : 'app',
     type: typeOf(body),
     body: snapshot(body),
   });
@@ -107,29 +127,6 @@ export const installMessageTap = (hub: MessageHub): void => {
     record('in', message?.body);
     return originalProcessIncoming(message);
   };
-};
-
-/**
- * Attributes whatever `send` records to the bridge rather than to the
- * application, and returns whatever `send` returns.
- *
- * The bridge's own `sendMessage()` goes through the same tapped hub, so without
- * this a test could seed a precondition with a message and then "observe" the
- * GUI sending it.
- *
- * Deliberately **not** async: `send` must be called and the flag cleared within
- * one synchronous turn. The tap records at the top of the wrapped call, before
- * it awaits anything, so that window is enough — whereas holding the flag until
- * the server's response arrived would mislabel every message the application
- * happened to send during the round trip.
- */
-export const asBridgeOrigin = <T>(send: () => T): T => {
-  currentOrigin = 'bridge';
-  try {
-    return send();
-  } finally {
-    currentOrigin = 'app';
-  }
 };
 
 /** Returns recorded messages, oldest first, narrowed by an optional filter. */

@@ -95,7 +95,7 @@ module.exports = {
         projectRoot,
         'src',
         'e2e',
-        process.env.AXIO_E2E === '1' ? 'index.ts' : 'disabled.ts'
+        process.env.AXIO_E2E === '1' ? 'bridge.ts' : 'disabled.ts'
       ),
 
       '~': path.resolve(projectRoot, 'src'),

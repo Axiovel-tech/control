@@ -10,24 +10,6 @@ import { type Latitude, type Longitude } from '~/utils/geography';
 const skybrushIcon =
   'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIGhlaWdodD0iMjQiIHdpZHRoPSIyNCI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJiIiB4MT0iNi4wMjUiIHkxPSIxMi4xNjkiIHgyPSI1LjU2MyIgeTI9IjI2LjQ5NCIgZ3JhZGllbnRVbml0cz0idXNlclNwYWNlT25Vc2UiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iIzA1NmVkZSIvPjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzAwN2JmZiIvPjwvbGluZWFyR3JhZGllbnQ+PGNsaXBQYXRoIGlkPSJhIj48cmVjdCB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHg9IjQuOTcxIiB5PSItMTIiIHJ5PSI0LjIiIHRyYW5zZm9ybT0icm90YXRlKDQ1KSIvPjwvY2xpcFBhdGg+PC9kZWZzPjxyZWN0IHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgcnk9IjQuMiIgZmlsbD0iIzAwN2JmZiIvPjxwYXRoIGQ9Ik0yLjI1NyAxMC41MTZ2MTUuNjkybDYuNjEyLjU3M1YxMi4xNjlIMy4xODFsLS45MjQtMS42NTNtOC4wODggMS43NjVoMTEuMzcxdjE2LjY5SDEwLjM0NXoiIGNsaXAtcGF0aD0idXJsKCNhKSIgdHJhbnNmb3JtPSJyb3RhdGUoMzE1IDEyIDEyKSIgZmlsbD0idXJsKCNiKSIvPjxwYXRoIGQ9Ik04LjIyMSAxMy42ODFhMi40OTMgMi40OTMgMCAwIDAtMi40OTYgMi40OTZjMCAxLjA5LS45NjUgMS42NjQtMS42NjQgMS42NjQuNzY1IDEuMDE1IDIuMDcxIDEuNjY0IDMuMzI4IDEuNjY0YTMuMzI3IDMuMzI3IDAgMCAwIDMuMzI4LTMuMzI4IDIuNDkzIDIuNDkzIDAgMCAwLTIuNDk2LTIuNDk2em0xMS40MDUtNy43OTUtMS4xMTUtMS4xMTVhLjgzLjgzIDAgMCAwLTEuMTczIDBsLTcuNDU0IDcuNDU0IDIuMjg4IDIuMjg4IDcuNDU0LTcuNDU0YS44My44MyAwIDAgMCAwLTEuMTczeiIgZmlsbD0iI2ZmZiIvPjwvc3ZnPgo=';
 
-const isE2EBuild = process.env.AXIO_E2E === '1';
-
-/**
- * Port the E2E harness told this build to connect to, or `undefined` when it
- * gave no usable value. Validated rather than coerced: `Number('abc')` is
- * `NaN`, which the onboarding saga would silently resolve to the standard port.
- */
-const e2eServerPort = ((): number | undefined => {
-  if (!isE2EBuild) {
-    return undefined;
-  }
-
-  const parsed = Number(process.env.AXIO_E2E_SERVER_PORT);
-  return Number.isInteger(parsed) && parsed > 0 && parsed < 65_536
-    ? parsed
-    : undefined;
-})();
-
 const baseline: Config = {
   branding: {
     splashIcon: {
@@ -171,19 +153,11 @@ const baseline: Config = {
   },
 
   server: {
-    // A test build must never auto-connect to whatever owns the standard port:
-    // on a development bench that is the operator's live server. The harness
-    // passes the endpoint it just started in AXIO_E2E_SERVER_PORT.
-    //
-    // Leaving the port unset is not enough to stay away — sagas/onboarding.js
-    // resolves a nil or unparseable port to 5000 whenever a hostname is
-    // configured. So an E2E build without a usable port disables auto-connect
-    // outright and waits to be told where to go.
-    connectAutomatically: !isE2EBuild || e2eServerPort !== undefined,
+    connectAutomatically: true,
     preventAutodetection: false,
     preventManualSetup: false,
     hostName: 'localhost',
-    port: isE2EBuild ? (e2eServerPort ?? null) : null,
+    port: null,
     isSecure: null,
     warnClockSkew: true,
   },

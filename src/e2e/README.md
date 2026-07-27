@@ -47,12 +47,10 @@ See `types.ts` for the authoritative definition. In short:
 | ------------------- | ------------------------------------------------------------------------------------------------ |
 | `version`           | Contract version; the harness refuses an unrecognized major.                                     |
 | `getState(path?)`   | JSON-safe Redux state, optionally a lodash path such as `uavs.byId`.                             |
-| `dispatch(action)`  | Dispatches a plain (serializable) action. Thunks cannot cross the bridge.                        |
 | `mapProbe()`        | View parameters plus every identified map feature, in both lon/lat and viewport pixels.          |
 | `messages(filter?)` | Recorded Flockwave traffic, both directions. Filter by `type`, `direction`, `origin` or `since`. |
 | `clearMessages()`   | Drops the recording. Sequence numbers keep counting, so a `since` cursor stays valid.            |
 | `sendMessage(body)` | Sends a Flockwave message through the app's own hub and resolves with the response body.         |
-| `isReady()`         | True once persisted state has been restored.                                                     |
 
 There is deliberately **no `waitFor`** here: Playwright's `page.waitForFunction`
 already polls in-page, so the waiting primitive belongs in the harness rather
