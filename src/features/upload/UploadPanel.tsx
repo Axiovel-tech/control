@@ -228,6 +228,7 @@ const UploadPanel = ({
         {running ? (
           <Button
             color='secondary'
+            data-testid='upload-dialog.cancel'
             startIcon={<Clear />}
             onClick={onCancelUpload}
           >

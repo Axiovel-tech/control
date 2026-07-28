@@ -60,6 +60,7 @@ const UploadDialog = ({
       fullWidth
       open={Boolean(open)}
       maxWidth='md'
+      slotProps={{ paper: { 'data-testid': 'upload-dialog.dialog' } }}
       title={getDialogTitleForJobType(selectedJobType ?? '')}
       titleComponents={
         <>

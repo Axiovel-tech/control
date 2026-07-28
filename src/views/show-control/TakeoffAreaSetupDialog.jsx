@@ -249,6 +249,7 @@ const TakeoffAreaSetupDialog = ({
   const titleComponents = hasVirtualDrones && (
     <Button
       color='inherit'
+      data-testid='takeoff-area-dialog.place-virtual-drones'
       startIcon={<VerticalAlignBottom />}
       onClick={onAddVirtualDrones}
     >
@@ -260,6 +261,7 @@ const TakeoffAreaSetupDialog = ({
       fullWidth
       open={open}
       maxWidth='sm'
+      slotProps={{ paper: { 'data-testid': 'takeoff-area-dialog.dialog' } }}
       title={t('takeoffAreaSetupDialog.takeoffAreaSetup')}
       titleComponents={titleComponents}
       onClose={onClose}
@@ -274,8 +276,8 @@ const TakeoffAreaSetupDialog = ({
             justifyContent: 'center',
           }}
         >
-          <RecalculateMappingButton />
-          <AugmentMappingButton />
+          <RecalculateMappingButton data-testid='takeoff-area-dialog.recalculate-mapping' />
+          <AugmentMappingButton data-testid='takeoff-area-dialog.augment-mapping' />
         </Box>
         <Box
           sx={{
@@ -295,6 +297,7 @@ const TakeoffAreaSetupDialog = ({
             control={
               <Switch
                 checked={approved}
+                data-testid='takeoff-area-dialog.approve'
                 value='approved'
                 onChange={approved ? onRevoke : onApprove}
               />

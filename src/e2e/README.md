@@ -83,32 +83,49 @@ these is a breaking change for the harness.
 
 ### `data-testid`
 
-| Test id                          | Element                                                                                                                                                                                |
-| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `show-control.load-show`         | Show Control → load show from file (the file input is nested inside it)                                                                                                                |
-| `show-control.environment`       | Show Control → environment setup                                                                                                                                                       |
-| `show-control.adapt-to-venue`    | Show Control → adapt to venue (outdoor only)                                                                                                                                           |
-| `show-control.takeoff-area`      | Show Control → takeoff area setup                                                                                                                                                      |
-| `show-control.geofence`          | Show Control → geofence setup (outdoor only)                                                                                                                                           |
-| `show-control.upload`            | Show Control → upload show data                                                                                                                                                        |
-| `show-control.onboard-preflight` | Show Control → onboard preflight checks                                                                                                                                                |
-| `show-control.manual-preflight`  | Show Control → manual preflight checks                                                                                                                                                 |
-| `show-control.start-time`        | Show Control → start time                                                                                                                                                              |
-| `map.fit-all-features.drones`    | Map toolbar → fit all features. The id carries the button's `target` prop, and the one instance the layout renders uses the default, `drones` — there is no `.all` variant in the DOM. |
-| `header.server-connection`       | Header → server connection settings (opens the server dialog)                                                                                                                          |
-| `server-settings.dialog`         | The server settings dialog itself                                                                                                                                                      |
-| `server-settings.tab.auto`       | Server settings → auto-discovery tab                                                                                                                                                   |
-| `server-settings.tab.manual`     | Server settings → manual entry tab (hostname/port only exist here)                                                                                                                     |
+| Test id                                    | Element                                                                                                                                                                                |
+| ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `show-control.load-show`                   | Show Control → load show from file (the file input is nested inside it)                                                                                                                |
+| `show-control.environment`                 | Show Control → environment setup                                                                                                                                                       |
+| `show-control.adapt-to-venue`              | Show Control → adapt to venue (outdoor only)                                                                                                                                           |
+| `show-control.takeoff-area`                | Show Control → takeoff area setup                                                                                                                                                      |
+| `show-control.geofence`                    | Show Control → geofence setup (outdoor only)                                                                                                                                           |
+| `show-control.upload`                      | Show Control → upload show data                                                                                                                                                        |
+| `show-control.onboard-preflight`           | Show Control → onboard preflight checks                                                                                                                                                |
+| `show-control.manual-preflight`            | Show Control → manual preflight checks                                                                                                                                                 |
+| `show-control.start-time`                  | Show Control → start time                                                                                                                                                              |
+| `show-control.authorize`                   | Show Control → authorize the start of the show (the wide list button below the setup stages)                                                                                           |
+| `takeoff-area-dialog.dialog`               | The takeoff area setup dialog itself (the id is on the dialog paper, not the backdrop)                                                                                                 |
+| `takeoff-area-dialog.approve`              | Takeoff area dialog → approve/revoke switch (the underlying input also carries `value="approved"`)                                                                                     |
+| `takeoff-area-dialog.place-virtual-drones` | Takeoff area dialog → place virtual drones (title bar; rendered only when the server supports virtual drones)                                                                          |
+| `takeoff-area-dialog.recalculate-mapping`  | Takeoff area dialog → recalculate mapping. The id is set at the dialog's usage site; the shared button component is reused elsewhere without it.                                       |
+| `takeoff-area-dialog.augment-mapping`      | Takeoff area dialog → assign spares to empty slots. Same usage-site rule as above.                                                                                                     |
+| `upload-dialog.dialog`                     | The upload dialog itself (the id is on the dialog paper, not the backdrop)                                                                                                             |
+| `upload-dialog.start`                      | Upload dialog → start upload (rendered while no upload is running)                                                                                                                     |
+| `upload-dialog.cancel`                     | Upload dialog → cancel upload (replaces the start button while an upload is running)                                                                                                   |
+| `onboard-preflight-dialog.sign-off`        | Onboard preflight checks dialog → sign-off switch (the underlying input also carries `value="signedOff"`)                                                                              |
+| `manual-preflight-dialog.sign-off`         | Manual preflight checks dialog → sign-off switch (the underlying input also carries `value="signedOff"`)                                                                               |
+| `safety-dialog.dialog`                     | The safety dialog itself, which hosts the geofence settings tab (the id is on the dialog paper, not the backdrop)                                                                      |
+| `map.fit-all-features.drones`              | Map toolbar → fit all features. The id carries the button's `target` prop, and the one instance the layout renders uses the default, `drones` — there is no `.all` variant in the DOM. |
+| `header.server-connection`                 | Header → server connection settings (opens the server dialog)                                                                                                                          |
+| `server-settings.dialog`                   | The server settings dialog itself                                                                                                                                                      |
+| `server-settings.tab.auto`                 | Server settings → auto-discovery tab                                                                                                                                                   |
+| `server-settings.tab.manual`               | Server settings → manual entry tab (hostname/port only exist here)                                                                                                                     |
 
 ### Pre-existing stable hooks
 
 These were already in the app and are relied upon rather than re-invented:
 
-| Selector                                       | Element                                                  |
-| ---------------------------------------------- | -------------------------------------------------------- |
-| `#global-dom-node-uav-<id>`                    | UAV list item for UAV `<id>` (see `views/uavs/utils.ts`) |
-| `input[name="hostName"]`, `input[name="port"]` | Server settings dialog, manual tab                       |
-| `#show-file-upload`                            | Label wrapping the show file input                       |
+| Selector                                                                                                                                      | Element                                                                                                                                                 |
+| --------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `#global-dom-node-uav-<id>`                                                                                                                   | UAV list item for UAV `<id>` (see `views/uavs/utils.ts`)                                                                                                |
+| `input[name="hostName"]`, `input[name="port"]`                                                                                                | Server settings dialog, manual tab                                                                                                                      |
+| `#show-file-upload`                                                                                                                           | Label wrapping the show file input                                                                                                                      |
+| `#start-time-form`                                                                                                                            | Start time dialog form; submit it via `#start-time-form button[type="submit"]` (`views/show-control/StartTimeDialog.tsx`)                               |
+| `[name="clock"]`, `[name="utcDate"]`, `[name="utcTime"]`, `[name="timeOnClock"]`, `[name="method"]`, `[name="authorizeWhenSettingStartTime"]` | Start time dialog fields: clock reference, absolute date/time pickers, relative HMS duration, start method select, authorize-on-set checkbox            |
+| `form#geofenceSettings`                                                                                                                       | Geofence settings form in the safety dialog; submit it via `button[form="geofenceSettings"][type="submit"]` (`features/safety/GeofenceSettingsTab.jsx`) |
+| `input[value="signedOff"]`                                                                                                                    | The sign-off switch input in both preflight dialogs                                                                                                     |
+| `input[value="approved"]`                                                                                                                     | The approve switch input in the takeoff area dialog                                                                                                     |
 
 ## Changing the contract
 

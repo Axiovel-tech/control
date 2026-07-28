@@ -154,6 +154,7 @@ const OnboardPreflightChecksDialog = ({
             control={
               <Switch
                 checked={signedOff}
+                data-testid='onboard-preflight-dialog.sign-off'
                 value='signedOff'
                 onChange={signedOff ? onClear : onSignOff}
               />

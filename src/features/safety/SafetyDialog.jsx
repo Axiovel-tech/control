@@ -53,6 +53,7 @@ const SafetyDialog = ({ onClose, onTabSelected, open, selectedTab, t }) => {
       fullWidth
       open={open}
       maxWidth='xs'
+      slotProps={{ paper: { 'data-testid': 'safety-dialog.dialog' } }}
       title={t('safetyDialog.title')}
       toolbarComponent={(dragHandleId) => (
         <DialogTabs
