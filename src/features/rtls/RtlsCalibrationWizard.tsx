@@ -387,7 +387,13 @@ const RtlsCalibrationWizard = () => {
   };
 
   return (
-    <Dialog open={open} fullWidth maxWidth='md' onClose={close}>
+    <Dialog
+      open={open}
+      fullWidth
+      maxWidth='md'
+      slotProps={{ paper: { 'data-testid': 'rtls-calibration.dialog' } }}
+      onClose={close}
+    >
       <DialogTitle>{t('rtlsCalibration.title')}</DialogTitle>
       <DialogContent>
         {step === 'measure' && (
@@ -439,6 +445,7 @@ const RtlsCalibrationWizard = () => {
             )}
             <Box>
               <Button
+                data-testid='rtls-calibration.measure'
                 variant='contained'
                 disabled={busyModel !== undefined || !selectedCell}
                 onClick={() => void runStrictFit()}
@@ -548,6 +555,7 @@ const RtlsCalibrationWizard = () => {
             <FormControlLabel
               control={
                 <Checkbox
+                  data-testid='rtls-calibration.reboot'
                   checked={reboot}
                   onChange={(event) => setReboot(event.target.checked)}
                 />
@@ -569,6 +577,7 @@ const RtlsCalibrationWizard = () => {
               {t('rtlsCalibration.action.remeasure')}
             </Button>
             <Button
+              data-testid='rtls-calibration.review-apply'
               color='primary'
               variant='contained'
               disabled={!canApply || busyModel !== undefined}
@@ -586,6 +595,7 @@ const RtlsCalibrationWizard = () => {
               {t('general.action.back')}
             </Button>
             <Button
+              data-testid='rtls-calibration.write'
               color='primary'
               variant='contained'
               disabled={syncing}

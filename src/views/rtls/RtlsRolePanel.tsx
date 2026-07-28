@@ -128,7 +128,10 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
   );
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <Box
+      data-testid={tags ? 'rtls-tags-panel' : 'rtls-anchors-panel'}
+      sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}
+    >
       <Box
         sx={{
           display: 'flex',
@@ -143,6 +146,7 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
           {!tags && (
             <Tooltip content={t('rtlsCalibration.intro')}>
               <Button
+                data-testid='rtls-anchors-panel.calibrate'
                 size='small'
                 startIcon={<Architecture fontSize='small' />}
                 onClick={() => dispatch(openRtlsCalibrationWizard())}
@@ -179,6 +183,7 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
               )}
               <Tooltip content='Check geometry consistency'>
                 <IconButton
+                  data-testid='rtls-tags-panel.check-geometry'
                   size='small'
                   disabled={geometryBusy}
                   onClick={() => void dispatch(checkGeometryConsistency())}
@@ -191,6 +196,7 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
                   (refused unless the fleet is unanimous)'
               >
                 <IconButton
+                  data-testid='rtls-tags-panel.adopt-geometry'
                   size='small'
                   disabled={geometryBusy}
                   onClick={() => void dispatch(adoptGeometryFromFleet())}
@@ -199,6 +205,7 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
                 </IconButton>
               </Tooltip>
               <Button
+                data-testid='rtls-tags-panel.sync-geometry'
                 size='small'
                 disabled={geometryBusy || !geometryCheck || geometryDrift === 0}
                 onClick={() => dispatch(openRtlsGeometrySyncDialog())}

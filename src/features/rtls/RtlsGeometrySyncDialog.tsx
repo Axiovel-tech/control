@@ -65,7 +65,13 @@ const RtlsGeometrySyncDialog = () => {
   const close = () => dispatch(closeRtlsGeometrySyncDialog());
 
   return (
-    <Dialog open={open} fullWidth maxWidth='xs' onClose={close}>
+    <Dialog
+      open={open}
+      fullWidth
+      maxWidth='xs'
+      slotProps={{ paper: { 'data-testid': 'rtls-geometry-sync.dialog' } }}
+      onClose={close}
+    >
       <DialogTitle>Sync cell geometry to the fleet</DialogTitle>
       <DialogContent>
         <DialogContentText>
@@ -87,6 +93,7 @@ const RtlsGeometrySyncDialog = () => {
         <FormControlLabel
           control={
             <Checkbox
+              data-testid='rtls-geometry-sync.reboot'
               checked={reboot}
               onChange={(event) => setReboot(event.target.checked)}
             />
@@ -98,6 +105,7 @@ const RtlsGeometrySyncDialog = () => {
       <DialogActions>
         <Button onClick={close}>Cancel</Button>
         <Button
+          data-testid='rtls-geometry-sync.write'
           color='primary'
           disabled={!check || drifted.length === 0}
           onClick={() => void dispatch(syncGeometryToFleet({ reboot }))}
