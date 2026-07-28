@@ -9,6 +9,7 @@
 
 import get from 'lodash-es/get';
 
+import { getSetupStageStatuses } from '~/features/show/stages';
 import messageHub from '~/message-hub';
 import store from '~/store';
 import type { RootState } from '~/store/reducers';
@@ -117,6 +118,10 @@ const createBridge = (): E2EBridge => ({
   messages: getMessages,
 
   clearMessages,
+
+  getShowStageStatuses() {
+    return getSetupStageStatuses(typedStore.getState());
+  },
 
   async sendMessage(body) {
     const response = await messageHub.sendMessage(markBridgeOrigin(body));

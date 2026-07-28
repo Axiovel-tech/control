@@ -43,14 +43,15 @@ The dev server's own error overlay is a fourth such iframe; the harness passes
 
 See `types.ts` for the authoritative definition. In short:
 
-| Member              | Purpose                                                                                          |
-| ------------------- | ------------------------------------------------------------------------------------------------ |
-| `version`           | Contract version; the harness refuses an unrecognized major.                                     |
-| `getState(path?)`   | JSON-safe Redux state, optionally a lodash path such as `uavs.byId`.                             |
-| `mapProbe()`        | View parameters plus every identified map feature, in both lon/lat and viewport pixels.          |
-| `messages(filter?)` | Recorded Flockwave traffic, both directions. Filter by `type`, `direction`, `origin` or `since`. |
-| `clearMessages()`   | Drops the recording. Sequence numbers keep counting, so a `since` cursor stays valid.            |
-| `sendMessage(body)` | Sends a Flockwave message through the app's own hub and resolves with the response body.         |
+| Member                   | Purpose                                                                                                                                                                              |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `version`                | Contract version; the harness refuses an unrecognized major.                                                                                                                         |
+| `getState(path?)`        | JSON-safe Redux state, optionally a lodash path such as `uavs.byId`.                                                                                                                 |
+| `mapProbe()`             | View parameters plus every identified map feature, in both lon/lat and viewport pixels.                                                                                              |
+| `messages(filter?)`      | Recorded Flockwave traffic, both directions. Filter by `type`, `direction`, `origin` or `since`.                                                                                     |
+| `clearMessages()`        | Drops the recording. Sequence numbers keep counting, so a `since` cursor stays valid.                                                                                                |
+| `getShowStageStatuses()` | Status of every show setup stage (`off`, `next`, `success`, `skipped`, `error`, ...) exactly as the GUI's stage list computes it. Selector-derived, so not reachable via `getState`. |
+| `sendMessage(body)`      | Sends a Flockwave message through the app's own hub and resolves with the response body.                                                                                             |
 
 There is deliberately **no `waitFor`** here: Playwright's `page.waitForFunction`
 already polls in-page, so the waiting primitive belongs in the harness rather
