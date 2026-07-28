@@ -120,6 +120,14 @@ export type E2EBridge = {
   clearMessages(): void;
 
   /**
+   * Status of every show setup stage, exactly as the GUI's own stage list
+   * computes it (`off`, `next`, `success`, `skipped`, `error`, ...). The
+   * statuses are derived by a selector, so they are the one piece of GUI
+   * truth not reachable through {@link E2EBridge.getState}.
+   */
+  getShowStageStatuses(): Record<string, string>;
+
+  /**
    * Sends a raw Flockwave message through the app's own message hub and
    * resolves with the response body. Useful for arranging preconditions that
    * would otherwise need many UI steps.
