@@ -8,7 +8,7 @@ import { type ClocksSliceState } from './slice';
 import { type Clock, CommonClockId } from './types';
 
 /**
- * Remapping of commonly used clock IDs in a Skybrush server to something
+ * Remapping of commonly used clock IDs in an Axio Server to something
  * more human-readable.
  */
 const clockIdToProps: Record<

@@ -86,7 +86,7 @@
   "environmentEditorDialog": {
     "environmentSettings": "Paramètres de l'application",
     "indoor": "Ce spectacle est un spectacle d'intérieur. Vous pouvez spécifier les coins de la pièce dans laquelle se déroule le spectacle (à des fins de visualisation).",
-    "outdoor": "Ce spectacle est un spectacle en plein air. Vous devez spécifier au moins l'origine et l'orientation du système de coordonnées afin que Skybrush puisse cartographier le spectacle en coordonnées GPS."
+    "outdoor": "Ce spectacle est un spectacle en plein air. Vous devez spécifier au moins l'origine et l'orientation du système de coordonnées afin qu'Axio Control puisse cartographier le spectacle en coordonnées GPS."
   },
   "fieldNotesPanel": {
     "exportNotesAsFile": "Exporter le notes en format Markdown"
@@ -237,7 +237,7 @@
     }
   },
   "notifications": {
-    "connectedToSkybrushServer": "Connexion au serveur Skybrush"
+    "connectedToServer": "Connexion au serveur Axio"
   },
   "outdoorEnvironmentEditor": {
     "AHL": "Altitude par rapport au point de décollage (AHL)",

@@ -64,7 +64,7 @@ export default function* onboardingSaga() {
         // explicitly configured hostname points at a separate server
         // process, so guessing the page's port would aim the websocket at
         // whatever serves the GUI (e.g. a webpack dev server) and hang on
-        // "connecting" forever; use the standard Skybrush port instead.
+        // "connecting" forever; use the standard Axio Server port instead.
         port = hostNameConfigured ? 5000 : guessPort();
       }
     }
@@ -84,12 +84,12 @@ export default function* onboardingSaga() {
           break;
 
         case 5000:
-          // Default Skybrush server port for WebSocket connections
+          // Default Axio Server port for WebSocket connections
           protocol = Protocol.WS;
           break;
 
         case 5001:
-          // Default Skybrush server port for TCP connections
+          // Default Axio Server port for TCP connections
           protocol = Protocol.TCP;
           break;
 

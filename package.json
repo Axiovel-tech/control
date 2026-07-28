@@ -1,7 +1,7 @@
 {
-  "name": "@skybrush/live",
+  "name": "@axiovel/control",
   "version": "2.13.2",
-  "description": "Ground control station of a Skybrush drone swarm",
+  "description": "Axio Control — ground control station for Axiovel drone shows",
   "main": "launcher.bundle.js",
   "scripts": {
     "bundle": "rimraf build && cross-env NODE_ENV=production webpack --mode=production --progress --config webpack/dist.config.js",
@@ -22,10 +22,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "git@github.com:skybrush-io/live.git"
+    "url": "git@github.com:Axiovel-tech/control.git"
   },
   "keywords": [],
-  "author": "CollMot Robotics Ltd <hello@skybrush.io>",
+  "author": "Axiovel",
   "license": "GPL-3.0-or-later",
   "private": true,
   "dependencies": {

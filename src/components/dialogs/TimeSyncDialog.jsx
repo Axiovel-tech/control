@@ -97,7 +97,7 @@ const TimeSyncDialogBodyWhenClocksAreInSync = ({ clockSkew }) => {
   return (
     <DialogContent className={classes.content}>
       <DialogContentText>
-        The internal clock of your device and the clock of the Skybrush server
+        The internal clock of your device and the clock of the Axio Server
         are now in sync:
       </DialogContentText>
       <ServerAndClientClockComparison clockSkew={clockSkew} />
@@ -117,7 +117,7 @@ const TimeSyncDialogBodyWhenClocksAreNotInSync = ({ clockSkew }) => {
         <Typography variant='h6'>Why am I seeing this warning?</Typography>
       </Box>
       <DialogContentText>
-        The internal clock of your device and the clock of the Skybrush server
+        The internal clock of your device and the clock of the Axio Server
         you have connected to are not in sync:
       </DialogContentText>
       <ServerAndClientClockComparison clockSkew={clockSkew} />

@@ -50,8 +50,7 @@ module.exports = merge(baseConfig, {
       template: path.resolve(projectRoot, 'index.html'),
       filename: path.resolve(outputDir, 'index.html'),
       hash: true /* for cache busting */,
-      title:
-        'Skybrush Live | The Next-generation Drone Light Show Software Suite',
+      title: 'Axio Control | Drone Light Show Ground Control',
     }),
   ],
 });

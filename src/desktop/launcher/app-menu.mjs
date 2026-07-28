@@ -7,7 +7,7 @@ import { showAppSettingsDialog } from './dispatcher.mjs';
 const helpSubmenu = [
   openUrlMenuItem({
     label: 'Website',
-    url: 'https://skybrush.io',
+    url: 'https://axiovel.com',
   }),
 ];
 
@@ -52,7 +52,8 @@ if (!is.macos) {
   helpSubmenu.push(
     { type: 'separator' },
     aboutMenuItem({
-      copyright: 'Copyright © CollMot Robotics',
+      copyright:
+        'Copyright © Axiovel. Based on Skybrush Live © CollMot Robotics',
     })
   );
 }

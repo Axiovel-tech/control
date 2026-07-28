@@ -7,20 +7,20 @@ import { type Config } from 'config';
 import { LayerType } from '~/model/layers';
 import { type Latitude, type Longitude } from '~/utils/geography';
 
-const skybrushIcon =
-  'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIGhlaWdodD0iMjQiIHdpZHRoPSIyNCI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJiIiB4MT0iNi4wMjUiIHkxPSIxMi4xNjkiIHgyPSI1LjU2MyIgeTI9IjI2LjQ5NCIgZ3JhZGllbnRVbml0cz0idXNlclNwYWNlT25Vc2UiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iIzA1NmVkZSIvPjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzAwN2JmZiIvPjwvbGluZWFyR3JhZGllbnQ+PGNsaXBQYXRoIGlkPSJhIj48cmVjdCB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHg9IjQuOTcxIiB5PSItMTIiIHJ5PSI0LjIiIHRyYW5zZm9ybT0icm90YXRlKDQ1KSIvPjwvY2xpcFBhdGg+PC9kZWZzPjxyZWN0IHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgcnk9IjQuMiIgZmlsbD0iIzAwN2JmZiIvPjxwYXRoIGQ9Ik0yLjI1NyAxMC41MTZ2MTUuNjkybDYuNjEyLjU3M1YxMi4xNjlIMy4xODFsLS45MjQtMS42NTNtOC4wODggMS43NjVoMTEuMzcxdjE2LjY5SDEwLjM0NXoiIGNsaXAtcGF0aD0idXJsKCNhKSIgdHJhbnNmb3JtPSJyb3RhdGUoMzE1IDEyIDEyKSIgZmlsbD0idXJsKCNiKSIvPjxwYXRoIGQ9Ik04LjIyMSAxMy42ODFhMi40OTMgMi40OTMgMCAwIDAtMi40OTYgMi40OTZjMCAxLjA5LS45NjUgMS42NjQtMS42NjQgMS42NjQuNzY1IDEuMDE1IDIuMDcxIDEuNjY0IDMuMzI4IDEuNjY0YTMuMzI3IDMuMzI3IDAgMCAwIDMuMzI4LTMuMzI4IDIuNDkzIDIuNDkzIDAgMCAwLTIuNDk2LTIuNDk2em0xMS40MDUtNy43OTUtMS4xMTUtMS4xMTVhLjgzLjgzIDAgMCAwLTEuMTczIDBsLTcuNDU0IDcuNDU0IDIuMjg4IDIuMjg4IDcuNDU0LTcuNDU0YS44My44MyAwIDAgMCAwLTEuMTczeiIgZmlsbD0iI2ZmZiIvPjwvc3ZnPgo=';
+const axiovelIcon =
+  'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj4KICA8cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgcng9Ijk2IiBmaWxsPSIjMjQ0QzVBIi8+CiAgPGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoNDQuNSw0Ny41KSBzY2FsZSgxLjk4NikiPgogICAgPHBvbHlnb24gcG9pbnRzPSIzMSwzMyA4MCw5OSAxMDYsMTU1IDEzMiwxMDAgMTgxLDM0IDE2OSw4NyAxMzQsMTE3IDEwNywxNzcgNzksMTE3IDQzLDg2IiBmaWxsPSIjRkZGRkZGIi8+CiAgICAKICA8L2c+Cjwvc3ZnPgo=';
 
 const baseline: Config = {
   branding: {
     splashIcon: {
       srcSet: {
-        default: skybrushIcon,
-        twoX: skybrushIcon,
+        default: axiovelIcon,
+        twoX: axiovelIcon,
       },
       width: 96,
       height: 96,
     },
-    splashTitle: 'skybrush live',
+    splashTitle: 'axio control',
   },
 
   ephemeral: false,
@@ -169,7 +169,7 @@ const baseline: Config = {
   toastPlacement: 'top-center',
 
   urls: {
-    help: 'https://doc.collmot.com/public/skybrush-live-doc/latest',
+    help: 'https://github.com/Axiovel-tech/control',
     exit: null,
   },
 };

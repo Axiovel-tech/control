@@ -11,7 +11,7 @@ import makeEventProxy from '../event-proxy.mjs';
 const events = makeEventProxy('localServer');
 
 /**
- * Asks the main process to ensure that a local Skybrush server executable is
+ * Asks the main process to ensure that a local Axio Server executable is
  * running with the given arguments.
  *
  * @param {Object}   opts         options to tweak how the server is launched
@@ -40,7 +40,7 @@ export const ensureRunning = async (options) => {
 };
 
 /**
- * Asks the main process to search for the local Skybrush server executable in
+ * Asks the main process to search for the local Axio Server executable in
  * the following places, in this order of precedence:
  *
  * - the application folder and typical platform-dependent related folders

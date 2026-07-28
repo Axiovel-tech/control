@@ -28,8 +28,7 @@ const plugins = [
     favicon: path.resolve(projectRoot, 'assets', 'icons', 'favicon.ico'),
     meta: htmlMetaTags,
     template: path.resolve(projectRoot, 'index.html'),
-    title:
-      'Skybrush Live | The Next-generation Drone Light Show Software Suite',
+    title: 'Axio Control | Drone Light Show Ground Control',
   }),
 ];
 

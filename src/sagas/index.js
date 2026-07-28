@@ -1,5 +1,5 @@
 /**
- * The root saga of the Skybrush application.
+ * The root saga of the Axio Control application.
  */
 
 import config from 'config';
@@ -24,7 +24,7 @@ import { hasFeature, hasTimeLimitedSession } from '~/utils/configuration';
 import onboardingSaga from './onboarding';
 
 /**
- * The root saga of the Skybrush application.
+ * The root saga of the Axio Control application.
  */
 export default function* rootSaga() {
   const { localServer } = (window ? window.bridge : null) || {};

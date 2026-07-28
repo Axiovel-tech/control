@@ -82,7 +82,7 @@ export function ensureNotNAK<T extends MessageBody>(
  * async response from the server. Throws an error if the message represents a
  * failure and no receipt is available.
  *
- * @param  {Object} message   the Skybrush message to parse
+ * @param  {Object} message   the Axio Server message to parse
  * @param  {string} objectId  the ID of the object whose receipt we wish to
  *         extract from the message
  * @return {object} the receipt or result corresponding to the UAV

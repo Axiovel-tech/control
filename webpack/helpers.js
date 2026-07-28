@@ -10,7 +10,7 @@ const useHotModuleReloading = isDevelopment && process.env.DEPLOYMENT !== '1';
 const htmlMetaTags = {
   charset: 'utf-8',
   description:
-    'Skybrush Live: The Next-generation Drone Light Show Software Suite',
+    'Axio Control: ground control station for Axiovel drone light shows',
   viewport:
     'initial-scale=1.0,maximum-scale=1.0,minimum-scale=1.0,user-scalable=no',
 

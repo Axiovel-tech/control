@@ -9,8 +9,8 @@ import baseline from './baseline';
 
 const overrides: ConfigOverrides = {
   electronBuilder: {
-    appId: 'com.collmot.skybrush.live-mission',
-    productName: 'Skybrush Live Mission',
+    appId: 'com.axiovel.axio.control.mission',
+    productName: 'Axio Control Mission',
   },
 
   features: {

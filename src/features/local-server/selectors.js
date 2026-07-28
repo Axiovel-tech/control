@@ -5,7 +5,7 @@ import { isLocalHost } from '~/utils/networking';
 const EMPTY_ARRAY = [];
 
 /**
- * Returns the list of directories in which a local Skybrush server instance
+ * Returns the list of directories in which a local Axio Server instance
  * will be searched, besides the standard system path.
  *
  * @param  {Object}  state  the state of the application
@@ -17,7 +17,7 @@ export const getLocalServerSearchPath = (state) => {
 };
 
 /**
- * Returns the full path to the executable of a local Skybrush server.
+ * Returns the full path to the executable of a local Axio Server.
  *
  * @param  {Object}  state  the state of the application
  * @return {string|undefined}  the full path
@@ -26,7 +26,7 @@ export const getLocalServerExecutable = (state) =>
   state.localServer.pathScan.result;
 
 /**
- * Returns whether the full path to the executable of a local Skybrush server
+ * Returns whether the full path to the executable of a local Axio Server
  * was found.
  *
  * @param  {Object}  state  the state of the application
@@ -38,7 +38,7 @@ export const foundLocalServerExecutable = createSelector(
 );
 
 /**
- * Returns whether a local Skybrush server launched directly by the Skybrush
+ * Returns whether a local Axio Server launched directly by the Axio Control
  * desktop app should be running in the background.
  */
 export const shouldManageLocalServer = createSelector(

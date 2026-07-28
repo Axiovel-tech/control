@@ -98,7 +98,7 @@
   "environmentEditorDialog": {
     "environmentSettings": "環境設定",
     "indoor": "このショーは屋内で行われます。ショーを実施する部屋の四隅を指定することができます(視覚化のため)。",
-    "outdoor": "このショーは屋外で実施されます。SkybrushにショーをGPS座標系に反映させるために座標原点を指定する必要があります。"
+    "outdoor": "このショーは屋外で実施されます。Axio ControlにショーをGPS座標系に反映させるために座標原点を指定する必要があります。"
   },
   "fieldNotesPanel": {
     "exportNotesAsFile": "メモをマークダウン形式でエクスポート"
@@ -317,7 +317,7 @@
     "walkAround": "水平移動"
   },
   "notifications": {
-    "connectedToSkybrushServer": "Skybrushサーバーに接続しました"
+    "connectedToServer": "Axioサーバーに接続しました"
   },
   "outdoorEnvironmentEditor": {
     "AHL": "ホームレベル上の高度(AHL)",

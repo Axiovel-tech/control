@@ -186,7 +186,7 @@
   "environmentEditorDialog": {
     "environmentSettings": "环境设置",
     "indoor": "这场展示是室内展示。你可以指定展示所在房间的角落（用于可视化目的）。",
-    "outdoor": "这场展示是户外展示。你需要至少指定坐标系统的原点和方向，以便 Skybrush 可以将展示映射到 GPS 坐标中。"
+    "outdoor": "这场展示是户外展示。你需要至少指定坐标系统的原点和方向，以便 Axio Control 可以将展示映射到 GPS 坐标中。"
   },
   "fieldNotesPanel": {
     "exportNotesAsFile": "将笔记导出为 Markdown 文件"
@@ -412,7 +412,7 @@
     "walkAround": "四处走动"
   },
   "notifications": {
-    "connectedToSkybrushServer": "已连接到Skybrush服务器"
+    "connectedToServer": "已连接到Axio服务器"
   },
   "outdoorEnvironmentEditor": {
     "AHL": "相对于初始位置的高度（AHL）",

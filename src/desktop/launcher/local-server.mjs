@@ -23,14 +23,14 @@ import { isMac, isWindows } from '../platform.mjs';
 const events = makeEventProxy('localServer');
 
 /**
- * The local executable of the Skybrush server on this machine.
+ * The local executable of the Axio Server on this machine.
  *
  * @type {string | undefined}
  */
 let localServerPath;
 
 /**
- * Deferred that will resolve to the local executable of the Skybrush server
+ * Deferred that will resolve to the local executable of the Axio Server
  * on this machine.
  *
  * @type {import("p-defer").DeferredPromise<string>}
@@ -38,8 +38,8 @@ let localServerPath;
 let localServerPathDeferred = pDefer();
 
 /**
- * The process representing the launched Skybrush server instance on this
- * machine. We only support one Skybrush server instance per Skybrush Live
+ * The process representing the launched Axio Server instance on this
+ * machine. We only support one Axio Server instance per Axio Control
  * process.
  *
  * @type {import("child_process").ChildProcess | undefined}
@@ -72,7 +72,7 @@ const endsWith = (string, target) =>
  * the application, with a few platform-specific tweaks.
  *
  * @return {string[]}  the names of the directories to search for the local
- *         Skybrush server executable, besides the system path and the
+ *         Axio Server executable, besides the system path and the
  *         directories added explicitly by the user in the settings
  */
 function getPathsRelatedToAppLocation() {
@@ -98,12 +98,12 @@ function getPathsRelatedToAppLocation() {
   }
 
   // On Windows, we also look for the server one level higher for a folder
-  // named "Skybrush Server". This allows us to find it when the server and
+  // named "Axio Server". This allows us to find it when the server and
   // Live are installed in two folders in C:\Program Files, next to each
   // other. We also add "Program Files" and "Program Files (x86)" explicitly,
   // and also search in "%LOCALAPPDATA%\Programs"
   if (isWindows) {
-    const SERVER_FOLDER_NAME = 'Skybrush Server';
+    const SERVER_FOLDER_NAME = 'Axio Server';
     const rootFolders = [
       path.dirname(appFolder),
       process.env.PROGRAMFILES,
@@ -152,7 +152,7 @@ const deriveServerPathAndArgumentsFromOptions = async (options) => {
   }
 
   if (!localServerPath) {
-    throw new Error('local Skybrush server not found');
+    throw new Error('local Axio Server not found');
   }
 
   // TODO(ntamas): respect the port setting provided by the user
@@ -168,7 +168,7 @@ const deriveServerPathAndArgumentsFromOptions = async (options) => {
  */
 
 /**
- * Ensures that a Skybrush server executable with the given arguments is up and
+ * Ensures that an Axio Server executable with the given arguments is up and
  * running. Re-uses an already running instance if needed.
  *
  * @param {LaunchOptions} options - options to tweak how the server is launched
@@ -195,7 +195,7 @@ export const ensureRunning = async (options) => {
 };
 
 /**
- * Launches the local Skybrush server executable with the given arguments.
+ * Launches the local Axio Server executable with the given arguments.
  *
  * @param {LaunchOptions} options - options to tweak how the server is launched
  * @param {string[]} options.args    additional arguments to pass to the server
@@ -291,7 +291,7 @@ const launch = async (options) => {
 };
 
 /**
- * Searches for the local Skybrush server executable in the following places,
+ * Searches for the local Axio Server executable in the following places,
  * in this order of precedence:
  *
  * - the application folder and typical platform-dependent related folders
@@ -346,7 +346,7 @@ export const search = async (paths) => {
  */
 export const selectPath = async (defaultPath, browserWindow) => {
   const options = {
-    title: 'Select directory containing Skybrush Server',
+    title: 'Select directory containing Axio Server',
     properties: ['openDirectory'],
   };
 

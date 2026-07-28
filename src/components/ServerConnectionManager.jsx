@@ -1,6 +1,6 @@
 /**
  * @file Manager component that is responsible for connecting to the
- * Skybrush server.
+ * Axio Server.
  */
 
 import config from 'config';
@@ -89,7 +89,7 @@ const formatClockSkew = (number) => {
 };
 
 /**
- * Component that launches a local Skybrush server instance when mounted.
+ * Component that launches a local Axio Server instance when mounted.
  */
 class LocalServerExecutor extends React.Component {
   static propTypes = {
@@ -700,20 +700,20 @@ const createCommonDisconnectionAndErrorHandlerThunk =
     switch (reason) {
       case 'connection error':
         if (!willReconnect) {
-          showError('Error while connecting to Skybrush server');
+          showError('Error while connecting to Axio Server');
         }
 
         break;
 
       case 'connection timeout':
         if (!willReconnect) {
-          showError('Timeout while connecting to Skybrush server');
+          showError('Timeout while connecting to Axio Server');
         }
 
         break;
 
       case 'io client disconnect':
-        showNotification('Disconnected from Skybrush server');
+        showNotification('Disconnected from Axio Server');
         break;
 
       case 'io server disconnect':
@@ -722,11 +722,11 @@ const createCommonDisconnectionAndErrorHandlerThunk =
         break;
 
       case 'transport close':
-        showError('Skybrush server closed connection unexpectedly');
+        showError('Axio Server closed connection unexpectedly');
         break;
 
       case 'ping timeout':
-        showError('Connection to Skybrush server lost');
+        showError('Connection to Axio Server lost');
         break;
 
       default:
@@ -772,7 +772,7 @@ const ServerConnectionManager = connect(
     onConnected() {
       // Let the user know that we are connected
       showNotification({
-        message: i18n.t('notifications.connectedToSkybrushServer'),
+        message: i18n.t('notifications.connectedToServer'),
         semantics: 'info',
       });
       dispatch(setCurrentServerConnectionState(ConnectionState.CONNECTED));
@@ -811,8 +811,8 @@ const ServerConnectionManager = connect(
 
     onLocalServerError(message, wasRunning) {
       const baseMessage = wasRunning
-        ? 'Skybrush server died unexpectedly'
-        : 'Failed to launch local Skybrush server';
+        ? 'Axio Server died unexpectedly'
+        : 'Failed to launch local Axio Server';
       dispatch(setCurrentServerConnectionState(ConnectionState.DISCONNECTED));
       showError(message ? `${baseMessage}: ${message}` : baseMessage);
     },

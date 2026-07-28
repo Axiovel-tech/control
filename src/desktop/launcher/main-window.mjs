@@ -7,8 +7,8 @@ import { BrowserWindow } from 'electron';
  *         is no main window at the moment
  */
 export const getMainWindow = () => {
-  // Here we (ab)use the fact that there will be only one window in Skybrush
-  // Live, ever.
+  // Here we (ab)use the fact that there will be only one window in Axio
+  // Control, ever.
   const windows = BrowserWindow.getAllWindows();
   return windows.length > 0 ? windows.at(-1) : undefined;
 };

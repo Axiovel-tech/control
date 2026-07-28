@@ -92,7 +92,7 @@
     "sortByMissionID": "Sortieren nach Mission IDs"
   },
   "notifications": {
-    "connectedToSkybrushServer": "Verbunden mit Skybrush Server"
+    "connectedToServer": "Verbunden mit Axio Server"
   },
   "preferences": "Voreinstellungen",
   "safetyDialog": {

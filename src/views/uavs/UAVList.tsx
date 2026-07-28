@@ -1,5 +1,5 @@
 /**
- * @file Component that displays the status of the known UAVs in a Skybrush
+ * @file Component that displays the status of the known UAVs in an Axio Control
  * flock.
  */
 

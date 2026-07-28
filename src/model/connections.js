@@ -23,7 +23,7 @@ export function handleConnectionDeletionMessage(body, dispatch) {
 }
 
 /**
- * Handles a CONN-INF message from a Skybrush server and updates the
+ * Handles a CONN-INF message from an Axio Server and updates the
  * state of the Redux store appropriately.
  *
  * @param  {Object} body  the body of the CONN-INF message

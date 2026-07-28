@@ -24,7 +24,7 @@ export const mapHeading = (headingFromServer) =>
     : null;
 
 /**
- * Handles a BCN-INF message from a Skybrush server and updates the
+ * Handles a BCN-INF message from an Axio Server and updates the
  * state of the Redux store appropriately.
  *
  * @param  {Object} body  the body of the DOCK-INF message
@@ -51,7 +51,7 @@ export function handleBeaconInformationMessage(body, dispatch) {
 }
 
 /**
- * Handles a BCN-PROPS message from a Skybrush server and updates the
+ * Handles a BCN-PROPS message from an Axio Server and updates the
  * state of the Redux store appropriately.
  *
  * @param  {Object} body  the body of the DOCK-INF message
