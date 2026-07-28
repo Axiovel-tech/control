@@ -54,7 +54,7 @@ const overrides: ConfigOverrides = {
   },
 
   urls: {
-    exit: 'https://account.skybrush.io',
+    exit: 'https://axiovel.com',
   },
 };
 

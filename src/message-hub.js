@@ -1,7 +1,7 @@
 /**
  * @file
  * The single applicaiton-wide message hub that other objects can use to
- * send messages to the connected Skybrush server.
+ * send messages to the connected Axio Server.
  */
 
 import isEmpty from 'lodash-es/isEmpty';
@@ -38,7 +38,7 @@ const { dispatch, getState } = store;
 
 /**
  * The single application-wide message hub that other objects can use to
- * send messages to the connected Skybrush server.
+ * send messages to the connected Axio Server.
  *
  * Note that you need to connect the hub to a Socket.IO socket first before
  * using it.

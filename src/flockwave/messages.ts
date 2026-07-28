@@ -170,7 +170,7 @@ export class ServerSideCommandExecutionTimeout extends CommandExecutionTimeout {
 }
 
 /**
- * Error class thrown when the Skybrush server failed to respond to a
+ * Error class thrown when the Axio Server failed to respond to a
  * command execution request in time.
  */
 export class ClientSideCommandExecutionTimeout extends CommandExecutionTimeout {
@@ -286,7 +286,7 @@ class PendingResponse<T = unknown> {
   /**
    * Constructor.
    *
-   * @param {string} messageId  the identifier of the Skybrush message
+   * @param {string} messageId  the identifier of the Axio Server message
    *        to which this pending response belongs
    */
   constructor(

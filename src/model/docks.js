@@ -7,7 +7,7 @@ import { setDockStateMultiple } from '~/features/docks/slice';
 import { mapPosition } from './beacons';
 
 /**
- * Handles a DOCK-INF message from a Skybrush server and updates the
+ * Handles a DOCK-INF message from an Axio Server and updates the
  * state of the Redux store appropriately.
  *
  * @param  {Object} body  the body of the DOCK-INF message

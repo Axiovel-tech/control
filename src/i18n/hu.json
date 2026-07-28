@@ -167,7 +167,7 @@
   "environmentEditorDialog": {
     "environmentSettings": "Környezeti beállítások",
     "indoor": "Ez egy beltéri műsor. Megadhatja a terem sarkait, ahol a műsor zajlik (vizualizásiós célból).",
-    "outdoor": "Ez egy kültéri műsor. Adja meg legalább a koordináta rendszer origóját és irányát, hogy a Skybrush le tudja képezni a műsort GPS koordinátákba."
+    "outdoor": "Ez egy kültéri műsor. Adja meg legalább a koordináta rendszer origóját és irányát, hogy az Axio Control le tudja képezni a műsort GPS koordinátákba."
   },
   "fieldNotesPanel": {
     "exportNotesAsFile": "Jegyzetek exportálása Markdown fájlként"
@@ -424,7 +424,7 @@
     "walkAround": "Sétálás"
   },
   "notifications": {
-    "connectedToSkybrushServer": "Csatlakozva a Skybrush szerverhez"
+    "connectedToServer": "Csatlakozva az Axio szerverhez"
   },
   "outdoorEnvironmentEditor": {
     "AHL": "Kezdeti pozíció feletti magasság (AHL)",

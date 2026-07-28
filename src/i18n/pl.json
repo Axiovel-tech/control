@@ -93,7 +93,7 @@
   "environmentEditorDialog": {
     "environmentSettings": "Ustawienia środowiska",
     "indoor": "Ten pokaz jest pokazem wewnątrz pomieszczenia. Możesz określić narożniki pomieszczenia, w którym odbywa się pokaz (w celach wizualizacyjnych).",
-    "outdoor": "Ten pokaz jest pokazem plenerowym. Musisz określić przynajmniej początek i orientację układu współrzędnych, aby Skybrush mógł zmapować pokaz w odniesieniu do współrzędnych GPS."
+    "outdoor": "Ten pokaz jest pokazem plenerowym. Musisz określić przynajmniej początek i orientację układu współrzędnych, aby Axio Control mógł zmapować pokaz w odniesieniu do współrzędnych GPS."
   },
   "fieldNotesPanel": {
     "exportNotesAsFile": "Eksportuj notatki w formacie pliku Markdown"
@@ -303,7 +303,7 @@
     "walkAround": "Porusz się dookoła"
   },
   "notifications": {
-    "connectedToSkybrushServer": "Połączono z serwerem Skybrush"
+    "connectedToServer": "Połączono z serwerem Axio"
   },
   "outdoorEnvironmentEditor": {
     "AHL": "Wysokość nad poziomem startowiska (AHL)",

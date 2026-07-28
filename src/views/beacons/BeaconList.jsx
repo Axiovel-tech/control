@@ -59,8 +59,8 @@ const BeaconListPresentation = multiSelectableListOf(
 );
 
 /**
- * React component that shows the state of the known beacons in a Skybrush
- * server.
+ * React component that shows the state of the known beacons in an Axio
+ * Server.
  */
 const BeaconList = ({
   onItemActivated,

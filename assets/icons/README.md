@@ -1,13 +1,8 @@
-Current icon was generated with the _Launcher icon generator_ from the
-_Android Asset Studio_:
+Current icon is derived from the Axiovel V mark (source SVG:
+`axiovel-icon.svg` in the Axiovel brand asset set).
 
-https://romannurik.github.io/AndroidAssetStudio/icons-launcher.html
-
-Background color: #007bff ("Skybrush blue", probably from the Bootstrap
-palette)
-Clipart: brush
-Font (if we need): Allura
-Padding (if we need text): 0%
+Brand colors: Axiovel teal #244C5A (background) and Axiovel orange
+#FF4814 (accent).
 
 Take the 512px version, scale it up to 1024px and add rounded corners in
 GIMP with a corner radius of 180px. Then upload the image to the following

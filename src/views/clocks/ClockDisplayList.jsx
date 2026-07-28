@@ -1,5 +1,5 @@
 /**
- * @file Component that displays the status of Skybrush clocks.
+ * @file Component that displays the status of Axio Server clocks.
  */
 
 import PlayArrow from '@mui/icons-material/PlayArrow';
@@ -35,7 +35,7 @@ const avatars = [
 ];
 
 /**
- * Presentation component for showing the state of a single Skybrush clock.
+ * Presentation component for showing the state of a single Axio Server clock.
  */
 const ClockDisplayListEntry = ({
   affectedByClockSkew = false,
@@ -93,7 +93,7 @@ ClockDisplayListEntry.propTypes = {
      * The number of clock ticks per second.
      */
     ticksPerSecond: PropTypes.number.isRequired,
-    /** Whether the clock is running according to the Skybrush server */
+    /** Whether the clock is running according to the Axio Server */
     running: PropTypes.bool.isRequired,
     /**
      * The update interval of the clock display when it is running, expressed

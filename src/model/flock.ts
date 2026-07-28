@@ -98,7 +98,7 @@ export default class Flock {
   }
 
   /**
-   * Handles a UAV-INF message from a Skybrush server and updates the state
+   * Handles a UAV-INF message from an Axio Server and updates the state
    * of the flock appropriately.
    *
    * @param body - The body of the UAV-INF message

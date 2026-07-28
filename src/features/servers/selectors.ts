@@ -158,11 +158,11 @@ export const getServerVersionValidator = (
   });
 
 /**
- * Returns all the information that we know about the current Skybrush server.
+ * Returns all the information that we know about the current Axio Server.
  *
  * @param state - The state of the application
- * @return All the information that we know about the current Skybrush
- *         server, directly from the state object
+ * @return All the information that we know about the current Axio
+ *         Server, directly from the state object
  */
 export const getCurrentServerState: AppSelector<
   ServersSliceState['current']
@@ -170,11 +170,11 @@ export const getCurrentServerState: AppSelector<
 
 /**
  * Returns the list of features that we know are supported by the current
- * Skybrush server.
+ * Axio Server.
  *
  * @param state - The state of the application
  * @return An object mapping names of features supported by the current
- *         Skybrush server to any additional information we know about the
+ *         Axio Server to any additional information we know about the
  *         feature
  */
 const getCurrentServerFeatures: AppSelector<Record<string, boolean>> = (
@@ -182,12 +182,12 @@ const getCurrentServerFeatures: AppSelector<Record<string, boolean>> = (
 ) => state.servers.current.features;
 
 /**
- * Returns the license that is currently active on the connected Skybrush
- * server.
+ * Returns the license that is currently active on the connected Axio
+ * Server.
  *
  * @param state - The state of the application
  * @return An object describing the license active on the currently
- *         connected Skybrush server
+ *         connected Axio Server
  */
 const getCurrentServerLicense: AppSelector<License | undefined> = (state) =>
   state.servers.current.license;
@@ -238,7 +238,7 @@ export const areServerAuthenticationSettingsValid: AppSelector<boolean> =
 
 /**
  * Returns whether the user is currently authenticated to the remote
- * Skybrush server.
+ * Axio Server.
  */
 export const isAuthenticated: AppSelector<boolean> = createSelector(
   getAuthenticatedUser,
@@ -247,7 +247,7 @@ export const isAuthenticated: AppSelector<boolean> = createSelector(
 
 /**
  * Returns whether the user is currently attempting to authenticate to the
- * remote Skybrush server.
+ * remote Axio Server.
  *
  * @param state - The state of the application
  * @return Whether there is an authentication attempt in progress
@@ -256,7 +256,7 @@ export const isAuthenticating: AppSelector<boolean> = (state) =>
   state.servers.isAuthenticating;
 
 /**
- * Returns whether we are connected to the remote Skybrush server.
+ * Returns whether we are connected to the remote Axio Server.
  */
 export const isConnected: AppSelector<boolean> = createSelector(
   getCurrentServerState,
@@ -264,8 +264,8 @@ export const isConnected: AppSelector<boolean> = createSelector(
 );
 
 /**
- * Returns whether we are currently trying to connect to the remote Skybrush
- * server.
+ * Returns whether we are currently trying to connect to the remote Axio
+ * Server.
  */
 export const isConnecting: AppSelector<boolean> = createSelector(
   getCurrentServerState,

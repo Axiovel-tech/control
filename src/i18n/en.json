@@ -236,7 +236,7 @@
   "environmentEditorDialog": {
     "environmentSettings": "Environment settings",
     "indoor": "This show is an indoor show. You may specify the corners of the room in which the show is taking place (for visualisation purposes).",
-    "outdoor": "This show is an outdoor show. You need to specify at least the origin and orientation of the coordinate system so Skybrush can map the show into GPS coordinates."
+    "outdoor": "This show is an outdoor show. You need to specify at least the origin and orientation of the coordinate system so Axio Control can map the show into GPS coordinates."
   },
   "fieldNotesPanel": {
     "exportNotesAsFile": "Export notes as Markdown file"
@@ -511,7 +511,7 @@
     "walkAround": "Walk around"
   },
   "notifications": {
-    "connectedToSkybrushServer": "Connected to Skybrush server"
+    "connectedToServer": "Connected to Axio Server"
   },
   "outdoorEnvironmentEditor": {
     "AHL": "Altitude above home level (AHL)",

@@ -74,7 +74,7 @@ const ServerTabPresentation = ({
           value={searchPath}
           variant='filled'
           helperText={
-            'Enter directories to search for the Skybrush server ' +
+            'Enter directories to search for the Axio Server ' +
             'executable, one per line.'
           }
           onChange={onSearchPathChanged}

@@ -1,8 +1,8 @@
 /**
  * @file Slice of the state object that stores the last known states of the
  * connections of the server, not including the master connection (to the
- * Skybrush server), but including any other connection that the Skybrush
- * server reports via CONN-LIST and CONN-INF messages.
+ * Axio Server), but including any other connection that the Axio
+ * Server reports via CONN-LIST and CONN-INF messages.
  */
 
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';

@@ -387,7 +387,7 @@ export function truncate(
 /**
  * Formats a single RSSI percentage as a string.
  *
- * Note that negative RSSI values in Skybrush mean "unknown" so we treat them
+ * Note that negative RSSI values in Axio Server mean "unknown" so we treat them
  * as such.
  */
 export function formatRSSI(rssi?: number): string {

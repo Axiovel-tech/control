@@ -190,7 +190,7 @@ function* authenticateWithoutSupervision() {
 
 /**
  * Compound saga related to the management of the connection to the upstream
- * Skybrush server.
+ * Axio Server.
  */
 export default function* serversSaga() {
   const sagas = [

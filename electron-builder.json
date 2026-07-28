@@ -1,6 +1,6 @@
 {
-  "appId": "com.collmot.skybrush.live",
-  "productName": "Skybrush Live",
+  "appId": "com.axiovel.axio.control",
+  "productName": "Axio Control",
   "artifactName": "${productName} ${version}.${ext}",
   "files": [
     "!**/*",

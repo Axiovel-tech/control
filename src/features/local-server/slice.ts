@@ -1,6 +1,6 @@
 /**
  * @file Slice of the state object that is responsible for storing the state
- * of the local Skybrush server and its discovery process.
+ * of the local Axio Server and its discovery process.
  */
 
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';

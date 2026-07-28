@@ -19,10 +19,10 @@ const SessionExpiryDialog = ({ onClose, open }) => (
     <DialogTitle>Session expired</DialogTitle>
     <DialogContent>
       <DialogContentText>
-        Your demo session has expired. Thank you for evaluating Skybrush Live!
+        Your demo session has expired. Thank you for evaluating Axio Control!
       </DialogContentText>
       <Button fullWidth onClick={onClose}>
-        Click here to return to your Skybrush account
+        Click here to return to your account
       </Button>
     </DialogContent>
   </Dialog>
@@ -46,7 +46,7 @@ export default connect(
         return;
       }
 
-      window.location.replace(config.urls.exit || 'https://skybrush.io');
+      window.location.replace(config.urls.exit || 'https://axiovel.com');
     },
   })
 )(SessionExpiryDialog);

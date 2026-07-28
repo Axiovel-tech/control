@@ -16,7 +16,7 @@ const {
 const htmlWebPackPluginConfiguration = {
   meta: htmlMetaTags,
   template: path.resolve(projectRoot, 'index.html'),
-  title: 'Skybrush Live',
+  title: 'Axio Control',
 };
 
 const optimization = {};

@@ -13,7 +13,7 @@ const MINUTES = 60 * 1000;
 
 /**
  * Saga related to the background update of the weather information from the
- * upstream Skybrush server.
+ * upstream Axio Server.
  */
 export default function* weatherSaga() {
   while (true) {

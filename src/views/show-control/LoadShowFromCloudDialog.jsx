@@ -18,7 +18,7 @@ import { closeLoadShowFromCloudDialog } from '~/features/show/slice';
 
 /**
  * Presentation component for the dialog that allows the user to load a show
- * file from a remote data source such as his/her Skybrush Account or a git
+ * file from a remote data source such as his/her Cloud Account or a git
  * repository
  */
 const LoadShowFromCloudDialog = ({
@@ -29,7 +29,7 @@ const LoadShowFromCloudDialog = ({
   return (
     <Dialog fullWidth open={open} onClose={onClose}>
       <DialogTabs value='skybrushAccount'>
-        <Tab value='skybrushAccount' label='Skybrush Account' />
+        <Tab value='skybrushAccount' label='Cloud Account' />
         <Tab disabled value='web' label='Web Link' />
         <Tab disabled value='git' label='Git Repository' />
       </DialogTabs>

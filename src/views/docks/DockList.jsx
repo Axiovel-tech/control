@@ -58,8 +58,8 @@ const DockListPresentation = multiSelectableListOf(
 );
 
 /**
- * React component that shows the state of the known docks in a Skybrush
- * server.
+ * React component that shows the state of the known docks in an Axio
+ * Server.
  */
 const DockList = ({
   onItemActivated,

@@ -6,7 +6,7 @@ import { CoverPagePresentation as CoverPage } from 'react-cover-page';
 
 import 'react-cover-page/themes/default.css';
 
-import skybrushLogo from '~/../assets/img/skybrush-logo.svg';
+import axiovelLogo from '~/../assets/img/axiovel-logo.svg';
 
 const SplashScreen = ({ loading, visible }) => {
   let iconWidth = 96;
@@ -33,7 +33,7 @@ const SplashScreen = ({ loading, visible }) => {
             <b style={{ verticalAlign: 'middle' }}>Powered by</b>
             <img
               style={{ verticalAlign: 'middle' }}
-              src={skybrushLogo}
+              src={axiovelLogo}
               width={188}
               height={24}
             />
