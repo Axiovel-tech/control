@@ -22,7 +22,11 @@ const StartUploadButton = ({
   <Translation>
     {(t) => (
       <Tooltip content={t('startUploadButton.tooltip')}>
-        <Button startIcon={<PlayArrow />} {...rest}>
+        <Button
+          data-testid='upload-dialog.start'
+          startIcon={<PlayArrow />}
+          {...rest}
+        >
           {hasQueuedItems
             ? t('startUploadButton.startSelected')
             : t('general.action.start')}

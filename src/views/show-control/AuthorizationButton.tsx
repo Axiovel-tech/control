@@ -50,6 +50,7 @@ const AuthorizationButton = ({
     <ListItem disablePadding>
       <ListItemButton
         /* disabled={!isAuthorized && status === Status.OFF} */
+        data-testid='show-control.authorize'
         selected={isAuthorized}
         sx={buttonStyle}
         {...rest}
