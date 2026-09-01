@@ -1,58 +1,200 @@
-/**
- * @file Slice of the state object that stores firmware update related state.
- */
-
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 
-import { type Identifier } from '~/utils/collections';
-import { noPayload } from '~/utils/redux';
+import {
+  type FirmwareArtifactMetadata,
+  type FirmwareUpdateError,
+  type FirmwareUpdateJob,
+  type FirmwareUpdateRun,
+  type FirmwareUpdateTarget,
+} from './types';
 
-type FirmwareUpdateSliceState = {
-  dialog: { open: boolean };
-  supportingObjectIdsByTargetIds: Record<Identifier, Identifier[]>;
+export type FirmwareUpdateSliceState = {
+  artifact?: FirmwareArtifactMetadata;
+  confirmed: boolean;
+  currentId?: string;
+  dialogOpen: boolean;
+  loadingTargets: boolean;
+  order: string[];
+  running: boolean;
+  runs: Record<string, FirmwareUpdateRun>;
+  selectedIds: string[];
+  targetError?: string;
+  targets: FirmwareUpdateTarget[];
 };
 
 const initialState: FirmwareUpdateSliceState = {
-  dialog: { open: false },
-  supportingObjectIdsByTargetIds: {},
+  confirmed: false,
+  dialogOpen: false,
+  loadingTargets: false,
+  order: [],
+  running: false,
+  runs: {},
+  selectedIds: [],
+  targets: [],
 };
 
-const { actions, reducer } = createSlice({
+const queuedRun = (id: string): FirmwareUpdateRun => ({
+  id,
+  cancellable: true,
+  committed: false,
+  phase: 'queued',
+  status: 'running',
+});
+
+const terminalRun = (
+  run: FirmwareUpdateRun,
+  status: 'cancelled' | 'indeterminate',
+  error?: FirmwareUpdateError
+): FirmwareUpdateRun => ({
+  ...run,
+  cancellable: false,
+  error,
+  status,
+});
+
+const slice = createSlice({
   name: 'firmware-update',
   initialState,
   reducers: {
-    hideFirmwareUpdateSetupDialog: noPayload<FirmwareUpdateSliceState>(
-      (state) => {
-        state.dialog.open = false;
-      }
-    ),
+    closeFirmwareUpdateDialog(state) {
+      state.dialogOpen = false;
+    },
 
-    showFirmwareUpdateSetupDialog: noPayload<FirmwareUpdateSliceState>(
-      (state) => {
-        state.dialog.open = true;
-      }
-    ),
+    openFirmwareUpdateDialog(state) {
+      state.dialogOpen = true;
+    },
 
-    updateSupportingObjectIdsForTargetId: {
-      prepare: (targetId: Identifier, objectIds: Identifier[]) => ({
-        payload: { targetId, objectIds },
-      }),
-      reducer(
-        state,
-        {
-          payload: { targetId, objectIds },
-        }: PayloadAction<{ targetId: Identifier; objectIds: Identifier[] }>
-      ) {
-        state.supportingObjectIdsByTargetIds[targetId] = objectIds;
-      },
+    firmwareTargetsLoading(state) {
+      state.loadingTargets = true;
+      state.targetError = undefined;
+    },
+
+    firmwareTargetsLoaded(
+      state,
+      { payload }: PayloadAction<FirmwareUpdateTarget[]>
+    ) {
+      state.loadingTargets = false;
+      state.targets = payload;
+      const compatible = new Set(
+        payload.filter((target) => target.compatible).map((target) => target.id)
+      );
+      state.selectedIds = state.selectedIds.filter((id) => compatible.has(id));
+    },
+
+    firmwareTargetsFailed(state, { payload }: PayloadAction<string>) {
+      state.loadingTargets = false;
+      state.targetError = payload;
+      state.targets = [];
+      state.selectedIds = [];
+    },
+
+    firmwareArtifactPrepared(
+      state,
+      { payload }: PayloadAction<FirmwareArtifactMetadata>
+    ) {
+      state.artifact = payload;
+      state.confirmed = false;
+      state.order = [];
+      state.runs = {};
+    },
+
+    firmwareArtifactRejected(state) {
+      state.artifact = undefined;
+      state.confirmed = false;
+    },
+
+    setFirmwareTargetSelected(
+      state,
+      {
+        payload: { id, selected },
+      }: PayloadAction<{ id: string; selected: boolean }>
+    ) {
+      const target = state.targets.find((candidate) => candidate.id === id);
+      if (!target?.compatible) {
+        return;
+      }
+
+      state.selectedIds = selected
+        ? Array.from(new Set([...state.selectedIds, id]))
+        : state.selectedIds.filter((candidate) => candidate !== id);
+      state.confirmed = false;
+    },
+
+    setFirmwareUpdateConfirmed(state, { payload }: PayloadAction<boolean>) {
+      state.confirmed = payload;
+    },
+
+    firmwareSequenceStarted(state, { payload }: PayloadAction<string[]>) {
+      state.currentId = payload[0];
+      state.order = [...payload];
+      state.running = true;
+      state.runs = Object.fromEntries(payload.map((id) => [id, queuedRun(id)]));
+    },
+
+    firmwareCurrentTargetChanged(state, { payload }: PayloadAction<string>) {
+      state.currentId = payload;
+    },
+
+    firmwareJobUpdated(state, { payload }: PayloadAction<FirmwareUpdateJob>) {
+      if (!state.runs[payload.id]) {
+        state.order.push(payload.id);
+      }
+
+      state.runs[payload.id] = payload;
+      if (payload.status === 'running') {
+        state.currentId = payload.id;
+      }
+    },
+
+    firmwareRunIndeterminate(
+      state,
+      {
+        payload: { id, error },
+      }: PayloadAction<{ id: string; error: FirmwareUpdateError }>
+    ) {
+      const run = state.runs[id] ?? queuedRun(id);
+      state.runs[id] = terminalRun(run, 'indeterminate', error);
+    },
+
+    firmwareQueuedRunsCancelled(state) {
+      for (const id of state.order) {
+        const run = state.runs[id];
+        if (run.phase === 'queued') {
+          state.runs[id] = terminalRun(run, 'cancelled');
+        }
+      }
+    },
+
+    firmwareSequenceFinished(state) {
+      state.currentId = undefined;
+      state.running = false;
+    },
+
+    resetFirmwareUpdate(state) {
+      if (!state.running) {
+        Object.assign(state, initialState, { dialogOpen: state.dialogOpen });
+      }
     },
   },
 });
 
 export const {
-  hideFirmwareUpdateSetupDialog,
-  showFirmwareUpdateSetupDialog,
-  updateSupportingObjectIdsForTargetId,
-} = actions;
+  closeFirmwareUpdateDialog,
+  firmwareArtifactPrepared,
+  firmwareArtifactRejected,
+  firmwareCurrentTargetChanged,
+  firmwareJobUpdated,
+  firmwareQueuedRunsCancelled,
+  firmwareRunIndeterminate,
+  firmwareSequenceFinished,
+  firmwareSequenceStarted,
+  firmwareTargetsFailed,
+  firmwareTargetsLoaded,
+  firmwareTargetsLoading,
+  openFirmwareUpdateDialog,
+  resetFirmwareUpdate,
+  setFirmwareTargetSelected,
+  setFirmwareUpdateConfirmed,
+} = slice.actions;
 
-export default reducer;
+export default slice.reducer;

@@ -111,52 +111,6 @@ export async function getConfigurationOfExtension(hub, name) {
 }
 
 /**
- * Returns the list of firmware updatable objects from the server.
- */
-export async function getFirmwareUpdateObjects(hub, options = {}) {
-  const { supports } = options;
-
-  const listResponse = await hub.sendMessage({
-    type: 'FW-OBJECT-LIST',
-    supports,
-  });
-
-  if (listResponse?.body?.type === 'FW-OBJECT-LIST') {
-    return listResponse.body.ids ?? [];
-  } else {
-    return [];
-  }
-}
-
-/**
- * Returns the list of registered firmware update targets from the server.
- */
-export async function getFirmwareUpdateTargets(hub, options = {}) {
-  const { supportedBy } = options;
-
-  const listResponse = await hub.sendMessage({
-    type: 'FW-TARGET-LIST',
-    supportedBy,
-  });
-
-  if (listResponse?.body?.type === 'FW-TARGET-LIST') {
-    const firmwareUpdateTargetIds = listResponse.body.ids ?? [];
-    if (firmwareUpdateTargetIds.length > 0) {
-      const infResponse = await hub.sendMessage({
-        type: 'FW-TARGET-INF',
-        ids: firmwareUpdateTargetIds,
-      });
-      const firmwareUpdateTargetsById = infResponse?.body?.result ?? {};
-      return sortBy(firmwareUpdateTargetsById, ['name', 'id']);
-    } else {
-      return [];
-    }
-  } else {
-    return [];
-  }
-}
-
-/**
  * Returns a single flight log from a UAV.
  */
 export async function getFlightLog(hub, uavId, logId, { onProgress } = {}) {
@@ -474,8 +428,6 @@ export class QueryHandler {
     addCollectiveRTH,
     getBasicBeaconProperties,
     getConfigurationOfExtension,
-    getFirmwareUpdateObjects,
-    getFirmwareUpdateTargets,
     getFlightLog,
     getFlightLogList,
     getLicenseInformation,
