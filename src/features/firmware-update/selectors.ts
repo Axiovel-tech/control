@@ -37,13 +37,20 @@ export const getCurrentFirmwareRun = createSelector(
 export const isFirmwareUpdateStartable = ({
   artifact,
   confirmed,
+  loadingTargets,
   running,
   selectedIds,
 }: Pick<
   RootState['firmwareUpdate'],
-  'artifact' | 'confirmed' | 'running' | 'selectedIds'
+  'artifact' | 'confirmed' | 'loadingTargets' | 'running' | 'selectedIds'
 >): boolean =>
-  Boolean(artifact && confirmed && !running && selectedIds.length > 0);
+  Boolean(
+    artifact &&
+    confirmed &&
+    !loadingTargets &&
+    !running &&
+    selectedIds.length > 0
+  );
 
 export const canStartFirmwareUpdate = createSelector(
   getFirmwareUpdateState,

@@ -50,6 +50,7 @@ See `types.ts` for the authoritative definition. In short:
 | `mapProbe()`             | View parameters plus every identified map feature, in both lon/lat and viewport pixels.                                                                                              |
 | `messages(filter?)`      | Recorded Flockwave traffic, both directions. Filter by `type`, `direction`, `origin` or `since`.                                                                                     |
 | `clearMessages()`        | Drops the recording. Sequence numbers keep counting, so a `since` cursor stays valid.                                                                                                |
+| `firmwareSnapshot()`     | Prepared-artifact, target-loading and per-UAV firmware-run state without exposing Redux paths.                                                                                       |
 | `getShowStageStatuses()` | Status of every show setup stage (`off`, `next`, `success`, `skipped`, `error`, ...) exactly as the GUI's stage list computes it. Selector-derived, so not reachable via `getState`. |
 | `sendMessage(body)`      | Sends a Flockwave message through the app's own hub and resolves with the response body.                                                                                             |
 
@@ -157,11 +158,12 @@ These were already in the app and are relied upon rather than re-invented:
 | `input[value="approved"]`                                                                                                                     | The approve switch input in the takeoff area dialog                                                                                                     |
 | `#rtls-calibration-cell-label`                                                                                                                | Label of the calibration wizard's cell select (`features/rtls/RtlsCalibrationWizard.tsx`); the select is disabled below two cells                       |
 
-Flight-firmware tests should inspect `firmwareUpdate.runs.<uavId>` through
-`getState`. Each entry contains the structured `status`, `phase`, commit and
-cancellation gates, expected/observed version and hash, byte counts, and any
-structured server error. The existing message tap records every `X-AP-OTA`
-request and response, including `targets`, `start`, `status`, and `cancel`.
+Flight-firmware tests should use `firmwareSnapshot()`. Its `artifactReady` and
+`loadingTargets` fields define when target selection can begin. Each entry in
+`runs` contains the structured `status`, `phase`, commit and cancellation
+gates, expected/observed version and hash, byte counts, and any structured
+server error. The existing message tap records every `X-AP-OTA` request and
+response, including `targets`, `start`, `status`, and `cancel`.
 
 ## RTLS geometry facts in Redux
 

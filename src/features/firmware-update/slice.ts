@@ -66,6 +66,7 @@ const slice = createSlice({
 
     firmwareTargetsLoading(state) {
       state.loadingTargets = true;
+      state.confirmed = false;
       state.targetError = undefined;
     },
 
@@ -143,6 +144,7 @@ const slice = createSlice({
       state.runs[payload.id] = payload;
       if (payload.status === 'running') {
         state.currentId = payload.id;
+        state.running = true;
       }
     },
 
@@ -156,16 +158,13 @@ const slice = createSlice({
       state.runs[id] = terminalRun(run, 'indeterminate', error);
     },
 
-    firmwareQueuedRunsCancelled(state) {
+    firmwareSequenceFinished(state) {
       for (const id of state.order) {
         const run = state.runs[id];
-        if (run.phase === 'queued') {
+        if (run.status === 'running' && run.phase === 'queued') {
           state.runs[id] = terminalRun(run, 'cancelled');
         }
       }
-    },
-
-    firmwareSequenceFinished(state) {
       state.currentId = undefined;
       state.running = false;
     },
@@ -184,7 +183,6 @@ export const {
   firmwareArtifactRejected,
   firmwareCurrentTargetChanged,
   firmwareJobUpdated,
-  firmwareQueuedRunsCancelled,
   firmwareRunIndeterminate,
   firmwareSequenceFinished,
   firmwareSequenceStarted,

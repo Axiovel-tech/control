@@ -7,11 +7,13 @@
  * existing member changes or a member is removed.
  */
 
+import type { FirmwareUpdateRun } from '~/features/firmware-update/types';
+
 /**
  * Version of the bridge contract. The harness refuses to drive an app whose
  * major version it does not recognize.
  */
-export const BRIDGE_PROTOCOL_VERSION = 2;
+export const BRIDGE_PROTOCOL_VERSION = 3;
 
 /** Name of the global under which the bridge installs itself. */
 export const BRIDGE_GLOBAL_NAME = '__AXIO_E2E__';
@@ -95,6 +97,13 @@ export type MapProbeResult = {
   features: ProbedFeature[];
 };
 
+/** Firmware state exposed without coupling the harness to Redux paths. */
+export type FirmwareUpdateSnapshot = {
+  artifactReady: boolean;
+  loadingTargets: boolean;
+  runs: Record<string, FirmwareUpdateRun>;
+};
+
 /**
  * The object installed on `window` when the bridge is enabled.
  *
@@ -118,6 +127,9 @@ export type E2EBridge = {
 
   /** Drops every recorded message and resets the sequence counter. */
   clearMessages(): void;
+
+  /** State needed to observe the flight-firmware workflow. */
+  firmwareSnapshot(): FirmwareUpdateSnapshot;
 
   /**
    * Status of every show setup stage, exactly as the GUI's own stage list

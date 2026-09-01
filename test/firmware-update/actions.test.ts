@@ -27,6 +27,8 @@ import {
 } from '~/features/firmware-update/actions';
 import reducer, {
   firmwareJobUpdated,
+  firmwareRunIndeterminate,
+  firmwareSequenceFinished,
   firmwareSequenceStarted,
   firmwareTargetsLoaded,
   setFirmwareTargetSelected,
@@ -110,7 +112,7 @@ describe('sequential flight firmware updates', () => {
 
     expect(mockSendMessage).toHaveBeenCalledTimes(1);
     expect(store.getState().firmwareUpdate.runs['7'].status).toBe('failed');
-    expect(store.getState().firmwareUpdate.runs['8'].phase).toBe('queued');
+    expect(store.getState().firmwareUpdate.runs['8'].status).toBe('cancelled');
   });
 
   test('marks a lost start response indeterminate and resolves it by UAV after reconnect', async () => {
@@ -123,7 +125,7 @@ describe('sequential flight firmware updates', () => {
     expect(store.getState().firmwareUpdate.runs['7'].status).toBe(
       'indeterminate'
     );
-    expect(store.getState().firmwareUpdate.runs['8'].phase).toBe('queued');
+    expect(store.getState().firmwareUpdate.runs['8'].status).toBe('cancelled');
 
     mockSendMessage.mockResolvedValueOnce({
       body: {
@@ -148,6 +150,65 @@ describe('sequential flight firmware updates', () => {
       id: '7',
     });
     expect(store.getState().firmwareUpdate.runs['7'].status).toBe('success');
+  });
+
+  test('resumes polling when reconciliation finds a running server job', async () => {
+    jest.useFakeTimers();
+    try {
+      const { store, dispatch } = prepareStore();
+      dispatch(firmwareSequenceStarted(['7']));
+      dispatch(
+        firmwareJobUpdated({
+          id: '7',
+          operationId: 'operation-7',
+          phase: 'staging',
+          status: 'running',
+          committed: false,
+          cancellable: true,
+        })
+      );
+      dispatch(
+        firmwareRunIndeterminate({
+          id: '7',
+          error: { code: 'transport', detail: 'connection lost' },
+        })
+      );
+      dispatch(firmwareSequenceFinished());
+
+      mockSendMessage
+        .mockResolvedValueOnce({
+          body: {
+            type: 'X-AP-OTA',
+            op: 'status',
+            job: {
+              id: '7',
+              operationId: 'operation-7',
+              phase: 'staging',
+              status: 'running',
+              committed: false,
+              cancellable: true,
+            },
+          },
+        })
+        .mockResolvedValueOnce({
+          body: {
+            ...response('7', 'success').body,
+            op: 'status',
+          },
+        });
+
+      const reconciliation = dispatch(reconcileFirmwareUpdates());
+      await jest.advanceTimersByTimeAsync(0);
+      expect(store.getState().firmwareUpdate.running).toBe(true);
+      await jest.advanceTimersByTimeAsync(1000);
+      await reconciliation;
+
+      expect(mockSendMessage).toHaveBeenCalledTimes(2);
+      expect(store.getState().firmwareUpdate.runs['7'].status).toBe('success');
+      expect(store.getState().firmwareUpdate.running).toBe(false);
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   test('cancels the active pre-commit operation and all queued UAVs', async () => {

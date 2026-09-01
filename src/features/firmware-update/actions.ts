@@ -14,7 +14,6 @@ import {
   firmwareArtifactRejected,
   firmwareCurrentTargetChanged,
   firmwareJobUpdated,
-  firmwareQueuedRunsCancelled,
   firmwareRunIndeterminate,
   firmwareSequenceFinished,
   firmwareSequenceStarted,
@@ -102,13 +101,14 @@ export const startNewFirmwareUpdate = (): AppThunk => (dispatch) => {
 
 export const runFirmwareUpdateSequence =
   (): AppThunk<Promise<void>> => async (dispatch, getState) => {
-    const { artifact, confirmed, running, selectedIds } =
+    const { artifact, confirmed, loadingTargets, running, selectedIds } =
       getState().firmwareUpdate;
     if (
       !artifact ||
       !preparedArtifact ||
       preparedArtifact.metadata.sha256 !== artifact.sha256 ||
       !confirmed ||
+      loadingTargets ||
       running ||
       selectedIds.length === 0
     ) {
@@ -172,7 +172,6 @@ export const cancelCurrentFirmwareUpdate =
           await cancelFirmwareUpdate(messageHub, run.operationId)
         )
       );
-      dispatch(firmwareQueuedRunsCancelled());
     } catch (error) {
       dispatch(
         firmwareRunIndeterminate({ id: run.id, error: transportError(error) })
@@ -184,6 +183,10 @@ export const cancelCurrentFirmwareUpdate =
 
 export const reconcileFirmwareUpdates =
   (): AppThunk<Promise<void>> => async (dispatch, getState) => {
+    if (getState().firmwareUpdate.running) {
+      return;
+    }
+
     const runs = Object.values(getState().firmwareUpdate.runs).filter(
       (run) =>
         run.status === 'indeterminate' ||
@@ -191,11 +194,38 @@ export const reconcileFirmwareUpdates =
     );
     for (const run of runs) {
       try {
-        dispatch(
-          firmwareJobUpdated(
-            await queryFirmwareUpdateStatus(messageHub, run.id, run.operationId)
-          )
+        const reconciled = await queryFirmwareUpdateStatus(
+          messageHub,
+          run.id,
+          run.operationId
         );
+        dispatch(firmwareJobUpdated(reconciled));
+        if (reconciled.status !== 'running') {
+          continue;
+        }
+
+        const generation = ++sequenceGeneration;
+        try {
+          await waitForTerminalJob(
+            reconciled,
+            (job) => dispatch(firmwareJobUpdated(job)),
+            () => generation === sequenceGeneration
+          );
+        } catch (error) {
+          if (generation === sequenceGeneration) {
+            dispatch(
+              firmwareRunIndeterminate({
+                id: reconciled.id,
+                error: transportError(error),
+              })
+            );
+          }
+        } finally {
+          if (generation === sequenceGeneration) {
+            dispatch(firmwareSequenceFinished());
+          }
+        }
+        return;
       } catch {
         // The current indeterminate state is more accurate than replacing it
         // with another transport error. A later reconnect can query again.

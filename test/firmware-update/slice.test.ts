@@ -7,11 +7,11 @@ import {
 import reducer, {
   firmwareCurrentTargetChanged,
   firmwareJobUpdated,
-  firmwareQueuedRunsCancelled,
   firmwareRunIndeterminate,
   firmwareSequenceFinished,
   firmwareSequenceStarted,
   firmwareTargetsLoaded,
+  firmwareTargetsLoading,
   setFirmwareTargetSelected,
   setFirmwareUpdateConfirmed,
 } from '~/features/firmware-update/slice';
@@ -96,6 +96,13 @@ describe('flight firmware update state', () => {
     let state = reducer(initial(), setFirmwareUpdateConfirmed(true));
     expect(state.confirmed).toBe(true);
     state = reducer(state, setFirmwareUpdateConfirmed(false));
+    expect(state.confirmed).toBe(false);
+  });
+
+  test('invalidates confirmation while targets refresh', () => {
+    let state = reducer(initial(), setFirmwareUpdateConfirmed(true));
+    state = reducer(state, firmwareTargetsLoading());
+    expect(state.loadingTargets).toBe(true);
     expect(state.confirmed).toBe(false);
   });
 
@@ -195,10 +202,10 @@ describe('flight firmware update state', () => {
     });
   });
 
-  test('cancels only queued runs and then finishes the sequence', () => {
+  test('finishes the sequence and cancels only queued runs', () => {
     let state = reducer(initial(), firmwareSequenceStarted(['7', '8']));
     state = reducer(state, firmwareJobUpdated(JOB));
-    state = reducer(state, firmwareQueuedRunsCancelled());
+    state = reducer(state, firmwareSequenceFinished());
     expect(state.runs['7']).toEqual(JOB);
     expect(state.runs['8']).toEqual({
       id: '8',
@@ -208,9 +215,17 @@ describe('flight firmware update state', () => {
       status: 'cancelled',
       error: undefined,
     });
-
-    state = reducer(state, firmwareSequenceFinished());
     expect(state.currentId).toBeUndefined();
+    expect(state.running).toBe(false);
+  });
+
+  test('finishing a stopped sequence cancels every unstarted run', () => {
+    let state = reducer(initial(), firmwareSequenceStarted(['7', '8']));
+    state = reducer(state, firmwareJobUpdated({ ...JOB, status: 'failed' }));
+    state = reducer(state, firmwareSequenceFinished());
+
+    expect(state.runs['7'].status).toBe('failed');
+    expect(state.runs['8'].status).toBe('cancelled');
     expect(state.running).toBe(false);
   });
 });
@@ -221,6 +236,7 @@ describe('flight firmware update policy selectors', () => {
       {
         artifact: ARTIFACT,
         confirmed: true,
+        loadingTargets: false,
         running: false,
         selectedIds: ['7'],
       },
@@ -230,6 +246,7 @@ describe('flight firmware update policy selectors', () => {
       {
         artifact: undefined,
         confirmed: true,
+        loadingTargets: false,
         running: false,
         selectedIds: ['7'],
       },
@@ -239,6 +256,7 @@ describe('flight firmware update policy selectors', () => {
       {
         artifact: ARTIFACT,
         confirmed: false,
+        loadingTargets: false,
         running: false,
         selectedIds: ['7'],
       },
@@ -248,13 +266,30 @@ describe('flight firmware update policy selectors', () => {
       {
         artifact: ARTIFACT,
         confirmed: true,
+        loadingTargets: false,
         running: true,
         selectedIds: ['7'],
       },
       false,
     ],
     [
-      { artifact: ARTIFACT, confirmed: true, running: false, selectedIds: [] },
+      {
+        artifact: ARTIFACT,
+        confirmed: true,
+        loadingTargets: false,
+        running: false,
+        selectedIds: [],
+      },
+      false,
+    ],
+    [
+      {
+        artifact: ARTIFACT,
+        confirmed: true,
+        loadingTargets: true,
+        running: false,
+        selectedIds: ['7'],
+      },
       false,
     ],
   ])('evaluates start policy %#', (state, expected) => {

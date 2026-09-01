@@ -25,6 +25,7 @@ import {
   BRIDGE_GLOBAL_NAME,
   BRIDGE_PROTOCOL_VERSION,
   type E2EBridge,
+  type FirmwareUpdateSnapshot,
 } from './types';
 
 /**
@@ -105,6 +106,21 @@ const toJsonSafe = (value: unknown): unknown => {
  */
 const typedStore: { getState(): RootState } = store;
 
+const getFirmwareSnapshot = (): FirmwareUpdateSnapshot => {
+  const { artifact, loadingTargets, runs } =
+    typedStore.getState().firmwareUpdate;
+  return {
+    artifactReady: Boolean(artifact),
+    loadingTargets,
+    runs: Object.fromEntries(
+      Object.entries(runs).map(([id, run]) => [
+        id,
+        { ...run, error: run.error ? { ...run.error } : undefined },
+      ])
+    ),
+  };
+};
+
 const createBridge = (): E2EBridge => ({
   version: BRIDGE_PROTOCOL_VERSION,
 
@@ -118,6 +134,8 @@ const createBridge = (): E2EBridge => ({
   messages: getMessages,
 
   clearMessages,
+
+  firmwareSnapshot: getFirmwareSnapshot,
 
   getShowStageStatuses() {
     return getSetupStageStatuses(typedStore.getState());
