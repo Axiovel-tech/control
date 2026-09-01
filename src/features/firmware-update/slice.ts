@@ -14,11 +14,13 @@ export type FirmwareUpdateSliceState = {
   currentId?: string;
   dialogOpen: boolean;
   loadingTargets: boolean;
+  managedSequence: boolean;
   order: string[];
   running: boolean;
   runs: Record<string, FirmwareUpdateRun>;
   selectedIds: string[];
   targetError?: string;
+  targetGeneration: number;
   targets: FirmwareUpdateTarget[];
 };
 
@@ -26,10 +28,12 @@ const initialState: FirmwareUpdateSliceState = {
   confirmed: false,
   dialogOpen: false,
   loadingTargets: false,
+  managedSequence: false,
   order: [],
   running: false,
   runs: {},
   selectedIds: [],
+  targetGeneration: 0,
   targets: [],
 };
 
@@ -64,27 +68,48 @@ const slice = createSlice({
       state.dialogOpen = true;
     },
 
-    firmwareTargetsLoading(state) {
+    firmwareTargetsLoading(state, { payload }: PayloadAction<number>) {
       state.loadingTargets = true;
       state.confirmed = false;
+      state.targetGeneration = payload;
       state.targetError = undefined;
     },
 
     firmwareTargetsLoaded(
       state,
-      { payload }: PayloadAction<FirmwareUpdateTarget[]>
+      {
+        payload: { generation, targets },
+      }: PayloadAction<{
+        generation: number;
+        targets: FirmwareUpdateTarget[];
+      }>
     ) {
+      if (generation !== state.targetGeneration) {
+        return;
+      }
+
       state.loadingTargets = false;
-      state.targets = payload;
+      state.confirmed = false;
+      state.targets = targets;
       const compatible = new Set(
-        payload.filter((target) => target.compatible).map((target) => target.id)
+        targets.filter((target) => target.compatible).map((target) => target.id)
       );
       state.selectedIds = state.selectedIds.filter((id) => compatible.has(id));
     },
 
-    firmwareTargetsFailed(state, { payload }: PayloadAction<string>) {
+    firmwareTargetsFailed(
+      state,
+      {
+        payload: { error, generation },
+      }: PayloadAction<{ error: string; generation: number }>
+    ) {
+      if (generation !== state.targetGeneration) {
+        return;
+      }
+
       state.loadingTargets = false;
-      state.targetError = payload;
+      state.confirmed = false;
+      state.targetError = error;
       state.targets = [];
       state.selectedIds = [];
     },
@@ -122,11 +147,12 @@ const slice = createSlice({
     },
 
     setFirmwareUpdateConfirmed(state, { payload }: PayloadAction<boolean>) {
-      state.confirmed = payload;
+      state.confirmed = payload && !state.loadingTargets;
     },
 
     firmwareSequenceStarted(state, { payload }: PayloadAction<string[]>) {
       state.currentId = payload[0];
+      state.managedSequence = true;
       state.order = [...payload];
       state.running = true;
       state.runs = Object.fromEntries(payload.map((id) => [id, queuedRun(id)]));
@@ -145,6 +171,9 @@ const slice = createSlice({
       if (payload.status === 'running') {
         state.currentId = payload.id;
         state.running = true;
+      } else if (!state.managedSequence && state.currentId === payload.id) {
+        state.currentId = undefined;
+        state.running = false;
       }
     },
 
@@ -166,6 +195,7 @@ const slice = createSlice({
         }
       }
       state.currentId = undefined;
+      state.managedSequence = false;
       state.running = false;
     },
 

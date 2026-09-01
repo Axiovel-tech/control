@@ -13,7 +13,7 @@ import type { FirmwareUpdateRun } from '~/features/firmware-update/types';
  * Version of the bridge contract. The harness refuses to drive an app whose
  * major version it does not recognize.
  */
-export const BRIDGE_PROTOCOL_VERSION = 3;
+export const BRIDGE_PROTOCOL_VERSION = 2;
 
 /** Name of the global under which the bridge installs itself. */
 export const BRIDGE_GLOBAL_NAME = '__AXIO_E2E__';

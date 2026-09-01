@@ -10,6 +10,7 @@ import reducer, {
   firmwareRunIndeterminate,
   firmwareSequenceFinished,
   firmwareSequenceStarted,
+  firmwareTargetsFailed,
   firmwareTargetsLoaded,
   firmwareTargetsLoading,
   setFirmwareTargetSelected,
@@ -46,11 +47,14 @@ describe('flight firmware update state', () => {
   test('selects only compatible targets without duplicates and resets confirmation', () => {
     let state = reducer(
       initial(),
-      firmwareTargetsLoaded([
-        { id: '1', compatible: true, safety: {} },
-        { id: '2', compatible: false, safety: {} },
-        { id: '3', compatible: true, safety: {} },
-      ])
+      firmwareTargetsLoaded({
+        generation: 0,
+        targets: [
+          { id: '1', compatible: true, safety: {} },
+          { id: '2', compatible: false, safety: {} },
+          { id: '3', compatible: true, safety: {} },
+        ],
+      })
     );
     state = reducer(state, setFirmwareUpdateConfirmed(true));
     state = reducer(
@@ -101,9 +105,55 @@ describe('flight firmware update state', () => {
 
   test('invalidates confirmation while targets refresh', () => {
     let state = reducer(initial(), setFirmwareUpdateConfirmed(true));
-    state = reducer(state, firmwareTargetsLoading());
+    state = reducer(state, firmwareTargetsLoading(1));
     expect(state.loadingTargets).toBe(true);
     expect(state.confirmed).toBe(false);
+
+    state = reducer(state, setFirmwareUpdateConfirmed(true));
+    expect(state.confirmed).toBe(false);
+  });
+
+  test('accepts only current target facts and invalidates their confirmation', () => {
+    let state = reducer(initial(), firmwareTargetsLoading(1));
+    state = reducer(state, firmwareTargetsLoading(2));
+    state = reducer(
+      state,
+      firmwareTargetsLoaded({
+        generation: 1,
+        targets: [{ id: 'stale', compatible: true, safety: {} }],
+      })
+    );
+    expect(state.loadingTargets).toBe(true);
+    expect(state.targets).toEqual([]);
+
+    state = { ...state, confirmed: true };
+    state = reducer(
+      state,
+      firmwareTargetsLoaded({
+        generation: 2,
+        targets: [{ id: 'current', compatible: true, safety: {} }],
+      })
+    );
+    expect(state.loadingTargets).toBe(false);
+    expect(state.targets.map(({ id }) => id)).toEqual(['current']);
+    expect(state.confirmed).toBe(false);
+
+    state = reducer(state, firmwareTargetsLoading(3));
+    state = reducer(
+      state,
+      firmwareTargetsFailed({ error: 'stale error', generation: 2 })
+    );
+    expect(state.loadingTargets).toBe(true);
+    expect(state.targetError).toBeUndefined();
+
+    state = { ...state, confirmed: true };
+    state = reducer(
+      state,
+      firmwareTargetsFailed({ error: 'current error', generation: 3 })
+    );
+    expect(state.loadingTargets).toBe(false);
+    expect(state.confirmed).toBe(false);
+    expect(state.targetError).toBe('current error');
   });
 
   test('creates the exact ordered queue and advances the current target', () => {
@@ -158,6 +208,39 @@ describe('flight firmware update state', () => {
 
     state = reducer(state, firmwareJobUpdated(completed));
     expect(state.order).toEqual(['7', '8']);
+    expect(state.running).toBe(true);
+  });
+
+  test('finishes a notification-only job without ending a managed sequence', () => {
+    let external = reducer(initial(), firmwareJobUpdated(JOB));
+    external = reducer(
+      external,
+      firmwareJobUpdated({
+        ...JOB,
+        phase: 'complete',
+        status: 'success',
+        committed: true,
+        cancellable: false,
+      })
+    );
+    expect(external.running).toBe(false);
+    expect(external.currentId).toBeUndefined();
+
+    let managed = reducer(initial(), firmwareSequenceStarted(['7', '8']));
+    managed = reducer(managed, firmwareJobUpdated(JOB));
+    managed = reducer(
+      managed,
+      firmwareJobUpdated({
+        ...JOB,
+        phase: 'complete',
+        status: 'success',
+        committed: true,
+        cancellable: false,
+      })
+    );
+    expect(managed.running).toBe(true);
+    expect(managed.currentId).toBe('7');
+    expect(managed.runs['8'].phase).toBe('queued');
   });
 
   test('marks an existing run indeterminate while preserving server progress', () => {

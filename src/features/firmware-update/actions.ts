@@ -32,6 +32,7 @@ import type {
 const STATUS_POLL_INTERVAL_MS = 1000;
 let preparedArtifact: PreparedFirmwareArtifact | undefined;
 let sequenceGeneration = 0;
+let targetRefreshGeneration = 0;
 
 const delay = async (milliseconds: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, milliseconds));
@@ -74,13 +75,19 @@ export const rejectFirmwareArtifact = (): AppThunk => (dispatch) => {
 
 export const refreshFirmwareTargets =
   (): AppThunk<Promise<void>> => async (dispatch) => {
-    dispatch(firmwareTargetsLoading());
+    const generation = ++targetRefreshGeneration;
+    dispatch(firmwareTargetsLoading(generation));
     try {
       dispatch(
-        firmwareTargetsLoaded(await queryFirmwareUpdateTargets(messageHub))
+        firmwareTargetsLoaded({
+          generation,
+          targets: await queryFirmwareUpdateTargets(messageHub),
+        })
       );
     } catch (error) {
-      dispatch(firmwareTargetsFailed(errorToString(error)));
+      dispatch(
+        firmwareTargetsFailed({ error: errorToString(error), generation })
+      );
     }
   };
 

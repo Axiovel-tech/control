@@ -23,6 +23,7 @@ import {
   cancelCurrentFirmwareUpdate,
   prepareFirmwareArtifact,
   reconcileFirmwareUpdates,
+  refreshFirmwareTargets,
   runFirmwareUpdateSequence,
 } from '~/features/firmware-update/actions';
 import reducer, {
@@ -55,10 +56,13 @@ const prepareStore = () => {
   const store = configureStore({ reducer: { firmwareUpdate: reducer } });
   const dispatch = store.dispatch as AppDispatch;
   dispatch(
-    firmwareTargetsLoaded([
-      { id: '7', compatible: true, safety: {} },
-      { id: '8', compatible: true, safety: {} },
-    ])
+    firmwareTargetsLoaded({
+      generation: 0,
+      targets: [
+        { id: '7', compatible: true, safety: {} },
+        { id: '8', compatible: true, safety: {} },
+      ],
+    })
   );
   dispatch(setFirmwareTargetSelected({ id: '7', selected: true }));
   dispatch(setFirmwareTargetSelected({ id: '8', selected: true }));
@@ -88,6 +92,52 @@ const response = (
 describe('sequential flight firmware updates', () => {
   beforeEach(() => {
     mockSendMessage.mockReset();
+  });
+
+  test('ignores a stale target refresh that resolves last', async () => {
+    let resolveFirst!: (value: { body: Record<string, unknown> }) => void;
+    let resolveSecond!: (value: { body: Record<string, unknown> }) => void;
+    mockSendMessage
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveFirst = resolve;
+        })
+      )
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveSecond = resolve;
+        })
+      );
+    const store = configureStore({ reducer: { firmwareUpdate: reducer } });
+    const dispatch = store.dispatch as AppDispatch;
+
+    const first = dispatch(refreshFirmwareTargets());
+    const second = dispatch(refreshFirmwareTargets());
+    resolveSecond({
+      body: {
+        type: 'X-AP-OTA',
+        op: 'targets',
+        targets: [{ id: '8', compatible: true, safety: {} }],
+      },
+    });
+    await second;
+    dispatch(setFirmwareTargetSelected({ id: '8', selected: true }));
+    dispatch(setFirmwareUpdateConfirmed(true));
+
+    resolveFirst({
+      body: {
+        type: 'X-AP-OTA',
+        op: 'targets',
+        targets: [{ id: '7', compatible: true, safety: {} }],
+      },
+    });
+    await first;
+
+    expect(store.getState().firmwareUpdate.targets.map(({ id }) => id)).toEqual(
+      ['8']
+    );
+    expect(store.getState().firmwareUpdate.selectedIds).toEqual(['8']);
+    expect(store.getState().firmwareUpdate.confirmed).toBe(true);
   });
 
   test('starts the next UAV only after the previous UAV succeeds', async () => {
