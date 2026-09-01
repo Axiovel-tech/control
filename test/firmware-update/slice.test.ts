@@ -5,6 +5,8 @@ import {
   isFirmwareUpdateStartable,
 } from '~/features/firmware-update/selectors';
 import reducer, {
+  firmwareArtifactPrepared,
+  firmwareArtifactRejected,
   firmwareCurrentTargetChanged,
   firmwareJobUpdated,
   firmwareRunIndeterminate,
@@ -138,6 +140,10 @@ describe('flight firmware update state', () => {
     expect(state.targets.map(({ id }) => id)).toEqual(['current']);
     expect(state.confirmed).toBe(false);
 
+    state = reducer(
+      state,
+      setFirmwareTargetSelected({ id: 'current', selected: true })
+    );
     state = reducer(state, firmwareTargetsLoading(3));
     state = reducer(
       state,
@@ -145,6 +151,8 @@ describe('flight firmware update state', () => {
     );
     expect(state.loadingTargets).toBe(true);
     expect(state.targetError).toBeUndefined();
+    expect(state.targets.map(({ id }) => id)).toEqual(['current']);
+    expect(state.selectedIds).toEqual(['current']);
 
     state = { ...state, confirmed: true };
     state = reducer(
@@ -154,6 +162,28 @@ describe('flight firmware update state', () => {
     expect(state.loadingTargets).toBe(false);
     expect(state.confirmed).toBe(false);
     expect(state.targetError).toBe('current error');
+    expect(state.targets).toEqual([]);
+    expect(state.selectedIds).toEqual([]);
+  });
+
+  test('preparing an artifact invalidates confirmation and stale run state', () => {
+    let state = reducer(initial(), firmwareSequenceStarted(['7', '8']));
+    state = reducer(state, setFirmwareUpdateConfirmed(true));
+    state = reducer(state, firmwareArtifactPrepared(ARTIFACT));
+
+    expect(state.artifact).toEqual(ARTIFACT);
+    expect(state.confirmed).toBe(false);
+    expect(state.order).toEqual([]);
+    expect(state.runs).toEqual({});
+  });
+
+  test('rejecting an artifact removes it and invalidates confirmation', () => {
+    let state = reducer(initial(), firmwareArtifactPrepared(ARTIFACT));
+    state = reducer(state, setFirmwareUpdateConfirmed(true));
+    state = reducer(state, firmwareArtifactRejected());
+
+    expect(state.artifact).toBeUndefined();
+    expect(state.confirmed).toBe(false);
   });
 
   test('creates the exact ordered queue and advances the current target', () => {
