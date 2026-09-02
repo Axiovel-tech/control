@@ -16,6 +16,7 @@ export type FirmwareUpdateSliceState = {
   loadingTargets: boolean;
   managedSequence: boolean;
   order: string[];
+  readingArtifact: boolean;
   running: boolean;
   runs: Record<string, FirmwareUpdateRun>;
   selectedIds: string[];
@@ -30,6 +31,7 @@ const initialState: FirmwareUpdateSliceState = {
   loadingTargets: false,
   managedSequence: false,
   order: [],
+  readingArtifact: false,
   running: false,
   runs: {},
   selectedIds: [],
@@ -121,12 +123,20 @@ const slice = createSlice({
       state.artifact = payload;
       state.confirmed = false;
       state.order = [];
+      state.readingArtifact = false;
       state.runs = {};
+    },
+
+    firmwareArtifactReadingStarted(state) {
+      state.artifact = undefined;
+      state.confirmed = false;
+      state.readingArtifact = true;
     },
 
     firmwareArtifactRejected(state) {
       state.artifact = undefined;
       state.confirmed = false;
+      state.readingArtifact = false;
     },
 
     setFirmwareTargetSelected(
@@ -147,7 +157,8 @@ const slice = createSlice({
     },
 
     setFirmwareUpdateConfirmed(state, { payload }: PayloadAction<boolean>) {
-      state.confirmed = payload && !state.loadingTargets;
+      state.confirmed =
+        payload && !state.loadingTargets && !state.readingArtifact;
     },
 
     firmwareSequenceStarted(state, { payload }: PayloadAction<string[]>) {
@@ -155,7 +166,10 @@ const slice = createSlice({
       state.managedSequence = true;
       state.order = [...payload];
       state.running = true;
-      state.runs = Object.fromEntries(payload.map((id) => [id, queuedRun(id)]));
+      state.runs = {};
+      for (const id of payload) {
+        state.runs[id] = queuedRun(id);
+      }
     },
 
     firmwareCurrentTargetChanged(state, { payload }: PayloadAction<string>) {
@@ -210,6 +224,7 @@ const slice = createSlice({
 export const {
   closeFirmwareUpdateDialog,
   firmwareArtifactPrepared,
+  firmwareArtifactReadingStarted,
   firmwareArtifactRejected,
   firmwareCurrentTargetChanged,
   firmwareJobUpdated,

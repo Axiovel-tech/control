@@ -41,7 +41,6 @@ export type FirmwareUpdateTarget = {
 export const SERVER_PHASES = [
   'validating',
   'staging',
-  'verifyingUpload',
   'committing',
   'rebooting',
   'reconnecting',

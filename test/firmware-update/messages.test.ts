@@ -105,7 +105,6 @@ describe('X-AP-OTA messages', () => {
   test.each([
     'validating',
     'staging',
-    'verifyingUpload',
     'committing',
     'rebooting',
     'reconnecting',

@@ -11,6 +11,7 @@ import {
 import {
   closeFirmwareUpdateDialog,
   firmwareArtifactPrepared,
+  firmwareArtifactReadingStarted,
   firmwareArtifactRejected,
   firmwareCurrentTargetChanged,
   firmwareJobUpdated,
@@ -68,6 +69,11 @@ export const prepareFirmwareArtifact =
     dispatch(firmwareArtifactPrepared(artifact.metadata));
   };
 
+export const beginFirmwareArtifactRead = (): AppThunk => (dispatch) => {
+  preparedArtifact = undefined;
+  dispatch(firmwareArtifactReadingStarted());
+};
+
 export const rejectFirmwareArtifact = (): AppThunk => (dispatch) => {
   preparedArtifact = undefined;
   dispatch(firmwareArtifactRejected());
@@ -108,14 +114,27 @@ export const startNewFirmwareUpdate = (): AppThunk => (dispatch) => {
 
 export const runFirmwareUpdateSequence =
   (): AppThunk<Promise<void>> => async (dispatch, getState) => {
-    const { artifact, confirmed, loadingTargets, running, selectedIds } =
-      getState().firmwareUpdate;
+    const {
+      artifact,
+      confirmed,
+      loadingTargets,
+      readingArtifact,
+      running,
+      selectedIds,
+    } = getState().firmwareUpdate;
+    const artifactForSequence = preparedArtifact
+      ? {
+          image: preparedArtifact.image,
+          metadata: { ...preparedArtifact.metadata },
+        }
+      : undefined;
     if (
       !artifact ||
-      !preparedArtifact ||
-      preparedArtifact.metadata.sha256 !== artifact.sha256 ||
+      !artifactForSequence ||
+      artifactForSequence.metadata.sha256 !== artifact.sha256 ||
       !confirmed ||
       loadingTargets ||
+      readingArtifact ||
       running ||
       selectedIds.length === 0
     ) {
@@ -135,7 +154,7 @@ export const runFirmwareUpdateSequence =
         const first = await startFirmwareUpdate(
           messageHub,
           id,
-          preparedArtifact
+          artifactForSequence
         );
         dispatch(firmwareJobUpdated(first));
         const terminal = await waitForTerminalJob(

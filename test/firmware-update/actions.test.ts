@@ -20,6 +20,7 @@ jest.mock('~/error-handling', () => ({
 import { configureStore } from '@reduxjs/toolkit';
 
 import {
+  beginFirmwareArtifactRead,
   cancelCurrentFirmwareUpdate,
   prepareFirmwareArtifact,
   reconcileFirmwareUpdates,
@@ -49,6 +50,16 @@ const ARTIFACT: PreparedFirmwareArtifact = {
     gitHash: 'deadbeef',
     sha256: 'a'.repeat(64),
     version: '4.6.3',
+  },
+};
+
+const REPLACEMENT_ARTIFACT: PreparedFirmwareArtifact = {
+  image: 'bmV3LWZpcm13YXJl',
+  metadata: {
+    ...ARTIFACT.metadata,
+    fileName: 'replacement.apj',
+    gitHash: 'cafebabe',
+    sha256: 'b'.repeat(64),
   },
 };
 
@@ -152,6 +163,52 @@ describe('sequential flight firmware updates', () => {
     expect(starts).toEqual(['7', '8']);
     expect(store.getState().firmwareUpdate.runs['7'].status).toBe('success');
     expect(store.getState().firmwareUpdate.runs['8'].status).toBe('success');
+  });
+
+  test('uses one immutable artifact for every target in a sequence', async () => {
+    let resolveFirst!: (value: ReturnType<typeof response>) => void;
+    mockSendMessage
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveFirst = resolve;
+        })
+      )
+      .mockResolvedValueOnce(response('8', 'success'));
+    const { dispatch } = prepareStore();
+
+    const sequence = dispatch(runFirmwareUpdateSequence());
+    expect(mockSendMessage).toHaveBeenCalledTimes(1);
+    dispatch(prepareFirmwareArtifact(REPLACEMENT_ARTIFACT));
+    resolveFirst(response('7', 'success'));
+    await sequence;
+
+    expect(
+      mockSendMessage.mock.calls.map(([request]) => ({
+        id: request.id,
+        image: request.image,
+        sha256: request.sha256,
+      }))
+    ).toEqual([
+      { id: '7', image: ARTIFACT.image, sha256: ARTIFACT.metadata.sha256 },
+      { id: '8', image: ARTIFACT.image, sha256: ARTIFACT.metadata.sha256 },
+    ]);
+  });
+
+  test('invalidates a confirmed artifact as soon as replacement reading starts', async () => {
+    const { store, dispatch } = prepareStore();
+
+    dispatch(beginFirmwareArtifactRead());
+    await dispatch(runFirmwareUpdateSequence());
+
+    expect(store.getState().firmwareUpdate).toMatchObject({
+      artifact: undefined,
+      confirmed: false,
+      readingArtifact: true,
+    });
+    expect(mockSendMessage).not.toHaveBeenCalled();
+
+    dispatch(prepareFirmwareArtifact(REPLACEMENT_ARTIFACT));
+    expect(store.getState().firmwareUpdate.readingArtifact).toBe(false);
   });
 
   test('stops at the first failure and never retries it or starts the next UAV', async () => {

@@ -1,11 +1,13 @@
 import { describe, expect, test } from '@jest/globals';
 
 import {
+  isFirmwareUpdateReconciliationNeeded,
   isFirmwareRunCancellable,
   isFirmwareUpdateStartable,
 } from '~/features/firmware-update/selectors';
 import reducer, {
   firmwareArtifactPrepared,
+  firmwareArtifactReadingStarted,
   firmwareArtifactRejected,
   firmwareCurrentTargetChanged,
   firmwareJobUpdated,
@@ -184,6 +186,20 @@ describe('flight firmware update state', () => {
 
     expect(state.artifact).toBeUndefined();
     expect(state.confirmed).toBe(false);
+    expect(state.readingArtifact).toBe(false);
+  });
+
+  test('starting an artifact read invalidates the old artifact and confirmation', () => {
+    let state = reducer(initial(), firmwareArtifactPrepared(ARTIFACT));
+    state = reducer(state, setFirmwareUpdateConfirmed(true));
+    state = reducer(state, firmwareArtifactReadingStarted());
+
+    expect(state.artifact).toBeUndefined();
+    expect(state.confirmed).toBe(false);
+    expect(state.readingArtifact).toBe(true);
+
+    state = reducer(state, setFirmwareUpdateConfirmed(true));
+    expect(state.confirmed).toBe(false);
   });
 
   test('creates the exact ordered queue and advances the current target', () => {
@@ -350,6 +366,7 @@ describe('flight firmware update policy selectors', () => {
         artifact: ARTIFACT,
         confirmed: true,
         loadingTargets: false,
+        readingArtifact: false,
         running: false,
         selectedIds: ['7'],
       },
@@ -360,6 +377,7 @@ describe('flight firmware update policy selectors', () => {
         artifact: undefined,
         confirmed: true,
         loadingTargets: false,
+        readingArtifact: false,
         running: false,
         selectedIds: ['7'],
       },
@@ -370,6 +388,7 @@ describe('flight firmware update policy selectors', () => {
         artifact: ARTIFACT,
         confirmed: false,
         loadingTargets: false,
+        readingArtifact: false,
         running: false,
         selectedIds: ['7'],
       },
@@ -380,6 +399,7 @@ describe('flight firmware update policy selectors', () => {
         artifact: ARTIFACT,
         confirmed: true,
         loadingTargets: false,
+        readingArtifact: false,
         running: true,
         selectedIds: ['7'],
       },
@@ -390,6 +410,7 @@ describe('flight firmware update policy selectors', () => {
         artifact: ARTIFACT,
         confirmed: true,
         loadingTargets: false,
+        readingArtifact: false,
         running: false,
         selectedIds: [],
       },
@@ -400,6 +421,18 @@ describe('flight firmware update policy selectors', () => {
         artifact: ARTIFACT,
         confirmed: true,
         loadingTargets: true,
+        readingArtifact: false,
+        running: false,
+        selectedIds: ['7'],
+      },
+      false,
+    ],
+    [
+      {
+        artifact: ARTIFACT,
+        confirmed: true,
+        loadingTargets: false,
+        readingArtifact: true,
         running: false,
         selectedIds: ['7'],
       },
@@ -407,6 +440,36 @@ describe('flight firmware update policy selectors', () => {
     ],
   ])('evaluates start policy %#', (state, expected) => {
     expect(isFirmwareUpdateStartable(state)).toBe(expected);
+  });
+
+  test('reconciles when an active sequence later becomes indeterminate', () => {
+    let state = reducer(initial(), firmwareSequenceStarted(['7']));
+    state = reducer(state, firmwareJobUpdated(JOB));
+    expect(isFirmwareUpdateReconciliationNeeded(state)).toBe(false);
+
+    state = reducer(
+      state,
+      firmwareRunIndeterminate({
+        id: '7',
+        error: { code: 'transport', detail: 'connection lost' },
+      })
+    );
+    expect(isFirmwareUpdateReconciliationNeeded(state)).toBe(false);
+
+    state = reducer(state, firmwareSequenceFinished());
+    expect(isFirmwareUpdateReconciliationNeeded(state)).toBe(true);
+
+    state = reducer(
+      state,
+      firmwareJobUpdated({
+        ...JOB,
+        phase: 'complete',
+        status: 'success',
+        committed: true,
+        cancellable: false,
+      })
+    );
+    expect(isFirmwareUpdateReconciliationNeeded(state)).toBe(false);
   });
 
   test.each([

@@ -38,16 +38,23 @@ export const isFirmwareUpdateStartable = ({
   artifact,
   confirmed,
   loadingTargets,
+  readingArtifact,
   running,
   selectedIds,
 }: Pick<
   RootState['firmwareUpdate'],
-  'artifact' | 'confirmed' | 'loadingTargets' | 'running' | 'selectedIds'
+  | 'artifact'
+  | 'confirmed'
+  | 'loadingTargets'
+  | 'readingArtifact'
+  | 'running'
+  | 'selectedIds'
 >): boolean =>
   Boolean(
     artifact &&
     confirmed &&
     !loadingTargets &&
+    !readingArtifact &&
     !running &&
     selectedIds.length > 0
   );
@@ -55,6 +62,22 @@ export const isFirmwareUpdateStartable = ({
 export const canStartFirmwareUpdate = createSelector(
   getFirmwareUpdateState,
   isFirmwareUpdateStartable
+);
+
+export const isFirmwareUpdateReconciliationNeeded = ({
+  running,
+  runs,
+}: Pick<RootState['firmwareUpdate'], 'running' | 'runs'>): boolean =>
+  !running &&
+  Object.values(runs).some(
+    (run) =>
+      run.status === 'indeterminate' ||
+      (run.status === 'running' && run.phase !== 'queued')
+  );
+
+export const shouldReconcileFirmwareUpdates = createSelector(
+  getFirmwareUpdateState,
+  isFirmwareUpdateReconciliationNeeded
 );
 
 export const isFirmwareRunCancellable = (

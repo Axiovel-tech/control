@@ -18,6 +18,7 @@ import { type AppDispatch } from '~/store/reducers';
 import { formatData } from '~/utils/formatting';
 
 import {
+  beginFirmwareArtifactRead,
   cancelCurrentFirmwareUpdate,
   hideFirmwareUpdateDialog,
   prepareFirmwareArtifact,
@@ -37,6 +38,7 @@ import {
   getOrderedFirmwareRuns,
   getSelectedFirmwareTargets,
   isFirmwareUpdateDialogOpen,
+  shouldReconcileFirmwareUpdates,
 } from './selectors';
 import { setFirmwareTargetSelected, setFirmwareUpdateConfirmed } from './slice';
 import type {
@@ -245,26 +247,26 @@ const FirmwareActions = (props: FirmwareActionsProps) => {
   );
 };
 
-const useReconnectReconciliation = (
+const useFirmwareReconciliation = (
   connected: boolean,
   dispatch: AppDispatch,
-  runCount: number
+  shouldReconcile: boolean
 ) => {
-  const wasConnected = useRef(connected);
+  const requested = useRef(false);
   useEffect(() => {
-    if (connected && !wasConnected.current && runCount > 0) {
+    const eligible = connected && shouldReconcile;
+    if (eligible && !requested.current) {
       void dispatch(reconcileFirmwareUpdates());
     }
-    wasConnected.current = connected;
-  }, [connected, dispatch, runCount, wasConnected]);
+    requested.current = eligible;
+  }, [connected, dispatch, shouldReconcile]);
 };
 
 const useFirmwareFileReader = (dispatch: AppDispatch) => {
-  const [reading, setReading] = useState(false);
   const [error, setError] = useState<string>();
   const read = useCallback(
     async (file: File) => {
-      setReading(true);
+      dispatch(beginFirmwareArtifactRead());
       setError(undefined);
       try {
         dispatch(prepareFirmwareArtifact(await parseApjFile(file)));
@@ -273,13 +275,11 @@ const useFirmwareFileReader = (dispatch: AppDispatch) => {
         setError(
           reason instanceof ApjValidationError ? reason.code : 'read_failed'
         );
-      } finally {
-        setReading(false);
       }
     },
     [dispatch]
   );
-  return { error, read, reading };
+  return { error, read };
 };
 
 const FirmwareUpdateSetupDialog = () => {
@@ -292,8 +292,9 @@ const FirmwareUpdateSetupDialog = () => {
   const runs = useSelector(getOrderedFirmwareRuns);
   const canStart = useSelector(canStartFirmwareUpdate);
   const canCancel = useSelector(canCancelCurrentFirmwareUpdate);
+  const shouldReconcile = useSelector(shouldReconcileFirmwareUpdates);
   const file = useFirmwareFileReader(dispatch);
-  useReconnectReconciliation(connected, dispatch, state.order.length);
+  useFirmwareReconciliation(connected, dispatch, shouldReconcile);
 
   const showProgress = state.running || runs.length > 0;
   const close = () => dispatch(hideFirmwareUpdateDialog());
@@ -317,7 +318,7 @@ const FirmwareUpdateSetupDialog = () => {
             confirmed={state.confirmed}
             fileError={file.error}
             loadingTargets={state.loadingTargets}
-            readingFile={file.reading}
+            readingFile={state.readingArtifact}
             selectedIds={state.selectedIds}
             selectedTargets={selectedTargets}
             targetError={state.targetError}
