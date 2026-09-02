@@ -304,10 +304,11 @@ describe('flight firmware update action edge cases', () => {
     for (const run of invalidRuns) {
       mockSendMessage.mockClear();
       const base = makeStore().store.getState().firmwareUpdate;
+      const runs: Record<string, FirmwareUpdateRun> = run ? { '7': run } : {};
       const state = {
         ...base,
         currentId: '7',
-        runs: run ? { '7': run } : {},
+        runs,
       };
       const { dispatch } = makeStore(state);
       await dispatch(cancelCurrentFirmwareUpdate());
