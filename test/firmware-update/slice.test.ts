@@ -17,6 +17,7 @@ import reducer, {
   firmwareTargetsFailed,
   firmwareTargetsLoaded,
   firmwareTargetsLoading,
+  resetFirmwareUpdate,
   setFirmwareTargetSelected,
   setFirmwareUpdateConfirmed,
 } from '~/features/firmware-update/slice';
@@ -356,6 +357,12 @@ describe('flight firmware update state', () => {
     expect(state.runs['7'].status).toBe('failed');
     expect(state.runs['8'].status).toBe('cancelled');
     expect(state.running).toBe(false);
+  });
+
+  test('does not reset a running sequence', () => {
+    const state = reducer(initial(), firmwareSequenceStarted(['7']));
+
+    expect(reducer(state, resetFirmwareUpdate())).toBe(state);
   });
 });
 

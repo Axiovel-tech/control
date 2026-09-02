@@ -33,7 +33,7 @@ import type {
 
 const STATUS_POLL_INTERVAL_MS = 1000;
 let preparedArtifact: PreparedFirmwareArtifact | undefined;
-let sequenceGeneration = 0;
+let sequenceGeneration = Symbol();
 let targetRefreshGeneration = 0;
 
 const delay = async (milliseconds: number): Promise<void> =>
@@ -45,10 +45,10 @@ const transportError = (error: unknown): FirmwareUpdateError => ({
 });
 
 const isMatchingTerminalJob = (
-  job: FirmwareUpdateRun | undefined,
+  job: FirmwareUpdateRun,
   operationId: string
 ): job is FirmwareUpdateJob =>
-  job?.operationId === operationId &&
+  job.operationId === operationId &&
   job.phase !== 'queued' &&
   job.status !== 'running';
 
@@ -56,7 +56,7 @@ const waitForTerminalJob = async (
   first: FirmwareUpdateJob,
   onUpdate: (job: FirmwareUpdateJob) => void,
   isCurrent: () => boolean,
-  readCurrent: () => FirmwareUpdateRun | undefined
+  readCurrent: () => FirmwareUpdateRun
 ): Promise<FirmwareUpdateJob> => {
   let job = first;
   while (job.status === 'running' && isCurrent()) {
@@ -65,19 +65,17 @@ const waitForTerminalJob = async (
       break;
     }
 
-    try {
-      job = await queryFirmwareUpdateStatus(
-        messageHub,
-        job.id,
-        job.operationId
-      );
-    } catch (error) {
+    job = await queryFirmwareUpdateStatus(
+      messageHub,
+      job.id,
+      job.operationId
+    ).catch((error) => {
       const current = readCurrent();
       if (isMatchingTerminalJob(current, job.operationId)) {
         return current;
       }
       throw error;
-    }
+    });
     onUpdate(job);
   }
 
@@ -163,7 +161,7 @@ export const runFirmwareUpdateSequence =
       return;
     }
 
-    const generation = ++sequenceGeneration;
+    const generation = (sequenceGeneration = Symbol());
     dispatch(firmwareSequenceStarted(selectedIds));
 
     for (const id of selectedIds) {
@@ -214,7 +212,7 @@ export const cancelCurrentFirmwareUpdate =
       return;
     }
 
-    sequenceGeneration++;
+    sequenceGeneration = Symbol();
     try {
       dispatch(
         firmwareJobUpdated(
@@ -253,7 +251,7 @@ export const reconcileFirmwareUpdates =
           continue;
         }
 
-        const generation = ++sequenceGeneration;
+        const generation = (sequenceGeneration = Symbol());
         try {
           await waitForTerminalJob(
             reconciled,

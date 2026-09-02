@@ -123,7 +123,11 @@ describe('sequential flight firmware updates', () => {
     const dispatch = store.dispatch as AppDispatch;
 
     const first = dispatch(refreshFirmwareTargets());
+    const firstGeneration = store.getState().firmwareUpdate.targetGeneration;
     const second = dispatch(refreshFirmwareTargets());
+    expect(store.getState().firmwareUpdate.targetGeneration).toBe(
+      firstGeneration + 1
+    );
     resolveSecond({
       body: {
         type: 'X-AP-OTA',
@@ -226,6 +230,12 @@ describe('sequential flight firmware updates', () => {
     jest.useFakeTimers();
     try {
       let rejectStatus!: (reason: Error) => void;
+      const lostStatusResponse = new Promise<{
+        body: Record<string, unknown>;
+      }>((_resolve, reject) => {
+        rejectStatus = reject;
+      });
+      void lostStatusResponse.catch(() => undefined);
       mockSendMessage
         .mockResolvedValueOnce({
           body: {
@@ -241,16 +251,15 @@ describe('sequential flight firmware updates', () => {
             },
           },
         })
-        .mockReturnValueOnce(
-          new Promise((_resolve, reject) => {
-            rejectStatus = reject;
-          })
-        )
+        .mockReturnValueOnce(lostStatusResponse)
         .mockResolvedValueOnce(response('8', 'success'));
       const { store, dispatch } = prepareStore();
 
       const sequence = dispatch(runFirmwareUpdateSequence());
-      await jest.advanceTimersByTimeAsync(1000);
+      await jest.advanceTimersByTimeAsync(999);
+      expect(mockSendMessage).toHaveBeenCalledTimes(1);
+      await jest.advanceTimersByTimeAsync(1);
+      expect(mockSendMessage).toHaveBeenCalledTimes(2);
       dispatch(
         firmwareJobUpdated({
           id: '7',
@@ -358,6 +367,7 @@ describe('sequential flight firmware updates', () => {
       await jest.advanceTimersByTimeAsync(0);
       expect(store.getState().firmwareUpdate.running).toBe(true);
       await jest.advanceTimersByTimeAsync(1000);
+      expect(mockSendMessage).toHaveBeenCalledTimes(2);
       await reconciliation;
 
       expect(mockSendMessage).toHaveBeenCalledTimes(2);

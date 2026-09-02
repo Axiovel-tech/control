@@ -215,7 +215,7 @@ const slice = createSlice({
 
     resetFirmwareUpdate(state) {
       if (!state.running) {
-        Object.assign(state, initialState, { dialogOpen: state.dialogOpen });
+        return { ...initialState, dialogOpen: state.dialogOpen };
       }
     },
   },
