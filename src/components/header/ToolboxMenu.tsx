@@ -13,7 +13,6 @@ import { useTranslation } from 'react-i18next';
 import { connect } from 'react-redux';
 
 import { showFirmwareUpdateDialog } from '~/features/firmware-update/actions';
-import { JOB_TYPE as FIRMWARE_UPLOAD_JOB_TYPE } from '~/features/firmware-update/constants';
 import { showLicenseInfoDialog } from '~/features/license-info/slice';
 import { showMapCachingDialog } from '~/features/map-caching/slice';
 import { getActiveUAVIdsBeingAveraged } from '~/features/measurement/selectors';
@@ -34,6 +33,7 @@ import ToolboxDevMenuItems from './ToolboxDevMenuItems';
 type ToolboxMenuPresentationProps = Readonly<{
   devMode: boolean;
   isConnected: boolean;
+  firmwareUpdateRunning: boolean;
   numberOfAveragingInProgress: number;
   runningUploadJobType?: string;
   requestClose: () => void;
@@ -48,6 +48,7 @@ type ToolboxMenuPresentationProps = Readonly<{
 
 const ToolboxMenuPresentation = ({
   devMode,
+  firmwareUpdateRunning,
   isConnected,
   numberOfAveragingInProgress,
   runningUploadJobType,
@@ -84,7 +85,10 @@ const ToolboxMenuPresentation = ({
           }
         />
       </MenuItem>
-      <MenuItem onClick={createClickListener(showFirmwareUpdateDialog)}>
+      <MenuItem
+        data-testid='toolbox.flight-firmware-update'
+        onClick={createClickListener(showFirmwareUpdateDialog)}
+      >
         <ListItemIcon>
           <Build />
         </ListItemIcon>
@@ -95,10 +99,7 @@ const ToolboxMenuPresentation = ({
               <Pro style={{ verticalAlign: 'middle', marginLeft: 8 }} />
             </>
           }
-          secondary={
-            runningUploadJobType === FIRMWARE_UPLOAD_JOB_TYPE &&
-            t('toolbox.uploadInProgress')
-          }
+          secondary={firmwareUpdateRunning && t('toolbox.uploadInProgress')}
         />
       </MenuItem>
       <MenuItem onClick={createClickListener(showMapCachingDialog)}>
@@ -160,6 +161,7 @@ export default connect(
   // mapStateToProps
   (state: RootState) => ({
     devMode: isDeveloperModeEnabled(state),
+    firmwareUpdateRunning: state.firmwareUpdate.running,
     isConnected: isConnected(state),
     numberOfAveragingInProgress: getActiveUAVIdsBeingAveraged(state).length,
     runningUploadJobType: getRunningUploadJobType(state),

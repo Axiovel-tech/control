@@ -28,6 +28,7 @@ import {
 } from './features/rtls/handlers';
 
 import { batchAddInboundMessages } from './features/messages/slice';
+import { handleFirmwareUpdateMessage } from './features/firmware-update/handlers';
 import { showError, showNotification } from './features/snackbar/actions';
 import { semanticsFromSeverity } from './features/snackbar/utils';
 
@@ -97,6 +98,7 @@ messageHub.registerNotificationHandlers({
     flock.handleUAVInformationMessage(message.body, dispatch),
   'X-DBG-REQ': (message) =>
     handleDebugRequest(message.body, messageHub.execute.sendDebugMessage),
+  'X-AP-OTA': (message) => handleFirmwareUpdateMessage(message.body, dispatch),
   'X-RTLS-INF': (message) =>
     handleRtlsInformationMessage(message.body, dispatch),
   'X-RTLS-OTA': (message) => handleRtlsOtaMessage(message.body, dispatch),

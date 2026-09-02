@@ -264,6 +264,86 @@
     "fitAllDrones": "Fit all drones",
     "fitAllFeatures": "Fit all features"
   },
+  "flightFirmwareUpdate": {
+    "action": {
+      "cancelBeforeCommit": "Cancel before commit",
+      "newUpdate": "Start another update",
+      "start": "Start sequential update"
+    },
+    "confirmation": {
+      "approve": "I confirm these targets are safe to update and understand that power must not be removed after commit.",
+      "artifact": "Install version {{version}} (Git {{hash}}, file SHA-256 {{sha256}}).",
+      "safetyDisarmed": "Every selected drone is disarmed.",
+      "safetyGround": "Every selected drone is stationary on the ground with a clear safety area.",
+      "safetyLink": "Control and Axio Server will remain connected; a lost link after commit has an indeterminate outcome until the drone reconnects.",
+      "safetyPower": "Every selected drone has stable, sufficient power for the entire update.",
+      "safetyTitle": "Confirm all safety conditions:",
+      "sequenceWarning": "Updates run one drone at a time and stop at the first failure or indeterminate result. Failed updates are never retried automatically.",
+      "targets": "Targets ({{count}}): {{targets}}",
+      "title": "Final confirmation"
+    },
+    "file": {
+      "error": {
+        "empty": "The selected file is empty.",
+        "extension": "Select an ArduPilot .apj file.",
+        "file_too_large": "The selected APJ file is unexpectedly large.",
+        "image_too_large": "The firmware image exceeds the maximum size declared by the APJ.",
+        "invalid_image_maxsize": "The APJ has an invalid maximum firmware size.",
+        "invalid_image_size": "The APJ has an invalid firmware image size.",
+        "invalid_json": "The selected file is not a valid APJ JSON document.",
+        "invalid_magic": "The selected file does not have the ArduPilot APJ signature.",
+        "missing_git_identity": "The APJ does not identify its source revision.",
+        "missing_image": "The APJ does not contain a firmware image.",
+        "missing_summary": "The APJ does not identify its target board.",
+        "missing_version": "The APJ does not identify its firmware version.",
+        "read_failed": "The selected APJ could not be read.",
+        "wrong_board": "This firmware is not built for AXIOLIGHT-REVB (board ID 1177)."
+      },
+      "reading": "Reading and validating firmware…",
+      "select": "Select or drop an ArduPilot .apj file",
+      "sha256": "File SHA-256: {{sha256}}",
+      "summary": "{{board}} (board {{boardId}}), version {{version}}, Git {{hash}}, {{size}}"
+    },
+    "introduction": "Choose an AXIOLIGHT ArduPilot firmware artifact. Control validates its basic APJ metadata; Axio Server independently validates it again before updating each drone.",
+    "phase": {
+      "committing": "Committing verified firmware",
+      "complete": "Installed and verified",
+      "queued": "Waiting; not started",
+      "rebooting": "Rebooting into the installer",
+      "reconnecting": "Waiting for the flight controller to reconnect",
+      "staging": "Uploading firmware to the flight controller",
+      "validating": "Validating artifact and safety conditions",
+      "verifyingInstalled": "Verifying the installed firmware",
+      "verifyingUpload": "Verifying the staged firmware"
+    },
+    "progress": {
+      "error": "Update error: {{detail}}",
+      "finished": "The sequence has stopped. Review every target before closing this dialog.",
+      "indeterminate": "The final state is unknown. Do not retry or power-cycle this drone until its server status has been checked after reconnecting.",
+      "installed": "Installed: {{version}} ({{hash}})",
+      "phaseAndInstalled": "{{phase}}. {{installed}}",
+      "running": "Keep drones powered and leave this application connected. Closing the dialog does not cancel the update.",
+      "target": "Drone {{id}}"
+    },
+    "safety": {
+      "fail": "failed",
+      "pass": "passed",
+      "unknown": "server will check"
+    },
+    "targets": {
+      "currentFirmware": "Current: {{version}} ({{hash}})",
+      "currentUnknown": "Current firmware unknown",
+      "empty": "Axio Server reported no flight controllers available for this update.",
+      "incompatible": "Not compatible with flight-controller OTA",
+      "incompatibleDetail": "Not compatible: {{detail}}",
+      "loadFailed": "Could not load compatible drones: {{detail}}",
+      "loading": "Loading compatible drones and safety state…",
+      "safetySummary": "Connected: {{connected}}; disarmed: {{disarmed}}; on ground: {{onGround}}; power: {{power}}",
+      "title": "Select compatible drones"
+    },
+    "title": "ArduPilot flight firmware update",
+    "unknown": "unknown"
+  },
   "flightLogKind": {
     "ardupilot": "ArduPilot flight log",
     "flockctrl": "FlockCtrl high-level flight log",

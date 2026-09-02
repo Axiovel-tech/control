@@ -17,7 +17,6 @@ import type { Coordinate3D } from '~/utils/math';
 
 import {
   createBulkParameterUploadRequest,
-  createFirmwareUploadRequest,
   createParameterSettingRequest,
 } from './builders';
 import type MessageHub from './messages';
@@ -359,31 +358,6 @@ export async function uploadDroneShow(
 }
 
 /**
- * Ask the server to update the firmware of a given component.
- */
-export async function uploadFirmware(
-  hub: MessageHub,
-  {
-    objectId,
-    target,
-    blob,
-  }: { objectId: string; target: string; blob: string },
-  options: Pick<AsyncOperationOptions, 'onProgress'>
-) {
-  const command = createFirmwareUploadRequest(objectId, target, blob);
-  try {
-    await hub.startAsyncOperationForSingleId(objectId, command, options);
-  } catch (error) {
-    const errorString = errorToString(error);
-    // Currently we assume that we can only post a firmware update to a UAV;
-    // this might change in the future but so far we are okay
-    throw new Error(
-      `Failed to upload firmware update to UAV ${objectId}: ${errorString}`
-    );
-  }
-}
-
-/**
  * Asks the server to upload a mission in some mission format to a given UAV.
  */
 export async function uploadMission(
@@ -481,7 +455,6 @@ const _operations = {
   startRTKSurvey,
   suspendShow,
   uploadDroneShow,
-  uploadFirmware,
   uploadMission,
 };
 

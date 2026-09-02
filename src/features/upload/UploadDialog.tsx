@@ -7,8 +7,6 @@ import { connect } from 'react-redux';
 
 import { DraggableDialog } from '@skybrush/mui-components';
 
-import { JOB_TYPE as FIRMWARE_UPDATE_JOB_TYPE } from '~/features/firmware-update/constants';
-import FirmwareUpdateSupportFetcher from '~/features/firmware-update/FirmwareUpdateSupportFetcher';
 import type { RootState } from '~/store/reducers';
 
 import {
@@ -76,9 +74,6 @@ const UploadDialog = ({
       }
       onClose={onClose}
     >
-      {selectedJobType === FIRMWARE_UPDATE_JOB_TYPE && (
-        <FirmwareUpdateSupportFetcher />
-      )}
       {isRunningJobTypeMatching ? (
         <UploadPanel
           jobType={selectedJobType ?? ''}
