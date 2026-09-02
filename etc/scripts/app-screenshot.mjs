@@ -174,12 +174,12 @@ console.log('06-averaging-dialog done');
 
 console.log('07-firmware-update-dialog waiting...');
 await page.evaluate(dispatch, {
-  type: 'firmware-update/showFirmwareUpdateSetupDialog',
+  type: 'firmware-update/openFirmwareUpdateDialog',
 });
 await sleep(250);
 await snap('07-firmware-update-dialog');
 await page.evaluate(dispatch, {
-  type: 'firmware-update/hideFirmwareUpdateSetupDialog',
+  type: 'firmware-update/closeFirmwareUpdateDialog',
 });
 console.log('07-firmware-update-dialog done');
 

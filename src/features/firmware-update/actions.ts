@@ -27,6 +27,7 @@ import {
 import type {
   FirmwareUpdateError,
   FirmwareUpdateJob,
+  FirmwareUpdateRun,
   PreparedFirmwareArtifact,
 } from './types';
 
@@ -43,10 +44,19 @@ const transportError = (error: unknown): FirmwareUpdateError => ({
   detail: errorToString(error),
 });
 
+const isMatchingTerminalJob = (
+  job: FirmwareUpdateRun | undefined,
+  operationId: string
+): job is FirmwareUpdateJob =>
+  job?.operationId === operationId &&
+  job.phase !== 'queued' &&
+  job.status !== 'running';
+
 const waitForTerminalJob = async (
   first: FirmwareUpdateJob,
   onUpdate: (job: FirmwareUpdateJob) => void,
-  isCurrent: () => boolean
+  isCurrent: () => boolean,
+  readCurrent: () => FirmwareUpdateRun | undefined
 ): Promise<FirmwareUpdateJob> => {
   let job = first;
   while (job.status === 'running' && isCurrent()) {
@@ -55,7 +65,19 @@ const waitForTerminalJob = async (
       break;
     }
 
-    job = await queryFirmwareUpdateStatus(messageHub, job.id, job.operationId);
+    try {
+      job = await queryFirmwareUpdateStatus(
+        messageHub,
+        job.id,
+        job.operationId
+      );
+    } catch (error) {
+      const current = readCurrent();
+      if (isMatchingTerminalJob(current, job.operationId)) {
+        return current;
+      }
+      throw error;
+    }
     onUpdate(job);
   }
 
@@ -160,7 +182,8 @@ export const runFirmwareUpdateSequence =
         const terminal = await waitForTerminalJob(
           first,
           (job) => dispatch(firmwareJobUpdated(job)),
-          () => generation === sequenceGeneration
+          () => generation === sequenceGeneration,
+          () => getState().firmwareUpdate.runs[first.id]
         );
         if (terminal.status !== 'success') {
           break;
@@ -235,7 +258,8 @@ export const reconcileFirmwareUpdates =
           await waitForTerminalJob(
             reconciled,
             (job) => dispatch(firmwareJobUpdated(job)),
-            () => generation === sequenceGeneration
+            () => generation === sequenceGeneration,
+            () => getState().firmwareUpdate.runs[reconciled.id]
           );
         } catch (error) {
           if (generation === sequenceGeneration) {
