@@ -16,14 +16,15 @@ import Divider from '@mui/material/Divider';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import { useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useDispatch, useSelector } from 'react-redux';
 
 import { BackgroundHint, StatusPill, Tooltip } from '@skybrush/mui-components';
 
 import { checkGeometryAgreement } from '~/features/rtls/geometry-actions';
 import {
+  describeGeometryAgreement,
   geometryPillFor,
-  summarizeGeometryAgreement,
 } from '~/features/rtls/geometry-utils';
 import OverallRtlsStatusLight from '~/features/rtls/OverallRtlsStatusLight';
 import {
@@ -57,6 +58,7 @@ type RtlsRolePanelProps = {
 };
 
 const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
+  const { t } = useTranslation();
   const tags = variant === 'tags';
   const dispatch: AppDispatch = useDispatch();
   const devices = useSelector(tags ? getRtlsTagDevices : getRtlsAnchorDevices);
@@ -67,7 +69,7 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
   const geometryCheck = useSelector(getRtlsGeometryCheck);
   const geometryBusy = useSelector(isRtlsGeometryBusy);
   const geometrySummary = useMemo(
-    () => summarizeGeometryAgreement(geometryCheck),
+    () => describeGeometryAgreement(geometryCheck),
     [geometryCheck]
   );
   // The tags fit the cell themselves at boot; the panel only asks the
@@ -116,10 +118,10 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
                   data-testid='rtls-tags-panel.geometry'
                   status={geometrySummary.status}
                 >
-                  {geometrySummary.label}
+                  {t(geometrySummary.key, geometrySummary.values)}
                 </StatusPill>
               )}
-              <Tooltip content='Check that every drone fitted the same cell geometry'>
+              <Tooltip content={t('rtlsGeometry.tooltip.check')}>
                 <IconButton
                   data-testid='rtls-tags-panel.check-geometry'
                   size='small'
@@ -129,7 +131,7 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
                   <Rule fontSize='small' />
                 </IconButton>
               </Tooltip>
-              <Tooltip content='Run the fleet pre-flight verification'>
+              <Tooltip content={t('rtlsGeometry.tooltip.verify')}>
                 <IconButton
                   data-testid='rtls-tags-panel.verify'
                   size='small'
@@ -192,7 +194,11 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
                 <DeviceStatsRow
                   busy={Boolean(sleepPending?.[device.id])}
                   device={device}
-                  geometryLabel={geometry.label}
+                  geometryLabel={
+                    geometry.text
+                      ? t(geometry.text.key, geometry.text.values)
+                      : undefined
+                  }
                   geometryStatus={geometry.status}
                   handlers={handlers}
                   stats={statsById[device.id]}

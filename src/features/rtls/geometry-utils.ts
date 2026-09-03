@@ -5,6 +5,10 @@
  * Every tag fits the anchor table itself at boot (rtls-link-zephyr#208) and
  * streams the fit as health stats; the server grades the fleet in
  * X-RTLS-GEOM. Nothing here writes geometry anywhere.
+ *
+ * The helpers return i18n descriptors (resource key + interpolation values)
+ * rather than text, so components translate them with `t(key, values)` and
+ * the strings live in the resources (see AGENTS.md, I18n).
  */
 
 import { Status } from '~/components/semantics';
@@ -16,27 +20,58 @@ import {
   RtlsGeometryState,
 } from './types';
 
-/** Human label of a firmware geometry state code. */
-export const describeGeometryState = (
-  state: RtlsGeometryState | undefined
-): string => {
-  switch (state) {
-    case RtlsGeometryState.MANUAL:
-      return 'manual table';
-    case RtlsGeometryState.WAITING:
-      return 'waiting for anchors';
-    case RtlsGeometryState.CALIBRATING:
-      return 'calibrating';
-    case RtlsGeometryState.CALIBRATED:
-      return 'calibrated';
-    case RtlsGeometryState.FAILED:
-      return 'fit failed';
-    default:
-      return 'no geometry';
-  }
+/** A translatable text: an i18n resource key and its interpolation values. */
+export type I18nText = {
+  key: string;
+  values?: Record<string, number | string>;
 };
 
-const formatCm = (metres: number): string => `${(metres * 100).toFixed(1)} cm`;
+const STATE_KEYS: Record<RtlsGeometryState, string> = {
+  [RtlsGeometryState.MANUAL]: 'manual',
+  [RtlsGeometryState.WAITING]: 'waiting',
+  [RtlsGeometryState.CALIBRATING]: 'calibrating',
+  [RtlsGeometryState.CALIBRATED]: 'calibrated',
+  [RtlsGeometryState.FAILED]: 'failed',
+};
+
+/** Text of a firmware geometry state code. */
+export const describeGeometryState = (
+  state: RtlsGeometryState | undefined
+): I18nText => ({
+  key: `rtlsGeometry.state.${
+    state === undefined ? 'none' : (STATE_KEYS[state] ?? 'none')
+  }`,
+});
+
+/** Centimetres with one decimal, for interpolation. */
+const cm = (metres: number): string => (metres * 100).toFixed(1);
+
+/**
+ * The "Geometry" telemetry line of a tag: fit state, then the rectangle
+ * residual and, when noticeable, the live drift since calibration (a moved
+ * tripod). Undefined for a device without geometry telemetry.
+ */
+export const describeGeometryFit = (
+  stats: RtlsDeviceStats | undefined
+): I18nText | undefined => {
+  const state = stats?.geometryState;
+  if (state === undefined) {
+    return undefined;
+  }
+
+  if (state !== RtlsGeometryState.CALIBRATED) {
+    return describeGeometryState(state);
+  }
+
+  const residual = cm(stats?.geometryResidualM ?? 0);
+  const drift = stats?.geometryDriftM ?? 0;
+  return drift >= 0.01
+    ? {
+        key: 'rtlsGeometry.fit.calibratedDrift',
+        values: { residual, drift: cm(drift) },
+      }
+    : { key: 'rtlsGeometry.fit.calibrated', values: { residual } };
+};
 
 /**
  * The geometry pill of one tag row: the agreement verdict when the last
@@ -46,35 +81,67 @@ const formatCm = (metres: number): string => `${(metres * 100).toFixed(1)} cm`;
 export const geometryPillFor = (
   stats: RtlsDeviceStats | undefined,
   entry: RtlsGeometryAgreementEntry | undefined
-): { label?: string; status?: Status } => {
+): { text?: I18nText; status?: Status } => {
   if (entry) {
     switch (entry.status) {
       case 'agree':
         return {
-          label:
+          text:
             entry.maxDeviationM === undefined
-              ? 'geometry ok'
-              : `geometry ok (${formatCm(entry.maxDeviationM)})`,
+              ? { key: 'rtlsGeometry.pill.ok' }
+              : {
+                  key: 'rtlsGeometry.pill.okDeviation',
+                  values: { deviation: cm(entry.maxDeviationM) },
+                },
           status: Status.SUCCESS,
         };
       case 'deviates':
         return {
-          label:
+          text:
             entry.maxDeviationM === undefined
-              ? 'geometry deviates'
-              : `geometry deviates (${formatCm(entry.maxDeviationM)})`,
+              ? { key: 'rtlsGeometry.pill.deviates' }
+              : {
+                  key: 'rtlsGeometry.pill.deviatesDeviation',
+                  values: { deviation: cm(entry.maxDeviationM) },
+                },
+          status: Status.ERROR,
+        };
+      case 'drifted':
+        return {
+          text:
+            entry.driftM === undefined
+              ? { key: 'rtlsGeometry.pill.drifted' }
+              : {
+                  key: 'rtlsGeometry.pill.driftedDrift',
+                  values: { drift: cm(entry.driftM) },
+                },
           status: Status.ERROR,
         };
       case 'manual':
-        return { label: 'geometry manual', status: Status.INFO };
+        return {
+          text: { key: 'rtlsGeometry.pill.manual' },
+          status: Status.INFO,
+        };
       case 'calibrating':
-        return { label: 'geometry calibrating', status: Status.WARNING };
+        return {
+          text: { key: 'rtlsGeometry.pill.calibrating' },
+          status: Status.WARNING,
+        };
       case 'failed':
-        return { label: 'geometry fit failed', status: Status.ERROR };
+        return {
+          text: { key: 'rtlsGeometry.pill.failed' },
+          status: Status.ERROR,
+        };
       case 'stale':
-        return { label: 'geometry stale', status: Status.WARNING };
+        return {
+          text: { key: 'rtlsGeometry.pill.stale' },
+          status: Status.WARNING,
+        };
       default:
-        return { label: 'geometry unknown', status: Status.WARNING };
+        return {
+          text: { key: 'rtlsGeometry.pill.unknown' },
+          status: Status.WARNING,
+        };
     }
   }
 
@@ -85,59 +152,96 @@ export const geometryPillFor = (
 
   switch (state) {
     case RtlsGeometryState.CALIBRATED:
-      return { label: 'geometry calibrated', status: Status.INFO };
+      return {
+        text: { key: 'rtlsGeometry.pill.calibrated' },
+        status: Status.INFO,
+      };
     case RtlsGeometryState.MANUAL:
-      return { label: 'geometry manual', status: Status.INFO };
+      return { text: { key: 'rtlsGeometry.pill.manual' }, status: Status.INFO };
     case RtlsGeometryState.FAILED:
-      return { label: 'geometry fit failed', status: Status.ERROR };
+      return {
+        text: { key: 'rtlsGeometry.pill.failed' },
+        status: Status.ERROR,
+      };
     default:
-      return { label: 'geometry calibrating', status: Status.WARNING };
+      return {
+        text: { key: 'rtlsGeometry.pill.calibrating' },
+        status: Status.WARNING,
+      };
   }
 };
 
-export type GeometryAgreementSummary = {
-  label: string;
+export type GeometryAgreementSummary = I18nText & {
   status: Status;
-  /** Number of tags that deviate or cannot be certified. */
+  /** Number of tags that deviate, drifted or cannot be certified. */
   problems: number;
 };
 
 /**
  * One-line fleet verdict of the last agreement check for the tags panel
- * toolbar.
+ * toolbar and the check's snackbar.
  */
-export const summarizeGeometryAgreement = (
+export const describeGeometryAgreement = (
   check: RtlsGeometryAgreement | undefined
 ): GeometryAgreementSummary => {
   if (!check) {
-    return { label: 'geometry unchecked', status: Status.OFF, problems: 0 };
+    return {
+      key: 'rtlsGeometry.summary.unchecked',
+      status: Status.OFF,
+      problems: 0,
+    };
   }
 
   const entries = Object.values(check.devices);
-  const agreeing = entries.filter((entry) => entry.status === 'agree').length;
-  const deviating = entries.filter(
-    (entry) => entry.status === 'deviates'
-  ).length;
-  const manual = entries.filter((entry) => entry.status === 'manual').length;
-  const pending = entries.length - agreeing - deviating - manual;
+  const count = (status: RtlsGeometryAgreementEntry['status']): number =>
+    entries.filter((entry) => entry.status === status).length;
+  const agreeing = count('agree');
+  const deviating = count('deviates');
+  const drifted = count('drifted');
+  const manual = count('manual');
+  const pending = entries.length - agreeing - deviating - drifted - manual;
 
   if (entries.length === 0) {
-    return { label: 'geometry: no tags', status: Status.OFF, problems: 0 };
+    return {
+      key: 'rtlsGeometry.summary.noTags',
+      status: Status.OFF,
+      problems: 0,
+    };
   }
 
   if (deviating > 0) {
     return {
-      label: `geometry: ${deviating} deviating`,
+      key: 'rtlsGeometry.summary.deviating',
+      values: { count: deviating },
       status: Status.ERROR,
-      problems: deviating + pending,
+      problems: deviating + drifted + pending,
+    };
+  }
+
+  if (drifted > 0) {
+    return {
+      key: 'rtlsGeometry.summary.drifted',
+      values: { count: drifted },
+      status: Status.ERROR,
+      problems: drifted + pending,
     };
   }
 
   if (pending > 0) {
     return {
-      label: `geometry: ${pending} not calibrated`,
+      key: 'rtlsGeometry.summary.notCalibrated',
+      values: { count: pending },
       status: Status.WARNING,
       problems: pending,
+    };
+  }
+
+  if (agreeing === 0) {
+    return {
+      key: 'rtlsGeometry.summary.manualOnly',
+      values: { count: manual },
+      status: Status.SUCCESS,
+      problems: 0,
     };
   }
 
@@ -145,15 +249,10 @@ export const summarizeGeometryAgreement = (
     0,
     ...entries.map((entry) => entry.maxDeviationM ?? 0)
   );
-  const detail =
-    agreeing > 0 ? ` (${agreeing} agree, max ${formatCm(maxDeviation)})` : '';
   return {
-    label:
-      manual > 0 && agreeing === 0
-        ? `geometry: ${manual} manual`
-        : `geometry consistent${detail}`,
-    status:
-      check.consistent || agreeing === 0 ? Status.SUCCESS : Status.WARNING,
+    key: 'rtlsGeometry.summary.consistent',
+    values: { count: agreeing, deviation: cm(maxDeviation) },
+    status: check.consistent ? Status.SUCCESS : Status.WARNING,
     problems: 0,
   };
 };

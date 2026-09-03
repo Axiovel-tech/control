@@ -13,6 +13,7 @@ import CircularProgress from '@mui/material/CircularProgress';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 
 import {
   MiniList,
@@ -25,7 +26,7 @@ import {
 import BatteryIndicator from '~/components/BatteryIndicator';
 import { Status } from '~/components/semantics';
 import AnchorBars from '~/features/rtls/AnchorBars';
-import { describeGeometryState } from '~/features/rtls/geometry-utils';
+import { describeGeometryFit } from '~/features/rtls/geometry-utils';
 import { getStatusForHealth } from '~/features/rtls/health-status';
 import { getRtlsDeviceDisplayName } from '~/features/rtls/selectors';
 import {
@@ -38,7 +39,6 @@ import {
 import {
   type RtlsDevice,
   type RtlsDeviceStats,
-  RtlsGeometryState,
   type RtlsTwrPeer,
 } from '~/features/rtls/types';
 import { getRtlsDeviceListStatus } from '~/features/rtls/utils';
@@ -239,28 +239,6 @@ const RowActions = ({
   </Box>
 );
 
-/**
- * The automatic-geometry line of a tag: fit state, rectangle residual and
- * the largest live drift since calibration (a moved tripod).
- */
-const describeGeometryFit = (stats: RtlsDeviceStats): string => {
-  const parts = [describeGeometryState(stats.geometryState)];
-  if (
-    stats.geometryState === RtlsGeometryState.CALIBRATED &&
-    stats.geometryResidualM !== undefined
-  ) {
-    parts.push(`residual ${(stats.geometryResidualM * 100).toFixed(1)} cm`);
-  }
-  if (
-    stats.geometryState === RtlsGeometryState.CALIBRATED &&
-    stats.geometryDriftM !== undefined &&
-    stats.geometryDriftM >= 0.01
-  ) {
-    parts.push(`drift ${(stats.geometryDriftM * 100).toFixed(1)} cm`);
-  }
-  return parts.join(' · ');
-};
-
 export type DeviceStatsRowProps = {
   /** Whether a sleep/wake transaction is in flight for this device. */
   busy?: boolean;
@@ -290,8 +268,10 @@ const DeviceStatsRow = ({
   stats,
   uavStatus,
 }: DeviceStatsRowProps) => {
+  const { t } = useTranslation();
   const role = classifyRole(device.role);
   const anchor = isAnchorRole(role);
+  const geometryFit = describeGeometryFit(stats);
   const anchorsSeen =
     stats?.anchorsSeen ?? countAnchorsInMask(stats?.anchorMask);
 
@@ -355,10 +335,10 @@ const DeviceStatsRow = ({
             primaryText='Anchors seen'
             secondaryText={String(anchorsSeen)}
           />
-          {stats?.geometryState !== undefined && (
+          {geometryFit && (
             <MiniListItem
-              primaryText='Geometry'
-              secondaryText={describeGeometryFit(stats)}
+              primaryText={t('rtlsGeometry.telemetry')}
+              secondaryText={t(geometryFit.key, geometryFit.values)}
             />
           )}
         </MiniList>

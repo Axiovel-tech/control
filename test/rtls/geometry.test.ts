@@ -2,9 +2,10 @@ import { describe, expect, test } from '@jest/globals';
 
 import { Status } from '~/components/semantics';
 import {
+  describeGeometryAgreement,
+  describeGeometryFit,
   describeGeometryState,
   geometryPillFor,
-  summarizeGeometryAgreement,
 } from '~/features/rtls/geometry-utils';
 import {
   getRtlsGeometryCheck,
@@ -41,10 +42,28 @@ describe('geometry pill', () => {
   test('grades from the agreement verdict when one exists', () => {
     expect(
       geometryPillFor(undefined, { status: 'agree', maxDeviationM: 0.004 })
-    ).toEqual({ label: 'geometry ok (0.4 cm)', status: Status.SUCCESS });
+    ).toEqual({
+      text: {
+        key: 'rtlsGeometry.pill.okDeviation',
+        values: { deviation: '0.4' },
+      },
+      status: Status.SUCCESS,
+    });
     expect(
       geometryPillFor(undefined, { status: 'deviates', maxDeviationM: 0.05 })
-    ).toEqual({ label: 'geometry deviates (5.0 cm)', status: Status.ERROR });
+    ).toEqual({
+      text: {
+        key: 'rtlsGeometry.pill.deviatesDeviation',
+        values: { deviation: '5.0' },
+      },
+      status: Status.ERROR,
+    });
+    expect(
+      geometryPillFor(undefined, { status: 'drifted', driftM: 0.05 })
+    ).toEqual({
+      text: { key: 'rtlsGeometry.pill.driftedDrift', values: { drift: '5.0' } },
+      status: Status.ERROR,
+    });
     expect(geometryPillFor(undefined, { status: 'manual' }).status).toBe(
       Status.INFO
     );
@@ -59,7 +78,10 @@ describe('geometry pill', () => {
         { id: '1', geometryState: RtlsGeometryState.CALIBRATING },
         undefined
       )
-    ).toEqual({ label: 'geometry calibrating', status: Status.WARNING });
+    ).toEqual({
+      text: { key: 'rtlsGeometry.pill.calibrating' },
+      status: Status.WARNING,
+    });
     expect(
       geometryPillFor(
         { id: '1', geometryState: RtlsGeometryState.CALIBRATED },
@@ -77,46 +99,74 @@ describe('geometry pill', () => {
     expect(geometryPillFor(undefined, undefined)).toEqual({});
   });
 
-  test('describes every firmware state', () => {
-    expect(describeGeometryState(RtlsGeometryState.MANUAL)).toBe(
-      'manual table'
+  test('describes every firmware state and the telemetry line', () => {
+    expect(describeGeometryState(RtlsGeometryState.MANUAL).key).toBe(
+      'rtlsGeometry.state.manual'
     );
-    expect(describeGeometryState(RtlsGeometryState.CALIBRATED)).toBe(
-      'calibrated'
+    expect(describeGeometryState(undefined).key).toBe(
+      'rtlsGeometry.state.none'
     );
-    expect(describeGeometryState(undefined)).toBe('no geometry');
+    expect(describeGeometryFit({ id: '1' })).toBeUndefined();
+    expect(
+      describeGeometryFit({
+        id: '1',
+        geometryState: RtlsGeometryState.CALIBRATED,
+        geometryResidualM: -0.075,
+        geometryDriftM: 0.002,
+      })
+    ).toEqual({
+      key: 'rtlsGeometry.fit.calibrated',
+      values: { residual: '-7.5' },
+    });
+    expect(
+      describeGeometryFit({
+        id: '1',
+        geometryState: RtlsGeometryState.CALIBRATED,
+        geometryResidualM: -0.075,
+        geometryDriftM: 0.03,
+      })
+    ).toEqual({
+      key: 'rtlsGeometry.fit.calibratedDrift',
+      values: { residual: '-7.5', drift: '3.0' },
+    });
+    expect(
+      describeGeometryFit({ id: '1', geometryState: RtlsGeometryState.WAITING })
+    ).toEqual({ key: 'rtlsGeometry.state.waiting' });
   });
 });
 
 describe('geometry agreement summary', () => {
   test('unchecked and empty fleets', () => {
-    expect(summarizeGeometryAgreement(undefined)).toMatchObject({
-      label: 'geometry unchecked',
+    expect(describeGeometryAgreement(undefined)).toMatchObject({
+      key: 'rtlsGeometry.summary.unchecked',
       status: Status.OFF,
     });
-    expect(summarizeGeometryAgreement(agreement({}, false))).toMatchObject({
+    expect(describeGeometryAgreement(agreement({}, false))).toMatchObject({
+      key: 'rtlsGeometry.summary.noTags',
       status: Status.OFF,
       problems: 0,
     });
   });
 
   test('a consistent fleet reports the largest deviation', () => {
-    const summary = summarizeGeometryAgreement(
-      agreement({
-        '42': { status: 'agree', maxDeviationM: 0.001 },
-        '43': { status: 'agree', maxDeviationM: 0.004 },
-      })
-    );
-    expect(summary).toEqual({
-      label: 'geometry consistent (2 agree, max 0.4 cm)',
+    expect(
+      describeGeometryAgreement(
+        agreement({
+          '42': { status: 'agree', maxDeviationM: 0.001 },
+          '43': { status: 'agree', maxDeviationM: 0.004 },
+        })
+      )
+    ).toEqual({
+      key: 'rtlsGeometry.summary.consistent',
+      values: { count: 2, deviation: '0.4' },
       status: Status.SUCCESS,
       problems: 0,
     });
   });
 
-  test('deviating and uncalibrated tags are counted as problems', () => {
+  test('deviating, drifted and uncalibrated tags are counted as problems', () => {
     expect(
-      summarizeGeometryAgreement(
+      describeGeometryAgreement(
         agreement(
           {
             '42': { status: 'agree', maxDeviationM: 0.001 },
@@ -127,12 +177,29 @@ describe('geometry agreement summary', () => {
         )
       )
     ).toEqual({
-      label: 'geometry: 1 deviating',
+      key: 'rtlsGeometry.summary.deviating',
+      values: { count: 1 },
       status: Status.ERROR,
       problems: 2,
     });
     expect(
-      summarizeGeometryAgreement(
+      describeGeometryAgreement(
+        agreement(
+          {
+            '42': { status: 'agree', maxDeviationM: 0.001 },
+            '43': { status: 'drifted', driftM: 0.05 },
+          },
+          false
+        )
+      )
+    ).toMatchObject({
+      key: 'rtlsGeometry.summary.drifted',
+      values: { count: 1 },
+      status: Status.ERROR,
+      problems: 1,
+    });
+    expect(
+      describeGeometryAgreement(
         agreement(
           {
             '42': { status: 'agree', maxDeviationM: 0.001 },
@@ -142,14 +209,14 @@ describe('geometry agreement summary', () => {
         )
       )
     ).toMatchObject({
-      label: 'geometry: 1 not calibrated',
+      key: 'rtlsGeometry.summary.notCalibrated',
       status: Status.WARNING,
     });
   });
 
   test('manual tags never count as problems', () => {
     expect(
-      summarizeGeometryAgreement(
+      describeGeometryAgreement(
         agreement(
           {
             '42': { status: 'agree', maxDeviationM: 0.001 },
@@ -160,10 +227,10 @@ describe('geometry agreement summary', () => {
       ).problems
     ).toBe(0);
     expect(
-      summarizeGeometryAgreement(
+      describeGeometryAgreement(
         agreement({ '43': { status: 'manual' } }, false)
       )
-    ).toMatchObject({ label: 'geometry: 1 manual', problems: 0 });
+    ).toMatchObject({ key: 'rtlsGeometry.summary.manualOnly', problems: 0 });
   });
 });
 

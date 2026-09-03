@@ -1452,5 +1452,48 @@
     "sunset": "Sunset",
     "timezone": "Timezone",
     "utcOffset": "UTC offset"
+  },
+  "rtlsGeometry": {
+    "checkFailed": "Geometry check failed: {{detail}}",
+    "fit": {
+      "calibrated": "calibrated · residual {{residual}} cm",
+      "calibratedDrift": "calibrated · residual {{residual}} cm · drift {{drift}} cm"
+    },
+    "pill": {
+      "calibrated": "geometry calibrated",
+      "calibrating": "geometry calibrating",
+      "deviates": "geometry deviates",
+      "deviatesDeviation": "geometry deviates ({{deviation}} cm)",
+      "drifted": "geometry drifted",
+      "driftedDrift": "geometry drifted ({{drift}} cm)",
+      "failed": "geometry fit failed",
+      "manual": "geometry manual",
+      "ok": "geometry ok",
+      "okDeviation": "geometry ok ({{deviation}} cm)",
+      "stale": "geometry stale",
+      "unknown": "geometry unknown"
+    },
+    "state": {
+      "calibrated": "calibrated",
+      "calibrating": "calibrating",
+      "failed": "fit failed",
+      "manual": "manual table",
+      "none": "no geometry",
+      "waiting": "waiting for anchors"
+    },
+    "summary": {
+      "consistent": "geometry consistent ({{count}} agree, max {{deviation}} cm)",
+      "deviating": "geometry: {{count}} deviating",
+      "drifted": "geometry: {{count}} drifted",
+      "manualOnly": "geometry: {{count}} manual",
+      "noTags": "geometry: no tags",
+      "notCalibrated": "geometry: {{count}} not calibrated",
+      "unchecked": "geometry unchecked"
+    },
+    "telemetry": "Geometry",
+    "tooltip": {
+      "check": "Check that every drone fitted the same cell geometry",
+      "verify": "Run the fleet pre-flight verification"
+    }
   }
 }

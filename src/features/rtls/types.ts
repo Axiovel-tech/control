@@ -225,10 +225,13 @@ export type RtlsGeometryAgreementEntry = {
     | 'agree'
     | 'calibrating'
     | 'deviates'
+    | 'drifted'
     | 'failed'
     | 'manual'
     | 'stale'
     | 'unknown';
+  /** Cell the tag belongs to (its CELL_ID); tags are compared per cell. */
+  cell?: string;
   state?: RtlsGeometryState;
   stateName?: string;
   residualM?: number;
@@ -247,8 +250,11 @@ export type RtlsGeometryAgreementEntry = {
 export type RtlsGeometryAgreement = {
   /** Largest accepted deviation of one distance, metres. */
   tolerance: number;
-  /** Per-distance fleet reference (lower median), null until a tag fitted. */
+  /** Per-distance reference of the only cell (lower median); absent with
+   * none or several cells. */
   reference?: Array<number | null>;
+  /** One per-distance reference per cell. */
+  references?: Record<string, Array<number | null>>;
   consistent: boolean;
   /** Per-tag verdicts keyed by system id. */
   devices: Record<string, RtlsGeometryAgreementEntry>;
