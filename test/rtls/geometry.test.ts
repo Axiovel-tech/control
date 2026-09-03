@@ -319,6 +319,31 @@ describe('geometry slice + selectors', () => {
     );
     expect(getRtlsGeometryCheck(stateWith(state))).toBeUndefined();
 
+    // a tag rebooted (uptime went backwards): it refits at boot, the
+    // verdict is void and the panel's re-check trigger moves
+    state = reducer(
+      reducer(
+        state,
+        setRtlsDevicesFromStatus({
+          '42': { role: 'tag', online: true, uptimeMs: 500000 },
+          '43': { role: 'tag', online: true, uptimeMs: 500000 },
+          '101': { role: 'anchor-initiator', online: true },
+        })
+      ),
+      rtlsGeometryCheckSucceeded(verdict)
+    );
+    const invalidationsBefore = state.geometry.invalidations;
+    state = reducer(
+      state,
+      setRtlsDevicesFromStatus({
+        '42': { role: 'tag', online: true, uptimeMs: 3000 },
+        '43': { role: 'tag', online: true, uptimeMs: 501000 },
+        '101': { role: 'anchor-initiator', online: true },
+      })
+    );
+    expect(getRtlsGeometryCheck(stateWith(state))).toBeUndefined();
+    expect(state.geometry.invalidations).toBe(invalidationsBefore + 1);
+
     state = reducer(
       reducer(state, rtlsGeometryCheckSucceeded(verdict)),
       clearRtlsDevices()

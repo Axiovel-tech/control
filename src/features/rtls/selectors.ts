@@ -279,6 +279,10 @@ export const getRtlsGeometryCheck: AppSelector<
 export const isRtlsGeometryBusy: AppSelector<boolean> = (state) =>
   state.rtls.geometry.checking;
 
+/** Selector: how many times a verdict was voided (a re-check trigger). */
+export const getRtlsGeometryInvalidations: AppSelector<number> = (state) =>
+  state.rtls.geometry.invalidations;
+
 /**
  * Selector that returns the number of tags the last agreement check could
  * not certify (deviating, still calibrating, failed, stale or unknown);

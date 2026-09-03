@@ -115,6 +115,9 @@ export type RtlsSliceState = {
   geometry: {
     checking: boolean;
     lastCheck?: RtlsGeometryAgreement;
+    /** Counts every time the slice voided a verdict (tag set changed, a
+     * tag rebooted): the tags panel re-checks whenever it moves. */
+    invalidations: number;
   };
 
   /** Fleet pre-flight verification state (X-RTLS-VERIFY). */
@@ -151,6 +154,7 @@ const initialState: RtlsSliceState = {
   geometry: {
     checking: false,
     lastCheck: undefined,
+    invalidations: 0,
   },
   verify: {
     running: false,
@@ -389,8 +393,18 @@ const { actions, reducer } = createSlice({
           order: ids,
           byId: payload as Record<string, { role?: string }>,
         });
-        if (before !== after) {
+        // A tag that rebooted (uptime went backwards) fits its geometry
+        // again at boot: the old verdict no longer describes it.
+        const rebooted = ids.some((id) => {
+          const uptime = payload[id]?.uptimeMs;
+          const previous = state.devices.byId[id]?.uptimeMs;
+          return (
+            uptime !== undefined && previous !== undefined && uptime < previous
+          );
+        });
+        if (before !== after || rebooted) {
           state.geometry.lastCheck = undefined;
+          state.geometry.invalidations += 1;
         }
       }
 

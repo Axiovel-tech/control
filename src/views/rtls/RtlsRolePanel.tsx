@@ -30,6 +30,7 @@ import OverallRtlsStatusLight from '~/features/rtls/OverallRtlsStatusLight';
 import {
   getRtlsAnchorDevices,
   getRtlsGeometryCheck,
+  getRtlsGeometryInvalidations,
   getRtlsPairedUavStatuses,
   getRtlsSleepPendingMap,
   getRtlsStatsById,
@@ -74,13 +75,15 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
   );
   // The tags fit the cell themselves at boot; the panel only asks the
   // server whether the fleet agrees. A cheap, read-only check, so it runs
-  // whenever the tag set changes and can be repeated at will.
-  const tagIds = devices.map((device) => device.id).join(',');
+  // whenever the slice voids a verdict (the tag set changed, a tag
+  // rebooted and refitted) and can be repeated at will.
+  const invalidations = useSelector(getRtlsGeometryInvalidations);
+  const haveTags = devices.length > 0;
   useEffect(() => {
-    if (tags && tagIds) {
+    if (tags && haveTags) {
       void dispatch(checkGeometryAgreement({ silent: true }));
     }
-  }, [dispatch, tags, tagIds]);
+  }, [dispatch, tags, haveTags, invalidations]);
   // stable identity so the memoized rows are not re-rendered by the parent
   const handlers: DeviceRowHandlers = useMemo(
     () => ({
