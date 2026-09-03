@@ -22,6 +22,7 @@ import {
   type RtlsParam,
   type RtlsPosEstimate,
 } from './types';
+import { classifyRole, isAnchorRole } from './stats-utils';
 import { updateStateOfRtlsDevice } from './utils';
 
 /**
@@ -370,12 +371,17 @@ const { actions, reducer } = createSlice({
       // anchor joining or leaving keeps the verdict (the tags panel
       // re-checks on tag-set changes only).
       if (state.geometry.lastCheck) {
+        // The same tag definition as getRtlsTagDevices (every device that
+        // is not an anchor, unknown roles included), so the verdict is
+        // voided exactly when the panel's automatic re-check fires.
         const tagIds = (collection: {
           order: string[];
           byId: Record<string, { role?: string }>;
         }): string =>
           collection.order
-            .filter((id) => (collection.byId[id]?.role ?? '').startsWith('tag'))
+            .filter(
+              (id) => !isAnchorRole(classifyRole(collection.byId[id]?.role))
+            )
             .sort()
             .join(',');
         const before = tagIds(state.devices);

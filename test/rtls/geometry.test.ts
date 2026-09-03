@@ -272,6 +272,33 @@ describe('geometry slice + selectors', () => {
       setRtlsDevicesFromStatus({ '42': { role: 'tag', online: true } })
     );
     expect(getRtlsGeometryCheck(stateWith(state))).toEqual(verdict);
+    // a device of unknown role resolving as a tag is the same tag set
+    // (unknown roles count as tags, as in getRtlsTagDevices)
+    state = reducer(
+      reducer(
+        state,
+        setRtlsDevicesFromStatus({
+          '42': { role: 'tag', online: true },
+          '43': { online: true },
+        })
+      ),
+      rtlsGeometryCheckSucceeded(verdict)
+    );
+    state = reducer(
+      state,
+      setRtlsDevicesFromStatus({
+        '42': { role: 'tag', online: true },
+        '43': { role: 'tag', online: true },
+      })
+    );
+    expect(getRtlsGeometryCheck(stateWith(state))).toEqual(verdict);
+    state = reducer(
+      reducer(
+        state,
+        setRtlsDevicesFromStatus({ '42': { role: 'tag', online: true } })
+      ),
+      rtlsGeometryCheckSucceeded(verdict)
+    );
     // an anchor joined: anchors are not graded, the certification stands
     state = reducer(
       state,
