@@ -373,39 +373,40 @@ const { actions, reducer } = createSlice({
       // keeping a green "consistent" verdict over a fleet it never saw
       // would be a false pre-flight pass. Anchors are not graded, so an
       // anchor joining or leaving keeps the verdict (the tags panel
-      // re-checks on tag-set changes only).
-      if (state.geometry.lastCheck) {
-        // The same tag definition as getRtlsTagDevices (every device that
-        // is not an anchor, unknown roles included), so the verdict is
-        // voided exactly when the panel's automatic re-check fires.
-        const tagIds = (collection: {
-          order: string[];
-          byId: Record<string, { role?: string }>;
-        }): string =>
-          collection.order
-            .filter(
-              (id) => !isAnchorRole(classifyRole(collection.byId[id]?.role))
-            )
-            .sort()
-            .join(',');
-        const before = tagIds(state.devices);
-        const after = tagIds({
-          order: ids,
-          byId: payload as Record<string, { role?: string }>,
-        });
-        // A tag that rebooted (uptime went backwards) fits its geometry
-        // again at boot: the old verdict no longer describes it.
-        const rebooted = ids.some((id) => {
-          const uptime = payload[id]?.uptimeMs;
-          const previous = state.devices.byId[id]?.uptimeMs;
-          return (
-            uptime !== undefined && previous !== undefined && uptime < previous
-          );
-        });
-        if (before !== after || rebooted) {
-          state.geometry.lastCheck = undefined;
-          state.geometry.invalidations += 1;
-        }
+      // re-checks on tag-set changes only). The generation counter moves
+      // even without a cached verdict: a check in flight compares it to
+      // drop an answer that describes the fleet before the event.
+      //
+      // The same tag definition as getRtlsTagDevices (every device that
+      // is not an anchor, unknown roles included), so the verdict is
+      // voided exactly when the panel's automatic re-check fires.
+      const tagIds = (collection: {
+        order: string[];
+        byId: Record<string, { role?: string }>;
+      }): string =>
+        collection.order
+          .filter(
+            (id) => !isAnchorRole(classifyRole(collection.byId[id]?.role))
+          )
+          .sort()
+          .join(',');
+      const before = tagIds(state.devices);
+      const after = tagIds({
+        order: ids,
+        byId: payload as Record<string, { role?: string }>,
+      });
+      // A tag that rebooted (uptime went backwards) fits its geometry
+      // again at boot: the old verdict no longer describes it.
+      const rebooted = ids.some((id) => {
+        const uptime = payload[id]?.uptimeMs;
+        const previous = state.devices.byId[id]?.uptimeMs;
+        return (
+          uptime !== undefined && previous !== undefined && uptime < previous
+        );
+      });
+      if (before !== after || rebooted) {
+        state.geometry.lastCheck = undefined;
+        state.geometry.invalidations += 1;
       }
 
       // Drop devices that are no longer present in the snapshot, along with

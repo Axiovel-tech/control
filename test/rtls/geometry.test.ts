@@ -378,5 +378,23 @@ describe('geometry slice + selectors', () => {
     );
     expect(getRtlsGeometryCheck(stateWith(state))).toBeUndefined();
     expect(getRtlsGeometryProblemCount(stateWith(state))).toBe(0);
+
+    // without a cached verdict (a check in flight) the generation still
+    // moves, so the in-flight answer is dropped rather than shown
+    state = reducer(
+      state,
+      setRtlsDevicesFromStatus({
+        '42': { role: 'tag', online: true, uptimeMs: 9000 },
+      })
+    );
+    const generation = state.geometry.invalidations;
+    state = reducer(
+      state,
+      setRtlsDevicesFromStatus({
+        '42': { role: 'tag', online: true, uptimeMs: 1000 },
+      })
+    );
+    expect(state.geometry.lastCheck).toBeUndefined();
+    expect(state.geometry.invalidations).toBe(generation + 1);
   });
 });
