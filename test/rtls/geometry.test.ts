@@ -283,6 +283,16 @@ describe('geometry slice + selectors', () => {
       },
     } as unknown as RootState;
     expect(hasRtlsGeometrySettledTag(wasStale)).toBe(true);
+    // a pending tag that turns out to use its provisioned table settles too
+    const manual = {
+      rtls: {
+        ...wasStale.rtls,
+        stats: {
+          byId: { '42': { id: '42', geometryState: RtlsGeometryState.MANUAL } },
+        },
+      },
+    } as unknown as RootState;
+    expect(hasRtlsGeometrySettledTag(manual)).toBe(true);
   });
 
   test('a certified tag drifting past the tolerance raises the drift alarm', () => {
