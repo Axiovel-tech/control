@@ -272,6 +272,17 @@ describe('geometry slice + selectors', () => {
       },
     } as unknown as RootState;
     expect(hasRtlsGeometrySettledTag(settled)).toBe(true);
+    // a tag graded before its telemetry arrived settles the same way
+    const wasStale = {
+      rtls: {
+        ...settled.rtls,
+        geometry: {
+          ...settled.rtls.geometry,
+          lastCheck: agreement({ '42': { status: 'stale' } }),
+        },
+      },
+    } as unknown as RootState;
+    expect(hasRtlsGeometrySettledTag(wasStale)).toBe(true);
   });
 
   test('a certified tag drifting past the tolerance raises the drift alarm', () => {

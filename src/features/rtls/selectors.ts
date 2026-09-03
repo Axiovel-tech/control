@@ -29,6 +29,7 @@ import {
   type RtlsOtaJob,
   type RtlsVerifyResult,
   type RtlsPosEstimate,
+  type RtlsGeometryAgreementEntry,
   RtlsGeometryState,
 } from './types';
 
@@ -284,11 +285,17 @@ export const isRtlsGeometryBusy: AppSelector<boolean> = (state) =>
 export const getRtlsGeometryInvalidations: AppSelector<number> = (state) =>
   state.rtls.geometry.invalidations;
 
+/** Verdicts the live telemetry can overtake: the tag was not graded yet. */
+const PENDING_GEOMETRY_STATUSES = new Set<RtlsGeometryAgreementEntry['status']>(
+  ['calibrating', 'failed', 'stale', 'unknown']
+);
+
 /**
- * Selector: whether a tag the last verdict left pending (still fitting, or
- * failed and retrying) now reports a calibrated fit. The tags panel
- * re-checks on it so a settled fleet does not stay shown as "not
- * calibrated" until someone checks by hand.
+ * Selector: whether a tag the last verdict left pending (still fitting,
+ * failed and retrying, or without fresh telemetry at the time) now
+ * reports a calibrated fit. The tags panel re-checks on it so a settled
+ * fleet does not stay shown as "not calibrated" until someone checks by
+ * hand.
  */
 export const hasRtlsGeometrySettledTag: AppSelector<boolean> = createSelector(
   getRtlsGeometryCheck,
@@ -297,7 +304,7 @@ export const hasRtlsGeometrySettledTag: AppSelector<boolean> = createSelector(
     check !== undefined &&
     Object.entries(check.devices).some(
       ([id, entry]) =>
-        (entry.status === 'calibrating' || entry.status === 'failed') &&
+        PENDING_GEOMETRY_STATUSES.has(entry.status) &&
         statsById[id]?.geometryState === RtlsGeometryState.CALIBRATED
     )
 );
