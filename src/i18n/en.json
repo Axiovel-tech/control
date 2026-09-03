@@ -1471,7 +1471,8 @@
       "ok": "geometry ok",
       "okDeviation": "geometry ok ({{deviation}} cm)",
       "stale": "geometry stale",
-      "unknown": "geometry unknown"
+      "unknown": "geometry unknown",
+      "frame": "geometry frame differs"
     },
     "state": {
       "calibrated": "calibrated",

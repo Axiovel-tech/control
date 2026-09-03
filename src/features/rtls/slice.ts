@@ -363,16 +363,29 @@ const { actions, reducer } = createSlice({
     ) {
       const ids = Object.keys(payload);
 
-      // An agreement snapshot certifies a specific fleet: when the device
-      // ID SET changes (a tag joined or left), the certification is void —
+      // An agreement snapshot certifies a specific TAG fleet: when the tag
+      // ID set changes (a tag joined or left), the certification is void —
       // keeping a green "consistent" verdict over a fleet it never saw
-      // would be a false pre-flight pass.
-      if (
-        state.geometry.lastCheck &&
-        (ids.length !== state.devices.order.length ||
-          ids.some((id) => !state.devices.byId[id]))
-      ) {
-        state.geometry.lastCheck = undefined;
+      // would be a false pre-flight pass. Anchors are not graded, so an
+      // anchor joining or leaving keeps the verdict (the tags panel
+      // re-checks on tag-set changes only).
+      if (state.geometry.lastCheck) {
+        const tagIds = (collection: {
+          order: string[];
+          byId: Record<string, { role?: string }>;
+        }): string =>
+          collection.order
+            .filter((id) => (collection.byId[id]?.role ?? '').startsWith('tag'))
+            .sort()
+            .join(',');
+        const before = tagIds(state.devices);
+        const after = tagIds({
+          order: ids,
+          byId: payload as Record<string, { role?: string }>,
+        });
+        if (before !== after) {
+          state.geometry.lastCheck = undefined;
+        }
       }
 
       // Drop devices that are no longer present in the snapshot, along with

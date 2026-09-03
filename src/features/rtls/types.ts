@@ -227,6 +227,7 @@ export type RtlsGeometryAgreementEntry = {
     | 'deviates'
     | 'drifted'
     | 'failed'
+    | 'frame'
     | 'manual'
     | 'stale'
     | 'unknown';
@@ -243,6 +244,8 @@ export type RtlsGeometryAgreementEntry = {
   deviations?: Record<string, number>;
   /** Distances this tag fitted differently from the fleet (anchor set). */
   missing?: string[];
+  /** Coordinate-frame parameters that differ from the rest of the cell. */
+  frame?: string[];
   detail?: string;
 };
 

@@ -117,6 +117,11 @@ export const geometryPillFor = (
                 },
           status: Status.ERROR,
         };
+      case 'frame':
+        return {
+          text: { key: 'rtlsGeometry.pill.frame' },
+          status: Status.ERROR,
+        };
       case 'manual':
         return {
           text: { key: 'rtlsGeometry.pill.manual' },
@@ -196,7 +201,7 @@ export const describeGeometryAgreement = (
   const count = (status: RtlsGeometryAgreementEntry['status']): number =>
     entries.filter((entry) => entry.status === status).length;
   const agreeing = count('agree');
-  const deviating = count('deviates');
+  const deviating = count('deviates') + count('frame');
   const drifted = count('drifted');
   const manual = count('manual');
   const pending = entries.length - agreeing - deviating - drifted - manual;

@@ -286,6 +286,7 @@
  * t("rtlsGeometry.pill.deviatesDeviation")
  * t("rtlsGeometry.pill.drifted")
  * t("rtlsGeometry.pill.driftedDrift")
+ * t("rtlsGeometry.pill.frame")
  * t("rtlsGeometry.pill.manual")
  * t("rtlsGeometry.pill.calibrating")
  * t("rtlsGeometry.pill.calibrated")

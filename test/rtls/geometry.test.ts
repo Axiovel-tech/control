@@ -272,12 +272,22 @@ describe('geometry slice + selectors', () => {
       setRtlsDevicesFromStatus({ '42': { role: 'tag', online: true } })
     );
     expect(getRtlsGeometryCheck(stateWith(state))).toEqual(verdict);
+    // an anchor joined: anchors are not graded, the certification stands
+    state = reducer(
+      state,
+      setRtlsDevicesFromStatus({
+        '42': { role: 'tag', online: true },
+        '101': { role: 'anchor-initiator', online: true },
+      })
+    );
+    expect(getRtlsGeometryCheck(stateWith(state))).toEqual(verdict);
     // a tag joined: the certification is void
     state = reducer(
       state,
       setRtlsDevicesFromStatus({
         '42': { role: 'tag', online: true },
         '43': { role: 'tag', online: true },
+        '101': { role: 'anchor-initiator', online: true },
       })
     );
     expect(getRtlsGeometryCheck(stateWith(state))).toBeUndefined();
