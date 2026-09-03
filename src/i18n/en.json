@@ -1457,7 +1457,8 @@
     "checkFailed": "Geometry check failed: {{detail}}",
     "fit": {
       "calibrated": "calibrated · residual {{residual}} cm",
-      "calibratedDrift": "calibrated · residual {{residual}} cm · drift {{drift}} cm"
+      "calibratedDrift": "calibrated · residual {{residual}} cm · drift {{drift}} cm",
+      "calibratedPending": "calibrated · fit metrics pending"
     },
     "pill": {
       "calibrated": "geometry calibrated",

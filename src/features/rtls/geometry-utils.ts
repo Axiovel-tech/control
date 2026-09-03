@@ -63,8 +63,17 @@ export const describeGeometryFit = (
     return describeGeometryState(state);
   }
 
-  const residual = cm(stats?.geometryResidualM ?? 0);
-  const drift = stats?.geometryDriftM ?? 0;
+  // the fields arrive one at a time (and older firmware sends neither):
+  // an absent metric is unknown, not a perfect zero
+  if (
+    stats?.geometryResidualM === undefined ||
+    stats?.geometryDriftM === undefined
+  ) {
+    return { key: 'rtlsGeometry.fit.calibratedPending' };
+  }
+
+  const residual = cm(stats.geometryResidualM);
+  const drift = stats.geometryDriftM;
   return drift >= 0.01
     ? {
         key: 'rtlsGeometry.fit.calibratedDrift',

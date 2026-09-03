@@ -33,6 +33,7 @@ import {
   getRtlsGeometryInvalidations,
   getRtlsPairedUavStatuses,
   hasRtlsGeometryDriftAlarm,
+  hasRtlsGeometrySettledTag,
   getRtlsSleepPendingMap,
   getRtlsStatsById,
   getRtlsStatsLastUpdatedAt,
@@ -83,12 +84,15 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
   // tolerance (an anchor moved after the check): the server then grades
   // it 'drifted' instead of the pill keeping a stale 'ok'.
   const driftAlarm = useSelector(hasRtlsGeometryDriftAlarm);
+  // ...and when a tag the verdict left pending reports its fit settled,
+  // so the fleet does not stay "not calibrated" until a manual check.
+  const settled = useSelector(hasRtlsGeometrySettledTag);
   const haveTags = devices.length > 0;
   useEffect(() => {
     if (tags && haveTags) {
       void dispatch(checkGeometryAgreement({ silent: true }));
     }
-  }, [dispatch, tags, haveTags, invalidations, driftAlarm]);
+  }, [dispatch, tags, haveTags, invalidations, driftAlarm, settled]);
   // stable identity so the memoized rows are not re-rendered by the parent
   const handlers: DeviceRowHandlers = useMemo(
     () => ({

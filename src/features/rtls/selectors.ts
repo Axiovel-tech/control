@@ -29,6 +29,7 @@ import {
   type RtlsOtaJob,
   type RtlsVerifyResult,
   type RtlsPosEstimate,
+  RtlsGeometryState,
 } from './types';
 
 /**
@@ -282,6 +283,24 @@ export const isRtlsGeometryBusy: AppSelector<boolean> = (state) =>
 /** Selector: how many times a verdict was voided (a re-check trigger). */
 export const getRtlsGeometryInvalidations: AppSelector<number> = (state) =>
   state.rtls.geometry.invalidations;
+
+/**
+ * Selector: whether a tag the last verdict left pending (still fitting, or
+ * failed and retrying) now reports a calibrated fit. The tags panel
+ * re-checks on it so a settled fleet does not stay shown as "not
+ * calibrated" until someone checks by hand.
+ */
+export const hasRtlsGeometrySettledTag: AppSelector<boolean> = createSelector(
+  getRtlsGeometryCheck,
+  getRtlsStatsById,
+  (check, statsById) =>
+    check !== undefined &&
+    Object.entries(check.devices).some(
+      ([id, entry]) =>
+        (entry.status === 'calibrating' || entry.status === 'failed') &&
+        statsById[id]?.geometryState === RtlsGeometryState.CALIBRATED
+    )
+);
 
 /**
  * Selector: whether a tag the last verdict certified now reports live

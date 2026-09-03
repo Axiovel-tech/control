@@ -11,6 +11,7 @@ import {
   getRtlsGeometryCheck,
   getRtlsGeometryProblemCount,
   hasRtlsGeometryDriftAlarm,
+  hasRtlsGeometrySettledTag,
   isRtlsGeometryBusy,
 } from '~/features/rtls/selectors';
 import reducer, {
@@ -133,6 +134,14 @@ describe('geometry pill', () => {
     expect(
       describeGeometryFit({ id: '1', geometryState: RtlsGeometryState.WAITING })
     ).toEqual({ key: 'rtlsGeometry.state.waiting' });
+    // an absent metric is unknown, not a perfect zero
+    expect(
+      describeGeometryFit({
+        id: '1',
+        geometryState: RtlsGeometryState.CALIBRATED,
+        geometryResidualM: -0.075,
+      })
+    ).toEqual({ key: 'rtlsGeometry.fit.calibratedPending' });
   });
 });
 
@@ -236,6 +245,35 @@ describe('geometry agreement summary', () => {
 });
 
 describe('geometry slice + selectors', () => {
+  test('a pending tag that reports a calibrated fit asks for a re-check', () => {
+    const verdict = agreement({
+      '42': { status: 'calibrating' },
+      '43': { status: 'agree', maxDeviationM: 0.001 },
+    });
+    const pending = {
+      rtls: {
+        geometry: { checking: false, lastCheck: verdict, invalidations: 0 },
+        stats: {
+          byId: {
+            '42': { id: '42', geometryState: RtlsGeometryState.CALIBRATING },
+          },
+        },
+      },
+    } as unknown as RootState;
+    expect(hasRtlsGeometrySettledTag(pending)).toBe(false);
+    const settled = {
+      rtls: {
+        ...pending.rtls,
+        stats: {
+          byId: {
+            '42': { id: '42', geometryState: RtlsGeometryState.CALIBRATED },
+          },
+        },
+      },
+    } as unknown as RootState;
+    expect(hasRtlsGeometrySettledTag(settled)).toBe(true);
+  });
+
   test('a certified tag drifting past the tolerance raises the drift alarm', () => {
     const verdict = agreement({
       '42': { status: 'agree', maxDeviationM: 0.001 },
