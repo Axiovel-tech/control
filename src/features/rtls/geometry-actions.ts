@@ -27,14 +27,6 @@ import {
 } from './types';
 
 /**
- * A check asked for while another is in flight (live drift crossed the
- * tolerance, a pending tag settled): the in-flight answer sampled the
- * server before that event, so the request is honoured once it lands
- * rather than dropped.
- */
-let rerunQueued = false;
-
-/**
  * Runs the agreement check and stores the verdict; a snackbar summarizes
  * the outcome unless `silent`. Transport failures always land in the
  * snackbar.
@@ -48,7 +40,6 @@ export function checkGeometryAgreement({
     getState: () => RootState
   ): Promise<RtlsGeometryAgreement | undefined> => {
     if (getState().rtls.geometry.checking) {
-      rerunQueued = true;
       return undefined;
     }
 
@@ -68,8 +59,6 @@ export function checkGeometryAgreement({
         getState().rtls.geometry.invalidations !== generationAtRequest
       ) {
         dispatch(rtlsGeometryCheckFailed());
-        // the replacement is the re-run any queued request asked for
-        rerunQueued = false;
         return dispatch(checkGeometryAgreement({ silent, tolerance }));
       }
 
@@ -107,11 +96,6 @@ export function checkGeometryAgreement({
         i18n.t('rtlsGeometry.checkFailed', { detail: errorToString(error) })
       );
       return undefined;
-    } finally {
-      if (rerunQueued) {
-        rerunQueued = false;
-        void dispatch(checkGeometryAgreement({ silent: true, tolerance }));
-      }
     }
   };
 }

@@ -10,8 +10,6 @@ import {
 import {
   getRtlsGeometryCheck,
   getRtlsGeometryProblemCount,
-  hasRtlsGeometryDriftAlarm,
-  hasRtlsGeometrySettledTag,
   isRtlsGeometryBusy,
 } from '~/features/rtls/selectors';
 import reducer, {
@@ -245,83 +243,6 @@ describe('geometry agreement summary', () => {
 });
 
 describe('geometry slice + selectors', () => {
-  test('a pending tag that reports a calibrated fit asks for a re-check', () => {
-    const verdict = agreement({
-      '42': { status: 'calibrating' },
-      '43': { status: 'agree', maxDeviationM: 0.001 },
-    });
-    const pending = {
-      rtls: {
-        geometry: { checking: false, lastCheck: verdict, invalidations: 0 },
-        stats: {
-          byId: {
-            '42': { id: '42', geometryState: RtlsGeometryState.CALIBRATING },
-          },
-        },
-      },
-    } as unknown as RootState;
-    expect(hasRtlsGeometrySettledTag(pending)).toBe(false);
-    const settled = {
-      rtls: {
-        ...pending.rtls,
-        stats: {
-          byId: {
-            '42': { id: '42', geometryState: RtlsGeometryState.CALIBRATED },
-          },
-        },
-      },
-    } as unknown as RootState;
-    expect(hasRtlsGeometrySettledTag(settled)).toBe(true);
-    // a tag graded before its telemetry arrived settles the same way
-    const wasStale = {
-      rtls: {
-        ...settled.rtls,
-        geometry: {
-          ...settled.rtls.geometry,
-          lastCheck: agreement({ '42': { status: 'stale' } }),
-        },
-      },
-    } as unknown as RootState;
-    expect(hasRtlsGeometrySettledTag(wasStale)).toBe(true);
-    // a pending tag that turns out to use its provisioned table settles too
-    const manual = {
-      rtls: {
-        ...wasStale.rtls,
-        stats: {
-          byId: { '42': { id: '42', geometryState: RtlsGeometryState.MANUAL } },
-        },
-      },
-    } as unknown as RootState;
-    expect(hasRtlsGeometrySettledTag(manual)).toBe(true);
-  });
-
-  test('a certified tag drifting past the tolerance raises the drift alarm', () => {
-    const verdict = agreement({
-      '42': { status: 'agree', maxDeviationM: 0.001 },
-    });
-    const base = {
-      rtls: {
-        geometry: { checking: false, lastCheck: verdict, invalidations: 0 },
-        stats: { byId: {} },
-      },
-    } as unknown as RootState;
-    expect(hasRtlsGeometryDriftAlarm(base)).toBe(false);
-    const drifting = {
-      rtls: {
-        ...base.rtls,
-        stats: { byId: { '42': { id: '42', geometryDriftM: 0.05 } } },
-      },
-    } as unknown as RootState;
-    expect(hasRtlsGeometryDriftAlarm(drifting)).toBe(true);
-    const within = {
-      rtls: {
-        ...base.rtls,
-        stats: { byId: { '42': { id: '42', geometryDriftM: 0.01 } } },
-      },
-    } as unknown as RootState;
-    expect(hasRtlsGeometryDriftAlarm(within)).toBe(false);
-  });
-
   test('check lifecycle stores the verdict and clears the busy flag', () => {
     let state = reducer(undefined, rtlsGeometryCheckStarted());
     expect(isRtlsGeometryBusy(stateWith(state))).toBe(true);

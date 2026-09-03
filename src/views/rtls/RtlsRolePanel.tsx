@@ -32,8 +32,6 @@ import {
   getRtlsGeometryCheck,
   getRtlsGeometryInvalidations,
   getRtlsPairedUavStatuses,
-  hasRtlsGeometryDriftAlarm,
-  hasRtlsGeometrySettledTag,
   getRtlsSleepPendingMap,
   getRtlsStatsById,
   getRtlsStatsLastUpdatedAt,
@@ -55,6 +53,9 @@ import Bolt from '~/icons/Bolt';
 import type { AppDispatch } from '~/store/reducers';
 
 import DeviceStatsRow, { type DeviceRowHandlers } from './DeviceStatsRow';
+
+/** How often the tags panel silently re-runs the geometry check. */
+const GEOMETRY_RECHECK_MS = 10_000;
 
 type RtlsRolePanelProps = {
   variant: 'anchors' | 'tags';
@@ -80,19 +81,20 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
   // whenever the slice voids a verdict (the tag set changed, a tag
   // rebooted and refitted) and can be repeated at will.
   const invalidations = useSelector(getRtlsGeometryInvalidations);
-  // ...and when a certified tag's live drift crosses the verdict's
-  // tolerance (an anchor moved after the check): the server then grades
-  // it 'drifted' instead of the pill keeping a stale 'ok'.
-  const driftAlarm = useSelector(hasRtlsGeometryDriftAlarm);
-  // ...and when a tag the verdict left pending reports its fit settled,
-  // so the fleet does not stay "not calibrated" until a manual check.
-  const settled = useSelector(hasRtlsGeometrySettledTag);
   const haveTags = devices.length > 0;
   useEffect(() => {
-    if (tags && haveTags) {
-      void dispatch(checkGeometryAgreement({ silent: true }));
+    if (!tags || !haveTags) {
+      return undefined;
     }
-  }, [dispatch, tags, haveTags, invalidations, driftAlarm, settled]);
+    // ...and periodically while the panel is open: fits settle, anchors
+    // move and tags reboot on their own schedule, so the verdict follows
+    // the fleet without a manual check (an in-flight check is skipped).
+    void dispatch(checkGeometryAgreement({ silent: true }));
+    const timer = setInterval(() => {
+      void dispatch(checkGeometryAgreement({ silent: true }));
+    }, GEOMETRY_RECHECK_MS);
+    return () => clearInterval(timer);
+  }, [dispatch, tags, haveTags, invalidations]);
   // stable identity so the memoized rows are not re-rendered by the parent
   const handlers: DeviceRowHandlers = useMemo(
     () => ({

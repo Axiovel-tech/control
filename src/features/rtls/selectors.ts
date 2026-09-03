@@ -29,8 +29,6 @@ import {
   type RtlsOtaJob,
   type RtlsVerifyResult,
   type RtlsPosEstimate,
-  type RtlsGeometryAgreementEntry,
-  RtlsGeometryState,
 } from './types';
 
 /**
@@ -284,56 +282,6 @@ export const isRtlsGeometryBusy: AppSelector<boolean> = (state) =>
 /** Selector: how many times a verdict was voided (a re-check trigger). */
 export const getRtlsGeometryInvalidations: AppSelector<number> = (state) =>
   state.rtls.geometry.invalidations;
-
-/** Verdicts the live telemetry can overtake: the tag was not graded yet. */
-const PENDING_GEOMETRY_STATUSES = new Set<RtlsGeometryAgreementEntry['status']>(
-  ['calibrating', 'failed', 'stale', 'unknown']
-);
-
-/** Live fit states the server grades conclusively (agree/deviates/manual). */
-const SETTLED_GEOMETRY_STATES = new Set<RtlsGeometryState>([
-  RtlsGeometryState.CALIBRATED,
-  RtlsGeometryState.MANUAL,
-]);
-
-/**
- * Selector: whether a tag the last verdict left pending (still fitting,
- * failed and retrying, or without fresh telemetry at the time) now
- * reports a settled fit: calibrated, or the provisioned table (manual).
- * The tags panel re-checks on it so a settled fleet does not stay shown
- * as "not calibrated" until someone checks by hand.
- */
-export const hasRtlsGeometrySettledTag: AppSelector<boolean> = createSelector(
-  getRtlsGeometryCheck,
-  getRtlsStatsById,
-  (check, statsById) =>
-    check !== undefined &&
-    Object.entries(check.devices).some(([id, entry]) => {
-      const state = statsById[id]?.geometryState;
-      return (
-        PENDING_GEOMETRY_STATUSES.has(entry.status) &&
-        state !== undefined &&
-        SETTLED_GEOMETRY_STATES.has(state)
-      );
-    })
-);
-
-/**
- * Selector: whether a tag the last verdict certified now reports live
- * drift beyond the verdict's tolerance (an anchor moved after the check).
- * The tags panel re-checks on it so a moved cell cannot keep a stale pass.
- */
-export const hasRtlsGeometryDriftAlarm: AppSelector<boolean> = createSelector(
-  getRtlsGeometryCheck,
-  getRtlsStatsById,
-  (check, statsById) =>
-    check !== undefined &&
-    Object.entries(check.devices).some(
-      ([id, entry]) =>
-        entry.status === 'agree' &&
-        (statsById[id]?.geometryDriftM ?? 0) > check.tolerance
-    )
-);
 
 /**
  * Selector that returns the number of tags the last agreement check could
