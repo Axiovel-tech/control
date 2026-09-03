@@ -1,299 +1,225 @@
-import { describe, expect, jest, test } from '@jest/globals';
+import { describe, expect, test } from '@jest/globals';
 
-jest.mock('~/error-handling', () => ({
-  errorToString: (error: unknown): string =>
-    error instanceof Error ? error.message : String(error),
-}));
-
+import { Status } from '~/components/semantics';
 import {
-  checkRtlsGeometry,
-  syncRtlsGeometry,
-  verifyRtlsFleet,
-} from '~/features/rtls/messages';
+  describeGeometryState,
+  geometryPillFor,
+  summarizeGeometryAgreement,
+} from '~/features/rtls/geometry-utils';
 import {
-  getRtlsGeometryDriftCount,
-  getRtlsCellIds,
+  getRtlsGeometryCheck,
+  getRtlsGeometryProblemCount,
   isRtlsGeometryBusy,
-  requireSingleRtlsCell,
 } from '~/features/rtls/selectors';
 import reducer, {
   clearRtlsDevices,
-  setRtlsDevicesFromStatus,
-  closeRtlsGeometrySyncDialog,
-  openRtlsGeometrySyncDialog,
+  rtlsGeometryCheckFailed,
   rtlsGeometryCheckStarted,
   rtlsGeometryCheckSucceeded,
-  rtlsGeometrySyncStarted,
-  rtlsGeometrySyncSucceeded,
+  setRtlsDevicesFromStatus,
 } from '~/features/rtls/slice';
-import { type RtlsGeometryCheck } from '~/features/rtls/types';
-import type MessageHub from '~/flockwave/messages';
-import { type RootState } from '~/store/reducers';
+import {
+  type RtlsGeometryAgreement,
+  RtlsGeometryState,
+} from '~/features/rtls/types';
+import type { RootState } from '~/store/reducers';
 
-const makeHub = (body: Record<string, unknown>) => {
-  const sent: any[] = [];
-  const hub = {
-    sendMessage: jest.fn((request: unknown) => {
-      sent.push(request);
-      return Promise.resolve({ body });
-    }),
-  };
-  return { hub: hub as unknown as MessageHub, sent };
-};
+const agreement = (
+  devices: RtlsGeometryAgreement['devices'],
+  consistent = true
+): RtlsGeometryAgreement => ({
+  tolerance: 0.02,
+  reference: [8.587, 9.224, 12.528, 3.975, 9.435, 9.979, 13.233],
+  consistent,
+  devices,
+  receivedAt: 1,
+});
 
-const initial = () => reducer(undefined, { type: 'noop' });
+const stateWith = (rtls: unknown): RootState => ({ rtls }) as RootState;
 
-const CHECK: RtlsGeometryCheck = {
-  cell: 'default',
-  consistent: false,
-  devices: {
-    '62': { status: 'consistent' },
-    '63': {
-      status: 'mismatch',
-      deltas: { UWB_AN1_X: { expected: 10, actual: 10.5 } },
-    },
-    '64': { status: 'incomplete', missing: ['POS_YAW_DEG'] },
-  },
-  receivedAt: 123,
-};
-
-describe('X-RTLS-GEO message helpers', () => {
-  test('check sends the op and returns the body', async () => {
-    const { hub, sent } = makeHub({ type: 'X-RTLS-GEO', op: 'check' });
-    const body = await checkRtlsGeometry(hub, { cell: 'bench-4' });
-    expect(sent[0]).toEqual({
-      type: 'X-RTLS-GEO',
-      op: 'check',
-      cell: 'bench-4',
-    });
-    expect(body.op).toBe('check');
+describe('geometry pill', () => {
+  test('grades from the agreement verdict when one exists', () => {
+    expect(
+      geometryPillFor(undefined, { status: 'agree', maxDeviationM: 0.004 })
+    ).toEqual({ label: 'geometry ok (0.4 cm)', status: Status.SUCCESS });
+    expect(
+      geometryPillFor(undefined, { status: 'deviates', maxDeviationM: 0.05 })
+    ).toEqual({ label: 'geometry deviates (5.0 cm)', status: Status.ERROR });
+    expect(geometryPillFor(undefined, { status: 'manual' }).status).toBe(
+      Status.INFO
+    );
+    expect(geometryPillFor(undefined, { status: 'stale' }).status).toBe(
+      Status.WARNING
+    );
   });
 
-  test('adopt passes the reference through', async () => {
-    const { adoptRtlsGeometry } = require('~/features/rtls/messages');
-    const { hub, sent } = makeHub({
-      type: 'X-RTLS-GEO',
-      op: 'adopt',
-      reference: 61,
-    });
-    await adoptRtlsGeometry(hub, { reference: 61 });
-    expect(sent[0]).toEqual({
-      type: 'X-RTLS-GEO',
-      op: 'adopt',
-      reference: 61,
-    });
+  test('falls back to the live fit state from the stats', () => {
+    expect(
+      geometryPillFor(
+        { id: '1', geometryState: RtlsGeometryState.CALIBRATING },
+        undefined
+      )
+    ).toEqual({ label: 'geometry calibrating', status: Status.WARNING });
+    expect(
+      geometryPillFor(
+        { id: '1', geometryState: RtlsGeometryState.CALIBRATED },
+        undefined
+      ).status
+    ).toBe(Status.INFO);
+    expect(
+      geometryPillFor(
+        { id: '1', geometryState: RtlsGeometryState.FAILED },
+        undefined
+      ).status
+    ).toBe(Status.ERROR);
+    // no telemetry, no pill (anchors, old firmware)
+    expect(geometryPillFor({ id: '1' }, undefined)).toEqual({});
+    expect(geometryPillFor(undefined, undefined)).toEqual({});
   });
 
-  test('sync passes reboot=false through and NAKs become errors', async () => {
-    const { hub, sent } = makeHub({ type: 'X-RTLS-GEO', op: 'sync' });
-    await syncRtlsGeometry(hub, { cell: 'bench-4', reboot: false });
-    expect(sent[0]).toEqual({
-      type: 'X-RTLS-GEO',
-      op: 'sync',
-      cell: 'bench-4',
-      reboot: false,
-    });
-
-    const nak = makeHub({ type: 'ACK-NAK', reason: 'no reference' });
-    await expect(
-      syncRtlsGeometry(nak.hub, { cell: 'bench-4' })
-    ).rejects.toThrow('no reference');
-  });
-
-  test('fleet verification passes the explicit geometry cell through', async () => {
-    const { hub, sent } = makeHub({
-      type: 'X-RTLS-VERIFY',
-      passed: true,
-    });
-    await verifyRtlsFleet(hub, { cell: 'bench-4', inDepth: true });
-    expect(sent[0]).toEqual({
-      type: 'X-RTLS-VERIFY',
-      cell: 'bench-4',
-      inDepth: true,
-    });
+  test('describes every firmware state', () => {
+    expect(describeGeometryState(RtlsGeometryState.MANUAL)).toBe(
+      'manual table'
+    );
+    expect(describeGeometryState(RtlsGeometryState.CALIBRATED)).toBe(
+      'calibrated'
+    );
+    expect(describeGeometryState(undefined)).toBe('no geometry');
   });
 });
 
-describe('geometry slice state', () => {
-  test('check lifecycle stores the snapshot', () => {
-    let state = reducer(initial(), rtlsGeometryCheckStarted());
-    expect(state.geometry.checking).toBe(true);
-    state = reducer(state, rtlsGeometryCheckSucceeded(CHECK));
-    expect(state.geometry.checking).toBe(false);
-    expect(state.geometry.lastCheck?.devices['63']?.status).toBe('mismatch');
+describe('geometry agreement summary', () => {
+  test('unchecked and empty fleets', () => {
+    expect(summarizeGeometryAgreement(undefined)).toMatchObject({
+      label: 'geometry unchecked',
+      status: Status.OFF,
+    });
+    expect(summarizeGeometryAgreement(agreement({}, false))).toMatchObject({
+      status: Status.OFF,
+      problems: 0,
+    });
   });
 
-  test('starting a sync closes the confirm dialog', () => {
-    let state = reducer(initial(), openRtlsGeometrySyncDialog());
-    expect(state.geometry.syncDialogOpen).toBe(true);
-    state = reducer(state, rtlsGeometrySyncStarted());
-    expect(state.geometry.syncDialogOpen).toBe(false);
-    expect(state.geometry.syncing).toBe(true);
-    state = reducer(state, closeRtlsGeometrySyncDialog());
-    expect(state.geometry.syncDialogOpen).toBe(false);
-  });
-
-  test('sync results are stored', () => {
-    const state = reducer(
-      initial(),
-      rtlsGeometrySyncSucceeded({
-        cell: 'default',
-        devices: { '63': { status: 'synced', written: ['UWB_AN1_X'] } },
-        receivedAt: 456,
+  test('a consistent fleet reports the largest deviation', () => {
+    const summary = summarizeGeometryAgreement(
+      agreement({
+        '42': { status: 'agree', maxDeviationM: 0.001 },
+        '43': { status: 'agree', maxDeviationM: 0.004 },
       })
     );
-    expect(state.geometry.lastSync?.devices['63']?.written).toEqual([
-      'UWB_AN1_X',
-    ]);
+    expect(summary).toEqual({
+      label: 'geometry consistent (2 agree, max 0.4 cm)',
+      status: Status.SUCCESS,
+      problems: 0,
+    });
   });
 
-  test('clearing the devices clears the consistency snapshot too', () => {
-    let state = reducer(initial(), rtlsGeometryCheckSucceeded(CHECK));
-    state = reducer(state, clearRtlsDevices());
-    expect(state.geometry.lastCheck).toBeUndefined();
+  test('deviating and uncalibrated tags are counted as problems', () => {
+    expect(
+      summarizeGeometryAgreement(
+        agreement(
+          {
+            '42': { status: 'agree', maxDeviationM: 0.001 },
+            '43': { status: 'deviates', maxDeviationM: 0.05 },
+            '44': { status: 'calibrating' },
+          },
+          false
+        )
+      )
+    ).toEqual({
+      label: 'geometry: 1 deviating',
+      status: Status.ERROR,
+      problems: 2,
+    });
+    expect(
+      summarizeGeometryAgreement(
+        agreement(
+          {
+            '42': { status: 'agree', maxDeviationM: 0.001 },
+            '44': { status: 'stale' },
+          },
+          false
+        )
+      )
+    ).toMatchObject({
+      label: 'geometry: 1 not calibrated',
+      status: Status.WARNING,
+    });
+  });
+
+  test('manual tags never count as problems', () => {
+    expect(
+      summarizeGeometryAgreement(
+        agreement(
+          {
+            '42': { status: 'agree', maxDeviationM: 0.001 },
+            '43': { status: 'manual' },
+          },
+          true
+        )
+      ).problems
+    ).toBe(0);
+    expect(
+      summarizeGeometryAgreement(
+        agreement({ '43': { status: 'manual' } }, false)
+      )
+    ).toMatchObject({ label: 'geometry: 1 manual', problems: 0 });
   });
 });
 
-describe('geometry selectors', () => {
-  const asRoot = (rtls: unknown): RootState =>
-    ({ rtls }) as unknown as RootState;
+describe('geometry slice + selectors', () => {
+  test('check lifecycle stores the verdict and clears the busy flag', () => {
+    let state = reducer(undefined, rtlsGeometryCheckStarted());
+    expect(isRtlsGeometryBusy(stateWith(state))).toBe(true);
+    state = reducer(state, rtlsGeometryCheckFailed());
+    expect(isRtlsGeometryBusy(stateWith(state))).toBe(false);
+    expect(getRtlsGeometryCheck(stateWith(state))).toBeUndefined();
 
-  test('drift count counts every non-consistent verdict', () => {
-    const state = asRoot({
-      geometry: { checking: false, syncing: false, lastCheck: CHECK },
+    const verdict = agreement({
+      '42': { status: 'agree', maxDeviationM: 0.001 },
+      '43': { status: 'deviates', maxDeviationM: 0.05 },
+      '44': { status: 'manual' },
     });
-    expect(getRtlsGeometryDriftCount(state)).toBe(2);
-  });
-
-  test('busy while checking or syncing', () => {
-    expect(
-      isRtlsGeometryBusy(
-        asRoot({ geometry: { checking: true, syncing: false } })
-      )
-    ).toBe(true);
-    expect(
-      isRtlsGeometryBusy(
-        asRoot({ geometry: { checking: false, syncing: true } })
-      )
-    ).toBe(true);
-    expect(
-      isRtlsGeometryBusy(
-        asRoot({ geometry: { checking: false, syncing: false } })
-      )
-    ).toBe(false);
-  });
-
-  test('cell selection is unique, sorted, and refuses ambiguity', () => {
-    const oneCell = asRoot({
-      anchors: [
-        { id: 'a1', cell: 'bench-4' },
-        { id: 'a0', cell: 'bench-4' },
-      ],
-    });
-    expect(getRtlsCellIds(oneCell)).toEqual(['bench-4']);
-    expect(requireSingleRtlsCell(oneCell)).toBe('bench-4');
-
-    const multipleCells = asRoot({
-      anchors: [
-        { id: 'b', cell: 'z-cell' },
-        { id: 'a', cell: 'a-cell' },
-      ],
-    });
-    expect(getRtlsCellIds(multipleCells)).toEqual(['a-cell', 'z-cell']);
-    expect(() => requireSingleRtlsCell(multipleCells)).toThrow(
-      /Multiple active RTLS cells/
+    state = reducer(
+      reducer(state, rtlsGeometryCheckStarted()),
+      rtlsGeometryCheckSucceeded(verdict)
     );
+    expect(isRtlsGeometryBusy(stateWith(state))).toBe(false);
+    expect(getRtlsGeometryCheck(stateWith(state))).toEqual(verdict);
+    expect(getRtlsGeometryProblemCount(stateWith(state))).toBe(1);
   });
-});
 
-describe('geometry certification lifecycle (audit)', () => {
-  test('write-only sync marks tags pending reboot; a reboot clears it', () => {
+  test('the verdict is voided when the tag set changes or the fleet is cleared', () => {
+    const verdict = agreement({ '42': { status: 'agree' } });
     let state = reducer(
-      initial(),
-      rtlsGeometrySyncSucceeded({
-        cell: 'default',
-        devices: {
-          '63': { status: 'synced', written: ['UWB_AN1_X'], rebooted: false },
-          '62': { status: 'synced', written: [], skipped: ['UWB_AN1_X'] },
-        },
-        receivedAt: 1,
-      })
+      reducer(
+        undefined,
+        setRtlsDevicesFromStatus({ '42': { role: 'tag', online: true } })
+      ),
+      rtlsGeometryCheckSucceeded(verdict)
     );
-    expect(state.geometry.pendingReboot).toEqual({ '63': true });
-
-    // the device is seen with a LOWER uptime -> it rebooted
+    expect(getRtlsGeometryCheck(stateWith(state))).toEqual(verdict);
+    // same ID set: the certification survives a status refresh
     state = reducer(
       state,
-      setRtlsDevicesFromStatus({ '63': { online: true, uptimeMs: 100_000 } })
+      setRtlsDevicesFromStatus({ '42': { role: 'tag', online: true } })
     );
-    state = reducer(
-      state,
-      setRtlsDevicesFromStatus({ '63': { online: true, uptimeMs: 5000 } })
-    );
-    expect(state.geometry.pendingReboot).toEqual({});
-  });
-
-  test('a new tag joining voids the certification', () => {
-    let state = reducer(
-      initial(),
-      setRtlsDevicesFromStatus({ '61': { online: true } })
-    );
-    state = reducer(state, rtlsGeometryCheckSucceeded(CHECK));
-    expect(state.geometry.lastCheck).toBeDefined();
-    // same set again: certification survives
-    state = reducer(
-      state,
-      setRtlsDevicesFromStatus({ '61': { online: true } })
-    );
-    expect(state.geometry.lastCheck).toBeDefined();
-    // a new tag joins: certification void
+    expect(getRtlsGeometryCheck(stateWith(state))).toEqual(verdict);
+    // a tag joined: the certification is void
     state = reducer(
       state,
       setRtlsDevicesFromStatus({
-        '61': { online: true },
-        '99': { online: true },
+        '42': { role: 'tag', online: true },
+        '43': { role: 'tag', online: true },
       })
     );
-    expect(state.geometry.lastCheck).toBeUndefined();
-  });
-});
+    expect(getRtlsGeometryCheck(stateWith(state))).toBeUndefined();
 
-describe('fleet verification state', () => {
-  test('verify lifecycle stores the result', () => {
-    const {
-      rtlsVerifyStarted,
-      rtlsVerifySucceeded,
-      openRtlsVerifyDialog,
-      closeRtlsVerifyDialog,
-    } = require('~/features/rtls/slice');
-    let state = reducer(initial(), openRtlsVerifyDialog());
-    expect(state.verify.dialogOpen).toBe(true);
-    state = reducer(state, rtlsVerifyStarted());
-    expect(state.verify.running).toBe(true);
-    expect(state.verify.lastResult).toBeUndefined();
     state = reducer(
-      state,
-      rtlsVerifySucceeded({
-        inDepth: false,
-        passed: false,
-        rules: [
-          {
-            id: 'geometry',
-            label: 'Cell geometry consistency',
-            severity: 'error',
-            status: 'fail',
-            detail: '1 tag(s) disagree',
-          },
-        ],
-        receivedAt: 1,
-      })
+      reducer(state, rtlsGeometryCheckSucceeded(verdict)),
+      clearRtlsDevices()
     );
-    expect(state.verify.running).toBe(false);
-    expect(state.verify.lastResult?.passed).toBe(false);
-    state = reducer(state, closeRtlsVerifyDialog());
-    expect(state.verify.dialogOpen).toBe(false);
-    // disconnecting clears the verdict
-    state = reducer(state, clearRtlsDevices());
-    expect(state.verify.lastResult).toBeUndefined();
+    expect(getRtlsGeometryCheck(stateWith(state))).toBeUndefined();
+    expect(getRtlsGeometryProblemCount(stateWith(state))).toBe(0);
   });
 });

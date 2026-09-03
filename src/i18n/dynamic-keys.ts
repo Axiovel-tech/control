@@ -271,10 +271,6 @@
  * t("uavOperationConfirmationStyle.onlyMultiple")
  * t("uavOperationConfirmationStyle.always")
  *
- * RTLS calibration models
- * t("rtlsCalibration.model.strict")
- * t("rtlsCalibration.model.refined")
- *
  * RTLS health lights
  * t("rtlsHealth.all.ok")
  * t("rtlsHealth.all.warning")

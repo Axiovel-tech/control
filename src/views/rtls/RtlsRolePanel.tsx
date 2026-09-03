@@ -7,34 +7,28 @@
  * next to Map / UAVs / 3D View.
  */
 
-import Architecture from '@mui/icons-material/Architecture';
-import BookmarkAdd from '@mui/icons-material/BookmarkAdd';
 import FactCheck from '@mui/icons-material/FactCheck';
 import Moon from '@mui/icons-material/NightsStay';
 import Rule from '@mui/icons-material/Rule';
 import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
 import CircularProgress from '@mui/material/CircularProgress';
 import Divider from '@mui/material/Divider';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
-import { useMemo } from 'react';
-import { useTranslation } from 'react-i18next';
+import { useEffect, useMemo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 
 import { BackgroundHint, StatusPill, Tooltip } from '@skybrush/mui-components';
 
-import { Status } from '~/components/semantics';
+import { checkGeometryAgreement } from '~/features/rtls/geometry-actions';
 import {
-  adoptGeometryFromFleet,
-  checkGeometryConsistency,
-} from '~/features/rtls/geometry-actions';
+  geometryPillFor,
+  summarizeGeometryAgreement,
+} from '~/features/rtls/geometry-utils';
 import OverallRtlsStatusLight from '~/features/rtls/OverallRtlsStatusLight';
 import {
   getRtlsAnchorDevices,
   getRtlsGeometryCheck,
-  getRtlsGeometryDriftCount,
-  getRtlsGeometryPendingReboot,
   getRtlsPairedUavStatuses,
   getRtlsSleepPendingMap,
   getRtlsStatsById,
@@ -49,61 +43,20 @@ import {
   wakeRtlsDevice,
 } from '~/features/rtls/sleep-actions';
 import {
-  openRtlsCalibrationWizard,
-  openRtlsGeometrySyncDialog,
   openRtlsOtaDialog,
   openRtlsParamDialog,
   openRtlsVerifyDialog,
 } from '~/features/rtls/slice';
-import { type RtlsGeometryCheck } from '~/features/rtls/types';
 import Bolt from '~/icons/Bolt';
 import type { AppDispatch } from '~/store/reducers';
 
 import DeviceStatsRow, { type DeviceRowHandlers } from './DeviceStatsRow';
-
-/**
- * The geometry-consistency pill of one tag row, derived from the last
- * X-RTLS-GEO check: the reference tag is marked as such, targets carry
- * their verdict. No pill before the first check.
- */
-const geometryPillFor = (
-  deviceId: string,
-  check: RtlsGeometryCheck | undefined,
-  pendingReboot: Record<string, true>
-): { label?: string; status?: Status } => {
-  if (pendingReboot[deviceId]) {
-    // the registry says "consistent" but the solver still runs on the
-    // OLD geometry until the tag reboots
-    return { label: 'geometry pending reboot', status: Status.WARNING };
-  }
-  if (!check) {
-    return {};
-  }
-  const entry = check.devices[deviceId];
-  if (!entry) {
-    return {};
-  }
-  switch (entry.status) {
-    case 'consistent':
-      return { label: 'geometry ok', status: Status.SUCCESS };
-    case 'mismatch':
-      return {
-        label: `geometry drift (${Object.keys(entry.deltas ?? {}).length})`,
-        status: Status.ERROR,
-      };
-    case 'incomplete':
-      return { label: 'geometry incomplete', status: Status.WARNING };
-    default:
-      return { label: 'geometry error', status: Status.ERROR };
-  }
-};
 
 type RtlsRolePanelProps = {
   variant: 'anchors' | 'tags';
 };
 
 const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
-  const { t } = useTranslation();
   const tags = variant === 'tags';
   const dispatch: AppDispatch = useDispatch();
   const devices = useSelector(tags ? getRtlsTagDevices : getRtlsAnchorDevices);
@@ -112,10 +65,20 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
   const sleepPending = useSelector(getRtlsSleepPendingMap);
   const lastUpdatedAt = useSelector(getRtlsStatsLastUpdatedAt);
   const geometryCheck = useSelector(getRtlsGeometryCheck);
-  const geometryDrift = useSelector(getRtlsGeometryDriftCount);
-  const pendingReboot = useSelector(getRtlsGeometryPendingReboot);
-  const pendingRebootCount = Object.keys(pendingReboot).length;
   const geometryBusy = useSelector(isRtlsGeometryBusy);
+  const geometrySummary = useMemo(
+    () => summarizeGeometryAgreement(geometryCheck),
+    [geometryCheck]
+  );
+  // The tags fit the cell themselves at boot; the panel only asks the
+  // server whether the fleet agrees. A cheap, read-only check, so it runs
+  // whenever the tag set changes and can be repeated at will.
+  const tagIds = devices.map((device) => device.id).join(',');
+  useEffect(() => {
+    if (tags && tagIds) {
+      void dispatch(checkGeometryAgreement({ silent: true }));
+    }
+  }, [dispatch, tags, tagIds]);
   // stable identity so the memoized rows are not re-rendered by the parent
   const handlers: DeviceRowHandlers = useMemo(
     () => ({
@@ -143,77 +106,32 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <OverallRtlsStatusLight scope={tags ? 'tags' : 'anchors'} />
-          {!tags && (
-            <Tooltip content={t('rtlsCalibration.intro')}>
-              <Button
-                data-testid='rtls-anchors-panel.calibrate'
-                size='small'
-                startIcon={<Architecture fontSize='small' />}
-                onClick={() => dispatch(openRtlsCalibrationWizard())}
-              >
-                {t('rtlsCalibration.action.calibrate')}
-              </Button>
-            </Tooltip>
-          )}
           {tags && (
             <>
               {geometryBusy ? (
                 <CircularProgress size={16} />
-              ) : geometryCheck ? (
+              ) : (
                 <StatusPill
                   inline
-                  status={
-                    geometryDrift > 0
-                      ? Status.ERROR
-                      : pendingRebootCount > 0
-                        ? Status.WARNING
-                        : Status.SUCCESS
-                  }
+                  data-testid='rtls-tags-panel.geometry'
+                  status={geometrySummary.status}
                 >
-                  {geometryDrift > 0
-                    ? `geometry: ${geometryDrift} out of sync`
-                    : pendingRebootCount > 0
-                      ? `geometry: ${pendingRebootCount} pending reboot`
-                      : 'geometry consistent'}
-                </StatusPill>
-              ) : (
-                <StatusPill inline status={Status.OFF}>
-                  geometry unchecked
+                  {geometrySummary.label}
                 </StatusPill>
               )}
-              <Tooltip content='Check geometry consistency'>
+              <Tooltip content='Check that every drone fitted the same cell geometry'>
                 <IconButton
                   data-testid='rtls-tags-panel.check-geometry'
                   size='small'
                   disabled={geometryBusy}
-                  onClick={() => void dispatch(checkGeometryConsistency())}
+                  onClick={() => void dispatch(checkGeometryAgreement())}
                 >
                   <Rule fontSize='small' />
                 </IconButton>
               </Tooltip>
-              <Tooltip
-                content='Adopt the current fleet geometry as canonical
-                  (refused unless the fleet is unanimous)'
-              >
-                <IconButton
-                  data-testid='rtls-tags-panel.adopt-geometry'
-                  size='small'
-                  disabled={geometryBusy}
-                  onClick={() => void dispatch(adoptGeometryFromFleet())}
-                >
-                  <BookmarkAdd fontSize='small' />
-                </IconButton>
-              </Tooltip>
-              <Button
-                data-testid='rtls-tags-panel.sync-geometry'
-                size='small'
-                disabled={geometryBusy || !geometryCheck || geometryDrift === 0}
-                onClick={() => dispatch(openRtlsGeometrySyncDialog())}
-              >
-                Sync…
-              </Button>
               <Tooltip content='Run the fleet pre-flight verification'>
                 <IconButton
+                  data-testid='rtls-tags-panel.verify'
                   size='small'
                   onClick={() => dispatch(openRtlsVerifyDialog())}
                 >
@@ -263,7 +181,10 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
         ) : (
           devices.map((device, index) => {
             const geometry = tags
-              ? geometryPillFor(device.id, geometryCheck, pendingReboot)
+              ? geometryPillFor(
+                  statsById[device.id],
+                  geometryCheck?.devices[device.id]
+                )
               : {};
             return (
               <Box key={device.id}>
