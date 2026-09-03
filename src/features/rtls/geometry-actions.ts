@@ -48,10 +48,16 @@ export function checkGeometryAgreement({
     // response must not become the verdict of the new fleet (the slice
     // voids the old one on an ID-set change) — drop it and ask again.
     const fleetAtRequest = tagIdSet(getState());
+    const generationAtRequest = getState().rtls.geometry.invalidations;
     dispatch(rtlsGeometryCheckStarted());
     try {
       const body = await checkRtlsGeometryAgreement(messageHub, { tolerance });
-      if (tagIdSet(getState()) !== fleetAtRequest) {
+      // the slice voided a verdict meanwhile (a tag rebooted, the fleet
+      // changed): this answer describes the fleet before that — drop it
+      if (
+        tagIdSet(getState()) !== fleetAtRequest ||
+        getState().rtls.geometry.invalidations !== generationAtRequest
+      ) {
         dispatch(rtlsGeometryCheckFailed());
         return dispatch(checkGeometryAgreement({ silent, tolerance }));
       }

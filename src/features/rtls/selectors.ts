@@ -284,6 +284,23 @@ export const getRtlsGeometryInvalidations: AppSelector<number> = (state) =>
   state.rtls.geometry.invalidations;
 
 /**
+ * Selector: whether a tag the last verdict certified now reports live
+ * drift beyond the verdict's tolerance (an anchor moved after the check).
+ * The tags panel re-checks on it so a moved cell cannot keep a stale pass.
+ */
+export const hasRtlsGeometryDriftAlarm: AppSelector<boolean> = createSelector(
+  getRtlsGeometryCheck,
+  getRtlsStatsById,
+  (check, statsById) =>
+    check !== undefined &&
+    Object.entries(check.devices).some(
+      ([id, entry]) =>
+        entry.status === 'agree' &&
+        (statsById[id]?.geometryDriftM ?? 0) > check.tolerance
+    )
+);
+
+/**
  * Selector that returns the number of tags the last agreement check could
  * not certify (deviating, still calibrating, failed, stale or unknown);
  * 0 with no check. Manual tags are the operator's choice and do not count.

@@ -32,6 +32,7 @@ import {
   getRtlsGeometryCheck,
   getRtlsGeometryInvalidations,
   getRtlsPairedUavStatuses,
+  hasRtlsGeometryDriftAlarm,
   getRtlsSleepPendingMap,
   getRtlsStatsById,
   getRtlsStatsLastUpdatedAt,
@@ -78,12 +79,16 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
   // whenever the slice voids a verdict (the tag set changed, a tag
   // rebooted and refitted) and can be repeated at will.
   const invalidations = useSelector(getRtlsGeometryInvalidations);
+  // ...and when a certified tag's live drift crosses the verdict's
+  // tolerance (an anchor moved after the check): the server then grades
+  // it 'drifted' instead of the pill keeping a stale 'ok'.
+  const driftAlarm = useSelector(hasRtlsGeometryDriftAlarm);
   const haveTags = devices.length > 0;
   useEffect(() => {
     if (tags && haveTags) {
       void dispatch(checkGeometryAgreement({ silent: true }));
     }
-  }, [dispatch, tags, haveTags, invalidations]);
+  }, [dispatch, tags, haveTags, invalidations, driftAlarm]);
   // stable identity so the memoized rows are not re-rendered by the parent
   const handlers: DeviceRowHandlers = useMemo(
     () => ({
