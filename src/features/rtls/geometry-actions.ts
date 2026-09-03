@@ -68,6 +68,8 @@ export function checkGeometryAgreement({
         getState().rtls.geometry.invalidations !== generationAtRequest
       ) {
         dispatch(rtlsGeometryCheckFailed());
+        // the replacement is the re-run any queued request asked for
+        rerunQueued = false;
         return dispatch(checkGeometryAgreement({ silent, tolerance }));
       }
 
