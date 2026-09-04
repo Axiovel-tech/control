@@ -13,6 +13,7 @@ import CircularProgress from '@mui/material/CircularProgress';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 
 import {
   MiniList,
@@ -25,6 +26,7 @@ import {
 import BatteryIndicator from '~/components/BatteryIndicator';
 import { Status } from '~/components/semantics';
 import AnchorBars from '~/features/rtls/AnchorBars';
+import { describeGeometryFit } from '~/features/rtls/geometry-utils';
 import { getStatusForHealth } from '~/features/rtls/health-status';
 import { getRtlsDeviceDisplayName } from '~/features/rtls/selectors';
 import {
@@ -241,9 +243,9 @@ export type DeviceStatsRowProps = {
   /** Whether a sleep/wake transaction is in flight for this device. */
   busy?: boolean;
   device: RtlsDevice;
-  /** Label of the geometry-consistency pill; the pill is hidden if unset. */
+  /** Label of the geometry-agreement pill; the pill is hidden if unset. */
   geometryLabel?: string;
-  /** Status coloring the geometry-consistency pill. */
+  /** Status coloring the geometry-agreement pill. */
   geometryStatus?: Status;
   /** Stable action handlers; the actions are hidden when omitted. */
   handlers?: DeviceRowHandlers;
@@ -266,8 +268,10 @@ const DeviceStatsRow = ({
   stats,
   uavStatus,
 }: DeviceStatsRowProps) => {
+  const { t } = useTranslation();
   const role = classifyRole(device.role);
   const anchor = isAnchorRole(role);
+  const geometryFit = describeGeometryFit(stats);
   const anchorsSeen =
     stats?.anchorsSeen ?? countAnchorsInMask(stats?.anchorMask);
 
@@ -331,6 +335,12 @@ const DeviceStatsRow = ({
             primaryText='Anchors seen'
             secondaryText={String(anchorsSeen)}
           />
+          {geometryFit && (
+            <MiniListItem
+              primaryText={t('rtlsGeometry.telemetry')}
+              secondaryText={t(geometryFit.key, geometryFit.values)}
+            />
+          )}
         </MiniList>
       )}
       <Typography

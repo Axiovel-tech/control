@@ -5,7 +5,7 @@ import {
   getSingleUAVStatusSummary,
   getUAVIdToStateMapping,
 } from '~/features/uavs/selectors';
-import { type AppSelector, type RootState } from '~/store/reducers';
+import { type AppSelector } from '~/store/reducers';
 import {
   type Collection,
   type Identifier,
@@ -25,7 +25,7 @@ import {
   type RtlsAnchor,
   type RtlsDevice,
   type RtlsDeviceStats,
-  type RtlsGeometryCheck,
+  type RtlsGeometryAgreement,
   type RtlsOtaJob,
   type RtlsVerifyResult,
   type RtlsPosEstimate,
@@ -186,25 +186,6 @@ export const getRtlsCellIds: AppSelector<string[]> = createSelector(
 );
 
 /**
- * Resolves the only live RTLS cell for operations that cannot safely guess.
- * Multi-cell sites must pass an explicit selection from their UI surface.
- */
-export const requireSingleRtlsCell = (state: RootState): string => {
-  const cells = getRtlsCellIds(state);
-  if (cells.length === 0) {
-    throw new Error(
-      'No active RTLS geometry cell is available; check that a configured tag is online'
-    );
-  }
-  if (cells.length > 1) {
-    throw new Error(
-      `Multiple active RTLS cells are available (${cells.join(', ')}); select a cell`
-    );
-  }
-  return cells[0];
-};
-
-/**
  * Selector factory that returns the last known OTA job for a single device.
  */
 export const getRtlsOtaJobForDevice: AppSelector<
@@ -289,41 +270,33 @@ export const getRtlsTagHealth: AppSelector<RtlsHealth> = createSelector(
   getHealthForDevices
 );
 
-/** Selector that returns the last X-RTLS-GEO consistency snapshot, if any. */
+/** Selector that returns the last X-RTLS-GEOM agreement verdict, if any. */
 export const getRtlsGeometryCheck: AppSelector<
-  RtlsGeometryCheck | undefined
+  RtlsGeometryAgreement | undefined
 > = (state) => state.rtls.geometry.lastCheck;
 
-/** Selector that returns whether a geometry check or sync is in flight. */
+/** Selector that returns whether an agreement check is in flight. */
 export const isRtlsGeometryBusy: AppSelector<boolean> = (state) =>
-  state.rtls.geometry.checking || state.rtls.geometry.syncing;
+  state.rtls.geometry.checking;
 
-/** Selector that returns whether a geometry sync is in flight. */
-export const isRtlsGeometrySyncing: AppSelector<boolean> = (state) =>
-  state.rtls.geometry.syncing;
-
-/** Selector that returns whether the sync confirmation dialog is open. */
-export const isRtlsGeometrySyncDialogOpen: AppSelector<boolean> = (state) =>
-  state.rtls.geometry.syncDialogOpen;
+/** Selector: how many times a verdict was voided (a re-check trigger). */
+export const getRtlsGeometryInvalidations: AppSelector<number> = (state) =>
+  state.rtls.geometry.invalidations;
 
 /**
- * Selector that returns the number of devices the last consistency check
- * found out of sync (mismatched, incomplete or erroring); 0 with no check.
+ * Selector that returns the number of tags the last agreement check could
+ * not certify (deviating, still calibrating, failed, stale or unknown);
+ * 0 with no check. Manual tags are the operator's choice and do not count.
  */
-export const getRtlsGeometryDriftCount: AppSelector<number> = createSelector(
+export const getRtlsGeometryProblemCount: AppSelector<number> = createSelector(
   getRtlsGeometryCheck,
   (check) =>
     check
       ? Object.values(check.devices).filter(
-          (entry) => entry.status !== 'consistent'
+          (entry) => entry.status !== 'agree' && entry.status !== 'manual'
         ).length
       : 0
 );
-
-/** Selector: tags whose geometry was written but not rebooted yet. */
-export const getRtlsGeometryPendingReboot: AppSelector<Record<string, true>> = (
-  state
-) => state.rtls.geometry.pendingReboot;
 
 /** Selector that returns whether a fleet verification is running. */
 export const isRtlsVerifyRunning: AppSelector<boolean> = (state) =>
@@ -337,7 +310,3 @@ export const getRtlsVerifyResult: AppSelector<RtlsVerifyResult | undefined> = (
 /** Selector that returns whether the verification dialog is open. */
 export const isRtlsVerifyDialogOpen: AppSelector<boolean> = (state) =>
   state.rtls.verify.dialogOpen;
-
-/** Selector that returns whether the calibration wizard is open. */
-export const isRtlsCalibrationWizardOpen: AppSelector<boolean> = (state) =>
-  state.rtls.calibrationWizardOpen;

@@ -220,6 +220,12 @@ export function mapRtlsDeviceStats(
     fixAgeMs: toNumber(raw.fixAgeMs),
     clockPpm: toNumber(raw.clockPpm),
     anchorMask: toNumber(raw.anchorMask),
+    geometryState: toNumber(raw.geometryState),
+    geometryResidualM: toNumber(raw.geometryResidualM),
+    geometryDriftM: toNumber(raw.geometryDriftM),
+    geometryDistancesM: Array.isArray(raw.geometryDistancesM)
+      ? raw.geometryDistancesM.map((value: unknown) => toNumber(value) ?? null)
+      : undefined,
   };
 }
 

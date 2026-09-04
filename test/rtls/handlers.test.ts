@@ -275,6 +275,26 @@ describe('rtls handlers', () => {
       ).toBeUndefined();
     });
 
+    test('mapRtlsDeviceStats maps the automatic geometry fields', () => {
+      const mapped = mapRtlsDeviceStats('3', {
+        solveRateHz: 1,
+        geometryState: 3,
+        geometryResidualM: -0.075,
+        geometryDriftM: 0.002,
+        geometryDistancesM: [8.587, 9.224, 12.528, null, null, null, null],
+      });
+      expect(mapped).toMatchObject({
+        geometryState: 3,
+        geometryResidualM: -0.075,
+        geometryDriftM: 0.002,
+        geometryDistancesM: [8.587, 9.224, 12.528, null, null, null, null],
+      });
+      // firmware without automatic geometry sends none of them
+      const legacy = mapRtlsDeviceStats('3', { solveRateHz: 1 });
+      expect(legacy.geometryState).toBeUndefined();
+      expect(legacy.geometryDistancesM).toBeUndefined();
+    });
+
     test('mapRtlsDeviceStats ignores inter-anchor TWR (it rides on X-RTLS-INF)', () => {
       // TWR is now surfaced on the device status (INF), not on the stats path;
       // the stats mapper must not invent twr* fields from a stats body.

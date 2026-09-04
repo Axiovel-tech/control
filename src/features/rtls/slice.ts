@@ -16,13 +16,13 @@ import {
   type RtlsAnchor,
   type RtlsDevice,
   type RtlsDeviceStats,
-  type RtlsGeometryCheck,
-  type RtlsGeometrySync,
+  type RtlsGeometryAgreement,
   type RtlsVerifyResult,
   type RtlsOtaJob,
   type RtlsParam,
   type RtlsPosEstimate,
 } from './types';
+import { classifyRole, isAnchorRole } from './stats-utils';
 import { updateStateOfRtlsDevice } from './utils';
 
 /**
@@ -110,22 +110,15 @@ export type RtlsSliceState = {
     deviceId?: string;
   };
 
-  /** Fleet geometry-consistency state (X-RTLS-GEO check/sync). */
+  /** Fleet geometry-agreement state (X-RTLS-GEOM check). The tags fit
+   * the cell themselves; the client only verifies they agree. */
   geometry: {
     checking: boolean;
-    syncing: boolean;
-    lastCheck?: RtlsGeometryCheck;
-    lastSync?: RtlsGeometrySync;
-    /** Tags whose geometry was written but not (yet) rebooted: their
-     * solver still runs on the OLD geometry until a reboot. Cleared when
-     * a device's uptime is seen going backwards. */
-    pendingReboot: Record<string, true>;
-    /** Whether the sync confirmation dialog is open. */
-    syncDialogOpen: boolean;
+    lastCheck?: RtlsGeometryAgreement;
+    /** Counts every time the slice voided a verdict (tag set changed, a
+     * tag rebooted): the tags panel re-checks whenever it moves. */
+    invalidations: number;
   };
-
-  /** Whether the anchor-calibration wizard is open. */
-  calibrationWizardOpen: boolean;
 
   /** Fleet pre-flight verification state (X-RTLS-VERIFY). */
   verify: {
@@ -160,13 +153,9 @@ const initialState: RtlsSliceState = {
   },
   geometry: {
     checking: false,
-    syncing: false,
     lastCheck: undefined,
-    lastSync: undefined,
-    pendingReboot: {},
-    syncDialogOpen: false,
+    invalidations: 0,
   },
-  calibrationWizardOpen: false,
   verify: {
     running: false,
     lastResult: undefined,
@@ -188,13 +177,9 @@ const { actions, reducer } = createSlice({
       state.sleepPending = {};
       state.recentSleepResults = {};
       state.paramsByDevice = {};
-      // a consistency snapshot describes the fleet we just dropped
+      // an agreement snapshot describes the fleet we just dropped
       state.geometry.checking = false;
-      state.geometry.syncing = false;
       state.geometry.lastCheck = undefined;
-      state.geometry.lastSync = undefined;
-      state.geometry.pendingReboot = {};
-      state.geometry.syncDialogOpen = false;
       state.verify.running = false;
       state.verify.lastResult = undefined;
     },
@@ -218,16 +203,6 @@ const { actions, reducer } = createSlice({
       state.verify.lastResult = payload;
     },
 
-    /** Opens the anchor-calibration wizard. */
-    openRtlsCalibrationWizard(state) {
-      state.calibrationWizardOpen = true;
-    },
-
-    /** Closes the anchor-calibration wizard. */
-    closeRtlsCalibrationWizard(state) {
-      state.calibrationWizardOpen = false;
-    },
-
     /** Opens the fleet-verification dialog. */
     openRtlsVerifyDialog(state) {
       state.verify.dialogOpen = true;
@@ -238,63 +213,23 @@ const { actions, reducer } = createSlice({
       state.verify.dialogOpen = false;
     },
 
-    /** An X-RTLS-GEO check left the client. */
+    /** An X-RTLS-GEOM agreement check left the client. */
     rtlsGeometryCheckStarted(state) {
       state.geometry.checking = true;
     },
 
-    /** An X-RTLS-GEO check failed or was NAKed. */
+    /** An X-RTLS-GEOM check failed or was NAKed. */
     rtlsGeometryCheckFailed(state) {
       state.geometry.checking = false;
     },
 
-    /** An X-RTLS-GEO check completed; stores the fleet snapshot. */
+    /** An X-RTLS-GEOM check completed; stores the fleet verdict. */
     rtlsGeometryCheckSucceeded(
       state,
-      { payload }: PayloadAction<RtlsGeometryCheck>
+      { payload }: PayloadAction<RtlsGeometryAgreement>
     ) {
       state.geometry.checking = false;
       state.geometry.lastCheck = payload;
-    },
-
-    /** An X-RTLS-GEO sync left the client (closes the confirm dialog). */
-    rtlsGeometrySyncStarted(state) {
-      state.geometry.syncing = true;
-      state.geometry.syncDialogOpen = false;
-    },
-
-    /** An X-RTLS-GEO sync failed or was NAKed. */
-    rtlsGeometrySyncFailed(state) {
-      state.geometry.syncing = false;
-    },
-
-    /** An X-RTLS-GEO sync completed; stores the per-device outcomes and
-     * marks written-but-not-rebooted tags as pending a reboot. */
-    rtlsGeometrySyncSucceeded(
-      state,
-      { payload }: PayloadAction<RtlsGeometrySync>
-    ) {
-      state.geometry.syncing = false;
-      state.geometry.lastSync = payload;
-      for (const [id, entry] of Object.entries(payload.devices)) {
-        if (
-          entry.status === 'synced' &&
-          (entry.written?.length ?? 0) > 0 &&
-          entry.rebooted !== true
-        ) {
-          state.geometry.pendingReboot[id] = true;
-        }
-      }
-    },
-
-    /** Opens the geometry-sync confirmation dialog. */
-    openRtlsGeometrySyncDialog(state) {
-      state.geometry.syncDialogOpen = true;
-    },
-
-    /** Closes the geometry-sync confirmation dialog. */
-    closeRtlsGeometrySyncDialog(state) {
-      state.geometry.syncDialogOpen = false;
     },
 
     /**
@@ -433,31 +368,45 @@ const { actions, reducer } = createSlice({
     ) {
       const ids = Object.keys(payload);
 
-      // A consistency snapshot certifies a specific fleet: when the device
-      // ID SET changes (a tag joined or left), the certification is void —
+      // An agreement snapshot certifies a specific TAG fleet: when the tag
+      // ID set changes (a tag joined or left), the certification is void —
       // keeping a green "consistent" verdict over a fleet it never saw
-      // would be a false pre-flight pass.
-      if (
-        state.geometry.lastCheck &&
-        (ids.length !== state.devices.order.length ||
-          ids.some((id) => !state.devices.byId[id]))
-      ) {
-        state.geometry.lastCheck = undefined;
-      }
-
-      // A rewritten-but-not-rebooted tag still flies on its OLD geometry;
-      // the pending-reboot mark clears when the device is seen to have
-      // rebooted (its uptime went backwards).
-      for (const id of ids) {
+      // would be a false pre-flight pass. Anchors are not graded, so an
+      // anchor joining or leaving keeps the verdict (the tags panel
+      // re-checks on tag-set changes only). The generation counter moves
+      // even without a cached verdict: a check in flight compares it to
+      // drop an answer that describes the fleet before the event.
+      //
+      // The same tag definition as getRtlsTagDevices (every device that
+      // is not an anchor, unknown roles included), so the verdict is
+      // voided exactly when the panel's automatic re-check fires.
+      const tagIds = (collection: {
+        order: string[];
+        byId: Record<string, { role?: string }>;
+      }): string =>
+        collection.order
+          .filter(
+            (id) => !isAnchorRole(classifyRole(collection.byId[id]?.role))
+          )
+          .sort()
+          .join(',');
+      const before = tagIds(state.devices);
+      const after = tagIds({
+        order: ids,
+        byId: payload as Record<string, { role?: string }>,
+      });
+      // A tag that rebooted (uptime went backwards) fits its geometry
+      // again at boot: the old verdict no longer describes it.
+      const rebooted = ids.some((id) => {
         const uptime = payload[id]?.uptimeMs;
         const previous = state.devices.byId[id]?.uptimeMs;
-        if (
-          uptime !== undefined &&
-          previous !== undefined &&
-          uptime < previous
-        ) {
-          delete state.geometry.pendingReboot[id];
-        }
+        return (
+          uptime !== undefined && previous !== undefined && uptime < previous
+        );
+      });
+      if (before !== after || rebooted) {
+        state.geometry.lastCheck = undefined;
+        state.geometry.invalidations += 1;
       }
 
       // Drop devices that are no longer present in the snapshot, along with
@@ -554,13 +503,9 @@ const { actions, reducer } = createSlice({
 export const {
   applyRtlsSleepResults,
   clearRtlsDevices,
-  closeRtlsGeometrySyncDialog,
   closeRtlsOtaDialog,
   closeRtlsParamDialog,
-  closeRtlsCalibrationWizard,
   closeRtlsVerifyDialog,
-  openRtlsCalibrationWizard,
-  openRtlsGeometrySyncDialog,
   openRtlsOtaDialog,
   openRtlsParamDialog,
   openRtlsVerifyDialog,
@@ -570,9 +515,6 @@ export const {
   rtlsGeometryCheckFailed,
   rtlsGeometryCheckStarted,
   rtlsGeometryCheckSucceeded,
-  rtlsGeometrySyncFailed,
-  rtlsGeometrySyncStarted,
-  rtlsGeometrySyncSucceeded,
   rtlsParamsFetchFailed,
   rtlsParamsFetchStarted,
   rtlsParamsFetchSucceeded,

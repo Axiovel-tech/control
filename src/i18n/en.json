@@ -736,80 +736,58 @@
       "unknown": "Unknown status"
     }
   },
-  "rtlsCalibration": {
-    "action": {
-      "calibrate": "Calibrate geometry",
-      "remeasure": "Read a new summary",
-      "retry": "Retry",
-      "reviewApply": "Review and apply {{model}}…",
-      "runRefined": "Run refined fit",
-      "useRefined": "Use refined result",
-      "useStrict": "Use strict result",
-      "write": "Write tags",
-      "writeReboot": "Write and reboot tags"
-    },
-    "apply": {
-      "frame": "The written geometry uses A0 as the origin, A0→A1 as absolute +X, local NED coordinates, and zero yaw.",
-      "reboot": "Reboot rewritten tags so the new geometry takes effect",
-      "warning": "Review complete. The {{model}} geometry will be written to every available tag."
-    },
-    "cell": {
-      "label": "Geometry cell",
-      "missing": "No active RTLS geometry cell is available. Check that at least one configured tag is online."
-    },
-    "comparison": {
-      "detail": "Strict RMS: {{strict}} · refined RMS: {{refined}} · improvement: {{improvement}} · noise floor: {{noise}}",
-      "meaningful": "The improvement is meaningful relative to the measured range noise.",
-      "notMeaningful": "The added freedom is not justified by the measured range noise; keep the strict result.",
-      "title": "Model comparison"
-    },
-    "constraints": "The default model is two identical rectangular planes on four tripods. A0 is the origin, A0→A1 is absolute +X, A0→A2 is +Y, and yaw is zero.",
-    "done": {
-      "consistent": "Geometry applied; the fleet checks consistent.",
-      "outOfSync": "Geometry written; the automatic check found tags still out of sync. See the Tags panel.",
-      "unchecked": "Geometry written. Run a consistency check on the Tags panel to confirm it.",
-      "writing": "Writing the geometry to the fleet…"
-    },
+  "rtlsGeometry": {
+    "checkFailed": "Geometry check failed: {{detail}}",
     "fit": {
-      "accepted": "accepted",
-      "quality": "RMS {{rms}} · weighted objective {{objective}}",
-      "rejected": "rejected",
-      "selected": "selected"
+      "calibrated": "calibrated · residual {{residual}} cm",
+      "calibratedDrift": "calibrated · residual {{residual}} cm · drift {{drift}} cm",
+      "calibratedPending": "calibrated · fit metrics pending"
     },
-    "intro": "Read one fresh rolling range summary from A0 and fit the anchor geometry. Firmware collects the fast UWB rounds continuously, so this normally completes within a few seconds.",
-    "model": {
-      "refined": "refined fit",
-      "strict": "strict fit"
+    "pill": {
+      "calibrated": "geometry calibrated",
+      "calibrating": "geometry calibrating",
+      "deviates": "geometry deviates",
+      "deviatesDeviation": "geometry deviates ({{deviation}} cm)",
+      "drifted": "geometry drifted",
+      "driftedDrift": "geometry drifted ({{drift}} cm)",
+      "failed": "geometry rejected",
+      "frame": "geometry frame differs",
+      "manual": "geometry manual",
+      "ok": "geometry ok",
+      "okDeviation": "geometry ok ({{deviation}} cm)",
+      "stale": "geometry stale",
+      "unknown": "geometry unknown"
     },
-    "parameter": {
-      "angle": "shared corner angle",
-      "bottomLength": "lower X",
-      "bottomWidth": "lower Y",
-      "height": "height",
-      "length": "X length",
-      "topLength": "upper X",
-      "topWidth": "upper Y",
-      "width": "Y width"
+    "rejected": {
+      "anchorCount": "fit rejected · anchor count not 4 or 8",
+      "anchorMissing": "fit rejected · an anchor was never heard",
+      "none": "fit rejected · retrying",
+      "notRectangle": "fit rejected · not a rectangle (anchors swapped?)",
+      "sideTooShort": "fit rejected · a side or the height is under 1 m",
+      "topPlane": "fit rejected · top plane not above the bottom one (anchors swapped?)"
     },
-    "refined": {
-      "description": "If real construction errors exceed the strict model, the refined fit reuses this exact summary and permits small upper/lower dimension differences and one bounded shared skew angle. The four-tripod and parallel-plane constraints remain.",
-      "failed": "Refined fit failed: {{detail}}"
+    "state": {
+      "calibrated": "calibrated",
+      "calibrating": "calibrating",
+      "failed": "fit rejected",
+      "manual": "manual table",
+      "none": "no geometry",
+      "waiting": "waiting for anchors"
     },
-    "request": {
-      "actionableFailure": "{{detail}} Check that A0 and all seven responders are online, each responder supports rolling range summaries, and every A0 spoke is fresh with enough valid samples.",
-      "failed": "Calibration failed: {{detail}}",
-      "waiting": "Collecting fresh A0 spokes from all seven responders, then fitting the strict geometry…"
+    "summary": {
+      "consistent": "geometry consistent ({{count}} agree, max {{deviation}} cm)",
+      "deviating": "geometry: {{count}} deviating",
+      "drifted": "geometry: {{count}} drifted",
+      "manualOnly": "geometry: {{count}} manual",
+      "noTags": "geometry: no tags",
+      "notCalibrated": "geometry: {{count}} not calibrated",
+      "unchecked": "geometry unchecked"
     },
-    "residual": {
-      "anchor": "spoke",
-      "error": "residual",
-      "mad": "MAD",
-      "measured": "measured",
-      "predicted": "predicted",
-      "samples": "samples"
-    },
-    "summary": "Capture {{captureId}} · {{count}}/7 responder spokes · received age {{age}} ms · max skew {{skew}} ms",
-    "title": "Anchor geometry calibration"
+    "telemetry": "Geometry",
+    "tooltip": {
+      "check": "Check that every drone fitted the same cell geometry",
+      "verify": "Run the fleet pre-flight verification"
+    }
   },
   "rtlsHealth": {
     "all": {

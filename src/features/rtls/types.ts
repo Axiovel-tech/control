@@ -135,7 +135,40 @@ export type RtlsDeviceStats = {
   clockPpm?: number;
   /** Bitmask of anchors that contributed to the most recent fix. */
   anchorMask?: number;
+  /** Automatic cell geometry state (firmware `geom` stat code). */
+  geometryState?: RtlsGeometryState;
+  /** Why the tag rejected its last fit (firmware `gfail` stat code). */
+  geometryReason?: RtlsGeometryReason;
+  /** Rectangle-diagonal residual of the fitted cell, metres. */
+  geometryResidualM?: number;
+  /** Largest live initiator-distance drift since calibration, metres. */
+  geometryDriftM?: number;
+  /** The seven fitted AN0-ANi distances, metres (null where not fitted). */
+  geometryDistancesM?: Array<number | null>;
 };
+
+/** Firmware states of the automatic cell geometry (`geom` stat). */
+export enum RtlsGeometryState {
+  MANUAL = 0,
+  WAITING = 1,
+  CALIBRATING = 2,
+  CALIBRATED = 3,
+  FAILED = 4,
+}
+
+/**
+ * Why the tag rejected its last fit (`gfail` stat): a rig outside the
+ * stacked-rectangle convention is never fitted, the tag stays without a
+ * table and does not solve.
+ */
+export enum RtlsGeometryReason {
+  NONE = 0,
+  ANCHOR_COUNT = 1,
+  ANCHOR_MISSING = 2,
+  SIDE_TOO_SHORT = 3,
+  NOT_RECTANGLE = 4,
+  TOP_PLANE = 5,
+}
 
 /**
  * A live position estimate of a single tag, as reported by X-RTLS-POS.
@@ -201,42 +234,52 @@ export type RtlsOtaJob = {
   error?: string;
 };
 
-/** Per-device verdict of an X-RTLS-GEO `check`. */
-export type RtlsGeometryCheckEntry = {
-  status: 'consistent' | 'error' | 'incomplete' | 'mismatch';
-  /** Reference parameter names missing from this device. */
+/** Per-tag verdict of an X-RTLS-GEOM agreement check. */
+export type RtlsGeometryAgreementEntry = {
+  id?: number;
+  status:
+    | 'agree'
+    | 'calibrating'
+    | 'deviates'
+    | 'drifted'
+    | 'failed'
+    | 'frame'
+    | 'manual'
+    | 'stale'
+    | 'unknown';
+  /** Cell the tag belongs to (its CELL_ID); tags are compared per cell. */
+  cell?: string;
+  state?: RtlsGeometryState;
+  stateName?: string;
+  /** Why a `failed` tag rejected its fit (firmware reason code). */
+  reason?: RtlsGeometryReason;
+  residualM?: number;
+  driftM?: number;
+  distancesM?: Array<number | null>;
+  /** Largest deviation from the fleet reference, metres (graded tags). */
+  maxDeviationM?: number;
+  /** Deviating distances (`AN0-ANi`) with their deviation, metres. */
+  deviations?: Record<string, number>;
+  /** Distances this tag fitted differently from the fleet (anchor set). */
   missing?: string[];
-  /** Mismatched parameters with the expected/actual value pair. */
-  deltas?: Record<string, { expected: unknown; actual: unknown }>;
+  /** Coordinate-frame parameters that differ from the rest of the cell. */
+  frame?: string[];
   detail?: string;
 };
 
-/** Result of an X-RTLS-GEO `check`: the fleet-consistency snapshot
- * against the server's CANONICAL geometry. */
-export type RtlsGeometryCheck = {
-  cell: string;
+/** Result of an X-RTLS-GEOM agreement check. */
+export type RtlsGeometryAgreement = {
+  /** Largest accepted deviation of one distance, metres. */
+  tolerance: number;
+  /** Per-distance reference of the only cell (lower median); absent with
+   * none or several cells. */
+  reference?: Array<number | null>;
+  /** One per-distance reference per cell. */
+  references?: Record<string, Array<number | null>>;
   consistent: boolean;
-  /** Per-tag verdicts, keyed by system id (every live tag is a target). */
-  devices: Record<string, RtlsGeometryCheckEntry>;
+  /** Per-tag verdicts keyed by system id. */
+  devices: Record<string, RtlsGeometryAgreementEntry>;
   /** Client-side timestamp of when the result was received. */
-  receivedAt: number;
-};
-
-/** Per-device outcome of an X-RTLS-GEO `sync`. */
-export type RtlsGeometrySyncEntry = {
-  status: 'error' | 'partial' | 'synced';
-  written?: string[];
-  skipped?: string[];
-  failures?: Record<string, string>;
-  rebooted?: boolean;
-  rebootDetail?: string;
-  detail?: string;
-};
-
-/** Result of an X-RTLS-GEO `sync`. */
-export type RtlsGeometrySync = {
-  cell: string;
-  devices: Record<string, RtlsGeometrySyncEntry>;
   receivedAt: number;
 };
 
@@ -259,112 +302,4 @@ export type RtlsVerifyResult = {
   passed: boolean;
   rules: RtlsVerifyRule[];
   receivedAt: number;
-};
-
-export type RtlsCalibrationModel = 'refined' | 'strict';
-
-/** One normalized responder-owned A0 spoke used by a geometry fit. */
-export type RtlsRangeSummary = {
-  anchorIndex: number;
-  peerMac: number;
-  distanceM: number;
-  madM: number;
-  count: number;
-};
-
-/** One responder generation contributing its A0 spoke to a capture. */
-export type RtlsCalibrationSource = {
-  anchorIndex: number;
-  anchorMac: number;
-  systemId: number;
-  sequence: number;
-  timeBootMs: number;
-  ageMs: number;
-};
-
-/** The server capture pinned by a strict fit and reused by a refined fit. */
-export type RtlsCalibrationSummary = {
-  captureId: number;
-  version: number;
-  validMask: number;
-  ageMs: number;
-  maxSkewMs: number;
-  sources: RtlsCalibrationSource[];
-  ranges: RtlsRangeSummary[];
-};
-
-export type RtlsStrictFitParameters = {
-  lengthM: number;
-  widthM: number;
-  heightM: number;
-};
-
-export type RtlsRefinedFitParameters = {
-  bottomLengthM: number;
-  bottomWidthM: number;
-  topLengthM: number;
-  topWidthM: number;
-  heightM: number;
-  angleDeg: number;
-};
-
-/** One measured A0 spoke and the corresponding fitted-model prediction. */
-export type RtlsFitResidual = {
-  anchorIndex: number;
-  peerMac: number;
-  measuredM: number;
-  predictedM: number;
-  residualM: number;
-  madM: number;
-  count: number;
-  weight: number;
-};
-
-export type RtlsFittedAnchor = {
-  index: number;
-  xM: number;
-  yM: number;
-  zM: number;
-};
-
-type RtlsGeometryFitBase = {
-  accepted: boolean;
-  anchors: RtlsFittedAnchor[];
-  rmsM: number;
-  weightedObjective: number;
-  residuals: RtlsFitResidual[];
-  reasons: string[];
-  warnings: string[];
-};
-
-/** One constrained geometry model evaluated over a pinned server capture. */
-export type RtlsGeometryFit =
-  | (RtlsGeometryFitBase & {
-      model: 'strict';
-      parameters: RtlsStrictFitParameters;
-    })
-  | (RtlsGeometryFitBase & {
-      model: 'refined';
-      parameters: RtlsRefinedFitParameters;
-    });
-
-export type RtlsFitComparison = {
-  rmsImprovementM: number;
-  noiseFloorM: number;
-  meaningfulImprovement: boolean;
-};
-
-/** Response of an X-RTLS-GEO constrained fit request. */
-export type RtlsCalibrationResponse = {
-  type: 'X-RTLS-GEO';
-  op: 'fit';
-  mode: RtlsCalibrationModel;
-  cell: string;
-  summary: RtlsCalibrationSummary;
-  strict: RtlsGeometryFit;
-  refined: RtlsGeometryFit | null;
-  selectedModel: RtlsCalibrationModel | null;
-  /** Apply-ready payload for X-RTLS-GEO sync; absent on a rejected result. */
-  applyGeometry: Record<string, unknown> | null;
-  comparison?: RtlsFitComparison;
 };

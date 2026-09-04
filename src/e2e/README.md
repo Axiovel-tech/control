@@ -84,53 +84,44 @@ these is a breaking change for the harness.
 
 ### `data-testid`
 
-| Test id                                    | Element                                                                                                                                                                                       |
-| ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `show-control.load-show`                   | Show Control → load show from file (the file input is nested inside it)                                                                                                                       |
-| `show-control.environment`                 | Show Control → environment setup                                                                                                                                                              |
-| `show-control.adapt-to-venue`              | Show Control → adapt to venue (outdoor only)                                                                                                                                                  |
-| `show-control.takeoff-area`                | Show Control → takeoff area setup                                                                                                                                                             |
-| `show-control.geofence`                    | Show Control → geofence setup (outdoor only)                                                                                                                                                  |
-| `show-control.upload`                      | Show Control → upload show data                                                                                                                                                               |
-| `show-control.onboard-preflight`           | Show Control → onboard preflight checks                                                                                                                                                       |
-| `show-control.manual-preflight`            | Show Control → manual preflight checks                                                                                                                                                        |
-| `show-control.start-time`                  | Show Control → start time                                                                                                                                                                     |
-| `show-control.authorize`                   | Show Control → authorize the start of the show (the wide list button below the setup stages)                                                                                                  |
-| `takeoff-area-dialog.dialog`               | The takeoff area setup dialog itself (the id is on the dialog paper, not the backdrop)                                                                                                        |
-| `takeoff-area-dialog.approve`              | Takeoff area dialog → approve/revoke switch (the underlying input also carries `value="approved"`)                                                                                            |
-| `takeoff-area-dialog.place-virtual-drones` | Takeoff area dialog → place virtual drones (title bar; rendered only when the server supports virtual drones)                                                                                 |
-| `takeoff-area-dialog.recalculate-mapping`  | Takeoff area dialog → recalculate mapping. The id is set at the dialog's usage site; the shared button component is reused elsewhere without it.                                              |
-| `takeoff-area-dialog.augment-mapping`      | Takeoff area dialog → assign spares to empty slots. Same usage-site rule as above.                                                                                                            |
-| `upload-dialog.dialog`                     | The upload dialog itself (the id is on the dialog paper, not the backdrop)                                                                                                                    |
-| `upload-dialog.start`                      | Upload dialog → start upload (rendered while no upload is running)                                                                                                                            |
-| `upload-dialog.cancel`                     | Upload dialog → cancel upload (replaces the start button while an upload is running)                                                                                                          |
-| `onboard-preflight-dialog.sign-off`        | Onboard preflight checks dialog → sign-off switch (the underlying input also carries `value="signedOff"`)                                                                                     |
-| `manual-preflight-dialog.sign-off`         | Manual preflight checks dialog → sign-off switch (the underlying input also carries `value="signedOff"`)                                                                                      |
-| `safety-dialog.dialog`                     | The safety dialog itself, which hosts the geofence settings tab (the id is on the dialog paper, not the backdrop)                                                                             |
-| `map.fit-all-features.drones`              | Map toolbar → fit all features. The id carries the button's `target` prop, and the one instance the layout renders uses the default, `drones` — there is no `.all` variant in the DOM.        |
-| `header.server-connection`                 | Header → server connection settings (opens the server dialog)                                                                                                                                 |
-| `server-settings.dialog`                   | The server settings dialog itself                                                                                                                                                             |
-| `server-settings.tab.auto`                 | Server settings → auto-discovery tab                                                                                                                                                          |
-| `server-settings.tab.manual`               | Server settings → manual entry tab (hostname/port only exist here)                                                                                                                            |
-| `rtls-tags-panel`                          | The "RTLS Tags" workbench panel (root of `RtlsRolePanel`, tags variant)                                                                                                                       |
-| `rtls-anchors-panel`                       | The "RTLS Anchors" workbench panel (root of `RtlsRolePanel`, anchors variant)                                                                                                                 |
-| `rtls-device-<id>`                         | Device row for the RTLS device with system id `<id>` (`DeviceStatsRow`), on either panel                                                                                                      |
-| `rtls-device-sleep`                        | Device row → sleep this device (sleepable devices only; hidden while a sleep/wake transaction is in flight)                                                                                   |
-| `rtls-device-wake`                         | Device row → wake this device (same rendering rules as sleep)                                                                                                                                 |
-| `rtls-device-parameters`                   | Device row → open the parameter viewer/editor dialog                                                                                                                                          |
-| `rtls-device-firmware`                     | Device row → open the OTA firmware update dialog                                                                                                                                              |
-| `rtls-tags-panel.check-geometry`           | Tags panel toolbar → run an X-RTLS-GEO consistency check (disabled while a check or sync is in flight)                                                                                        |
-| `rtls-tags-panel.adopt-geometry`           | Tags panel toolbar → adopt the fleet geometry as canonical (unanimity-gated server-side)                                                                                                      |
-| `rtls-tags-panel.sync-geometry`            | Tags panel toolbar → open the geometry-sync confirmation dialog (disabled without a check, or with zero drift)                                                                                |
-| `rtls-anchors-panel.calibrate`             | Anchors panel toolbar → open the anchor-calibration wizard                                                                                                                                    |
-| `rtls-calibration.dialog`                  | The calibration wizard dialog itself (the id is on the dialog paper, not the backdrop)                                                                                                        |
-| `rtls-calibration.measure`                 | Calibration wizard, measure step → run the strict fit (a fresh server-side capture)                                                                                                           |
-| `rtls-calibration.review-apply`            | Calibration wizard, review step → proceed to the apply step. Rendered only on the review step, so its appearance is the "fit finished" signal; disabled unless the selected fit was accepted. |
-| `rtls-calibration.write`                   | Calibration wizard, apply step → write the fitted geometry to every tag (label flips between "write" and "write & reboot" with the checkbox)                                                  |
-| `rtls-calibration.reboot`                  | Calibration wizard, apply step → reboot-rewritten-tags checkbox (the id is on the MUI checkbox root; read the nested `input` for the checked state)                                           |
-| `rtls-geometry-sync.dialog`                | The geometry-sync confirmation dialog itself (the id is on the dialog paper, not the backdrop)                                                                                                |
-| `rtls-geometry-sync.write`                 | Geometry-sync dialog → write the canonical geometry to the drifted tags (disabled without a check or with zero drift)                                                                         |
-| `rtls-geometry-sync.reboot`                | Geometry-sync dialog → reboot-rewritten-tags checkbox (same checkbox-root rule as the wizard's)                                                                                               |
+| Test id                                    | Element                                                                                                                                                                                |
+| ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `show-control.load-show`                   | Show Control → load show from file (the file input is nested inside it)                                                                                                                |
+| `show-control.environment`                 | Show Control → environment setup                                                                                                                                                       |
+| `show-control.adapt-to-venue`              | Show Control → adapt to venue (outdoor only)                                                                                                                                           |
+| `show-control.takeoff-area`                | Show Control → takeoff area setup                                                                                                                                                      |
+| `show-control.geofence`                    | Show Control → geofence setup (outdoor only)                                                                                                                                           |
+| `show-control.upload`                      | Show Control → upload show data                                                                                                                                                        |
+| `show-control.onboard-preflight`           | Show Control → onboard preflight checks                                                                                                                                                |
+| `show-control.manual-preflight`            | Show Control → manual preflight checks                                                                                                                                                 |
+| `show-control.start-time`                  | Show Control → start time                                                                                                                                                              |
+| `show-control.authorize`                   | Show Control → authorize the start of the show (the wide list button below the setup stages)                                                                                           |
+| `takeoff-area-dialog.dialog`               | The takeoff area setup dialog itself (the id is on the dialog paper, not the backdrop)                                                                                                 |
+| `takeoff-area-dialog.approve`              | Takeoff area dialog → approve/revoke switch (the underlying input also carries `value="approved"`)                                                                                     |
+| `takeoff-area-dialog.place-virtual-drones` | Takeoff area dialog → place virtual drones (title bar; rendered only when the server supports virtual drones)                                                                          |
+| `takeoff-area-dialog.recalculate-mapping`  | Takeoff area dialog → recalculate mapping. The id is set at the dialog's usage site; the shared button component is reused elsewhere without it.                                       |
+| `takeoff-area-dialog.augment-mapping`      | Takeoff area dialog → assign spares to empty slots. Same usage-site rule as above.                                                                                                     |
+| `upload-dialog.dialog`                     | The upload dialog itself (the id is on the dialog paper, not the backdrop)                                                                                                             |
+| `upload-dialog.start`                      | Upload dialog → start upload (rendered while no upload is running)                                                                                                                     |
+| `upload-dialog.cancel`                     | Upload dialog → cancel upload (replaces the start button while an upload is running)                                                                                                   |
+| `onboard-preflight-dialog.sign-off`        | Onboard preflight checks dialog → sign-off switch (the underlying input also carries `value="signedOff"`)                                                                              |
+| `manual-preflight-dialog.sign-off`         | Manual preflight checks dialog → sign-off switch (the underlying input also carries `value="signedOff"`)                                                                               |
+| `safety-dialog.dialog`                     | The safety dialog itself, which hosts the geofence settings tab (the id is on the dialog paper, not the backdrop)                                                                      |
+| `map.fit-all-features.drones`              | Map toolbar → fit all features. The id carries the button's `target` prop, and the one instance the layout renders uses the default, `drones` — there is no `.all` variant in the DOM. |
+| `header.server-connection`                 | Header → server connection settings (opens the server dialog)                                                                                                                          |
+| `server-settings.dialog`                   | The server settings dialog itself                                                                                                                                                      |
+| `server-settings.tab.auto`                 | Server settings → auto-discovery tab                                                                                                                                                   |
+| `server-settings.tab.manual`               | Server settings → manual entry tab (hostname/port only exist here)                                                                                                                     |
+| `rtls-tags-panel`                          | The "RTLS Tags" workbench panel (root of `RtlsRolePanel`, tags variant)                                                                                                                |
+| `rtls-anchors-panel`                       | The "RTLS Anchors" workbench panel (root of `RtlsRolePanel`, anchors variant)                                                                                                          |
+| `rtls-device-<id>`                         | Device row for the RTLS device with system id `<id>` (`DeviceStatsRow`), on either panel                                                                                               |
+| `rtls-device-sleep`                        | Device row → sleep this device (sleepable devices only; hidden while a sleep/wake transaction is in flight)                                                                            |
+| `rtls-device-wake`                         | Device row → wake this device (same rendering rules as sleep)                                                                                                                          |
+| `rtls-device-parameters`                   | Device row → open the parameter viewer/editor dialog                                                                                                                                   |
+| `rtls-device-firmware`                     | Device row → open the OTA firmware update dialog                                                                                                                                       |
+| `rtls-tags-panel.geometry`                 | Tags panel toolbar → the fleet geometry-agreement pill (label from `summarizeGeometryAgreement`; replaced by a spinner while a check is in flight)                                     |
+| `rtls-tags-panel.check-geometry`           | Tags panel toolbar → run an X-RTLS-GEOM agreement check (disabled while one is in flight; the panel also runs one silently whenever the tag set changes)                               |
+| `rtls-tags-panel.verify`                   | Tags panel toolbar → open the fleet pre-flight verification dialog                                                                                                                     |
 
 ### Pre-existing stable hooks
 
@@ -146,33 +137,24 @@ These were already in the app and are relied upon rather than re-invented:
 | `form#geofenceSettings`                                                                                                                       | Geofence settings form in the safety dialog; submit it via `button[form="geofenceSettings"][type="submit"]` (`features/safety/GeofenceSettingsTab.jsx`) |
 | `input[value="signedOff"]`                                                                                                                    | The sign-off switch input in both preflight dialogs                                                                                                     |
 | `input[value="approved"]`                                                                                                                     | The approve switch input in the takeoff area dialog                                                                                                     |
-| `#rtls-calibration-cell-label`                                                                                                                | Label of the calibration wizard's cell select (`features/rtls/RtlsCalibrationWizard.tsx`); the select is disabled below two cells                       |
 
 ## RTLS geometry facts in Redux
 
-The RTLS geometry workflow (consistency check → fit → write to the fleet) keeps
-its verdicts in the `rtls` slice, and the panels above render straight from it —
-so a harness should assert on these paths via `getState` rather than on pills
-and spinners:
+Every tag fits the anchor table itself at boot (rtls-link-zephyr#208) and
+streams the fit as health stats; the ground station never writes geometry.
+The `rtls` slice keeps the live fit per tag and the last fleet agreement
+verdict, and the panels render straight from it — so a harness should assert
+on these paths via `getState` rather than on pills and spinners:
 
-| Path                          | Meaning                                                                                                                                                                                              |
-| ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `rtls.devices`                | Device registry (`order` + `byId`; each device carries `role`, `online`, `sleeping`, `uav`, `firmwareVersion`, `uptimeMs`, ...)                                                                      |
-| `rtls.stats.byId`             | Live per-device telemetry (`solveRateHz`, `solvePct`, `fixAgeMs`, `anchorsSeen`, ...)                                                                                                                |
-| `rtls.anchors`                | Site-level anchor list; the set of `cell` values here is the live cell inventory                                                                                                                     |
-| `rtls.geometry.checking`      | An X-RTLS-GEO check is in flight                                                                                                                                                                     |
-| `rtls.geometry.lastCheck`     | Last consistency snapshot: `cell`, `consistent`, per-device verdicts (`consistent`/`mismatch`/`incomplete`/`error`) and `receivedAt`. Voided (set back to undefined) when the device ID set changes. |
-| `rtls.geometry.syncing`       | An X-RTLS-GEO sync (fleet write) is in flight                                                                                                                                                        |
-| `rtls.geometry.lastSync`      | Last sync outcome: per-device `status` (`synced`/...), `written` parameter lists, `rebooted` flags and `receivedAt`                                                                                  |
-| `rtls.geometry.pendingReboot` | Tags written but not yet rebooted — their solver still runs on the OLD geometry; entries clear when a device's uptime is seen going backwards                                                        |
-| `rtls.verify`                 | Fleet pre-flight verification state (`running`, `lastResult`)                                                                                                                                        |
-
-The calibration wizard's fit responses (strict/refined models, residuals,
-acceptance) are deliberately **not** in Redux — they are wizard-local component
-state. The harness observes a fit through the DOM (the `rtls-calibration.*`
-test ids above) and through the recorded `X-RTLS-GEO` response in the message
-tap; a fit only touches Redux when it is applied, which lands in
-`rtls.geometry.lastSync` like any other fleet write.
+| Path                          | Meaning                                                                                                                                                                                                                                                              |
+| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `rtls.devices`                | Device registry (`order` + `byId`; each device carries `role`, `online`, `sleeping`, `uav`, `firmwareVersion`, `uptimeMs`, ...)                                                                                                                                      |
+| `rtls.stats.byId`             | Live per-device telemetry (`solveRateHz`, `solvePct`, `fixAgeMs`, `anchorsSeen`, ...) plus the tag's automatic geometry: `geometryState` (0 manual, 1 waiting, 2 calibrating, 3 calibrated, 4 failed), `geometryResidualM`, `geometryDriftM`, `geometryDistancesM`   |
+| `rtls.anchors`                | Site-level anchor list; the set of `cell` values here is the live cell inventory                                                                                                                                                                                     |
+| `rtls.geometry.checking`      | An X-RTLS-GEOM agreement check is in flight                                                                                                                                                                                                                          |
+| `rtls.geometry.invalidations` | Counts the verdicts the slice voided (tag set changed, a tag rebooted); the tags panel re-checks whenever it moves                                                                                                                                                   |
+| `rtls.geometry.lastCheck`     | Last agreement verdict: `tolerance`, per-distance `reference`, `consistent`, per-tag verdicts (`agree`/`deviates`/`manual`/`calibrating`/`failed`/`stale`/`unknown`, with `maxDeviationM` and `deviations`) and `receivedAt`. Voided when the device ID set changes. |
+| `rtls.verify`                 | Fleet pre-flight verification state (`running`, `lastResult`)                                                                                                                                                                                                        |
 
 ## Changing the contract
 
