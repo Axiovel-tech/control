@@ -21,6 +21,7 @@ import reducer, {
 } from '~/features/rtls/slice';
 import {
   type RtlsGeometryAgreement,
+  RtlsGeometryReason,
   RtlsGeometryState,
 } from '~/features/rtls/types';
 import type { RootState } from '~/store/reducers';
@@ -132,6 +133,19 @@ describe('geometry pill', () => {
     expect(
       describeGeometryFit({ id: '1', geometryState: RtlsGeometryState.WAITING })
     ).toEqual({ key: 'rtlsGeometry.state.waiting' });
+    // a rejected fit names the tag's reason (two anchors swapped on the
+    // bench, 2026-09-04: the diagonal disagreed with the sides by metres)
+    expect(
+      describeGeometryFit({
+        id: '1',
+        geometryState: RtlsGeometryState.FAILED,
+        geometryReason: RtlsGeometryReason.NOT_RECTANGLE,
+        geometryResidualM: -5.83,
+      })
+    ).toEqual({ key: 'rtlsGeometry.rejected.notRectangle' });
+    expect(
+      describeGeometryFit({ id: '1', geometryState: RtlsGeometryState.FAILED })
+    ).toEqual({ key: 'rtlsGeometry.rejected.none' });
     // an absent metric is unknown, not a perfect zero
     expect(
       describeGeometryFit({

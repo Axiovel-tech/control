@@ -135,8 +135,10 @@ export type RtlsDeviceStats = {
   clockPpm?: number;
   /** Bitmask of anchors that contributed to the most recent fix. */
   anchorMask?: number;
-  /** Automatic cell geometry state (firmware UWB_GEOM_STATE code). */
+  /** Automatic cell geometry state (firmware `geom` stat code). */
   geometryState?: RtlsGeometryState;
+  /** Why the tag rejected its last fit (firmware `gfail` stat code). */
+  geometryReason?: RtlsGeometryReason;
   /** Rectangle-diagonal residual of the fitted cell, metres. */
   geometryResidualM?: number;
   /** Largest live initiator-distance drift since calibration, metres. */
@@ -145,13 +147,27 @@ export type RtlsDeviceStats = {
   geometryDistancesM?: Array<number | null>;
 };
 
-/** Firmware states of the automatic cell geometry (UWB_GEOM_STATE). */
+/** Firmware states of the automatic cell geometry (`geom` stat). */
 export enum RtlsGeometryState {
   MANUAL = 0,
   WAITING = 1,
   CALIBRATING = 2,
   CALIBRATED = 3,
   FAILED = 4,
+}
+
+/**
+ * Why the tag rejected its last fit (`gfail` stat): a rig outside the
+ * stacked-rectangle convention is never fitted, the tag stays without a
+ * table and does not solve.
+ */
+export enum RtlsGeometryReason {
+  NONE = 0,
+  ANCHOR_COUNT = 1,
+  ANCHOR_MISSING = 2,
+  SIDE_TOO_SHORT = 3,
+  NOT_RECTANGLE = 4,
+  TOP_PLANE = 5,
 }
 
 /**
@@ -235,6 +251,8 @@ export type RtlsGeometryAgreementEntry = {
   cell?: string;
   state?: RtlsGeometryState;
   stateName?: string;
+  /** Why a `failed` tag rejected its fit (firmware reason code). */
+  reason?: RtlsGeometryReason;
   residualM?: number;
   driftM?: number;
   distancesM?: Array<number | null>;

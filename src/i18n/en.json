@@ -736,6 +736,59 @@
       "unknown": "Unknown status"
     }
   },
+  "rtlsGeometry": {
+    "checkFailed": "Geometry check failed: {{detail}}",
+    "fit": {
+      "calibrated": "calibrated · residual {{residual}} cm",
+      "calibratedDrift": "calibrated · residual {{residual}} cm · drift {{drift}} cm",
+      "calibratedPending": "calibrated · fit metrics pending"
+    },
+    "pill": {
+      "calibrated": "geometry calibrated",
+      "calibrating": "geometry calibrating",
+      "deviates": "geometry deviates",
+      "deviatesDeviation": "geometry deviates ({{deviation}} cm)",
+      "drifted": "geometry drifted",
+      "driftedDrift": "geometry drifted ({{drift}} cm)",
+      "failed": "geometry rejected",
+      "frame": "geometry frame differs",
+      "manual": "geometry manual",
+      "ok": "geometry ok",
+      "okDeviation": "geometry ok ({{deviation}} cm)",
+      "stale": "geometry stale",
+      "unknown": "geometry unknown"
+    },
+    "rejected": {
+      "anchorCount": "fit rejected · anchor count not 4 or 8",
+      "anchorMissing": "fit rejected · an anchor was never heard",
+      "none": "fit rejected · retrying",
+      "notRectangle": "fit rejected · not a rectangle (anchors swapped?)",
+      "sideTooShort": "fit rejected · a side or the height is under 1 m",
+      "topPlane": "fit rejected · top plane not above the bottom one (anchors swapped?)"
+    },
+    "state": {
+      "calibrated": "calibrated",
+      "calibrating": "calibrating",
+      "failed": "fit rejected",
+      "manual": "manual table",
+      "none": "no geometry",
+      "waiting": "waiting for anchors"
+    },
+    "summary": {
+      "consistent": "geometry consistent ({{count}} agree, max {{deviation}} cm)",
+      "deviating": "geometry: {{count}} deviating",
+      "drifted": "geometry: {{count}} drifted",
+      "manualOnly": "geometry: {{count}} manual",
+      "noTags": "geometry: no tags",
+      "notCalibrated": "geometry: {{count}} not calibrated",
+      "unchecked": "geometry unchecked"
+    },
+    "telemetry": "Geometry",
+    "tooltip": {
+      "check": "Check that every drone fitted the same cell geometry",
+      "verify": "Run the fleet pre-flight verification"
+    }
+  },
   "rtlsHealth": {
     "all": {
       "error": "RTLS attention required",
@@ -1452,50 +1505,5 @@
     "sunset": "Sunset",
     "timezone": "Timezone",
     "utcOffset": "UTC offset"
-  },
-  "rtlsGeometry": {
-    "checkFailed": "Geometry check failed: {{detail}}",
-    "fit": {
-      "calibrated": "calibrated · residual {{residual}} cm",
-      "calibratedDrift": "calibrated · residual {{residual}} cm · drift {{drift}} cm",
-      "calibratedPending": "calibrated · fit metrics pending"
-    },
-    "pill": {
-      "calibrated": "geometry calibrated",
-      "calibrating": "geometry calibrating",
-      "deviates": "geometry deviates",
-      "deviatesDeviation": "geometry deviates ({{deviation}} cm)",
-      "drifted": "geometry drifted",
-      "driftedDrift": "geometry drifted ({{drift}} cm)",
-      "failed": "geometry fit failed",
-      "manual": "geometry manual",
-      "ok": "geometry ok",
-      "okDeviation": "geometry ok ({{deviation}} cm)",
-      "stale": "geometry stale",
-      "unknown": "geometry unknown",
-      "frame": "geometry frame differs"
-    },
-    "state": {
-      "calibrated": "calibrated",
-      "calibrating": "calibrating",
-      "failed": "fit failed",
-      "manual": "manual table",
-      "none": "no geometry",
-      "waiting": "waiting for anchors"
-    },
-    "summary": {
-      "consistent": "geometry consistent ({{count}} agree, max {{deviation}} cm)",
-      "deviating": "geometry: {{count}} deviating",
-      "drifted": "geometry: {{count}} drifted",
-      "manualOnly": "geometry: {{count}} manual",
-      "noTags": "geometry: no tags",
-      "notCalibrated": "geometry: {{count}} not calibrated",
-      "unchecked": "geometry unchecked"
-    },
-    "telemetry": "Geometry",
-    "tooltip": {
-      "check": "Check that every drone fitted the same cell geometry",
-      "verify": "Run the fleet pre-flight verification"
-    }
   }
 }

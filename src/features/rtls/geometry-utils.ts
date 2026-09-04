@@ -2,7 +2,7 @@
  * @file Pure helpers over the automatic cell geometry: the per-tag status
  * pill and the fleet summary of the last X-RTLS-GEOM agreement check.
  *
- * Every tag fits the anchor table itself at boot (rtls-link-zephyr#208) and
+ * Every tag fits the anchor table itself at boot (rtls-link-zephyr#210) and
  * streams the fit as health stats; the server grades the fleet in
  * X-RTLS-GEOM. Nothing here writes geometry anywhere.
  *
@@ -17,6 +17,7 @@ import {
   type RtlsDeviceStats,
   type RtlsGeometryAgreement,
   type RtlsGeometryAgreementEntry,
+  RtlsGeometryReason,
   RtlsGeometryState,
 } from './types';
 
@@ -33,6 +34,27 @@ const STATE_KEYS: Record<RtlsGeometryState, string> = {
   [RtlsGeometryState.CALIBRATED]: 'calibrated',
   [RtlsGeometryState.FAILED]: 'failed',
 };
+
+const REASON_KEYS: Record<RtlsGeometryReason, string> = {
+  [RtlsGeometryReason.NONE]: 'none',
+  [RtlsGeometryReason.ANCHOR_COUNT]: 'anchorCount',
+  [RtlsGeometryReason.ANCHOR_MISSING]: 'anchorMissing',
+  [RtlsGeometryReason.SIDE_TOO_SHORT]: 'sideTooShort',
+  [RtlsGeometryReason.NOT_RECTANGLE]: 'notRectangle',
+  [RtlsGeometryReason.TOP_PLANE]: 'topPlane',
+};
+
+/**
+ * Text of a rejected fit: why the tag refused the rig (a placement outside
+ * the convention, such as two anchors swapped, is never fitted).
+ */
+export const describeGeometryRejection = (
+  reason: RtlsGeometryReason | undefined
+): I18nText => ({
+  key: `rtlsGeometry.rejected.${
+    reason === undefined ? 'none' : (REASON_KEYS[reason] ?? 'none')
+  }`,
+});
 
 /** Text of a firmware geometry state code. */
 export const describeGeometryState = (
@@ -57,6 +79,10 @@ export const describeGeometryFit = (
   const state = stats?.geometryState;
   if (state === undefined) {
     return undefined;
+  }
+
+  if (state === RtlsGeometryState.FAILED) {
+    return describeGeometryRejection(stats?.geometryReason);
   }
 
   if (state !== RtlsGeometryState.CALIBRATED) {
