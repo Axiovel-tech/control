@@ -22,6 +22,7 @@ import {
   type RtlsAnchor,
   type RtlsDevice,
   type RtlsDeviceStats,
+  type RtlsFlightController,
   type RtlsOtaJob,
   type RtlsPosEstimate,
   type RtlsTwrPeer,
@@ -52,6 +53,33 @@ const mapTwrPeers = (value: unknown): RtlsTwrPeer[] | undefined => {
       ageMs: toNumber(row.ageMs),
     };
   });
+};
+
+const toSystemId = (value: unknown): number | undefined =>
+  typeof value === 'number' &&
+  Number.isInteger(value) &&
+  value >= 1 &&
+  value <= 255
+    ? value
+    : undefined;
+
+/**
+ * Maps the tag's flight-controller claim (X-RTLS-INF `flightController`). A
+ * live or remembered claim needs a valid MAVLink system id; an ambiguous one
+ * is kept without it. Anything else yields `undefined`.
+ */
+const mapFlightController = (
+  value: unknown
+): RtlsFlightController | undefined => {
+  const { reason, state, systemId: rawSystemId } = (value ?? {}) as AnyRecord;
+  const systemId = toSystemId(rawSystemId);
+  if (state === 'ambiguous') {
+    return { state, systemId, reason: toString(reason) };
+  }
+  if ((state === 'live' || state === 'remembered') && systemId !== undefined) {
+    return { state, systemId };
+  }
+  return undefined;
 };
 
 /**
@@ -119,10 +147,11 @@ export function mapRtlsDeviceStatus(
   result.sleeping =
     typeof raw.sleeping === 'boolean' ? raw.sleeping : undefined;
 
-  // Always assigned for the same reason: the server clears the tag<->drone
-  // association by dropping the key, and a stale pairing that outlives the
-  // snapshot would mis-attribute the tag — the very thing it exists to fix.
+  // Always assigned for the same reason: the server clears the tag's
+  // flight-controller claim and the drone it names by dropping the keys, and
+  // a stale pairing that outlives the snapshot would mis-attribute the tag.
   result.uav = toString(raw.uav);
+  result.flightController = mapFlightController(raw.flightController);
 
   const twr = mapTwrPeers(raw.twr);
   if (twr !== undefined) {

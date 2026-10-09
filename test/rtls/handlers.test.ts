@@ -126,6 +126,64 @@ describe('rtls handlers', () => {
       expect('uav' in mapped).toBe(true);
     });
 
+    test('maps a live or remembered flight controller with its system id', () => {
+      expect(
+        mapRtlsDeviceStatus('7', {
+          flightController: { systemId: 8, state: 'live' },
+        }).flightController
+      ).toEqual({ state: 'live', systemId: 8 });
+      expect(
+        mapRtlsDeviceStatus('7', {
+          flightController: { systemId: 255, state: 'remembered' },
+        }).flightController
+      ).toEqual({ state: 'remembered', systemId: 255 });
+    });
+
+    test('keeps an ambiguous flight controller with or without a system id', () => {
+      expect(
+        mapRtlsDeviceStatus('7', {
+          flightController: {
+            systemId: 8,
+            state: 'ambiguous',
+            reason: 'tag 9 claims it too',
+          },
+        }).flightController
+      ).toEqual({
+        state: 'ambiguous',
+        systemId: 8,
+        reason: 'tag 9 claims it too',
+      });
+      expect(
+        mapRtlsDeviceStatus('7', {
+          flightController: { systemId: 0, state: 'ambiguous', reason: 3 },
+        }).flightController
+      ).toEqual({ state: 'ambiguous' });
+    });
+
+    test('drops a flight controller with an unknown state or invalid system id', () => {
+      for (const flightController of [
+        { systemId: 8, state: 'asleep' },
+        { systemId: 8 },
+        { systemId: 0, state: 'live' },
+        { systemId: 256, state: 'live' },
+        { systemId: 8.5, state: 'remembered' },
+        { systemId: '8', state: 'remembered' },
+        { state: 'live' },
+        'live',
+        null,
+      ]) {
+        expect(
+          mapRtlsDeviceStatus('7', { flightController }).flightController
+        ).toBeUndefined();
+      }
+    });
+
+    test('always assigns the flight controller key so a merge clears a stale claim', () => {
+      const mapped = mapRtlsDeviceStatus('7', { age: 1 });
+      expect(mapped.flightController).toBeUndefined();
+      expect('flightController' in mapped).toBe(true);
+    });
+
     test('omits TWR when absent or not a non-empty array', () => {
       expect(mapRtlsDeviceStatus('5', {}).twr).toBeUndefined();
       expect(mapRtlsDeviceStatus('5', { twr: [] }).twr).toBeUndefined();

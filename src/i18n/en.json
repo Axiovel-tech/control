@@ -736,6 +736,18 @@
       "unknown": "Unknown status"
     }
   },
+  "rtlsFlightController": {
+    "pill": {
+      "ambiguous": "drone {{id}}?",
+      "ambiguousNoId": "drone ?",
+      "known": "drone {{id}}"
+    },
+    "tooltip": {
+      "ambiguous": "Flight controller identity is ambiguous",
+      "live": "Flight controller MAVLink system ID {{id}}, heard by the tag",
+      "remembered": "Flight controller MAVLink system ID {{id}}, remembered by the tag; the flight controller is not connected (asleep or powered off)"
+    }
+  },
   "rtlsGeometry": {
     "checkFailed": "Geometry check failed: {{detail}}",
     "fit": {

@@ -138,9 +138,6 @@ const StatusSummaryMiniTable = ({
     ]
   );
 
-  // The RTLS tag whose WiFi-UART bridge carries this drone's MAVLink
-  // (derived server-side from the shared source IP); shown only when the
-  // pairing is known.
   if (rtlsTag !== undefined) {
     rows.push('sep5', ['RTLS tag', rtlsTag]);
   }

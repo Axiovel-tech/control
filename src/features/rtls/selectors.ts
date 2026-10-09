@@ -143,8 +143,8 @@ export const getRtlsPairedUavStatuses: AppSelector<
 
 /**
  * Selector that returns the RTLS device that is paired with the given UAV
- * (the tag whose WiFi-UART bridge carries the UAV's MAVLink), or `undefined`
- * when there is none.
+ * (the tag that names the UAV's flight controller), or `undefined` when there
+ * is none.
  */
 export const getRtlsDevicePairedToUav: AppSelector<
   RtlsDevice | undefined,
