@@ -67,7 +67,7 @@ const formatMac = (mac: number | undefined): string =>
 export const isSleepableRtlsDevice = (device: RtlsDevice): boolean =>
   !device.role || device.role === 'tag';
 
-type FlightControllerPillText = {
+type DronePillText = {
   status: Status;
   label: I18nText;
   tooltip: I18nText;
@@ -76,13 +76,15 @@ type FlightControllerPillText = {
 };
 
 /**
- * Pill of a tag's flight-controller claim: grey for an id the tag only
- * remembers (flight controller asleep or off), info for one it hears but the
- * server has not paired, a warning for an unusable claim.
+ * Pill of the drone a tag belongs to, named by the flight-controller system id
+ * the tag reports also while asleep: in the drone's UAV-list status color
+ * while the tag hears its flight controller, grey while the tag only
+ * remembers it (asleep or powered off), a warning for an unusable claim.
  */
-export const describeFlightController = (
-  flightController: RtlsFlightController
-): FlightControllerPillText => {
+export const describeDronePill = (
+  flightController: RtlsFlightController,
+  uavStatus: Status | undefined
+): DronePillText => {
   if (flightController.state === 'ambiguous') {
     const { reason, systemId } = flightController;
     return {
@@ -102,7 +104,7 @@ export const describeFlightController = (
   const values = { id: flightController.systemId };
   const live = flightController.state === 'live';
   return {
-    status: live ? Status.INFO : Status.OFF,
+    status: live ? (uavStatus ?? Status.INFO) : Status.OFF,
     label: { key: 'rtlsFlightController.pill.known', values },
     tooltip: {
       key: live
@@ -113,14 +115,18 @@ export const describeFlightController = (
   };
 };
 
-const FlightControllerPill = ({
+const DronePill = ({
   flightController,
+  uavStatus,
 }: {
   flightController: RtlsFlightController;
+  uavStatus: Status | undefined;
 }) => {
   const { t } = useTranslation();
-  const { label, reason, status, tooltip } =
-    describeFlightController(flightController);
+  const { label, reason, status, tooltip } = describeDronePill(
+    flightController,
+    uavStatus
+  );
   return (
     <Tooltip content={reason ?? t(tooltip.key, tooltip.values)}>
       {/* Tippy needs a child that forwards refs, which StatusPill does not. */}
@@ -133,55 +139,28 @@ const FlightControllerPill = ({
   );
 };
 
-const pairingPillsFor = (
-  { flightController, uav }: RtlsDevice,
-  uavStatus: Status | undefined
-): React.ReactNode[] => {
-  const pills: React.ReactNode[] = [];
-  if (uav !== undefined) {
-    pills.push(
-      <StatusPill key='uav' inline status={uavStatus ?? Status.OFF}>
-        drone {uav}
-      </StatusPill>
-    );
-  }
-  if (
-    flightController &&
-    (uav === undefined || flightController.state === 'ambiguous')
-  ) {
-    pills.push(
-      <FlightControllerPill key='fc' flightController={flightController} />
-    );
-  }
-  return pills;
-};
-
 /**
- * Builds the primary line for a device row. A device the server has paired
- * with a drone (their MAVLink traffic shares the tag's WiFi-UART bridge, so
- * they share a source IP) renders the drone id next to its name as a pill in
- * the drone's UAV-list status color. An unpaired tag that reports its flight
- * controller shows that system id instead, which survives the drone's sleep;
- * an ambiguous claim is shown even next to a paired drone. Other devices
- * render just the name.
+ * Builds the primary line for a device row: the device name and, for a tag
+ * that reports its flight controller, the drone it belongs to as a pill.
  */
 export const describeDeviceWithPairedUav = (
   device: RtlsDevice,
   uavStatus: Status | undefined
-): React.ReactNode => {
-  const pills = pairingPillsFor(device, uavStatus);
-  return pills.length > 0 ? (
+): React.ReactNode =>
+  device.flightController === undefined ? (
+    getRtlsDeviceDisplayName(device)
+  ) : (
     <Box
       component='span'
       sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
     >
       {getRtlsDeviceDisplayName(device)}
-      {pills}
+      <DronePill
+        flightController={device.flightController}
+        uavStatus={uavStatus}
+      />
     </Box>
-  ) : (
-    getRtlsDeviceDisplayName(device)
   );
-};
 
 /**
  * The status light of a merged row: liveness and the sleep latch first

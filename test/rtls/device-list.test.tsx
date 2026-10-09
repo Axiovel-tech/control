@@ -28,7 +28,7 @@ import { Status } from '~/components/semantics';
 import { type RtlsDevice } from '~/features/rtls/types';
 import {
   describeDeviceWithPairedUav,
-  describeFlightController,
+  describeDronePill,
 } from '~/views/rtls/DeviceStatsRow';
 
 const render = (node: React.ReactNode): string =>
@@ -37,77 +37,60 @@ const render = (node: React.ReactNode): string =>
 describe('RTLS device row primary line', () => {
   const tag: RtlsDevice = { id: '199', name: 'RTLS tag 199', online: true };
 
-  test('renders just the display name without a pairing', () => {
+  test('renders just the display name without a flight controller', () => {
     const markup = render(describeDeviceWithPairedUav(tag, undefined));
     expect(markup).toContain('RTLS tag 199');
-    expect(markup).not.toContain('drone');
-  });
-
-  test('renders the paired drone as a pill in the UAV status color', () => {
-    const markup = render(
-      describeDeviceWithPairedUav({ ...tag, uav: '05' }, Status.SUCCESS)
-    );
-    expect(markup).toContain('RTLS tag 199');
-    expect(markup).toContain('drone 05');
-    expect(markup).toContain('StatusPill-status-success');
-  });
-
-  test('falls back to the "off" pill color for an unknown UAV', () => {
-    const markup = render(
-      describeDeviceWithPairedUav({ ...tag, uav: '07' }, undefined)
-    );
-    expect(markup).toContain('drone 07');
-    expect(markup).toContain('StatusPill-status-off');
-  });
-
-  test('prefers the paired drone over the flight controller the tag reports', () => {
-    const markup = render(
-      describeDeviceWithPairedUav(
-        {
-          ...tag,
-          uav: '05',
-          flightController: { state: 'live', systemId: 5 },
-        },
-        Status.SUCCESS
-      )
-    );
-    expect(markup).toContain('drone 05');
     expect(markup).not.toContain('rtlsFlightController');
   });
 
-  test('keeps an ambiguous claim visible next to the paired drone', () => {
+  test('renders the drone the tag hears in its UAV status color', () => {
+    const markup = render(
+      describeDeviceWithPairedUav(
+        { ...tag, uav: '05', flightController: { state: 'live', systemId: 5 } },
+        Status.SUCCESS
+      )
+    );
+    expect(markup).toContain('RTLS tag 199');
+    expect(markup).toContain('rtlsFlightController.pill.known');
+    expect(markup).toContain('StatusPill-status-success');
+  });
+
+  test('keeps the drone of a sleeping tag as a grey pill', () => {
     const markup = render(
       describeDeviceWithPairedUav(
         {
           ...tag,
           uav: '08',
-          flightController: { state: 'ambiguous', systemId: 8 },
+          flightController: { state: 'remembered', systemId: 8 },
         },
-        Status.SUCCESS
+        Status.ERROR
       )
     );
-    expect(markup).toContain('drone 08');
-    expect(markup).toContain('rtlsFlightController.pill.ambiguous');
-    expect(markup).toContain('StatusPill-status-warning');
-  });
-
-  test('renders the flight controller of an unpaired tag as a pill', () => {
-    const markup = render(
-      describeDeviceWithPairedUav(
-        { ...tag, flightController: { state: 'remembered', systemId: 8 } },
-        undefined
-      )
-    );
-    expect(markup).toContain('RTLS tag 199');
     expect(markup).toContain('rtlsFlightController.pill.known');
     expect(markup).toContain('StatusPill-status-off');
   });
 });
 
-describe('RTLS flight-controller pill', () => {
-  test('a remembered id is grey: the flight controller is not connected', () => {
+describe('RTLS drone pill', () => {
+  test('a live claim takes the UAV status color', () => {
     expect(
-      describeFlightController({ state: 'remembered', systemId: 8 })
+      describeDronePill({ state: 'live', systemId: 8 }, Status.WARNING)
+    ).toEqual({
+      status: Status.WARNING,
+      label: { key: 'rtlsFlightController.pill.known', values: { id: 8 } },
+      tooltip: { key: 'rtlsFlightController.tooltip.live', values: { id: 8 } },
+    });
+  });
+
+  test('a live claim on a drone the server has not heard from is info', () => {
+    expect(
+      describeDronePill({ state: 'live', systemId: 8 }, undefined)
+    ).toMatchObject({ status: Status.INFO });
+  });
+
+  test('a remembered claim is grey: the flight controller is not connected', () => {
+    expect(
+      describeDronePill({ state: 'remembered', systemId: 8 }, Status.SUCCESS)
     ).toEqual({
       status: Status.OFF,
       label: { key: 'rtlsFlightController.pill.known', values: { id: 8 } },
@@ -118,21 +101,12 @@ describe('RTLS flight-controller pill', () => {
     });
   });
 
-  test('a live id the server has not paired is info', () => {
-    expect(describeFlightController({ state: 'live', systemId: 8 })).toEqual({
-      status: Status.INFO,
-      label: { key: 'rtlsFlightController.pill.known', values: { id: 8 } },
-      tooltip: { key: 'rtlsFlightController.tooltip.live', values: { id: 8 } },
-    });
-  });
-
   test('an ambiguous claim warns and carries the server reason', () => {
     expect(
-      describeFlightController({
-        state: 'ambiguous',
-        systemId: 8,
-        reason: 'tag 9 claims it too',
-      })
+      describeDronePill(
+        { state: 'ambiguous', systemId: 8, reason: 'tag 9 claims it too' },
+        Status.SUCCESS
+      )
     ).toEqual({
       status: Status.WARNING,
       label: { key: 'rtlsFlightController.pill.ambiguous', values: { id: 8 } },
@@ -142,7 +116,7 @@ describe('RTLS flight-controller pill', () => {
   });
 
   test('an ambiguous claim without a system id shows no id', () => {
-    expect(describeFlightController({ state: 'ambiguous' })).toMatchObject({
+    expect(describeDronePill({ state: 'ambiguous' }, undefined)).toMatchObject({
       status: Status.WARNING,
       label: { key: 'rtlsFlightController.pill.ambiguousNoId' },
       reason: undefined,

@@ -103,10 +103,9 @@ export type RtlsDevice = {
   twr?: RtlsTwrPeer[];
 
   /**
-   * Flockwave id of the UAV (drone) associated with this device, derived by
-   * the server from the network: the drone's flight-controller MAVLink
-   * reaches the server through this tag's WiFi-UART bridge, so they share a
-   * source IP. Absent for unassociated devices (anchors, spare tags).
+   * Flockwave id of the UAV (drone) whose MAVLink system id the tag's
+   * `flightController` claim names. Kept while the drone sleeps if the server
+   * has heard from it; absent for anchors and spare tags.
    */
   uav?: string;
 
@@ -118,9 +117,9 @@ export type RtlsDevice = {
 };
 
 /**
- * A tag's claim of its flight controller, by MAVLink system id. Unlike the
- * server-side `uav` pairing it survives sleep: the firmware persists the id,
- * so a drone whose flight controller is powered off still names it.
+ * A tag's claim of its flight controller, by MAVLink system id. The firmware
+ * persists the id, so a drone whose flight controller is powered off still
+ * names it.
  */
 export type RtlsFlightController =
   | {
