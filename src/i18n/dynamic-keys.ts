@@ -271,6 +271,14 @@
  * t("uavOperationConfirmationStyle.onlyMultiple")
  * t("uavOperationConfirmationStyle.always")
  *
+ * RTLS flight-controller pill (keys assembled by views/rtls/DeviceStatsRow.tsx)
+ * t("rtlsFlightController.pill.ambiguous")
+ * t("rtlsFlightController.pill.ambiguousNoId")
+ * t("rtlsFlightController.pill.known")
+ * t("rtlsFlightController.tooltip.ambiguous")
+ * t("rtlsFlightController.tooltip.live")
+ * t("rtlsFlightController.tooltip.remembered")
+ *
  * RTLS automatic geometry (keys assembled by features/rtls/geometry-utils.ts)
  * t("rtlsGeometry.state.manual")
  * t("rtlsGeometry.state.waiting")

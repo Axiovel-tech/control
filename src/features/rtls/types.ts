@@ -109,7 +109,38 @@ export type RtlsDevice = {
    * source IP. Absent for unassociated devices (anchors, spare tags).
    */
   uav?: string;
+
+  /**
+   * The flight controller the tag reports itself mounted with. Absent for
+   * anchors, never-associated tags and older firmware.
+   */
+  flightController?: RtlsFlightController;
 };
+
+/**
+ * A tag's claim of its flight controller, by MAVLink system id. Unlike the
+ * server-side `uav` pairing it survives sleep: the firmware persists the id,
+ * so a drone whose flight controller is powered off still names it.
+ */
+export type RtlsFlightController =
+  | {
+      /**
+       * `live`: the tag hears this flight controller's heartbeats now;
+       * `remembered`: the id the tag last confirmed, not heard now.
+       */
+      state: 'live' | 'remembered';
+      systemId: number;
+    }
+  | {
+      /**
+       * The claim is unusable: several flight controllers heard, malformed
+       * values, or another tag claims the same system id.
+       */
+      state: 'ambiguous';
+      systemId?: number;
+      /** Server explanation of the ambiguity. */
+      reason?: string;
+    };
 
 /**
  * A single parameter descriptor as returned by an X-RTLS-PARAM-LIST or
