@@ -1,4 +1,3 @@
-import { errorToString } from '~/error-handling';
 import { showError } from '~/features/snackbar/actions';
 import i18n from '~/i18n';
 import messageHub from '~/message-hub';
@@ -6,6 +5,7 @@ import { type AppDispatch, type AppThunk } from '~/store/reducers';
 
 import {
   queryShowAudioStatus,
+  reasonOf,
   setShowAudioOffset,
   stopShowAudio,
 } from './messages';
@@ -24,9 +24,7 @@ export const stopShowMusic =
       await stopShowAudio(messageHub);
       await refreshServerStatus(dispatch);
     } catch (error) {
-      showError(
-        i18n.t('show.music.stopFailed', { error: errorToString(error) })
-      );
+      showError(i18n.t('show.music.stopFailed', { error: reasonOf(error) }));
     }
   };
 
@@ -40,8 +38,6 @@ export const setShowMusicOffset =
       await setShowAudioOffset(messageHub, offsetMs);
       await refreshServerStatus(dispatch);
     } catch (error) {
-      showError(
-        i18n.t('show.music.offsetFailed', { error: errorToString(error) })
-      );
+      showError(i18n.t('show.music.offsetFailed', { error: reasonOf(error) }));
     }
   };

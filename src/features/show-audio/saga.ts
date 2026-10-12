@@ -19,7 +19,6 @@ import {
   take,
 } from 'redux-saga/effects';
 
-import { errorToString } from '~/error-handling';
 import { isConnected } from '~/features/servers/selectors';
 import { setCurrentServerConnectionState } from '~/features/servers/slice';
 import { hasLoadedShowFile } from '~/features/show/selectors';
@@ -29,6 +28,7 @@ import messageHub from '~/message-hub';
 import {
   clearShowAudio,
   queryShowAudioStatus,
+  reasonOf,
   uploadShowAudioChunk,
 } from './messages';
 import { getShowAudioName, getShowAudioSource } from './selectors';
@@ -121,10 +121,22 @@ export function* synchronizeShowAudioWithServer(): Generator {
 
     yield put(setLocalShowAudioHash(track?.sha256));
 
-    let status = (yield call(
-      queryShowAudioStatus,
-      messageHub
-    )) as ShowAudioStatus;
+    let status: ShowAudioStatus;
+    try {
+      status = (yield call(
+        queryShowAudioStatus,
+        messageHub
+      )) as ShowAudioStatus;
+    } catch (error) {
+      // A server without a music player is a problem only for a show with music
+      if (track) {
+        throw error;
+      }
+
+      yield put(setShowAudioSyncState({ status: 'idle' }));
+      return;
+    }
+
     yield put(setShowAudioServerStatus(status));
 
     if (!hasShow) {
@@ -146,7 +158,7 @@ export function* synchronizeShowAudioWithServer(): Generator {
     yield put(setShowAudioSyncState({ status: 'synced' }));
   } catch (error) {
     yield put(
-      setShowAudioSyncState({ status: 'error', error: errorToString(error) })
+      setShowAudioSyncState({ status: 'error', error: reasonOf(error) })
     );
   }
 }

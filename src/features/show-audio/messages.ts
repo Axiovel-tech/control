@@ -71,6 +71,12 @@ export function parseShowAudioStatus(
   };
 }
 
+/**
+ * Returns the human-readable reason of a failed X-SHOW-AUDIO-* request.
+ */
+export const reasonOf = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error);
+
 async function send(
   hub: MessageHub,
   body: AnyMessageBody

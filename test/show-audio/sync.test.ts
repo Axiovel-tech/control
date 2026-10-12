@@ -34,10 +34,6 @@ jest.mock('~/features/show/slice', () => {
     loadingPromiseFulfilled: Object.assign(() => ({ type }), { type }),
   };
 });
-jest.mock('~/error-handling', () => ({
-  errorToString: (error: unknown): string =>
-    error instanceof Error ? error.message : String(error),
-}));
 
 import { isConnected } from '~/features/servers/selectors';
 import { setCurrentServerConnectionState } from '~/features/servers/slice';
@@ -231,16 +227,17 @@ describe('show music synchronization', () => {
     expect(server.track).toBeNull();
   });
 
-  test('reports a server without a music player as a sync error', async () => {
+  test('a server without a music player is an error only for a show with music', async () => {
     sendMessage.mockImplementation(() =>
       Promise.resolve({ body: { type: 'ACK-NAK', reason: 'No handler' } })
     );
 
-    const dispatched = await runSync(showWithMusic);
-
-    expect(lastSyncState(dispatched)).toEqual({
+    expect(lastSyncState(await runSync(showWithMusic))).toEqual({
       status: 'error',
       error: 'No handler',
+    });
+    expect(lastSyncState(await runSync(showWithoutMusic))).toEqual({
+      status: 'idle',
     });
   });
 
