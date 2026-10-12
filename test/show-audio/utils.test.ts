@@ -30,6 +30,14 @@ describe('canStopMusic', () => {
     expect(canStopMusic(status({ state: 'playing', track }))).toBe(true);
   });
 
+  test('music the operator stopped cannot be stopped again', () => {
+    expect(
+      canStopMusic(
+        status({ state: 'stopped', track, startTime: 1_791_000_000 })
+      )
+    ).toBe(false);
+  });
+
   test('there is nothing to stop without a track or a start', () => {
     expect(canStopMusic(undefined)).toBe(false);
     expect(canStopMusic(status({ track }))).toBe(false);

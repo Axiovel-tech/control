@@ -21,6 +21,7 @@ const PLAYER_STATES = new Set<string>([
   'armed',
   'playing',
   'finished',
+  'stopped',
   'error',
 ]);
 

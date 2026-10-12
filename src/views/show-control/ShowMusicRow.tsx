@@ -81,6 +81,8 @@ function describeStatus(
       return [Status.SUCCESS, t('show.music.playing')];
     case 'finished':
       return [Status.OFF, t('show.music.finished')];
+    case 'stopped':
+      return [Status.WARNING, t('show.music.stopped')];
     case 'error':
       return [
         Status.ERROR,

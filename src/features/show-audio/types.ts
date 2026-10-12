@@ -3,6 +3,7 @@ export type ShowAudioPlayerState =
   | 'armed'
   | 'playing'
   | 'finished'
+  | 'stopped'
   | 'error';
 
 export type ShowAudioTrack = {

@@ -1096,6 +1096,7 @@
       "ready": "Ready on server",
       "stop": "Stop music",
       "stopFailed": "Failed to stop music: {{error}}",
+      "stopped": "Stopped by operator",
       "syncFailed": "Music sync failed: {{error}}",
       "track": "{{name}} ({{duration}})",
       "unavailable": "Music player not available",
