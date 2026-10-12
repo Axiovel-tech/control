@@ -6,7 +6,7 @@ import ListItem from '@mui/material/ListItem';
 import ListItemText from '@mui/material/ListItemText';
 import TextField from '@mui/material/TextField';
 import type { TFunction } from 'i18next';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { connect } from 'react-redux';
 
@@ -28,6 +28,7 @@ import {
   type ShowAudioSyncState,
   type ShowAudioTrack,
 } from '~/features/show-audio/types';
+import { applyOffsetDraft } from '~/features/show-audio/utils';
 import { hasLoadedShowFile } from '~/features/show/selectors';
 import type { RootState } from '~/store/reducers';
 import { formatDuration } from '~/utils/formatting';
@@ -38,7 +39,7 @@ type Props = Readonly<{
   server?: ShowAudioStatus;
   serverTrackOfShow?: ShowAudioTrack;
   sync: ShowAudioSyncState;
-  onSetOffset: (offsetMs: number) => void;
+  onSetOffset: (offsetMs: number) => Promise<boolean>;
   onStop: () => void;
 }>;
 
@@ -115,7 +116,7 @@ type OffsetFieldProps = Readonly<{
   disabled: boolean;
   label: string;
   value: number;
-  onCommit: (value: number) => void;
+  onCommit: (value: number) => Promise<boolean>;
 }>;
 
 const OffsetField = ({
@@ -125,18 +126,17 @@ const OffsetField = ({
   onCommit,
 }: OffsetFieldProps) => {
   const [draft, setDraft] = useState(String(value));
+  const confirmed = useRef(value);
 
   useEffect(() => {
+    confirmed.current = value;
     setDraft(String(value));
   }, [value]);
 
   const commit = () => {
-    const parsed = Number(draft);
-    if (draft.trim() !== '' && Number.isInteger(parsed) && parsed !== value) {
-      onCommit(parsed);
-    } else {
-      setDraft(String(value));
-    }
+    void applyOffsetDraft(draft, () => confirmed.current, onCommit).then(
+      setDraft
+    );
   };
 
   return (

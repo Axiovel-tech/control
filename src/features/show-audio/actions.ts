@@ -30,14 +30,17 @@ export const stopShowMusic =
 
 /**
  * Thunk that sets the playback offset of the music player of the server.
+ * Resolves to whether the server accepted it.
  */
 export const setShowMusicOffset =
-  (offsetMs: number): AppThunk<Promise<void>> =>
+  (offsetMs: number): AppThunk<Promise<boolean>> =>
   async (dispatch) => {
     try {
       await setShowAudioOffset(messageHub, offsetMs);
       await refreshServerStatus(dispatch);
+      return true;
     } catch (error) {
       showError(i18n.t('show.music.offsetFailed', { error: reasonOf(error) }));
+      return false;
     }
   };
