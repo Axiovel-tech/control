@@ -303,7 +303,7 @@ describe('show music synchronization', () => {
     await waitUntil(() => finishDecoding !== undefined);
 
     state = showWithoutMusic;
-    channel.put(loadingPromiseFulfilled());
+    channel.put({ type: loadingPromiseFulfilled.type });
     await new Promise(setImmediate);
     expect(sendMessage).toHaveBeenCalledTimes(4);
 
