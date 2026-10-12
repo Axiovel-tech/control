@@ -1,0 +1,47 @@
+import { errorToString } from '~/error-handling';
+import { showError } from '~/features/snackbar/actions';
+import i18n from '~/i18n';
+import messageHub from '~/message-hub';
+import { type AppDispatch, type AppThunk } from '~/store/reducers';
+
+import {
+  queryShowAudioStatus,
+  setShowAudioOffset,
+  stopShowAudio,
+} from './messages';
+import { setShowAudioServerStatus } from './slice';
+
+const refreshServerStatus = async (dispatch: AppDispatch): Promise<void> => {
+  dispatch(setShowAudioServerStatus(await queryShowAudioStatus(messageHub)));
+};
+
+/**
+ * Thunk that stops the music player of the server immediately.
+ */
+export const stopShowMusic =
+  (): AppThunk<Promise<void>> => async (dispatch) => {
+    try {
+      await stopShowAudio(messageHub);
+      await refreshServerStatus(dispatch);
+    } catch (error) {
+      showError(
+        i18n.t('show.music.stopFailed', { error: errorToString(error) })
+      );
+    }
+  };
+
+/**
+ * Thunk that sets the playback offset of the music player of the server.
+ */
+export const setShowMusicOffset =
+  (offsetMs: number): AppThunk<Promise<void>> =>
+  async (dispatch) => {
+    try {
+      await setShowAudioOffset(messageHub, offsetMs);
+      await refreshServerStatus(dispatch);
+    } catch (error) {
+      showError(
+        i18n.t('show.music.offsetFailed', { error: errorToString(error) })
+      );
+    }
+  };
