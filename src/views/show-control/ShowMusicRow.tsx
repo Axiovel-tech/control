@@ -28,7 +28,7 @@ import {
   type ShowAudioSyncState,
   type ShowAudioTrack,
 } from '~/features/show-audio/types';
-import { applyOffsetDraft } from '~/features/show-audio/utils';
+import { applyOffsetDraft, canStopMusic } from '~/features/show-audio/utils';
 import { hasLoadedShowFile } from '~/features/show/selectors';
 import type { RootState } from '~/store/reducers';
 import { formatDuration } from '~/utils/formatting';
@@ -173,7 +173,6 @@ const ShowMusicRow = (props: Props) => {
   const { server, onSetOffset, onStop } = props;
   const { t } = useTranslation();
   const [status, detail] = describeStatus(props, t);
-  const canStop = server?.state === 'armed' || server?.state === 'playing';
 
   return (
     <ListItem
@@ -190,7 +189,7 @@ const ShowMusicRow = (props: Props) => {
             <span>
               <IconButton
                 aria-label={t('show.music.stop')}
-                disabled={!canStop}
+                disabled={!canStopMusic(server)}
                 edge='end'
                 onClick={onStop}
               >

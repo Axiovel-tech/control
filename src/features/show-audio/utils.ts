@@ -1,3 +1,15 @@
+import { type ShowAudioStatus } from './types';
+
+/**
+ * Whether the operator can stop the music of the server: while it plays or is
+ * armed, and as long as a track is scheduled for a show start, which includes
+ * the time after the music is committed to the show but not armed yet.
+ */
+export const canStopMusic = (server?: ShowAudioStatus): boolean =>
+  server?.state === 'armed' ||
+  server?.state === 'playing' ||
+  Boolean(server?.track && server.startTime !== null);
+
 /**
  * Applies an edited playback offset and returns the text the offset field
  * shows afterwards: the new value if the server accepted it, otherwise the
