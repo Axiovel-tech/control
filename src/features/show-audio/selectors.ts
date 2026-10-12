@@ -1,4 +1,5 @@
 import { createSelector } from '@reduxjs/toolkit';
+import type { ShowSpecification } from '@skybrush/show-format';
 
 import { getShowTitle } from '~/features/show/selectors';
 import type { AppSelector } from '~/store/reducers';
@@ -9,6 +10,13 @@ import {
   type ShowAudioSyncState,
   type ShowAudioTrack,
 } from './types';
+
+/**
+ * Returns the specification of the currently loaded show, if any.
+ */
+export const getLoadedShow: AppSelector<ShowSpecification | undefined> = (
+  state
+) => state.show.data;
 
 /**
  * Returns the music embedded in the currently loaded show, if any.

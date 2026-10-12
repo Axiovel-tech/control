@@ -24,8 +24,6 @@ jest.mock('~/features/servers/slice', () => {
 jest.mock('~/features/show/selectors', () => ({
   __esModule: true,
   getShowTitle: () => 'Untitled show',
-  hasLoadedShowFile: (state: { show: { data?: unknown } }) =>
-    Boolean(state.show.data),
 }));
 jest.mock('~/features/show/slice', () => {
   const type = 'show/loadingPromiseFulfilled';
@@ -37,6 +35,7 @@ jest.mock('~/features/show/slice', () => {
 
 import { isConnected } from '~/features/servers/selectors';
 import { setCurrentServerConnectionState } from '~/features/servers/slice';
+import { loadingPromiseFulfilled } from '~/features/show/slice';
 import showAudioSaga, {
   synchronizeShowAudioWithServer,
   UPLOAD_CHUNK_SIZE,
@@ -272,6 +271,50 @@ describe('show music synchronization', () => {
       'X-SHOW-AUDIO-INF',
       'X-SHOW-AUDIO-INF',
     ]);
+    task.cancel();
+  });
+
+  test('a show loaded while the last chunk decodes on the server does not end up with that music', async () => {
+    const server = installFakeServer(null);
+    const respond = sendMessage.getMockImplementation()!;
+    let finishDecoding: (() => void) | undefined;
+    sendMessage.mockImplementation((request: Request) =>
+      request.type === 'X-SHOW-AUDIO-UPLOAD' &&
+      request.offset === 2 * UPLOAD_CHUNK_SIZE
+        ? new Promise((resolve) => {
+            // The server installs the track only once it has decoded it,
+            // and answers the last chunk after that.
+            finishDecoding = () => resolve(respond(request));
+          })
+        : respond(request)
+    );
+
+    let state: unknown = showWithMusic;
+    const channel = stdChannel();
+    (isConnected as jest.Mock).mockImplementation(() => true);
+    const task = runSaga(
+      {
+        channel,
+        dispatch: (action: Action) => channel.put(action),
+        getState: () => state,
+      },
+      showAudioSaga as () => Generator
+    );
+    await waitUntil(() => finishDecoding !== undefined);
+
+    state = showWithoutMusic;
+    channel.put(loadingPromiseFulfilled());
+    await new Promise(setImmediate);
+    expect(sendMessage).toHaveBeenCalledTimes(4);
+
+    finishDecoding!();
+    await waitUntil(() => server.requests.length >= 6);
+
+    expect(requestTypes(server.requests).slice(4, 6)).toEqual([
+      'X-SHOW-AUDIO-INF',
+      'X-SHOW-AUDIO-CLEAR',
+    ]);
+    expect(server.track).toBeNull();
     task.cancel();
   });
 });

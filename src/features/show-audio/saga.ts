@@ -8,11 +8,11 @@
  */
 
 import { Base64 } from 'js-base64';
-import type { Task } from 'redux-saga';
+import type { Action } from 'redux';
+import { buffers, type Channel } from 'redux-saga';
 import {
+  actionChannel,
   call,
-  cancel,
-  fork,
   put,
   race,
   select,
@@ -21,7 +21,6 @@ import {
 
 import { isConnected } from '~/features/servers/selectors';
 import { setCurrentServerConnectionState } from '~/features/servers/slice';
-import { hasLoadedShowFile } from '~/features/show/selectors';
 import { loadingPromiseFulfilled } from '~/features/show/slice';
 import messageHub from '~/message-hub';
 
@@ -31,7 +30,11 @@ import {
   reasonOf,
   uploadShowAudioChunk,
 } from './messages';
-import { getShowAudioName, getShowAudioSource } from './selectors';
+import {
+  getLoadedShow,
+  getShowAudioName,
+  getShowAudioSource,
+} from './selectors';
 import {
   clearShowAudioServerStatus,
   setLocalShowAudioHash,
@@ -74,88 +77,111 @@ async function prepareTrack(
   };
 }
 
-function* uploadTrack(track: PreparedTrack): Generator {
-  const { bytes, ...header } = track;
-  const size = bytes.length;
-  let loaded = false;
+/**
+ * One pass of making the track of the music player of the server match the
+ * music of the loaded show: uploads it if the server has a different track (or
+ * none), and clears the player if the show has no music.
+ *
+ * Every request is awaited until the server answers it. When another show was
+ * loaded in the meantime, the pass stops there and returns `false` so the
+ * caller reconciles again against the new show; abandoning a request instead
+ * would let a track still decoding on the server replace the music of the
+ * new show after it was checked.
+ */
+function* reconcileWithLoadedShow(): Generator {
+  yield put(setShowAudioSyncState({ status: 'checking' }));
 
-  for (let offset = 0; offset < size; offset += UPLOAD_CHUNK_SIZE) {
-    yield put(
-      setShowAudioSyncState({ status: 'uploading', progress: offset / size })
-    );
-    loaded = (yield call(uploadShowAudioChunk, messageHub, {
-      ...header,
-      size,
-      offset,
-      data: Base64.fromUint8Array(
-        bytes.subarray(offset, offset + UPLOAD_CHUNK_SIZE)
-      ),
-    })) as boolean;
+  const show = yield select(getLoadedShow);
+  const source = (yield select(getShowAudioSource)) as
+    | ShowAudioSource
+    | undefined;
+  let track: PreparedTrack | undefined;
+  if (source) {
+    const name = (yield select(getShowAudioName)) as string;
+    track = (yield call(prepareTrack, source, name)) as PreparedTrack;
   }
 
-  if (!loaded) {
-    throw new Error('The server did not load the uploaded music');
+  yield put(setLocalShowAudioHash(track?.sha256));
+
+  let status: ShowAudioStatus;
+  try {
+    status = (yield call(queryShowAudioStatus, messageHub)) as ShowAudioStatus;
+  } catch (error) {
+    // A server without a music player is a problem only for a show with music
+    if (track) {
+      throw error;
+    }
+
+    yield put(setShowAudioSyncState({ status: 'idle' }));
+    return true;
   }
+
+  yield put(setShowAudioServerStatus(status));
+
+  if ((yield select(getLoadedShow)) !== show) {
+    return false;
+  }
+
+  if (!show) {
+    yield put(setShowAudioSyncState({ status: 'idle' }));
+    return true;
+  }
+
+  if (track && status.track?.sha256 !== track.sha256) {
+    const { bytes, ...header } = track;
+    const size = bytes.length;
+    let loaded = false;
+
+    for (let offset = 0; offset < size; offset += UPLOAD_CHUNK_SIZE) {
+      yield put(
+        setShowAudioSyncState({ status: 'uploading', progress: offset / size })
+      );
+      loaded = (yield call(uploadShowAudioChunk, messageHub, {
+        ...header,
+        size,
+        offset,
+        data: Base64.fromUint8Array(
+          bytes.subarray(offset, offset + UPLOAD_CHUNK_SIZE)
+        ),
+      })) as boolean;
+
+      if ((yield select(getLoadedShow)) !== show) {
+        return false;
+      }
+    }
+
+    if (!loaded) {
+      throw new Error('The server did not load the uploaded music');
+    }
+  } else if (!track && status.track) {
+    yield call(clearShowAudio, messageHub);
+
+    if ((yield select(getLoadedShow)) !== show) {
+      return false;
+    }
+  } else {
+    yield put(setShowAudioSyncState({ status: 'synced' }));
+    return true;
+  }
+
+  status = (yield call(queryShowAudioStatus, messageHub)) as ShowAudioStatus;
+  yield put(setShowAudioServerStatus(status));
+  yield put(setShowAudioSyncState({ status: 'synced' }));
+  return true;
 }
 
 /**
  * Makes the track of the music player of the server match the music of the
- * loaded show: uploads it if the server has a different track (or none), and
- * clears the player if the show has no music.
+ * loaded show, following any show loaded while it works.
  *
  * Exported for testing only.
  */
 export function* synchronizeShowAudioWithServer(): Generator {
   try {
-    yield put(setShowAudioSyncState({ status: 'checking' }));
-
-    const hasShow = (yield select(hasLoadedShowFile)) as boolean;
-    const source = (yield select(getShowAudioSource)) as
-      | ShowAudioSource
-      | undefined;
-    let track: PreparedTrack | undefined;
-    if (source) {
-      const name = (yield select(getShowAudioName)) as string;
-      track = (yield call(prepareTrack, source, name)) as PreparedTrack;
+    let done = false;
+    while (!done) {
+      done = (yield call(reconcileWithLoadedShow)) as boolean;
     }
-
-    yield put(setLocalShowAudioHash(track?.sha256));
-
-    let status: ShowAudioStatus;
-    try {
-      status = (yield call(
-        queryShowAudioStatus,
-        messageHub
-      )) as ShowAudioStatus;
-    } catch (error) {
-      // A server without a music player is a problem only for a show with music
-      if (track) {
-        throw error;
-      }
-
-      yield put(setShowAudioSyncState({ status: 'idle' }));
-      return;
-    }
-
-    yield put(setShowAudioServerStatus(status));
-
-    if (!hasShow) {
-      yield put(setShowAudioSyncState({ status: 'idle' }));
-      return;
-    }
-
-    if (track && status.track?.sha256 !== track.sha256) {
-      yield call(uploadTrack, track);
-    } else if (!track && status.track) {
-      yield call(clearShowAudio, messageHub);
-    } else {
-      yield put(setShowAudioSyncState({ status: 'synced' }));
-      return;
-    }
-
-    status = (yield call(queryShowAudioStatus, messageHub)) as ShowAudioStatus;
-    yield put(setShowAudioServerStatus(status));
-    yield put(setShowAudioSyncState({ status: 'synced' }));
   } catch (error) {
     yield put(
       setShowAudioSyncState({ status: 'error', error: reasonOf(error) })
@@ -164,16 +190,18 @@ export function* synchronizeShowAudioWithServer(): Generator {
 }
 
 /**
- * Synchronizes the music once, then again whenever a new show is loaded,
- * abandoning any synchronization still in progress for the previous show.
+ * Synchronizes the music once, then again whenever a new show is loaded. A
+ * single worker does it, so requests for different shows never overlap.
  */
 function* synchronizeShowAudioWhileConnected(): Generator {
-  let task = (yield fork(synchronizeShowAudioWithServer)) as Task;
+  const showLoaded = yield actionChannel(
+    loadingPromiseFulfilled.type,
+    buffers.sliding(1)
+  );
 
   while (true) {
-    yield take(loadingPromiseFulfilled.type);
-    yield cancel(task);
-    task = (yield fork(synchronizeShowAudioWithServer)) as Task;
+    yield call(synchronizeShowAudioWithServer);
+    yield take(showLoaded as Channel<Action>);
   }
 }
 
