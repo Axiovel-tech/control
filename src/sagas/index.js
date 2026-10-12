@@ -12,6 +12,7 @@ import localServerSaga from '~/features/local-server/saga';
 import measurementSaga from '~/features/measurement/saga';
 import rtlsSaga from '~/features/rtls/saga';
 import serversSaga from '~/features/servers/saga';
+import showAudioSaga from '~/features/show-audio/saga';
 import showSaga from '~/features/show/saga';
 import sessionSaga from '~/features/session/saga';
 import threeDViewSaga from '~/features/three-d/saga';
@@ -35,6 +36,7 @@ export default function* rootSaga() {
     rtlsSaga(),
     serversSaga(),
     showSaga(),
+    showAudioSaga(),
     threeDViewSaga(),
     uavManagementSaga(flock),
     uploadSaga(),
