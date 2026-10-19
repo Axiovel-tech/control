@@ -36,6 +36,7 @@ import RtlsParameterDialog from './features/rtls/RtlsParameterDialog';
 import SafetyDialog from './features/safety/SafetyDialog';
 import SavedLocationEditorDialog from './features/saved-locations/SavedLocationEditorDialog';
 import ShowConfiguratorDialog from './features/show-configurator/ShowConfiguratorDialog';
+import ShowRTHDialog from './features/show-rth/ShowRTHDialog';
 import Sidebar from './features/sidebar/Sidebar';
 import Notifications from './features/snackbar/Notifications';
 import UAVDetailsDialog from './features/uavs/UAVDetailsDialog';
@@ -191,6 +192,7 @@ const App = ({ onFirstRender }) => (
       <SafetyDialog />
       <SavedLocationEditorDialog />
       <ShowConfiguratorDialog />
+      <ShowRTHDialog />
       <UAVDetailsDialog />
       <UploadDialog />
       <VersionCheckDialog />

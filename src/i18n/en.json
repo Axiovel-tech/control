@@ -1259,6 +1259,19 @@
     },
     "title": "Adapt show to venue"
   },
+  "showRTHDialog": {
+    "description": "Selected drones leave the show at the next RTH branch time and fly their certified paths home. The other drones keep flying the show.",
+    "failure": "{{id}}: {{reason}}",
+    "failures_one": "{{count}} drone is not returning and keeps flying the show:",
+    "failures_other": "{{count}} drones are not returning and keep flying the show:",
+    "noPlan": "{{id}} (no RTH plan)",
+    "planQueryFailed": "RTH not sent: could not ask the server for the RTH plan. {{error}}",
+    "returnAll": "Return all",
+    "send": "Return home",
+    "sent_one": "{{count}} drone leaves the show at T+{{time}} s.",
+    "sent_other": "{{count}} drones leave the show at T+{{time}} s.",
+    "title": "Return to home"
+  },
   "sidebar": {
     "missionType": "Mission type: ({{missionType}})"
   },
