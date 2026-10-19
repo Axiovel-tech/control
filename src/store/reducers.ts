@@ -31,6 +31,7 @@ import showConfiguratorReducer, {
   type ShowConfiguratorState,
   type ShowData,
 } from '~/features/show-configurator/slice';
+import showRTHReducer from '~/features/show-rth/slice';
 import uavDetailsDialogReducer from '~/features/uavs/details';
 
 /**
@@ -92,6 +93,7 @@ const dialogsReducer = combineReducers({
   prompt: promptReducer,
   savedLocationEditor: savedLocationEditorReducer,
   serverSettings: serverSettingsReducer,
+  showRTH: showRTHReducer,
   showConfigurator: undoable<ShowConfiguratorState, { showData?: ShowData }>(
     showConfiguratorReducer,
     {

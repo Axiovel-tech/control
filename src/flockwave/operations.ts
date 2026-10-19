@@ -258,6 +258,116 @@ export async function startCollectiveRTH(hub: MessageHub): Promise<Schedule> {
 }
 
 /**
+ * The drones that a certified `.gdm` RTH request addresses: either an
+ * explicit list or every drone of the show.
+ */
+export type ShowRTHTarget = { ids: string[] } | { all: true };
+
+export type ShowRTHOutcome = {
+  /**
+   * The show time, in microseconds, at which the commanded drones leave the
+   * show and start their certified return paths.
+   */
+  branchTimeUs: number;
+
+  /**
+   * The drones that accepted the command.
+   */
+  succeeded: string[];
+
+  /**
+   * The drones that were not commanded or did not accept the command, with
+   * the reason. They keep flying the show.
+   */
+  failures: Record<string, string>;
+};
+
+/**
+ * Asks the server which drones hold a certified `.gdm` RTH plan.
+ *
+ * Resolves to an empty list when no drone holds one, including when the
+ * server does not know the request at all (an older server cannot hold
+ * `.gdm` shows either).
+ */
+export async function getShowRTHPlanHolders(
+  hub: MessageHub,
+  { timeout = 2 }: { timeout?: number } = {}
+): Promise<string[]> {
+  const response = await hub.sendMessage(
+    { type: 'X-SHOW-RTH-INF' },
+    { timeout }
+  );
+  const { body } = response;
+
+  if (body.type === 'ACK-NAK') {
+    return [];
+  }
+
+  if (
+    body.type !== 'X-SHOW-RTH-INF' ||
+    !('ids' in body) ||
+    !Array.isArray(body.ids) ||
+    !body.ids.every((id) => typeof id === 'string')
+  ) {
+    throw new Error('Invalid response to RTH plan query.');
+  }
+
+  return body.ids;
+}
+
+/**
+ * Sends the given drones home along their certified `.gdm` RTH paths.
+ *
+ * The server picks the branch time: the first one far enough ahead for the
+ * command to reach every drone. Rejects when the server refuses the request
+ * as a whole, in which case no drone was commanded.
+ */
+export async function startShowRTH(
+  hub: MessageHub,
+  target: ShowRTHTarget
+): Promise<ShowRTHOutcome> {
+  let response: Message<MessageBody>;
+  try {
+    response = await hub.sendMessage({ type: 'X-SHOW-RTH', ...target });
+  } catch (error) {
+    throw new Error(`Failed to send RTH. ${errorToString(error)}`);
+  }
+
+  const { body } = response;
+  if (body.type === 'ACK-NAK') {
+    const { reason } = body as Response_ACKNAK;
+    throw new Error(`RTH refused: ${reason ?? 'unknown reason'}`);
+  }
+
+  if (
+    body.type !== 'X-SHOW-RTH' ||
+    !('branchTimeUs' in body) ||
+    typeof body.branchTimeUs !== 'number' ||
+    !Number.isInteger(body.branchTimeUs)
+  ) {
+    throw new Error('Invalid response to RTH request.');
+  }
+
+  const { branchTimeUs } = body;
+  const results = await hub._processMultiAsyncOperationResponse(
+    response as Parameters<typeof hub._processMultiAsyncOperationResponse>[0],
+    'X-SHOW-RTH'
+  );
+
+  const succeeded: string[] = [];
+  const failures: Record<string, string> = {};
+  for (const [id, result] of Object.entries(results)) {
+    if (result instanceof Error) {
+      failures[id] = result.message;
+    } else {
+      succeeded.push(id);
+    }
+  }
+
+  return { branchTimeUs, succeeded, failures };
+}
+
+/**
  * Asks the RTK framework on the server to start a new survey on the current
  * RTK connection.
  */
@@ -466,6 +576,7 @@ export async function planMission(
 
 const _operations = {
   configureExtension,
+  getShowRTHPlanHolders,
   planMission,
   reloadExtension,
   resetUAV,
@@ -479,6 +590,7 @@ const _operations = {
   setShowLightConfiguration,
   startCollectiveRTH,
   startRTKSurvey,
+  startShowRTH,
   suspendShow,
   uploadDroneShow,
   uploadFirmware,
