@@ -50,6 +50,7 @@ import {
   getSwarmSpecification,
   getTrajectories,
   hasLoadedShowFile,
+  isGdmShowUncertified,
   isLoadingShowFile,
   isShowIndoor,
   isShowUsingYawControl,
@@ -376,6 +377,10 @@ export const getShowValidationResult = (state) => {
 
   if (!hasLoadedShowFile(state)) {
     return 'notLoaded';
+  }
+
+  if (isGdmShowUncertified(state)) {
+    return 'gdmNotCertified';
   }
 
   if (!areTakeoffPositionsFarEnough(state)) {

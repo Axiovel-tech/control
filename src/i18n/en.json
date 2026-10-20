@@ -1078,6 +1078,10 @@
     "dronePlacementError": "Error in drone placement",
     "dronePlacementPartial": "Partial drone placement approved",
     "fromCloud": "Load show from cloud",
+    "gdm": {
+      "certified": "Axio certification passed (.gdm)",
+      "notCertified": "Axio certification did not pass: this .gdm cannot be uploaded"
+    },
     "indoor": "Indoor",
     "loading": "Please wait, loading show file…",
     "manualPreflightChecks": "Manual preflight checks",

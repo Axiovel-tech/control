@@ -359,6 +359,53 @@ export async function uploadDroneShow(
 }
 
 /**
+ * Asks the server to upload a precompiled `.gdmb` show payload to a given UAV.
+ *
+ * Uses the `__gdm_upload` command of Axio Server, next to `__show_upload`
+ * that carries `.skyc` shows. `config` holds the show-level settings that do
+ * not come from the show file (coordinate system, AMSL reference, geofence,
+ * mission).
+ */
+export async function uploadGdmShow(
+  hub: MessageHub,
+  {
+    uavId,
+    gdmb,
+    showHash,
+    config,
+  }: {
+    uavId: string;
+    gdmb: string;
+    showHash: string;
+    config: Record<string, unknown>;
+  },
+  options: AsyncResponseHandlerOptions
+) {
+  validateObjectId(uavId);
+
+  try {
+    await hub.sendCommandRequest(
+      {
+        uavId,
+        command: '__gdm_upload',
+        kwds: { gdmb, showHash, config },
+      },
+      {
+        timeout: 300 /* five minutes, should be longer than the timeout on the server */,
+        ...options,
+      }
+    );
+  } catch (error) {
+    throw new Error(
+      errorToString(
+        (error as any).message || error,
+        `Failed to upload .gdm show data to UAV ${uavId}`
+      )
+    );
+  }
+}
+
+/**
  * Ask the server to update the firmware of a given component.
  */
 export async function uploadFirmware(
@@ -482,6 +529,7 @@ const _operations = {
   suspendShow,
   uploadDroneShow,
   uploadFirmware,
+  uploadGdmShow,
   uploadMission,
 };
 
