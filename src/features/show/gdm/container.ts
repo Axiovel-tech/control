@@ -34,6 +34,17 @@ export class GdmLoadError extends Error {
   }
 }
 
+/**
+ * The newest `.gdm` version Control implements. Newer readers accept older
+ * versions (spec §1.8): every `version` from 1 up to this one is read.
+ */
+const GDM_VERSION = 1;
+
+const isSupportedVersion = (version: unknown): boolean =>
+  Number.isInteger(version) &&
+  (version as number) >= 1 &&
+  (version as number) <= GDM_VERSION;
+
 const DRONE_ID_PATTERN = /^[A-Za-z\d][\w-]{0,31}$/;
 const HEX_DIGEST_PATTERN = /^[\da-f]{64}$/;
 const MAX_DRONES = 5000;
@@ -145,10 +156,10 @@ function checkManifest(value: unknown): GdmManifest {
     throw new GdmLoadError('G_MANIFEST', 'manifest.json is not an object');
   }
 
-  if (value.format !== 'gdm' || value.version !== 1) {
+  if (value.format !== 'gdm' || !isSupportedVersion(value.version)) {
     throw new GdmLoadError(
       'G_VERSION',
-      'manifest.json is not a version 1 .gdm manifest'
+      `manifest.json is not a .gdm manifest of version 1 to ${GDM_VERSION}`
     );
   }
 
@@ -189,8 +200,11 @@ function checkManifest(value: unknown): GdmManifest {
 }
 
 function checkShow(value: unknown): GdmShowJson {
-  if (!isObject(value) || value.version !== 1) {
-    throw new GdmLoadError('G_VERSION', 'show.json is not version 1');
+  if (!isObject(value) || !isSupportedVersion(value.version)) {
+    throw new GdmLoadError(
+      'G_VERSION',
+      `show.json is not of version 1 to ${GDM_VERSION}`
+    );
   }
 
   if (value.frame !== 'nwu') {
@@ -234,7 +248,45 @@ function checkShow(value: unknown): GdmShowJson {
     seen.add(key);
   }
 
+  if ('rth' in value) {
+    throw new GdmLoadError(
+      'G_PROVISIONAL',
+      'show.json has an RTH plan, a provisional layout that v1 does not load'
+    );
+  }
+
   return value as GdmShowJson;
+}
+
+/**
+ * Refuses the provisional JSON of spec §4.11 in a drone file: MANEUVER
+ * segments, FLAT envelopes and RTH plans. Their layouts may still change, and
+ * a v1 reader must not load them.
+ */
+function checkNotProvisional(drone: Record<string, unknown>, id: string): void {
+  const where = `drones/${id}.json`;
+  if ('rth' in drone) {
+    throw new GdmLoadError(
+      'G_PROVISIONAL',
+      `${where} has an RTH plan, a provisional layout that v1 does not load`
+    );
+  }
+
+  for (const segment of drone.segments as unknown[]) {
+    if (isObject(segment) && segment.regime === 'maneuver') {
+      throw new GdmLoadError(
+        'G_PROVISIONAL',
+        `${where} has a MANEUVER segment, a provisional layout that v1 does not load`
+      );
+    }
+
+    if (isObject(segment) && 'envelope' in segment) {
+      throw new GdmLoadError(
+        'G_PROVISIONAL',
+        `${where} has a FLAT envelope, a provisional layout that v1 does not load`
+      );
+    }
+  }
 }
 
 function checkCertification(
@@ -243,7 +295,7 @@ function checkCertification(
 ): GdmCertificationJson {
   if (
     !isObject(value) ||
-    value.version !== 1 ||
+    !isSupportedVersion(value.version) ||
     (value.status !== 'pass' && value.status !== 'fail') ||
     value.evaluated !== 'gdmb' ||
     !Array.isArray(value.drones)
@@ -368,6 +420,15 @@ export async function loadGdmContainer(
     if (!isObject(json) || json.id !== id || !Array.isArray(json.segments)) {
       throw new GdmLoadError('G_SCHEMA', `drones/${id}.json is malformed`);
     }
+
+    if (!isSupportedVersion(json.version)) {
+      throw new GdmLoadError(
+        'G_VERSION',
+        `drones/${id}.json is not of version 1 to ${GDM_VERSION}`
+      );
+    }
+
+    checkNotProvisional(json, id);
 
     if (!gdmbCarriesShowHash(gdmb, showHash)) {
       throw new GdmLoadError(

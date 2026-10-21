@@ -29,7 +29,12 @@ import { createGdmUploadForSlot } from '~/features/show/gdm/upload';
 
 // Vendored from AxioStack contracts/gdm-vectors (see the README there)
 const VECTORS = path.join(__dirname, '..', 'fixtures', 'gdm-vectors');
-const VECTOR_NAMES = ['flat-single', 'maneuver-single'] as const;
+// The v1 conformance vector; provisional/ holds layouts v1 refuses (§4.11)
+const VECTOR_NAMES = ['flat-single'] as const;
+const PROVISIONAL_VECTORS = [
+  'provisional/flat-rth',
+  'provisional/maneuver-single',
+] as const;
 
 type Expected = {
   show_hash: string;
@@ -83,13 +88,23 @@ const encode = (value: unknown) =>
 async function resealManifest(entries: Map<string, Uint8Array>) {
   const manifest = json<GdmManifest>(entries.get('manifest.json')!);
   entries.delete('manifest.json');
+
+  // Point certification.json at the new show hash too, so that only the
+  // check under test fails (the .gdmb headers still carry the old one)
+  const showHash = await computeShowHash(entries);
+  const certification = json<GdmCertificationJson>(
+    entries.get('certification.json')!
+  );
+  certification.show_hash = showHash;
+  entries.set('certification.json', encode(certification));
+
   for (const entry of manifest.entries) {
     const data = entries.get(entry.path)!;
     entry.size = data.length;
     entry.sha256 = await sha256Hex(data);
   }
 
-  manifest.show_hash = await computeShowHash(entries);
+  manifest.show_hash = showHash;
   entries.set('manifest.json', encode(manifest));
 }
 
@@ -194,9 +209,12 @@ describe('fail-closed container checks', () => {
   });
 
   test('rejects a .gdmb from another show, even with a resealed manifest', async () => {
-    const other = await loadGdmContainer(readVector('maneuver-single').bytes);
+    const other = await JSZip.loadAsync(
+      readVector('provisional/flat-rth').bytes
+    );
+    const otherGdmb = await other.file('drones/d01.gdmb')!.async('uint8array');
     const tampered = await rezip(bytes, async (entries) => {
-      entries.set('drones/d01.gdmb', other.drones[0].gdmb);
+      entries.set('drones/d01.gdmb', otherGdmb);
       await resealManifest(entries);
     });
     await expectLoadError(tampered, 'G_SHOW_HASH');
@@ -247,6 +265,36 @@ describe('fail-closed container checks', () => {
     const container = await loadGdmContainer(tampered);
     expect(container.certification.status).toBe('pass');
     expect(container.drones[0].certified).toBe(false);
+  });
+});
+
+describe('version policy and provisional layouts', () => {
+  const { bytes } = readVector('flat-single');
+
+  test.each(PROVISIONAL_VECTORS)(
+    'refuses the provisional vector %s',
+    async (name) => {
+      await expectLoadError(readVector(name).bytes, 'G_PROVISIONAL');
+    }
+  );
+
+  test('refuses a FLAT envelope', async () => {
+    const tampered = await rezip(bytes, async (entries) => {
+      const drone = json<GdmDroneJson>(entries.get('drones/d01.json')!);
+      Object.assign(drone.segments[1], { envelope: { pos_m: 0.15 } });
+      entries.set('drones/d01.json', encode(drone));
+      await resealManifest(entries);
+    });
+    await expectLoadError(tampered, 'G_PROVISIONAL');
+  });
+
+  test('refuses a manifest newer than this reader', async () => {
+    const tampered = await rezip(bytes, (entries) => {
+      const manifest = json<GdmManifest>(entries.get('manifest.json')!);
+      Object.assign(manifest, { version: 2 });
+      entries.set('manifest.json', encode(manifest));
+    });
+    await expectLoadError(tampered, 'G_VERSION');
   });
 });
 
