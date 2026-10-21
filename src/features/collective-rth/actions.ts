@@ -1,6 +1,7 @@
 import isObject from 'lodash-es/isObject';
 
 import { getBase64ShowBlob } from '~/features/show/selectors';
+import i18n from '~/i18n';
 import messageHub from '~/message-hub';
 import type { AppThunk } from '~/store/reducers';
 import { writeBlobToFile } from '~/utils/filesystem';
@@ -89,6 +90,14 @@ export const addCollectiveRTH =
   async (dispatch, getState): Promise<void> => {
     const state = getState();
     const base64ShowBlob = getBase64ShowBlob(state);
+    if (!base64ShowBlob) {
+      // A .gdm show has no .skyc file to transform
+      dispatch(
+        setResult({ state: 'error', error: i18n.t('show.gdm.requiresSkyc') })
+      );
+      return;
+    }
+
     dispatch(setResult({ state: 'loading' }));
 
     try {

@@ -42,6 +42,8 @@ import workers from '~/workers';
 
 import { JOB_TYPE } from './constants';
 import { StartMethod } from './enums';
+import { GdmLoadError } from './gdm/container';
+import { isGdmFile, loadGdmShowFromFile } from './gdm/load';
 import {
   getAbsolutePathOfShowFile,
   getCommonTakeoffHeading,
@@ -264,7 +266,13 @@ const createShowLoaderThunkFactory = (
       } = await promise;
       processShowInJSONFormatAndDispatchActions(spec, dispatch);
     } catch (error) {
-      showError(errorMessage || 'Failed to load show.', { permanent: true });
+      const message = errorMessage || 'Failed to load show.';
+      showError(
+        // A .gdm that fails a container check says which check, so the
+        // operator can tell a corrupt file from an uncertified one
+        error instanceof GdmLoadError ? `${message} ${error.message}` : message,
+        { permanent: true }
+      );
       dispatch(setLastLoadingAttemptFailed(true));
       console.error(error);
     }
@@ -273,7 +281,7 @@ const createShowLoaderThunkFactory = (
 
 /**
  * Thunk that creates an async action that loads a drone show from a Skybrush
- * compiled drone show file.
+ * compiled drone show file (`.skyc`) or an Axio `.gdm` show container.
  *
  * The thunk must be invoked with the file that the user wants to open
  * the show from.
@@ -281,6 +289,14 @@ const createShowLoaderThunkFactory = (
 export const loadShowFromFile = createShowLoaderThunkFactory(
   async (file) => {
     const url = file && file.path ? `file://${file.path}` : undefined;
+
+    if (isGdmFile(file)) {
+      // No base64Blob: features that send the show file itself to the server
+      // (collective RTH, show configurator) understand `.skyc` only
+      const { spec, gdm } = await loadGdmShowFromFile(file);
+      return { spec: Object.freeze(spec), url, gdm };
+    }
+
     const { spec, blob } = await workers.loadShow(file, {
       returnBlob: true,
     });
