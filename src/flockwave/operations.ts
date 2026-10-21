@@ -13,6 +13,7 @@ import type {
 } from '@skybrush/flockwave-spec';
 
 import { errorToString } from '~/error-handling';
+import { createUploadError } from '~/features/upload/errors';
 import type { Coordinate3D } from '~/utils/math';
 
 import {
@@ -349,7 +350,8 @@ export async function uploadDroneShow(
       }
     );
   } catch (error) {
-    throw new Error(
+    // A refusal that retrying cannot fix becomes a NonRetryableUploadError
+    throw createUploadError(
       errorToString(
         (error as any).message || error,
         `Failed to upload show data to UAV ${uavId}`
@@ -396,7 +398,8 @@ export async function uploadGdmShow(
       }
     );
   } catch (error) {
-    throw new Error(
+    // A refusal that retrying cannot fix becomes a NonRetryableUploadError
+    throw createUploadError(
       errorToString(
         (error as any).message || error,
         `Failed to upload .gdm show data to UAV ${uavId}`

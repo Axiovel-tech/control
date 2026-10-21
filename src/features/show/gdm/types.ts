@@ -121,4 +121,6 @@ export type GdmShowInfo = {
   };
   /** Per slot: drone ID, base64 `.gdmb` and whether it is certified */
   drones: Array<{ id: string; gdmb: string; certified: boolean }>;
+  /** The `.gdm`'s own geofence (`show.json`), in show coordinates */
+  geofence?: GdmShowJson['geofence'];
 };

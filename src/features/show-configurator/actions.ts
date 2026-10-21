@@ -9,6 +9,7 @@ import { errorToString } from '~/error-handling';
 import { getBase64ShowBlob } from '~/features/show/selectors';
 import { showError } from '~/features/snackbar/actions';
 import { getAllValidUAVPositions } from '~/features/uavs/selectors';
+import i18n from '~/i18n';
 import messageHub from '~/message-hub';
 import { type GPSPosition } from '~/model/geography';
 import {
@@ -395,6 +396,12 @@ export const adaptShow =
     // background so this way we can save some memory. Maybe store and compare a hash
     // if this becomes an issue.
     const base64ShowBlob = getBase64ShowBlob(state);
+    if (!base64ShowBlob) {
+      // A .gdm show has no .skyc file to transform
+      dispatch(setAdaptResult({ error: i18n.t('show.gdm.requiresSkyc') }));
+      return;
+    }
+
     const positions = getHomePositions(state);
     const coordinateSystem = selectCoordinateSystem(state);
 

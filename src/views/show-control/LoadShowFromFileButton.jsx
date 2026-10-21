@@ -33,6 +33,7 @@ import {
   isGdmShowLoaded,
   isLoadingShowFile,
 } from '~/features/show/selectors';
+import { selectGdmGeofenceMismatch } from '~/features/show/gdm/selectors';
 import { openLoadShowFromCloudDialog } from '~/features/show/slice';
 import { getSetupStageStatuses } from '~/features/show/stages';
 import { hasFeature } from '~/utils/configuration';
@@ -86,6 +87,7 @@ const getDescriptionForValidationResult = (validationResult, t) => {
 const LoadShowFromFileButton = ({
   changedSinceLoaded,
   description,
+  gdmGeofenceMismatch,
   hasLoadedShowFile,
   isGdmShow,
   loading,
@@ -163,6 +165,17 @@ const LoadShowFromFileButton = ({
                 {description}
                 <br />
                 {t('show.gdm.certified')}
+                {gdmGeofenceMismatch && (
+                  <>
+                    <br />
+                    <span style={{ color: Colors.warning }}>
+                      {t(
+                        `show.gdm.geofence.${gdmGeofenceMismatch.reason}`,
+                        gdmGeofenceMismatch
+                      )}
+                    </span>
+                  </>
+                )}
               </>
             ) : (
               description
@@ -179,6 +192,7 @@ const LoadShowFromFileButton = ({
 LoadShowFromFileButton.propTypes = {
   changedSinceLoaded: PropTypes.bool,
   description: PropTypes.string,
+  gdmGeofenceMismatch: PropTypes.shape({ reason: PropTypes.string }),
   hasLoadedShowFile: PropTypes.bool,
   isGdmShow: PropTypes.bool,
   loading: PropTypes.bool,
@@ -197,6 +211,7 @@ export default connect(
   (state) => ({
     changedSinceLoaded: hasShowChangedExternallySinceLoaded(state),
     description: getShowDescription(state),
+    gdmGeofenceMismatch: selectGdmGeofenceMismatch(state),
     hasLoadedShowFile: hasLoadedShowFile(state),
     isGdmShow: isGdmShowLoaded(state),
     loading: isLoadingShowFile(state),

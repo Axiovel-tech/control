@@ -236,5 +236,8 @@ export function gdmToShowInfo(container: GdmContainer): GdmShowInfo {
       gdmb: Base64.fromUint8Array(gdmb),
       certified,
     })),
+    ...(container.show.geofence
+      ? { geofence: structuredClone(container.show.geofence) }
+      : {}),
   };
 }
