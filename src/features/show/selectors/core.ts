@@ -30,6 +30,7 @@ import {
   type TakeoffHeadingSpecification,
 } from '../constants';
 import { EnvironmentType, SettingsSynchronizationStatus } from '../enums';
+import type { GdmShowInfo } from '../gdm/types';
 import { getDurationOfTrajectory, isValidTrajectory } from '../trajectory';
 import type {
   CoordinateSystem,
@@ -418,6 +419,35 @@ export const getShowTitle = createSelector(
  */
 export const getBase64ShowBlob: AppSelector<string | undefined> = (state) =>
   state.show.base64Blob;
+
+/**
+ * Returns what the store keeps about the loaded `.gdm` show, or `undefined`
+ * if no show is loaded or the loaded show is a `.skyc`.
+ */
+export const getGdmShowInfo: AppSelector<GdmShowInfo | undefined> = (state) =>
+  state.show.gdm;
+
+/**
+ * Returns whether the loaded show is a `.gdm`.
+ */
+export const isGdmShowLoaded: AppSelector<boolean> = (state) =>
+  Boolean(state.show.gdm);
+
+/**
+ * Returns whether the loaded show is a `.gdm` that Axio certification did not
+ * pass as a whole, or that has a drone whose `.gdmb` is not covered by the
+ * certification. Such a show must not be uploaded.
+ */
+export const isGdmShowUncertified: AppSelector<boolean> = (state) => {
+  // `problem` covers the certifier, the statuses, `kinematics_enforced` and
+  // the checks; `certified` per drone also covers the `.gdmb` bindings
+  const gdm = state.show.gdm;
+  return (
+    gdm !== undefined &&
+    (gdm.certification.problem !== undefined ||
+      gdm.drones.some((drone) => !drone.certified))
+  );
+};
 
 /**
  * Returns the start method of the show.
