@@ -36,7 +36,7 @@ export function createGdmUploadForSlot(
     throw new Error(`No .gdm drone for UAV ${uavId} (index ${missionIndex})`);
   }
 
-  if (gdm.certification.status !== 'pass' || !drone.certified) {
+  if (gdm.certification.problem !== undefined || !drone.certified) {
     throw new Error(
       `Drone ${drone.id} of the .gdm show is not certified; refusing to upload it to UAV ${uavId}`
     );

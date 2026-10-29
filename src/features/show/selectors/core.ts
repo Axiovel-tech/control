@@ -439,10 +439,12 @@ export const isGdmShowLoaded: AppSelector<boolean> = (state) =>
  * certification. Such a show must not be uploaded.
  */
 export const isGdmShowUncertified: AppSelector<boolean> = (state) => {
+  // `problem` covers the certifier, the statuses, `kinematics_enforced` and
+  // the checks; `certified` per drone also covers the `.gdmb` bindings
   const gdm = state.show.gdm;
   return (
     gdm !== undefined &&
-    (gdm.certification.status !== 'pass' ||
+    (gdm.certification.problem !== undefined ||
       gdm.drones.some((drone) => !drone.certified))
   );
 };

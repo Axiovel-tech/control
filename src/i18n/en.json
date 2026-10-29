@@ -1086,7 +1086,15 @@
         "outside": "Geofence: Control's geofence extends beyond the .gdm's own geofence"
       },
       "notCertified": "Axio certification did not pass: this .gdm cannot be uploaded",
-      "requiresSkyc": "Not available for .gdm shows: the server transforms .skyc files only, and a .gdm is uploaded exactly as certified"
+      "requiresSkyc": "Not available for .gdm shows: the server transforms .skyc files only, and a .gdm is uploaded exactly as certified",
+      "uncertified": {
+        "certifier": "Not certified by the Axio trajectory engine: this .gdm cannot be uploaded",
+        "checkNotPassed": "A certification check failed or was demoted: this .gdm cannot be uploaded",
+        "demotedFindings": "Certification demoted findings to a report: this .gdm cannot be uploaded",
+        "drone": "A drone's .gdmb is not covered by the certification: this .gdm cannot be uploaded",
+        "kinematicsNotEnforced": "Certified in report-only mode, without its limits enforced: this .gdm cannot be uploaded",
+        "status": "Axio certification did not pass: this .gdm cannot be uploaded"
+      }
     },
     "indoor": "Indoor",
     "loading": "Please wait, loading show file…",

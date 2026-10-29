@@ -28,6 +28,10 @@ export type GdmShowJson = {
   };
   required_capabilities: string[];
   rth?: { times_us: number[] };
+  /** The show's music: a non-safety entry of the container, as in `.skyc` */
+  media?: {
+    audio: { path: string; mediaType: string; filename?: string };
+  };
   markers: Array<{ name: string; t_us: number }>;
   drones: Array<{ id: string; name?: string }>;
 };
@@ -80,11 +84,16 @@ export type GdmCertificationJson = {
   status: GdmCertificationStatus;
   evaluated: 'gdmb';
   certifier?: { name: string; version: string };
+  /** Engine: `false` for a report-only run, whose limits were not gated */
+  kinematics_enforced?: boolean;
+  checks?: Array<{ name: string; status: string }>;
   drones: Array<{
     id: string;
     status: GdmCertificationStatus;
     gdmb_sha256: string;
     gdmb_size: number;
+    /** Engine: findings demoted to the report in a report-only run */
+    demoted_findings?: number;
   }>;
 };
 
@@ -99,13 +108,38 @@ export type GdmDrone = {
   certified: boolean;
 };
 
+/**
+ * Why a loaded `.gdm` is not certified for upload, in the order Control checks:
+ *
+ * - `certifier`: `certifier.name` is not an allow-listed certifier (the
+ *   status in `certification.json` is not authenticated, so only certificates
+ *   from the trajectory engine count; this also refuses the golden vectors);
+ * - `status`: the show's status is not `pass`;
+ * - `kinematicsNotEnforced`: a report-only run, whose limits were not gated;
+ * - `checkNotPassed`: a check reads `fail` or `demoted`;
+ * - `demotedFindings`: a drone has findings demoted to the report;
+ * - `drone`: a drone's status is not `pass`, or its `.gdmb` SHA-256 or size
+ *   differs from the certified one.
+ */
+export type GdmCertificationProblem =
+  | 'certifier'
+  | 'status'
+  | 'kinematicsNotEnforced'
+  | 'checkNotPassed'
+  | 'demotedFindings'
+  | 'drone';
+
 /** A `.gdm` container that passed Control's checks. */
 export type GdmContainer = {
   manifest: GdmManifest;
   show: GdmShowJson;
   certification: GdmCertificationJson;
+  /** Why the show may not be uploaded; `undefined` if every drone may */
+  certificationProblem?: GdmCertificationProblem;
   showHash: string;
   drones: GdmDrone[];
+  /** The show's music, if the container carries one */
+  audio?: { data: Uint8Array; mediaType: string; filename?: string };
 };
 
 /**
@@ -118,6 +152,8 @@ export type GdmShowInfo = {
   certification: {
     status: GdmCertificationStatus;
     certifier?: { name: string; version: string };
+    /** Why the show may not be uploaded; `undefined` if every drone may */
+    problem?: GdmCertificationProblem;
   };
   /** Per slot: drone ID, base64 `.gdmb` and whether it is certified */
   drones: Array<{ id: string; gdmb: string; certified: boolean }>;

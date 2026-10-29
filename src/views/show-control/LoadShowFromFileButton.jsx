@@ -24,6 +24,7 @@ import {
   reloadCurrentShowFile,
 } from '~/features/show/actions';
 import {
+  getGdmShowInfo,
   getShowDescription,
   getShowLoadingProgressPercentage,
   getShowTitle,
@@ -56,7 +57,11 @@ const isValidationResultAcceptable = (result) =>
 /**
  * Returns a human-readable explanation of why the show validation failed.
  */
-const getDescriptionForValidationResult = (validationResult, t) => {
+const getDescriptionForValidationResult = (
+  validationResult,
+  t,
+  gdmCertificationProblem
+) => {
   switch (validationResult) {
     case 'ok':
     case 'loading':
@@ -74,7 +79,9 @@ const getDescriptionForValidationResult = (validationResult, t) => {
       return 'Landing positions are too close';
 
     case 'gdmNotCertified':
-      return t('show.gdm.notCertified');
+      return gdmCertificationProblem
+        ? t(`show.gdm.uncertified.${gdmCertificationProblem}`)
+        : t('show.gdm.notCertified');
 
     default:
       return 'Show validation failed';
@@ -87,6 +94,7 @@ const getDescriptionForValidationResult = (validationResult, t) => {
 const LoadShowFromFileButton = ({
   changedSinceLoaded,
   description,
+  gdmCertificationProblem,
   gdmGeofenceMismatch,
   hasLoadedShowFile,
   isGdmShow,
@@ -157,7 +165,11 @@ const LoadShowFromFileButton = ({
             </span>
           ) : !isValidationResultAcceptable(validationResult) ? (
             <span style={{ color: Colors.warning }}>
-              {getDescriptionForValidationResult(validationResult, t)}
+              {getDescriptionForValidationResult(
+                validationResult,
+                t,
+                gdmCertificationProblem
+              )}
             </span>
           ) : hasLoadedShowFile ? (
             isGdmShow ? (
@@ -192,6 +204,7 @@ const LoadShowFromFileButton = ({
 LoadShowFromFileButton.propTypes = {
   changedSinceLoaded: PropTypes.bool,
   description: PropTypes.string,
+  gdmCertificationProblem: PropTypes.string,
   gdmGeofenceMismatch: PropTypes.shape({ reason: PropTypes.string }),
   hasLoadedShowFile: PropTypes.bool,
   isGdmShow: PropTypes.bool,
@@ -211,6 +224,7 @@ export default connect(
   (state) => ({
     changedSinceLoaded: hasShowChangedExternallySinceLoaded(state),
     description: getShowDescription(state),
+    gdmCertificationProblem: getGdmShowInfo(state)?.certification.problem,
     gdmGeofenceMismatch: selectGdmGeofenceMismatch(state),
     hasLoadedShowFile: hasLoadedShowFile(state),
     isGdmShow: isGdmShowLoaded(state),

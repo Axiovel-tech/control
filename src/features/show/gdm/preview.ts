@@ -182,7 +182,7 @@ export function gdmToShowSpecification(
     typeof show.meta?.title === 'string' ? show.meta.title : undefined;
   const id = typeof show.meta?.id === 'string' ? show.meta.id : undefined;
 
-  return {
+  const spec: ShowSpecification = {
     version: 1,
     environment: {
       type: show.environment,
@@ -214,6 +214,23 @@ export function gdmToShowSpecification(
       ],
     },
   };
+
+  // The music goes where a `.skyc` carries it, embedded as base64, so the
+  // music row plays a `.gdm` show the same way. (show-format types `data` as
+  // bytes or an asset reference, but `.skyc` show files embed base64 text.)
+  return container.audio
+    ? Object.assign(spec, {
+        media: {
+          audio: {
+            data: Base64.fromUint8Array(container.audio.data),
+            mediaType: container.audio.mediaType,
+            ...(container.audio.filename === undefined
+              ? {}
+              : { filename: container.audio.filename }),
+          },
+        },
+      })
+    : spec;
 }
 
 /**
@@ -229,6 +246,9 @@ export function gdmToShowInfo(container: GdmContainer): GdmShowInfo {
       status: certification.status,
       ...(certification.certifier
         ? { certifier: { ...certification.certifier } }
+        : {}),
+      ...(container.certificationProblem
+        ? { problem: container.certificationProblem }
         : {}),
     },
     drones: container.drones.map(({ id, gdmb, certified }) => ({

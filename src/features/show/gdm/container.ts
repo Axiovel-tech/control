@@ -13,6 +13,7 @@ import JSZip from 'jszip';
 
 import type {
   GdmCertificationJson,
+  GdmCertificationProblem,
   GdmContainer,
   GdmDrone,
   GdmDroneJson,
@@ -44,6 +45,33 @@ const isSupportedVersion = (version: unknown): boolean =>
   Number.isInteger(version) &&
   (version as number) >= 1 &&
   (version as number) <= GDM_VERSION;
+
+/**
+ * Certifiers whose `certification.json` Control accepts. The status in the
+ * file is not authenticated (signing comes later), so a certificate written
+ * by anything else, such as the golden vectors' `gdm_ref.py`, never counts.
+ */
+export const ALLOWED_CERTIFIERS: ReadonlySet<string> = new Set([
+  'axio-trajectory-engine',
+]);
+
+/**
+ * Media types of the show's music and the file extension of its entry
+ * (`media/audio.<ext>`).
+ */
+const AUDIO_EXTENSIONS: Readonly<Record<string, string>> = {
+  'audio/mpeg': 'mp3',
+  'audio/ogg': 'ogg',
+  'audio/flac': 'flac',
+  'audio/wav': 'wav',
+};
+
+/**
+ * The normal-executor tilt bound: REVB `ATC_ANGLE_MAX` 30° minus a 5° margin
+ * for position correction. Tilt above it needs the high-tilt executor, which
+ * does not exist yet, so no v1 show may declare it.
+ */
+const MAX_TILT_RAD = (25 * Math.PI) / 180;
 
 const DRONE_ID_PATTERN = /^[A-Za-z\d][\w-]{0,31}$/;
 const HEX_DIGEST_PATTERN = /^[\da-f]{64}$/;
@@ -255,7 +283,49 @@ function checkShow(value: unknown): GdmShowJson {
     );
   }
 
+  const tilt = isObject(value.limits) ? value.limits.max_tilt_rad : undefined;
+  if (typeof tilt === 'number' && tilt > MAX_TILT_RAD + 1e-12) {
+    throw new GdmLoadError(
+      'G_VALUE',
+      'show.json limits.max_tilt_rad is above the 25° normal-executor bound'
+    );
+  }
+
+  if ('media' in value) {
+    checkMedia(value.media);
+  }
+
   return value as GdmShowJson;
+}
+
+/** Checks `show.json` `media`: only `audio`, with a known media type. */
+function checkMedia(media: unknown): void {
+  const audio = isObject(media) ? media.audio : undefined;
+  if (
+    !isObject(media) ||
+    Object.keys(media).some((key) => key !== 'audio') ||
+    !isObject(audio) ||
+    Object.keys(audio).some(
+      (key) => key !== 'path' && key !== 'mediaType' && key !== 'filename'
+    )
+  ) {
+    throw new GdmLoadError('G_SCHEMA', 'show.json media is malformed');
+  }
+
+  const extension =
+    typeof audio.mediaType === 'string'
+      ? AUDIO_EXTENSIONS[audio.mediaType]
+      : undefined;
+  if (!extension || audio.path !== `media/audio.${extension}`) {
+    throw new GdmLoadError(
+      'G_VALUE',
+      'show.json media.audio needs a known media type and the matching path'
+    );
+  }
+
+  if ('filename' in audio && typeof audio.filename !== 'string') {
+    throw new GdmLoadError('G_TYPE', 'show.json media.audio.filename');
+  }
 }
 
 /**
@@ -310,7 +380,63 @@ function checkCertification(
     );
   }
 
+  const ids = new Set<string>();
+  for (const drone of value.drones as unknown[]) {
+    const id = isObject(drone) ? drone.id : undefined;
+    if (typeof id !== 'string') {
+      throw new GdmLoadError('G_SCHEMA', 'certification.json is malformed');
+    }
+
+    // Two entries for one drone would let either one win; refuse both
+    if (ids.has(id)) {
+      throw new GdmLoadError(
+        'G_CERT',
+        `certification.json lists drone ${id} more than once`
+      );
+    }
+
+    ids.add(id);
+  }
+
   return value as GdmCertificationJson;
+}
+
+/**
+ * Returns why the certificate does not certify the show as a whole, or
+ * `undefined` if it does. Per-drone bindings are checked separately.
+ */
+function getShowCertificationProblem(
+  certification: GdmCertificationJson
+): GdmCertificationProblem | undefined {
+  if (!ALLOWED_CERTIFIERS.has(certification.certifier?.name ?? '')) {
+    return 'certifier';
+  }
+
+  if (certification.status !== 'pass') {
+    return 'status';
+  }
+
+  if (certification.kinematics_enforced !== true) {
+    return 'kinematicsNotEnforced';
+  }
+
+  // `checks` is informative and optional, but a check that did not pass
+  // means the show was not certified as written
+  if (
+    certification.checks !== undefined &&
+    (!Array.isArray(certification.checks) ||
+      certification.checks.some(
+        (check) => !isObject(check) || check.status !== 'pass'
+      ))
+  ) {
+    return 'checkNotPassed';
+  }
+
+  if (certification.drones.some((drone) => drone.demoted_findings)) {
+    return 'demotedFindings';
+  }
+
+  return undefined;
 }
 
 function gdmbCarriesShowHash(gdmb: Uint8Array, showHash: string): boolean {
@@ -391,6 +517,10 @@ export async function loadGdmContainer(
     expected.add(`drones/${id}.json`).add(`drones/${id}.gdmb`);
   }
 
+  if (show.media) {
+    expected.add(show.media.audio.path);
+  }
+
   if (
     expected.size !== entries.size ||
     [...entries.keys()].some((path) => !expected.has(path))
@@ -406,7 +536,9 @@ export async function loadGdmContainer(
     parseJson(entries.get('certification.json')!, 'certification.json'),
     showHash
   );
+  // Drone IDs are unique in certification.json (checked above)
   const certifiedById = new Map(certification.drones.map((d) => [d.id, d]));
+  const showProblem = getShowCertificationProblem(certification);
 
   const drones: GdmDrone[] = [];
   for (const { id, name } of show.drones) {
@@ -430,6 +562,13 @@ export async function loadGdmContainer(
 
     checkNotProvisional(json, id);
 
+    if (json.capabilities?.includes('high_tilt')) {
+      throw new GdmLoadError(
+        'G_VALUE',
+        `drones/${id}.json: high_tilt is reserved until a high-tilt executor exists`
+      );
+    }
+
     if (!gdmbCarriesShowHash(gdmb, showHash)) {
       throw new GdmLoadError(
         'G_SHOW_HASH',
@@ -439,7 +578,7 @@ export async function loadGdmContainer(
 
     const entry = certifiedById.get(id);
     const certified =
-      certification.status === 'pass' &&
+      showProblem === undefined &&
       entry?.status === 'pass' &&
       entry.gdmb_size === gdmb.length &&
       entry.gdmb_sha256 === toHex(await sha256(gdmb));
@@ -447,5 +586,28 @@ export async function loadGdmContainer(
     drones.push({ id, name, json, gdmb, certified });
   }
 
-  return { manifest, show, certification, showHash, drones };
+  const certificationProblem =
+    showProblem ??
+    (drones.some((drone) => !drone.certified) ? 'drone' : undefined);
+
+  const audio = show.media
+    ? {
+        // The entry set equals `expected`, which holds the media path
+        data: entries.get(show.media.audio.path)!,
+        mediaType: show.media.audio.mediaType,
+        ...(show.media.audio.filename === undefined
+          ? {}
+          : { filename: show.media.audio.filename }),
+      }
+    : undefined;
+
+  return {
+    manifest,
+    show,
+    certification,
+    certificationProblem,
+    showHash,
+    drones,
+    ...(audio ? { audio } : {}),
+  };
 }

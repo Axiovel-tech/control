@@ -24,6 +24,7 @@ import type {
   GdmContainer,
   GdmDroneJson,
   GdmManifest,
+  GdmShowJson,
 } from '~/features/show/gdm/types';
 import { createGdmUploadForSlot } from '~/features/show/gdm/upload';
 
@@ -108,6 +109,33 @@ async function resealManifest(entries: Map<string, Uint8Array>) {
   entries.set('manifest.json', encode(manifest));
 }
 
+/**
+ * Rewrites a vector's certificate as the trajectory engine writes one: an
+ * allow-listed certifier, limits enforced, every check passed. `mutate` may
+ * then change it, e.g. to model a report-only run.
+ */
+const withEngineCertificate = (
+  bytes: Uint8Array,
+  mutate?: (certification: GdmCertificationJson) => void
+) =>
+  rezip(bytes, async (entries) => {
+    const certification = json<GdmCertificationJson>(
+      entries.get('certification.json')!
+    );
+    certification.certifier = {
+      name: 'axio-trajectory-engine',
+      version: '0.9',
+    };
+    certification.kinematics_enforced = true;
+    certification.checks = [
+      { name: 'gdmb_structure', status: 'pass' },
+      { name: 'kinematics', status: 'pass' },
+    ];
+    mutate?.(certification);
+    entries.set('certification.json', encode(certification));
+    await resealManifest(entries);
+  });
+
 const expectLoadError = async (bytes: Uint8Array, code: string) => {
   const promise = loadGdmContainer(bytes);
   await expect(promise).rejects.toBeInstanceOf(GdmLoadError);
@@ -117,17 +145,24 @@ const expectLoadError = async (bytes: Uint8Array, code: string) => {
 describe.each(VECTOR_NAMES)('golden vector %s', (name) => {
   const { bytes, expected } = readVector(name);
 
-  test('loads, verifies the show hash and binds certification', async () => {
+  test('loads and verifies the show hash, but its certificate does not count', async () => {
     const container = await loadGdmContainer(bytes);
 
     expect(container.showHash).toBe(expected.show_hash);
-    expect(container.certification.status).toBe('pass');
     expect(container.drones.map((d) => d.id)).toEqual(['d01']);
 
     const [drone] = container.drones;
-    expect(drone.certified).toBe(true);
     expect(drone.gdmb.length).toBe(expected.gdmb.d01.size);
     expect(await sha256Hex(drone.gdmb)).toBe(expected.gdmb.d01.sha256);
+
+    // The vector's certificate reads "pass", but gdm_ref.py is not an
+    // allow-listed certifier: a golden vector never passes as certified
+    expect(container.certification.status).toBe('pass');
+    expect(container.certificationProblem).toBe('certifier');
+    expect(drone.certified).toBe(false);
+    expect(() =>
+      createGdmUploadForSlot(gdmToShowInfo(container), 'uav-7', 0, {})
+    ).toThrow(/not certified/);
   });
 
   test('builds a valid, playable preview that follows the reference', async () => {
@@ -157,7 +192,9 @@ describe.each(VECTOR_NAMES)('golden vector %s', (name) => {
   });
 
   test('builds the upload payload of a certified slot', async () => {
-    const container = await loadGdmContainer(bytes);
+    const container = await loadGdmContainer(
+      await withEngineCertificate(bytes)
+    );
     const info = gdmToShowInfo(container);
     const config = { coordinateSystem: { type: 'nwu' } };
 
@@ -234,14 +271,9 @@ describe('fail-closed container checks', () => {
   });
 
   test('loads an uncertified show but refuses to upload it', async () => {
-    const tampered = await rezip(bytes, async (entries) => {
-      const certification = json<GdmCertificationJson>(
-        entries.get('certification.json')!
-      );
+    const tampered = await withEngineCertificate(bytes, (certification) => {
       certification.status = 'fail';
       certification.drones[0].status = 'fail';
-      entries.set('certification.json', encode(certification));
-      await resealManifest(entries);
     });
 
     const container = await loadGdmContainer(tampered);
@@ -253,18 +285,175 @@ describe('fail-closed container checks', () => {
   });
 
   test('does not certify a .gdmb whose SHA-256 differs from certification.json', async () => {
-    const tampered = await rezip(bytes, async (entries) => {
-      const certification = json<GdmCertificationJson>(
-        entries.get('certification.json')!
-      );
+    const tampered = await withEngineCertificate(bytes, (certification) => {
       certification.drones[0].gdmb_sha256 = 'f'.repeat(64);
-      entries.set('certification.json', encode(certification));
-      await resealManifest(entries);
     });
 
     const container = await loadGdmContainer(tampered);
     expect(container.certification.status).toBe('pass');
+    expect(container.certificationProblem).toBe('drone');
     expect(container.drones[0].certified).toBe(false);
+  });
+});
+
+describe('certification gate', () => {
+  const { bytes } = readVector('flat-single');
+
+  test('certifies an engine certificate with limits enforced', async () => {
+    const container = await loadGdmContainer(
+      await withEngineCertificate(bytes)
+    );
+    expect(container.certificationProblem).toBeUndefined();
+    expect(container.drones[0].certified).toBe(true);
+  });
+
+  test.each([
+    [
+      'a certifier that is not allow-listed',
+      (c: GdmCertificationJson) => {
+        c.certifier = { name: 'my-own-certifier', version: '1' };
+      },
+      'certifier',
+    ],
+    [
+      'a failed show status',
+      (c: GdmCertificationJson) => {
+        c.status = 'fail';
+      },
+      'status',
+    ],
+    [
+      'a report-only run (kinematics_enforced false)',
+      (c: GdmCertificationJson) => {
+        c.kinematics_enforced = false;
+      },
+      'kinematicsNotEnforced',
+    ],
+    [
+      'no kinematics_enforced at all',
+      (c: GdmCertificationJson) => {
+        delete c.kinematics_enforced;
+      },
+      'kinematicsNotEnforced',
+    ],
+    [
+      'a demoted check',
+      (c: GdmCertificationJson) => {
+        c.checks = [{ name: 'kinematics', status: 'demoted' }];
+      },
+      'checkNotPassed',
+    ],
+    [
+      'a failed check',
+      (c: GdmCertificationJson) => {
+        c.checks = [{ name: 'separation', status: 'fail' }];
+      },
+      'checkNotPassed',
+    ],
+    [
+      'demoted findings on a drone',
+      (c: GdmCertificationJson) => {
+        c.drones[0].demoted_findings = 2;
+      },
+      'demotedFindings',
+    ],
+    [
+      'a failed drone status',
+      (c: GdmCertificationJson) => {
+        c.drones[0].status = 'fail';
+      },
+      'drone',
+    ],
+  ])('does not certify %s', async (_, mutate, problem) => {
+    const container = await loadGdmContainer(
+      await withEngineCertificate(bytes, mutate)
+    );
+    expect(container.certificationProblem).toBe(problem);
+    expect(container.drones[0].certified).toBe(false);
+    expect(() =>
+      createGdmUploadForSlot(gdmToShowInfo(container), 'uav-1', 0, {})
+    ).toThrow(/not certified/);
+  });
+
+  test('certifies without the informative checks list', async () => {
+    const container = await loadGdmContainer(
+      await withEngineCertificate(bytes, (certification) => {
+        delete certification.checks;
+      })
+    );
+    expect(container.certificationProblem).toBeUndefined();
+  });
+
+  test('refuses a certificate that lists a drone twice', async () => {
+    // With last-one-wins, [d01 "fail", d01 "pass"] would read as certified
+    const tampered = await withEngineCertificate(bytes, (certification) => {
+      const [entry] = certification.drones;
+      certification.drones = [{ ...entry, status: 'fail' }, entry];
+    });
+    await expectLoadError(tampered, 'G_CERT');
+  });
+});
+
+describe('music', () => {
+  const { bytes } = readVector('flat-single');
+
+  test('puts the music where a .skyc carries it', async () => {
+    const zip = await JSZip.loadAsync(bytes);
+    const wav = await zip.file('media/audio.wav')!.async('uint8array');
+
+    const container = await loadGdmContainer(bytes);
+    const spec = gdmToShowSpecification(container);
+
+    // control#50's music row reads state.show.data.media.audio, base64
+    expect(spec.media?.audio).toEqual({
+      data: Buffer.from(wav).toString('base64'),
+      mediaType: 'audio/wav',
+      filename: 'click.wav',
+    });
+  });
+
+  test('refuses a media type without the matching entry path', async () => {
+    const tampered = await rezip(bytes, async (entries) => {
+      const show = json<GdmShowJson>(entries.get('show.json')!);
+      show.media!.audio.mediaType = 'audio/mpeg';
+      entries.set('show.json', encode(show));
+      await resealManifest(entries);
+    });
+    await expectLoadError(tampered, 'G_VALUE');
+  });
+
+  test('refuses a music entry that show.json does not declare', async () => {
+    const tampered = await rezip(bytes, async (entries) => {
+      const show = json<GdmShowJson>(entries.get('show.json')!);
+      delete show.media;
+      entries.set('show.json', encode(show));
+      await resealManifest(entries);
+    });
+    await expectLoadError(tampered, 'G_MANIFEST');
+  });
+});
+
+describe('tilt bound', () => {
+  const { bytes } = readVector('flat-single');
+
+  test('refuses a show whose tilt limit exceeds the 25° bound', async () => {
+    const tampered = await rezip(bytes, async (entries) => {
+      const show = json<GdmShowJson>(entries.get('show.json')!);
+      show.limits.max_tilt_rad = 0.6;
+      entries.set('show.json', encode(show));
+      await resealManifest(entries);
+    });
+    await expectLoadError(tampered, 'G_VALUE');
+  });
+
+  test('refuses the reserved high_tilt capability', async () => {
+    const tampered = await rezip(bytes, async (entries) => {
+      const drone = json<GdmDroneJson>(entries.get('drones/d01.json')!);
+      drone.capabilities.push('high_tilt');
+      entries.set('drones/d01.json', encode(drone));
+      await resealManifest(entries);
+    });
+    await expectLoadError(tampered, 'G_VALUE');
   });
 });
 
