@@ -4,4 +4,5 @@ export type ShowValidationResult =
   | 'loading'
   | 'takeoffPositionsTooClose'
   | 'landingPositionsTooClose'
+  | 'gdmNotCertified'
   | 'ok';

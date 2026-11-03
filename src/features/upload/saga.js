@@ -19,6 +19,7 @@ import { flashLightOnUAVsAndHideFailures } from '~/utils/messaging';
 import { createActionListenerSaga, putWithRetry } from '~/utils/sagas';
 
 import { recalculateEstimatedCompletionTime } from './actions';
+import { isNonRetryableUploadError } from './errors';
 import { getSpecificationForJobType } from './jobs';
 import {
   getCurrentUploadJob,
@@ -66,7 +67,8 @@ const STOP = Symbol('STOP');
 /**
  * Saga that runs a single upload worker.
  */
-function* runUploadWorker(chan, failed) {
+// Exported for tests
+export function* runUploadWorker(chan, failed) {
   let outcome;
   let storedError;
 
@@ -100,7 +102,11 @@ function* runUploadWorker(chan, failed) {
         );
         outcome = 'success';
       } catch (error) {
-        outcome = 'failure';
+        // The server refused for a reason that retrying cannot fix (e.g. the
+        // drone's firmware lacks the show slot): do not retry automatically
+        outcome = isNonRetryableUploadError(error)
+          ? 'permanent-failure'
+          : 'failure';
         storedError = error;
       } finally {
         if (yield cancelled() && !outcome) {

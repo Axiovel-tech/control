@@ -24,6 +24,7 @@ import {
   getOutdoorShowOrigin,
   getShowSegments,
   hasLoadedShowFile,
+  isGdmShowLoaded,
   selectCollectiveRTHPlanSummary,
   type CollectiveRTHPlanSummary,
 } from '~/features/show/selectors';
@@ -43,6 +44,11 @@ const PREREQUISITES: readonly Prerequisite[] = Object.freeze([
   {
     selector: hasLoadedShowFile,
     message: tt('show.showConfigurator.prerequisites.loaded'),
+  },
+  {
+    // The configurator sends the .skyc file itself to the server
+    selector: (state: RootState) => !isGdmShowLoaded(state),
+    message: tt('show.showConfigurator.prerequisites.skyc'),
   },
   {
     selector: (state: RootState) => getShowSegments(state)?.show !== undefined,
@@ -68,6 +74,7 @@ const PREREQUISITES: readonly Prerequisite[] = Object.freeze([
 
 type Props = Readonly<{
   devModeEnabled: boolean;
+  isGdmShow: boolean;
   rthPlanSummary: CollectiveRTHPlanSummary;
   show: ShowData | undefined;
   showCollectiveRTHDialog: () => void;
@@ -80,6 +87,7 @@ type Props = Readonly<{
 const ShowConfiguratorButton = (props: Props) => {
   const {
     devModeEnabled,
+    isGdmShow,
     rthPlanSummary,
     show,
     showCollectiveRTHDialog,
@@ -132,15 +140,19 @@ const ShowConfiguratorButton = (props: Props) => {
         {devModeEnabled && (
           <Tooltip
             content={
-              rthPlanSummary.isValid
-                ? t('show.showConfigurator.tooltip.validRTHPlan', {
-                    numPlans: Object.keys(rthPlanSummary.plans).length,
-                  })
-                : t('show.showConfigurator.tooltip.invalidRTHPlan')
+              isGdmShow
+                ? t('show.gdm.requiresSkyc')
+                : rthPlanSummary.isValid
+                  ? t('show.showConfigurator.tooltip.validRTHPlan', {
+                      numPlans: Object.keys(rthPlanSummary.plans).length,
+                    })
+                  : t('show.showConfigurator.tooltip.invalidRTHPlan')
             }
             placement='left'
           >
+            {/* The collective RTH dialog sends the .skyc file to the server */}
             <IconButton
+              disabled={isGdmShow}
               edge='end'
               size='large'
               color={
@@ -167,6 +179,7 @@ const ShowConfiguratorButton = (props: Props) => {
 const ConnectedShowConfiguratorButton = connect(
   (state: RootState) => ({
     devModeEnabled: isDeveloperModeEnabled(state),
+    isGdmShow: isGdmShowLoaded(state),
     rthPlanSummary: selectCollectiveRTHPlanSummary(state),
     show: selectShowConfiguratorDataFromShow(state),
     status: getSetupStageStatuses(state).showConfigurator,

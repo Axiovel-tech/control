@@ -31,11 +31,14 @@ import {
   SettingsSynchronizationStatus,
   StartMethod,
 } from './enums';
+import type { GdmShowInfo } from './gdm/types';
 import type { EnvironmentState } from './types';
 
 type ShowSliceState = {
   data?: ShowSpecification;
   base64Blob?: string;
+  /** Set iff the loaded show is a `.gdm`; `data` then holds its preview */
+  gdm?: GdmShowInfo;
   environment: EnvironmentState;
 
   loading: boolean;
@@ -119,6 +122,7 @@ type ShowSliceState = {
 const initialState: ShowSliceState = {
   data: undefined,
   base64Blob: undefined,
+  gdm: undefined,
 
   loading: false,
   progress: 0,
@@ -217,6 +221,7 @@ const { actions, reducer } = createSlice({
     _clearLoadedShow: noPayload<ShowSliceState>((state) => {
       state.data = undefined;
       state.base64Blob = undefined;
+      state.gdm = undefined;
 
       state.sourceUrl = undefined;
       state.changedSinceLoaded = false;
@@ -307,12 +312,14 @@ const { actions, reducer } = createSlice({
         spec: ShowSpecification;
         url?: string;
         base64Blob?: string;
+        gdm?: GdmShowInfo;
       }>
     ) {
-      const { spec, url, base64Blob } = action.payload;
+      const { spec, url, base64Blob, gdm } = action.payload;
 
       state.data = spec;
       state.base64Blob = base64Blob;
+      state.gdm = gdm;
       state.sourceUrl = url;
       state.loading = false;
       state.progress = undefined;
