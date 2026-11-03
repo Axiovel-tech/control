@@ -65,6 +65,7 @@ import savedLocationsReducer from '~/features/saved-locations/slice';
 import serversReducer from '~/features/servers/slice';
 import sessionReducer from '~/features/session/slice';
 import settingsReducer from '~/features/settings/slice';
+import showAudioReducer from '~/features/show-audio/slice';
 import showReducer from '~/features/show/slice';
 import sidebarReducer from '~/features/sidebar/slice';
 import threeDReducer from '~/features/three-d/slice';
@@ -144,6 +145,7 @@ const reducer = combineReducers({
   session: sessionReducer,
   settings: settingsReducer,
   show: showReducer,
+  showAudio: showAudioReducer,
   sidebar: sidebarReducer,
   threeD: threeDReducer,
   uavs: uavReducer,

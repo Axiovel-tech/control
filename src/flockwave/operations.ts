@@ -207,13 +207,18 @@ export async function setShowConfiguration(
   hub: MessageHub,
   config: DroneShowConfiguration
 ) {
-  const response = await hub.sendMessage({
+  const response = await hub.sendMessage<
+    MessageBody<'ACK-ACK'> | Response_ACKNAK
+  >({
     type: 'SHOW-SETCFG',
     configuration: config,
   });
 
   if (response.body.type !== 'ACK-ACK') {
-    throw new Error('Failed to set new show configuration on the server');
+    throw new Error(
+      response.body.reason ??
+        'Failed to set new show configuration on the server'
+    );
   }
 }
 

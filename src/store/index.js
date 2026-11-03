@@ -64,6 +64,7 @@ const persistConfig = {
     'rtls',
     'servers',
     'session',
+    'showAudio',
     'snackbar',
     'uavs',
     'weather',

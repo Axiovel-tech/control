@@ -7,6 +7,7 @@ import reject from 'lodash-es/reject';
 import { call, put, select } from 'redux-saga/effects';
 
 import { getMissionMapping } from '~/features/mission/selectors';
+import { showError } from '~/features/snackbar/actions';
 import messageHub from '~/message-hub';
 import { createActionListenerSaga } from '~/utils/sagas';
 import type { Nullable } from '~/utils/types';
@@ -114,6 +115,17 @@ function* showSettingsSynchronizerSaga(
   } catch (error) {
     console.error(error);
     success = false;
+    if (payload === 'toServer' || payload === 'fromClient') {
+      // The server refused the settings (e.g. a start moved after the point
+      // of no return): show why, and show its settings again, so that the
+      // next push does not repeat the refused change
+      showError(error instanceof Error ? error.message : String(error));
+      try {
+        yield pullSettingsFromServer();
+      } catch (pullError) {
+        console.error(pullError);
+      }
+    }
   }
 
   yield put(

@@ -9,6 +9,7 @@ import LoadShowFromCloudDialog from './LoadShowFromCloudDialog';
 import ManualPreflightChecksDialog from './ManualPreflightChecksDialog';
 import OnboardPreflightChecksDialog from './OnboardPreflightChecksDialog';
 import ShowControlPanelUpperSegment from './ShowControlPanelUpperSegment';
+import ShowMusicRow from './ShowMusicRow';
 import StartTimeDialog from './StartTimeDialog';
 import TakeoffAreaSetupDialog from './TakeoffAreaSetupDialog';
 
@@ -22,6 +23,7 @@ const ShowControlPanel = () => (
 
     <Box className='bottom-bar'>
       <List dense disablePadding>
+        <ShowMusicRow />
         <AuthorizationButton />
       </List>
     </Box>
