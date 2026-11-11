@@ -40,7 +40,11 @@ import {
   isFirmwareUpdateDialogOpen,
   shouldReconcileFirmwareUpdates,
 } from './selectors';
-import { setFirmwareTargetSelected, setFirmwareUpdateConfirmed } from './slice';
+import {
+  setFirmwareTargetSelected,
+  setFirmwareUpdateConfirmed,
+  setFirmwareUpdateLowBatteryAccepted,
+} from './slice';
 import type {
   FirmwareArtifactMetadata,
   FirmwareUpdateRun,
@@ -125,6 +129,7 @@ type SelectionProps = {
   confirmed: boolean;
   fileError?: string;
   loadingTargets: boolean;
+  lowBatteryAccepted: boolean;
   readingFile: boolean;
   selectedIds: string[];
   selectedTargets: FirmwareUpdateTarget[];
@@ -132,6 +137,7 @@ type SelectionProps = {
   targets: FirmwareUpdateTarget[];
   onConfirmed: (confirmed: boolean) => void;
   onFile: (file: File) => void;
+  onLowBatteryAccepted: (accepted: boolean) => void;
   onTargetSelected: (id: string, selected: boolean) => void;
 };
 
@@ -168,8 +174,10 @@ const FirmwareSelection = (props: SelectionProps) => {
         <FirmwareUpdateConfirmation
           artifact={artifact}
           confirmed={props.confirmed}
+          lowBatteryAccepted={props.lowBatteryAccepted}
           targets={selectedTargets}
           onConfirmed={props.onConfirmed}
+          onLowBatteryAccepted={props.onLowBatteryAccepted}
         />
       ) : null}
     </>
@@ -318,6 +326,7 @@ const FirmwareUpdateSetupDialog = () => {
             confirmed={state.confirmed}
             fileError={file.error}
             loadingTargets={state.loadingTargets}
+            lowBatteryAccepted={state.lowBatteryAccepted}
             readingFile={state.readingArtifact}
             selectedIds={state.selectedIds}
             selectedTargets={selectedTargets}
@@ -327,6 +336,9 @@ const FirmwareUpdateSetupDialog = () => {
               dispatch(setFirmwareUpdateConfirmed(confirmed))
             }
             onFile={(selectedFile) => void file.read(selectedFile)}
+            onLowBatteryAccepted={(accepted) =>
+              dispatch(setFirmwareUpdateLowBatteryAccepted(accepted))
+            }
             onTargetSelected={(id, selected) =>
               dispatch(setFirmwareTargetSelected({ id, selected }))
             }

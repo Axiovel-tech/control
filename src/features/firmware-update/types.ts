@@ -17,8 +17,10 @@ export type PreparedFirmwareArtifact = {
 };
 
 export type FirmwareSafetyFacts = {
+  batteryVoltage?: number;
   connected?: boolean;
   disarmed?: boolean;
+  minimumBatteryVoltage?: number;
   onGround?: boolean;
   powerSufficient?: boolean;
 };
@@ -36,7 +38,19 @@ export type FirmwareUpdateTarget = {
   id: string;
   label?: string;
   safety: FirmwareSafetyFacts;
+  /** Condition the operator must accept before the server starts the update. */
+  warning?: FirmwareUpdateError;
 };
+
+export const LOW_BATTERY_WARNING = 'batteryLow';
+
+export const hasLowBatteryWarning = (target: FirmwareUpdateTarget): boolean =>
+  target.warning?.code === LOW_BATTERY_WARNING;
+
+export const formatVoltage = (
+  value: number | undefined,
+  unknown: string
+): string => (value === undefined ? unknown : value.toFixed(2));
 
 export const SERVER_PHASES = [
   'validating',

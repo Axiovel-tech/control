@@ -11,6 +11,7 @@ import {
 export type FirmwareUpdateSliceState = {
   artifact?: FirmwareArtifactMetadata;
   confirmed: boolean;
+  lowBatteryAccepted: boolean;
   currentId?: string;
   dialogOpen: boolean;
   loadingTargets: boolean;
@@ -27,6 +28,7 @@ export type FirmwareUpdateSliceState = {
 
 const initialState: FirmwareUpdateSliceState = {
   confirmed: false,
+  lowBatteryAccepted: false,
   dialogOpen: false,
   loadingTargets: false,
   managedSequence: false,
@@ -73,6 +75,7 @@ const slice = createSlice({
     firmwareTargetsLoading(state, { payload }: PayloadAction<number>) {
       state.loadingTargets = true;
       state.confirmed = false;
+      state.lowBatteryAccepted = false;
       state.targetGeneration = payload;
       state.targetError = undefined;
     },
@@ -92,6 +95,7 @@ const slice = createSlice({
 
       state.loadingTargets = false;
       state.confirmed = false;
+      state.lowBatteryAccepted = false;
       state.targets = targets;
       const compatible = new Set(
         targets.filter((target) => target.compatible).map((target) => target.id)
@@ -111,6 +115,7 @@ const slice = createSlice({
 
       state.loadingTargets = false;
       state.confirmed = false;
+      state.lowBatteryAccepted = false;
       state.targetError = error;
       state.targets = [];
       state.selectedIds = [];
@@ -122,6 +127,7 @@ const slice = createSlice({
     ) {
       state.artifact = payload;
       state.confirmed = false;
+      state.lowBatteryAccepted = false;
       state.order = [];
       state.readingArtifact = false;
       state.runs = {};
@@ -130,12 +136,14 @@ const slice = createSlice({
     firmwareArtifactReadingStarted(state) {
       state.artifact = undefined;
       state.confirmed = false;
+      state.lowBatteryAccepted = false;
       state.readingArtifact = true;
     },
 
     firmwareArtifactRejected(state) {
       state.artifact = undefined;
       state.confirmed = false;
+      state.lowBatteryAccepted = false;
       state.readingArtifact = false;
     },
 
@@ -154,10 +162,19 @@ const slice = createSlice({
         ? Array.from(new Set([...state.selectedIds, id]))
         : state.selectedIds.filter((candidate) => candidate !== id);
       state.confirmed = false;
+      state.lowBatteryAccepted = false;
     },
 
     setFirmwareUpdateConfirmed(state, { payload }: PayloadAction<boolean>) {
       state.confirmed =
+        payload && !state.loadingTargets && !state.readingArtifact;
+    },
+
+    setFirmwareUpdateLowBatteryAccepted(
+      state,
+      { payload }: PayloadAction<boolean>
+    ) {
+      state.lowBatteryAccepted =
         payload && !state.loadingTargets && !state.readingArtifact;
     },
 
@@ -238,6 +255,7 @@ export const {
   resetFirmwareUpdate,
   setFirmwareTargetSelected,
   setFirmwareUpdateConfirmed,
+  setFirmwareUpdateLowBatteryAccepted,
 } = slice.actions;
 
 export default slice.reducer;

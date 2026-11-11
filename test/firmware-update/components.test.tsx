@@ -35,11 +35,13 @@ describe('flight firmware confirmation', () => {
           version: '4.6.3',
         }}
         confirmed={false}
+        lowBatteryAccepted={false}
         targets={[
           { id: '7', label: 'Drone 7', compatible: true, safety: {} },
           { id: '8', label: 'Drone 8', compatible: true, safety: {} },
         ]}
         onConfirmed={jest.fn()}
+        onLowBatteryAccepted={jest.fn()}
       />
     );
 
@@ -49,6 +51,7 @@ describe('flight firmware confirmation', () => {
     expect(markup).toContain('disarmed');
     expect(markup).toContain('stable, sufficient power');
     expect(markup).toContain('never retried automatically');
+    expect(markup).not.toContain('flight-firmware-update.low-battery');
   });
 
   test('exposes a terminal success row and installed hash', () => {

@@ -5,22 +5,32 @@ import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
 import { useTranslation } from 'react-i18next';
 
-import type { FirmwareArtifactMetadata, FirmwareUpdateTarget } from './types';
+import {
+  formatVoltage,
+  hasLowBatteryWarning,
+  type FirmwareArtifactMetadata,
+  type FirmwareUpdateTarget,
+} from './types';
 
 type Props = {
   artifact: FirmwareArtifactMetadata;
   confirmed: boolean;
+  lowBatteryAccepted: boolean;
   onConfirmed: (confirmed: boolean) => void;
+  onLowBatteryAccepted: (accepted: boolean) => void;
   targets: FirmwareUpdateTarget[];
 };
 
 const FirmwareUpdateConfirmation = ({
   artifact,
   confirmed,
+  lowBatteryAccepted,
   onConfirmed,
+  onLowBatteryAccepted,
   targets,
 }: Props) => {
   const { t } = useTranslation();
+  const lowBatteryTargets = targets.filter(hasLowBatteryWarning);
   const targetNames = targets
     .map((target) => target.label ?? target.id)
     .join(', ');
@@ -45,6 +55,44 @@ const FirmwareUpdateConfirmation = ({
       <Alert severity='warning' sx={{ my: 1 }}>
         {t('flightFirmwareUpdate.confirmation.sequenceWarning')}
       </Alert>
+      {lowBatteryTargets.length > 0 ? (
+        <Alert
+          severity='warning'
+          sx={{ my: 1 }}
+          data-testid='flight-firmware-update.low-battery'
+        >
+          {t('flightFirmwareUpdate.confirmation.lowBatteryTitle')}
+          <ul>
+            {lowBatteryTargets.map((target) => (
+              <li key={target.id}>
+                {t('flightFirmwareUpdate.confirmation.lowBatteryTarget', {
+                  target: target.label ?? target.id,
+                  voltage: formatVoltage(
+                    target.safety.batteryVoltage,
+                    t('flightFirmwareUpdate.unknown')
+                  ),
+                  minimum: formatVoltage(
+                    target.safety.minimumBatteryVoltage,
+                    t('flightFirmwareUpdate.unknown')
+                  ),
+                })}
+              </li>
+            ))}
+          </ul>
+          {t('flightFirmwareUpdate.confirmation.lowBatteryRisk')}
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={lowBatteryAccepted}
+                data-testid='flight-firmware-update.accept-low-battery'
+                onChange={(event) => onLowBatteryAccepted(event.target.checked)}
+              />
+            }
+            label={t('flightFirmwareUpdate.confirmation.acceptLowBattery')}
+            sx={{ display: 'flex', mt: 1 }}
+          />
+        </Alert>
+      ) : null}
       <Typography component='div' variant='body2'>
         {t('flightFirmwareUpdate.confirmation.safetyTitle')}
         <ul>

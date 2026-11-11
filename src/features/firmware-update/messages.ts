@@ -60,9 +60,15 @@ const parseSafety = (value: unknown) => {
     typeof value === 'object' && value !== null ? (value as RawObject) : {};
   const boolean = (key: string): boolean | undefined =>
     typeof raw[key] === 'boolean' ? Boolean(raw[key]) : undefined;
+  const number = (key: string): number | undefined =>
+    typeof raw[key] === 'number' && Number.isFinite(raw[key])
+      ? Number(raw[key])
+      : undefined;
   return {
+    batteryVoltage: number('batteryVoltage'),
     connected: boolean('connected'),
     disarmed: boolean('disarmed'),
+    minimumBatteryVoltage: number('minimumBatteryVoltage'),
     onGround: boolean('onGround'),
     powerSufficient: boolean('powerSufficient'),
   };
@@ -90,6 +96,7 @@ const parseTarget = (
     error: parseError(raw.error),
     label: optionalString(raw.label),
     safety: parseSafety(raw.safety),
+    warning: parseError(raw.warning),
   };
 };
 
@@ -168,7 +175,8 @@ export async function queryFirmwareUpdateTargets(
 export async function startFirmwareUpdate(
   hub: MessageHub,
   id: string,
-  artifact: PreparedFirmwareArtifact
+  artifact: PreparedFirmwareArtifact,
+  { allowLowBattery = false }: { allowLowBattery?: boolean } = {}
 ): Promise<FirmwareUpdateJob> {
   const response: Message<ResponseBody> = await hub.sendMessage(
     {
@@ -178,6 +186,8 @@ export async function startFirmwareUpdate(
       name: artifact.metadata.fileName,
       image: artifact.image,
       sha256: artifact.metadata.sha256,
+      // Sent only for a target whose low battery the operator accepted.
+      ...(allowLowBattery ? { allowLowBattery: true } : {}),
     },
     { timeout: 120 }
   );

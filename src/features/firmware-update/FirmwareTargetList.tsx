@@ -9,7 +9,11 @@ import ListItemText from '@mui/material/ListItemText';
 import Typography from '@mui/material/Typography';
 import { useTranslation } from 'react-i18next';
 
-import type { FirmwareUpdateTarget } from './types';
+import {
+  formatVoltage,
+  hasLowBatteryWarning,
+  type FirmwareUpdateTarget,
+} from './types';
 
 type Props = {
   error?: string;
@@ -85,6 +89,18 @@ const FirmwareTargetList = ({
             )}`
           ),
         });
+        const lowBattery = hasLowBatteryWarning(target)
+          ? t('flightFirmwareUpdate.targets.lowBattery', {
+              voltage: formatVoltage(
+                target.safety.batteryVoltage,
+                t('flightFirmwareUpdate.unknown')
+              ),
+              minimum: formatVoltage(
+                target.safety.minimumBatteryVoltage,
+                t('flightFirmwareUpdate.unknown')
+              ),
+            })
+          : undefined;
         const incompatibility = target.error?.detail
           ? t('flightFirmwareUpdate.targets.incompatibleDetail', {
               detail: target.error.detail,
@@ -113,7 +129,11 @@ const FirmwareTargetList = ({
             />
             <ListItemText
               primary={current}
-              secondary={target.compatible ? safety : incompatibility}
+              secondary={
+                target.compatible
+                  ? [safety, lowBattery].filter(Boolean).join('. ')
+                  : incompatibility
+              }
             />
           </ListItem>
         );

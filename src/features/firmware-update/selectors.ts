@@ -2,7 +2,7 @@ import { createSelector } from '@reduxjs/toolkit';
 
 import type { AppSelector, RootState } from '~/store/reducers';
 
-import type { FirmwareUpdateRun } from './types';
+import { hasLowBatteryWarning, type FirmwareUpdateRun } from './types';
 
 export const isFirmwareUpdateDialogOpen: AppSelector<boolean> = (state) =>
   state.firmwareUpdate.dialogOpen;
@@ -59,9 +59,32 @@ export const isFirmwareUpdateStartable = ({
     selectedIds.length > 0
   );
 
+/**
+ * Returns the selected targets whose low battery the operator has to accept
+ * before the server will update them.
+ */
+export const getLowBatteryTargetIds = ({
+  selectedIds,
+  targets,
+}: Pick<RootState['firmwareUpdate'], 'selectedIds' | 'targets'>): string[] => {
+  const low = new Set(
+    targets.filter(hasLowBatteryWarning).map((target) => target.id)
+  );
+  return selectedIds.filter((id) => low.has(id));
+};
+
+export const isLowBatteryAcceptanceMissing = (
+  state: Pick<
+    RootState['firmwareUpdate'],
+    'lowBatteryAccepted' | 'selectedIds' | 'targets'
+  >
+): boolean =>
+  !state.lowBatteryAccepted && getLowBatteryTargetIds(state).length > 0;
+
 export const canStartFirmwareUpdate = createSelector(
   getFirmwareUpdateState,
-  isFirmwareUpdateStartable
+  (state) =>
+    isFirmwareUpdateStartable(state) && !isLowBatteryAcceptanceMissing(state)
 );
 
 export const isFirmwareUpdateReconciliationNeeded = ({

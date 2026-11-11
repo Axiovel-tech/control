@@ -9,6 +9,10 @@ import {
   startFirmwareUpdate,
 } from './messages';
 import {
+  getLowBatteryTargetIds,
+  isLowBatteryAcceptanceMissing,
+} from './selectors';
+import {
   closeFirmwareUpdateDialog,
   firmwareArtifactPrepared,
   firmwareArtifactReadingStarted,
@@ -142,6 +146,11 @@ export const runFirmwareUpdateSequence =
       running,
       selectedIds,
     } = getState().firmwareUpdate;
+    // Only the targets whose warning the operator saw and accepted may be
+    // updated with a low battery; the server still refuses any other one.
+    const lowBatteryIds = new Set(
+      getLowBatteryTargetIds(getState().firmwareUpdate)
+    );
     const artifactForSequence = preparedArtifact
       ? {
           image: preparedArtifact.image,
@@ -156,7 +165,8 @@ export const runFirmwareUpdateSequence =
       loadingTargets ||
       readingArtifact ||
       running ||
-      selectedIds.length === 0
+      selectedIds.length === 0 ||
+      isLowBatteryAcceptanceMissing(getState().firmwareUpdate)
     ) {
       return;
     }
@@ -171,11 +181,11 @@ export const runFirmwareUpdateSequence =
 
       dispatch(firmwareCurrentTargetChanged(id));
       try {
-        const first = await startFirmwareUpdate(
-          messageHub,
-          id,
-          artifactForSequence
-        );
+        const first = lowBatteryIds.has(id)
+          ? await startFirmwareUpdate(messageHub, id, artifactForSequence, {
+              allowLowBattery: true,
+            })
+          : await startFirmwareUpdate(messageHub, id, artifactForSequence);
         dispatch(firmwareJobUpdated(first));
         const terminal = await waitForTerminalJob(
           first,
