@@ -20,7 +20,6 @@ jest.mock('~/error-handling', () => ({
 import { configureStore } from '@reduxjs/toolkit';
 
 import {
-  beginFirmwareArtifactRead,
   cancelCurrentFirmwareUpdate,
   hideFirmwareUpdateDialog,
   prepareFirmwareArtifact,
@@ -35,7 +34,6 @@ import reducer, {
   type FirmwareUpdateSliceState,
   firmwareArtifactPrepared,
   firmwareJobUpdated,
-  firmwareSequenceStarted,
   firmwareTargetsLoaded,
   setFirmwareTargetSelected,
   setFirmwareUpdateConfirmed,
