@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- RTLS tags now fit the cell geometry themselves at boot (rtls-link-zephyr#208).
+  The tags panel shows each tag's fit state and a fleet geometry-agreement
+  pill backed by the server's `X-RTLS-GEOM` check; the pre-flight verification
+  grades that agreement.
+
+### Removed
+
+- The RTLS geometry sync dialog, the anchor calibration wizard and the
+  `X-RTLS-GEO` check/adopt/sync/fit client: the ground station no longer writes
+  anchor tables to drones.
+
 ## [2.13.2] - 2026-04-16
 
 ### Fixed

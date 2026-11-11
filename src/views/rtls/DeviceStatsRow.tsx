@@ -13,6 +13,7 @@ import CircularProgress from '@mui/material/CircularProgress';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 
 import {
   MiniList,
@@ -25,6 +26,10 @@ import {
 import BatteryIndicator from '~/components/BatteryIndicator';
 import { Status } from '~/components/semantics';
 import AnchorBars from '~/features/rtls/AnchorBars';
+import {
+  describeGeometryFit,
+  type I18nText,
+} from '~/features/rtls/geometry-utils';
 import { getStatusForHealth } from '~/features/rtls/health-status';
 import { getRtlsDeviceDisplayName } from '~/features/rtls/selectors';
 import {
@@ -37,6 +42,7 @@ import {
 import {
   type RtlsDevice,
   type RtlsDeviceStats,
+  type RtlsFlightController,
   type RtlsTwrPeer,
 } from '~/features/rtls/types';
 import { getRtlsDeviceListStatus } from '~/features/rtls/utils';
@@ -61,17 +67,87 @@ const formatMac = (mac: number | undefined): string =>
 export const isSleepableRtlsDevice = (device: RtlsDevice): boolean =>
   !device.role || device.role === 'tag';
 
+type DronePillText = {
+  status: Status;
+  label: I18nText;
+  tooltip: I18nText;
+  /** Server explanation of an ambiguous claim, shown instead of `tooltip`. */
+  reason?: string;
+};
+
 /**
- * Builds the primary line for a device row. A device the server has paired
- * with a drone (their MAVLink traffic shares the tag's WiFi-UART bridge, so
- * they share a source IP) renders the drone id next to its name as a pill in
- * the drone's UAV-list status color; unpaired devices render just the name.
+ * Pill of the drone a tag belongs to, named by the flight-controller system id
+ * the tag reports also while asleep: in the drone's UAV-list status color
+ * while the tag hears its flight controller, grey while the tag only
+ * remembers it (asleep or powered off), a warning for an unusable claim.
+ */
+export const describeDronePill = (
+  flightController: RtlsFlightController,
+  uavStatus: Status | undefined
+): DronePillText => {
+  if (flightController.state === 'ambiguous') {
+    const { reason, systemId } = flightController;
+    return {
+      status: Status.WARNING,
+      label:
+        systemId === undefined
+          ? { key: 'rtlsFlightController.pill.ambiguousNoId' }
+          : {
+              key: 'rtlsFlightController.pill.ambiguous',
+              values: { id: systemId },
+            },
+      tooltip: { key: 'rtlsFlightController.tooltip.ambiguous' },
+      reason,
+    };
+  }
+
+  const values = { id: flightController.systemId };
+  const live = flightController.state === 'live';
+  return {
+    status: live ? (uavStatus ?? Status.INFO) : Status.OFF,
+    label: { key: 'rtlsFlightController.pill.known', values },
+    tooltip: {
+      key: live
+        ? 'rtlsFlightController.tooltip.live'
+        : 'rtlsFlightController.tooltip.remembered',
+      values,
+    },
+  };
+};
+
+const DronePill = ({
+  flightController,
+  uavStatus,
+}: {
+  flightController: RtlsFlightController;
+  uavStatus: Status | undefined;
+}) => {
+  const { t } = useTranslation();
+  const { label, reason, status, tooltip } = describeDronePill(
+    flightController,
+    uavStatus
+  );
+  return (
+    <Tooltip content={reason ?? t(tooltip.key, tooltip.values)}>
+      {/* Tippy needs a child that forwards refs, which StatusPill does not. */}
+      <Box component='span'>
+        <StatusPill inline status={status}>
+          {t(label.key, label.values)}
+        </StatusPill>
+      </Box>
+    </Tooltip>
+  );
+};
+
+/**
+ * Builds the primary line for a device row: the device name and, for a tag
+ * that reports its flight controller, the drone it belongs to as a pill.
  */
 export const describeDeviceWithPairedUav = (
   device: RtlsDevice,
   uavStatus: Status | undefined
 ): React.ReactNode =>
-  device.uav === undefined ? (
+  device.flightController === undefined ? (
     getRtlsDeviceDisplayName(device)
   ) : (
     <Box
@@ -79,9 +155,10 @@ export const describeDeviceWithPairedUav = (
       sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
     >
       {getRtlsDeviceDisplayName(device)}
-      <StatusPill inline status={uavStatus ?? Status.OFF}>
-        drone {device.uav}
-      </StatusPill>
+      <DronePill
+        flightController={device.flightController}
+        uavStatus={uavStatus}
+      />
     </Box>
   );
 
@@ -241,9 +318,9 @@ export type DeviceStatsRowProps = {
   /** Whether a sleep/wake transaction is in flight for this device. */
   busy?: boolean;
   device: RtlsDevice;
-  /** Label of the geometry-consistency pill; the pill is hidden if unset. */
+  /** Label of the geometry-agreement pill; the pill is hidden if unset. */
   geometryLabel?: string;
-  /** Status coloring the geometry-consistency pill. */
+  /** Status coloring the geometry-agreement pill. */
   geometryStatus?: Status;
   /** Stable action handlers; the actions are hidden when omitted. */
   handlers?: DeviceRowHandlers;
@@ -266,8 +343,10 @@ const DeviceStatsRow = ({
   stats,
   uavStatus,
 }: DeviceStatsRowProps) => {
+  const { t } = useTranslation();
   const role = classifyRole(device.role);
   const anchor = isAnchorRole(role);
+  const geometryFit = describeGeometryFit(stats);
   const anchorsSeen =
     stats?.anchorsSeen ?? countAnchorsInMask(stats?.anchorMask);
 
@@ -331,6 +410,12 @@ const DeviceStatsRow = ({
             primaryText='Anchors seen'
             secondaryText={String(anchorsSeen)}
           />
+          {geometryFit && (
+            <MiniListItem
+              primaryText={t('rtlsGeometry.telemetry')}
+              secondaryText={t(geometryFit.key, geometryFit.values)}
+            />
+          )}
         </MiniList>
       )}
       <Typography

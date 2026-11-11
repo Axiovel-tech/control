@@ -13,6 +13,7 @@ import type {
 } from '@skybrush/flockwave-spec';
 
 import { errorToString } from '~/error-handling';
+import { createUploadError } from '~/features/upload/errors';
 import type { Coordinate3D } from '~/utils/math';
 
 import {
@@ -206,13 +207,18 @@ export async function setShowConfiguration(
   hub: MessageHub,
   config: DroneShowConfiguration
 ) {
-  const response = await hub.sendMessage({
+  const response = await hub.sendMessage<
+    MessageBody<'ACK-ACK'> | Response_ACKNAK
+  >({
     type: 'SHOW-SETCFG',
     configuration: config,
   });
 
   if (response.body.type !== 'ACK-ACK') {
-    throw new Error('Failed to set new show configuration on the server');
+    throw new Error(
+      response.body.reason ??
+        'Failed to set new show configuration on the server'
+    );
   }
 }
 
@@ -348,10 +354,59 @@ export async function uploadDroneShow(
       }
     );
   } catch (error) {
-    throw new Error(
+    // A refusal that retrying cannot fix becomes a NonRetryableUploadError
+    throw createUploadError(
       errorToString(
         (error as any).message || error,
         `Failed to upload show data to UAV ${uavId}`
+      )
+    );
+  }
+}
+
+/**
+ * Asks the server to upload a precompiled `.gdmb` show payload to a given UAV.
+ *
+ * Uses the `__gdm_upload` command of Axio Server, next to `__show_upload`
+ * that carries `.skyc` shows. `config` holds the show-level settings that do
+ * not come from the show file (coordinate system, AMSL reference, geofence,
+ * mission).
+ */
+export async function uploadGdmShow(
+  hub: MessageHub,
+  {
+    uavId,
+    gdmb,
+    showHash,
+    config,
+  }: {
+    uavId: string;
+    gdmb: string;
+    showHash: string;
+    config: Record<string, unknown>;
+  },
+  options: AsyncResponseHandlerOptions
+) {
+  validateObjectId(uavId);
+
+  try {
+    await hub.sendCommandRequest(
+      {
+        uavId,
+        command: '__gdm_upload',
+        kwds: { gdmb, showHash, config },
+      },
+      {
+        timeout: 300 /* five minutes, should be longer than the timeout on the server */,
+        ...options,
+      }
+    );
+  } catch (error) {
+    // A refusal that retrying cannot fix becomes a NonRetryableUploadError
+    throw createUploadError(
+      errorToString(
+        (error as any).message || error,
+        `Failed to upload .gdm show data to UAV ${uavId}`
       )
     );
   }
@@ -455,6 +510,7 @@ const _operations = {
   startRTKSurvey,
   suspendShow,
   uploadDroneShow,
+  uploadGdmShow,
   uploadMission,
 };
 

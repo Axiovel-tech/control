@@ -13,7 +13,6 @@ import type MessageHub from '~/flockwave/messages';
 import { type Message, type MessageBody } from '~/flockwave/types';
 
 import {
-  type RtlsCalibrationResponse,
   type RtlsOtaJob,
   type RtlsParam,
   type RtlsParamType,
@@ -305,68 +304,26 @@ export async function startRtlsOta(
 }
 
 /**
- * Diffs the cell geometry of every live tag against the reference tag (the
- * cell source by default) via X-RTLS-GEO `check`. Returns the raw response
- * body (reference, cell, consistent flag and per-device verdicts).
+ * Grades the fleet's self-fitted cell geometries against each other via
+ * X-RTLS-GEOM (a pure function over the server's cached stats). Returns the
+ * raw response body: tolerance, per-distance reference, the `consistent`
+ * flag and per-tag verdicts.
  */
-export async function checkRtlsGeometry(
+export async function checkRtlsGeometryAgreement(
   hub: MessageHub,
-  options: { cell: string }
-): Promise<AnyMessageBody> {
-  const response: Message<AnyMessageBody> = await hub.sendMessage(
-    { type: 'X-RTLS-GEO', op: 'check', cell: options.cell },
-    { timeout: 15 }
-  );
-  return ensureResponseType(response.body, 'X-RTLS-GEO');
-}
-
-/**
- * Adopts a tag's geometry as the CANONICAL cell geometry (the bootstrap
- * of the server-owned-truth model). Without a reference the fleet must
- * be unanimous; with one, that tag's geometry is taken verbatim.
- */
-export async function adoptRtlsGeometry(
-  hub: MessageHub,
-  options: { reference?: number } = {}
+  options: { ids?: number[]; tolerance?: number } = {}
 ): Promise<AnyMessageBody> {
   const response: Message<AnyMessageBody> = await hub.sendMessage(
     {
-      type: 'X-RTLS-GEO',
-      op: 'adopt',
-      ...(options.reference === undefined
+      type: 'X-RTLS-GEOM',
+      ...(options.ids === undefined ? {} : { ids: options.ids }),
+      ...(options.tolerance === undefined
         ? {}
-        : { reference: options.reference }),
+        : { tolerance: options.tolerance }),
     },
     { timeout: 15 }
   );
-  return ensureResponseType(response.body, 'X-RTLS-GEO');
-}
-
-/**
- * Writes the reference tag's cell geometry to the out-of-date tags via
- * X-RTLS-GEO `sync`; the server verifies every write and reboots the fully
- * rewritten tags (unless `reboot` is false) so the geometry takes effect.
- * The generous timeout covers a fleet's writes plus the reboot round.
- */
-export async function syncRtlsGeometry(
-  hub: MessageHub,
-  options: {
-    cell: string;
-    geometry?: Record<string, unknown>;
-    reboot?: boolean;
-  }
-): Promise<AnyMessageBody> {
-  const response: Message<AnyMessageBody> = await hub.sendMessage(
-    {
-      type: 'X-RTLS-GEO',
-      op: 'sync',
-      cell: options.cell,
-      ...(options.geometry === undefined ? {} : { geometry: options.geometry }),
-      ...(options.reboot === undefined ? {} : { reboot: options.reboot }),
-    },
-    { timeout: 60 }
-  );
-  return ensureResponseType(response.body, 'X-RTLS-GEO');
+  return ensureResponseType(response.body, 'X-RTLS-GEOM');
 }
 
 /**
@@ -376,40 +333,14 @@ export async function syncRtlsGeometry(
  */
 export async function verifyRtlsFleet(
   hub: MessageHub,
-  options: { cell: string; inDepth?: boolean }
+  options: { inDepth?: boolean } = {}
 ): Promise<AnyMessageBody> {
   const response: Message<AnyMessageBody> = await hub.sendMessage(
     {
       type: 'X-RTLS-VERIFY',
-      cell: options.cell,
       ...(options.inDepth === undefined ? {} : { inDepth: options.inDepth }),
     },
     { timeout: 120 }
   );
   return ensureResponseType(response.body, 'X-RTLS-VERIFY');
-}
-
-/**
- * Fits one constrained geometry model. A strict request waits for and pins a
- * fresh responder-owned A0 spokes. A refined request explicitly reuses that
- * pinned server capture, so comparing the models never compares different data.
- */
-export async function fitRtlsGeometry(
-  hub: MessageHub,
-  options:
-    | { mode: 'strict'; cell: string }
-    | { mode: 'refined'; cell: string; captureId: number }
-): Promise<RtlsCalibrationResponse> {
-  const response: Message<AnyMessageBody> = await hub.sendMessage(
-    {
-      type: 'X-RTLS-GEO',
-      op: 'fit',
-      mode: options.mode,
-      cell: options.cell,
-      ...('captureId' in options ? { captureId: options.captureId } : {}),
-    },
-    { timeout: 10 }
-  );
-  const body = ensureResponseType(response.body, 'X-RTLS-GEO');
-  return body as RtlsCalibrationResponse;
 }

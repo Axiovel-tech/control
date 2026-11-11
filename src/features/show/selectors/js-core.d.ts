@@ -13,6 +13,11 @@ import type { ShowValidationResult } from './types';
 
 export const getConvexHullOfShow: AppSelector<Coordinate2D[]>;
 
+/** The geofence polygon Control uploads, in show coordinates (x, y) */
+export const getGeofencePolygonInShowCoordinates: AppSelector<
+  Coordinate2D[] | undefined
+>;
+
 export const getFirstPointsOfTrajectories: AppSelector<
   Array<Coordinate3D | undefined>
 >;
