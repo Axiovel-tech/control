@@ -14,12 +14,13 @@ import messageHub from '~/message-hub';
 import { type AppDispatch, type RootState } from '~/store/reducers';
 
 import { describeGeometryAgreement } from './geometry-utils';
-import { checkRtlsGeometryAgreement } from './messages';
+import { checkRtlsGeometryAgreement, setRtlsParameter } from './messages';
 import { getRtlsTagDevices } from './selectors';
 import {
   rtlsGeometryCheckFailed,
   rtlsGeometryCheckStarted,
   rtlsGeometryCheckSucceeded,
+  rtlsGeometryInvalidated,
 } from './slice';
 import {
   type RtlsGeometryAgreement,
@@ -96,6 +97,62 @@ export function checkGeometryAgreement({
         i18n.t('rtlsGeometry.checkFailed', { detail: errorToString(error) })
       );
       return undefined;
+    }
+  };
+}
+
+/**
+ * Asks every awake tag to fit the cell again (UWB_GEOM_RECAL), all at the
+ * same moment: fits taken at different times differ by the slow shift of the
+ * live distances, which is what a deviating tag usually shows. The tags
+ * refuse it while armed. The verdict is voided, so the panel's periodic check
+ * reports the new fits once they settle.
+ */
+export function recalibrateGeometry() {
+  return async (
+    dispatch: AppDispatch,
+    getState: () => RootState
+  ): Promise<void> => {
+    const ids = getRtlsTagDevices(getState())
+      .filter((device) => device.online && !device.sleeping)
+      .map((device) => device.id);
+    if (ids.length === 0) {
+      showNotification({
+        message: i18n.t('rtlsGeometry.recalibrate.noTags'),
+        semantics: MessageSemantics.WARNING,
+      });
+      return;
+    }
+
+    const outcomes = await Promise.allSettled(
+      ids.map((id) =>
+        setRtlsParameter(messageHub, id, 'UWB_GEOM_RECAL', 1, 'uint8')
+      )
+    );
+    dispatch(rtlsGeometryInvalidated());
+
+    const refused = outcomes.flatMap((outcome, index) => {
+      if (outcome.status === 'rejected') {
+        return [`${ids[index]}: ${errorToString(outcome.reason)}`];
+      }
+      return outcome.value.accepted
+        ? []
+        : [`${ids[index]}: ${outcome.value.result ?? 'refused'}`];
+    });
+    const started = ids.length - refused.length;
+    if (started > 0) {
+      showNotification({
+        message: i18n.t('rtlsGeometry.recalibrate.started', { count: started }),
+        semantics: MessageSemantics.INFO,
+      });
+    }
+    if (refused.length > 0) {
+      showError(
+        i18n.t('rtlsGeometry.recalibrate.refused', {
+          count: refused.length,
+          detail: refused.join('; '),
+        })
+      );
     }
   };
 }

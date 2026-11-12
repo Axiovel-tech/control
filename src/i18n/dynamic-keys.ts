@@ -292,7 +292,6 @@
  * t("rtlsGeometry.rejected.sideTooShort")
  * t("rtlsGeometry.rejected.notRectangle")
  * t("rtlsGeometry.rejected.topPlane")
- * t("rtlsGeometry.fit.calibrated")
  * t("rtlsGeometry.fit.calibratedDrift")
  * t("rtlsGeometry.pill.ok")
  * t("rtlsGeometry.pill.okDeviation")

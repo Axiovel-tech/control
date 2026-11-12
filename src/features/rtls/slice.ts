@@ -223,6 +223,12 @@ const { actions, reducer } = createSlice({
       state.geometry.checking = false;
     },
 
+    /** The tags were told to fit again: the last verdict no longer holds. */
+    rtlsGeometryInvalidated(state) {
+      state.geometry.lastCheck = undefined;
+      state.geometry.invalidations += 1;
+    },
+
     /** An X-RTLS-GEOM check completed; stores the fleet verdict. */
     rtlsGeometryCheckSucceeded(
       state,
@@ -515,6 +521,7 @@ export const {
   rtlsGeometryCheckFailed,
   rtlsGeometryCheckStarted,
   rtlsGeometryCheckSucceeded,
+  rtlsGeometryInvalidated,
   rtlsParamsFetchFailed,
   rtlsParamsFetchStarted,
   rtlsParamsFetchSucceeded,
