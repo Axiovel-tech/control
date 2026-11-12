@@ -20,7 +20,6 @@ import {
   rtlsGeometryCheckFailed,
   rtlsGeometryCheckStarted,
   rtlsGeometryCheckSucceeded,
-  rtlsGeometryInvalidated,
 } from './slice';
 import {
   type RtlsGeometryAgreement,
@@ -105,12 +104,12 @@ export function checkGeometryAgreement({
  * Asks every awake tag to fit the cell again (UWB_GEOM_RECAL), all at the
  * same moment: fits taken at different times differ by the slow shift of the
  * live distances, which is what a deviating tag usually shows. The tags
- * refuse it while armed. The verdict is voided, so the panel's periodic check
- * reports the new fits once they settle.
+ * refuse it while armed. Each tag's fit state change voids the verdict (the
+ * slice), so the panel re-checks as the tags start and finish fitting.
  */
 export function recalibrateGeometry() {
   return async (
-    dispatch: AppDispatch,
+    _dispatch: AppDispatch,
     getState: () => RootState
   ): Promise<void> => {
     const ids = getRtlsTagDevices(getState())
@@ -129,7 +128,6 @@ export function recalibrateGeometry() {
         setRtlsParameter(messageHub, id, 'UWB_GEOM_RECAL', 1, 'uint8')
       )
     );
-    dispatch(rtlsGeometryInvalidated());
 
     const refused = outcomes.flatMap((outcome, index) => {
       if (outcome.status === 'rejected') {

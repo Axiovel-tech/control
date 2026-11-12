@@ -25,10 +25,7 @@ jest.mock('~/error-handling', () => ({
 
 import { showError, showNotification } from '~/features/snackbar/actions';
 import { recalibrateGeometry } from '~/features/rtls/geometry-actions';
-import reducer, {
-  rtlsGeometryCheckSucceeded,
-  setRtlsDevicesFromStatus,
-} from '~/features/rtls/slice';
+import reducer, { setRtlsDevicesFromStatus } from '~/features/rtls/slice';
 import messageHub from '~/message-hub';
 
 const sendMessage = (
@@ -55,7 +52,7 @@ const paramSetAck = (id: string, accepted: boolean) => ({
 });
 
 describe('recalibrateGeometry', () => {
-  test('asks every awake tag to refit at once and voids the verdict', async () => {
+  test('asks every awake tag to refit at once and names refusals', async () => {
     const store = createStore();
     store.dispatch(
       setRtlsDevicesFromStatus({
@@ -66,15 +63,6 @@ describe('recalibrateGeometry', () => {
         '101': { online: true, role: 'anchor-initiator' },
       })
     );
-    store.dispatch(
-      rtlsGeometryCheckSucceeded({
-        tolerance: 0.05,
-        consistent: false,
-        devices: {},
-        receivedAt: 0,
-      })
-    );
-    const invalidations = store.getState().rtls.geometry.invalidations;
     sendMessage.mockImplementation((message) => {
       const { id } = message as { id: string };
       return Promise.resolve(paramSetAck(id, id === '1'));
@@ -88,10 +76,6 @@ describe('recalibrateGeometry', () => {
     expect(sets.map((m) => m.id).sort()).toEqual(['1', '2']);
     expect(sets.every((m) => m.type === 'X-RTLS-PARAM-SET')).toBe(true);
     expect(sets.every((m) => m.name === 'UWB_GEOM_RECAL')).toBe(true);
-    expect(store.getState().rtls.geometry.lastCheck).toBeUndefined();
-    expect(store.getState().rtls.geometry.invalidations).toBe(
-      invalidations + 1
-    );
     // tag 2 refused (armed): named in the error, tag 1 reported as started
     expect(showNotification).toHaveBeenCalledWith(
       expect.objectContaining({

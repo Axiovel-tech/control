@@ -6,6 +6,7 @@ import reducer, {
   clearRtlsDevices,
   closeRtlsParamDialog,
   openRtlsParamDialog,
+  rtlsGeometryCheckSucceeded,
   rtlsParamsFetchFailed,
   rtlsParamsFetchStarted,
   rtlsParamsFetchSucceeded,
@@ -105,6 +106,43 @@ describe('rtls slice', () => {
     expect(state.stats.byId['3']).toMatchObject({ id: '3', solveRateHz: 10 });
     expect(state.stats.byId['4']).toBeDefined();
     expect(state.stats.lastUpdatedAt).toBe(200);
+  });
+
+  test('a tag whose fit state changes voids the geometry verdict', () => {
+    const verdict = {
+      tolerance: 0.05,
+      consistent: true,
+      devices: {},
+      receivedAt: 0,
+    };
+    let state = reducer(
+      initial(),
+      updateRtlsStats({ byId: { '1': { id: '1', geometryState: 3 } } })
+    );
+    state = reducer(state, rtlsGeometryCheckSucceeded(verdict));
+    const invalidations = state.geometry.invalidations;
+
+    // same state again (the next stats report): the verdict holds
+    state = reducer(
+      state,
+      updateRtlsStats({ byId: { '1': { id: '1', geometryState: 3 } } })
+    );
+    expect(state.geometry.lastCheck).toBeDefined();
+
+    // the tag started recalibrating: the verdict no longer describes it
+    state = reducer(
+      state,
+      updateRtlsStats({ byId: { '1': { id: '1', geometryState: 2 } } })
+    );
+    expect(state.geometry.lastCheck).toBeUndefined();
+    expect(state.geometry.invalidations).toBe(invalidations + 1);
+
+    // and again when it finished
+    state = reducer(
+      state,
+      updateRtlsStats({ byId: { '1': { id: '1', geometryState: 3 } } })
+    );
+    expect(state.geometry.invalidations).toBe(invalidations + 2);
   });
 
   test("a device's stats survive a single-device stats broadcast for another device", () => {
