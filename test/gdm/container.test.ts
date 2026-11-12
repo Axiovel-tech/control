@@ -375,6 +375,30 @@ describe('certification gate', () => {
     ).toThrow(/not certified/);
   });
 
+  test('certifies a show whose geofence check reads absent', async () => {
+    // What the engine writes for a show without a geofence
+    const container = await loadGdmContainer(
+      await withEngineCertificate(bytes, (certification) => {
+        certification.checks = [
+          { name: 'gdmb_structure', status: 'pass' },
+          { name: 'geofence', status: 'absent' },
+          { name: 'kinematics', status: 'pass' },
+        ];
+      })
+    );
+    expect(container.certificationProblem).toBeUndefined();
+    expect(container.drones[0].certified).toBe(true);
+  });
+
+  test('does not certify a malformed check', async () => {
+    const container = await loadGdmContainer(
+      await withEngineCertificate(bytes, (certification) => {
+        certification.checks = ['pass'] as never;
+      })
+    );
+    expect(container.certificationProblem).toBe('checkNotPassed');
+  });
+
   test('certifies without the informative checks list', async () => {
     const container = await loadGdmContainer(
       await withEngineCertificate(bytes, (certification) => {
