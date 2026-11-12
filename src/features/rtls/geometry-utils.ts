@@ -65,6 +65,13 @@ export const describeGeometryState = (
   }`,
 });
 
+/**
+ * Live drift worth showing on the telemetry line: the server's drift bound
+ * (`driftTolerance` of X-RTLS-GEOM). Warm-up and people around the rig move
+ * the live distances by a few centimetres; a knocked tripod by decimetres.
+ */
+export const GEOMETRY_DRIFT_NOTICE_M = 0.08;
+
 /** Centimetres with one decimal, for interpolation. */
 const cm = (metres: number): string => (metres * 100).toFixed(1);
 
@@ -100,7 +107,7 @@ export const describeGeometryFit = (
 
   const residual = cm(stats.geometryResidualM);
   const drift = stats.geometryDriftM;
-  return drift >= 0.01
+  return drift >= GEOMETRY_DRIFT_NOTICE_M
     ? {
         key: 'rtlsGeometry.fit.calibratedDrift',
         values: { residual, drift: cm(drift) },
