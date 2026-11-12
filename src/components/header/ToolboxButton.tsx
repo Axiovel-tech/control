@@ -34,6 +34,7 @@ const ToolboxButtonPresentation = ({ numberOfAveragingInProgress }: Props) => {
       <GenericHeaderButton
         aria-controls='toolbox-menu'
         aria-haspopup='true'
+        data-testid='header.toolbox'
         tooltip={t('toolbox.tooltip')}
         onClick={handleClick}
       >

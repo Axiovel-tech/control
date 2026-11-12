@@ -3,8 +3,6 @@ import isNil from 'lodash-es/isNil';
 import mean from 'lodash-es/mean';
 
 import { Status } from '~/components/semantics';
-import { JOB_TYPE as FIRMWARE_UPDATE_JOB_TYPE } from '~/features/firmware-update/constants';
-import { getSupportingObjectIdsForTargetId } from '~/features/firmware-update/selectors';
 import { getMissionMapping as _getFullMissionMapping } from '~/features/mission/selectors';
 import { getSelection } from '~/features/selection/selectors';
 import { JOB_TYPE as SHOW_UPLOAD_JOB_TYPE } from '~/features/show/constants';
@@ -408,36 +406,8 @@ export const makeUploadStatusSelectorForMissionMappingByJobType = (
   );
 
 export const getObjectIdsCompatibleWithSelectedJobInUploadDialog = (
-  state: RootState
-): string[] => {
-  const job = getSelectedJobInUploadDialog(state);
-  const selection = getSelection(state);
-  const restrictToGlobalSelection = shouldRestrictToGlobalSelection(state);
-
-  let result: string[];
-
-  switch (job.type) {
-    case FIRMWARE_UPDATE_JOB_TYPE: {
-      result =
-        getSupportingObjectIdsForTargetId(
-          state,
-          (job.payload as any as { target: string }).target
-        ) ?? [];
-
-      break;
-    }
-
-    default:
-      return [];
-  }
-
-  if (restrictToGlobalSelection) {
-    const allowedIds = new Set(selection);
-    result = result.filter((id) => allowedIds.has(uavIdToGlobalId(id)));
-  }
-
-  return result;
-};
+  _state: RootState
+): string[] => [];
 
 /**
  * Returns an object mapping UAV IDs to the corresponding error messages that

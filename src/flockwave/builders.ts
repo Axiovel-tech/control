@@ -3,7 +3,6 @@ import type {
   ReceiptID,
   Request_ASYNCCANCEL,
   Request_ASYNCRESUME,
-  Request_FWUPLOAD,
   Request_OBJCMD,
   Request_PRMSET,
   Request_PRMSETMANY,
@@ -94,27 +93,6 @@ export function createCommandRequest(
   }
 
   return result;
-}
-
-/**
- * Creates a FW-UPLOAD (firmware upload request) message
- *
- * @param  objectIds IDs of objects that should be updated
- * @param  target    firmware update target ID to send the update to
- * @param  blob      the actual contents to be uploaded, encoded as a string
- * @return the message
- */
-export function createFirmwareUploadRequest(
-  objectIds: string | string[],
-  target: string,
-  blob: string
-): Request_FWUPLOAD {
-  return {
-    type: 'FW-UPLOAD',
-    ids: Array.isArray(objectIds) ? objectIds : [objectIds],
-    target: String(target),
-    blob,
-  };
 }
 
 /**
