@@ -751,7 +751,6 @@
   "rtlsGeometry": {
     "checkFailed": "Geometry check failed: {{detail}}",
     "fit": {
-      "calibrated": "calibrated · residual {{residual}} cm",
       "calibratedDrift": "calibrated · residual {{residual}} cm · drift {{drift}} cm",
       "calibratedPending": "calibrated · fit metrics pending"
     },
@@ -769,6 +768,13 @@
       "okDeviation": "geometry ok ({{deviation}} cm)",
       "stale": "geometry stale",
       "unknown": "geometry unknown"
+    },
+    "recalibrate": {
+      "noTags": "No awake tags to recalibrate",
+      "refused_one": "Recalibration refused by {{count}} tag (an armed tag refuses it): {{detail}}",
+      "refused_other": "Recalibration refused by {{count}} tags (an armed tag refuses it): {{detail}}",
+      "started_one": "Recalibrating {{count}} tag; the geometry check follows once it has fitted",
+      "started_other": "Recalibrating {{count}} tags; the geometry check follows once they have fitted"
     },
     "rejected": {
       "anchorCount": "fit rejected · anchor count not 4 or 8",
@@ -798,6 +804,7 @@
     "telemetry": "Geometry",
     "tooltip": {
       "check": "Check that every drone fitted the same cell geometry",
+      "recalibrate": "Recalibrate the cell geometry on every awake tag at once (a few seconds without positioning; refused while armed)",
       "verify": "Run the fleet pre-flight verification"
     }
   },

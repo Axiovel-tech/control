@@ -7,6 +7,7 @@
  * next to Map / UAVs / 3D View.
  */
 
+import Autorenew from '@mui/icons-material/Autorenew';
 import FactCheck from '@mui/icons-material/FactCheck';
 import Moon from '@mui/icons-material/NightsStay';
 import Rule from '@mui/icons-material/Rule';
@@ -21,7 +22,10 @@ import { useDispatch, useSelector } from 'react-redux';
 
 import { BackgroundHint, StatusPill, Tooltip } from '@skybrush/mui-components';
 
-import { checkGeometryAgreement } from '~/features/rtls/geometry-actions';
+import {
+  checkGeometryAgreement,
+  recalibrateGeometry,
+} from '~/features/rtls/geometry-actions';
 import {
   describeGeometryAgreement,
   geometryPillFor,
@@ -143,6 +147,16 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
                   onClick={() => void dispatch(checkGeometryAgreement())}
                 >
                   <Rule fontSize='small' />
+                </IconButton>
+              </Tooltip>
+              <Tooltip content={t('rtlsGeometry.tooltip.recalibrate')}>
+                <IconButton
+                  data-testid='rtls-tags-panel.recalibrate-geometry'
+                  size='small'
+                  disabled={geometryBusy}
+                  onClick={() => void dispatch(recalibrateGeometry())}
+                >
+                  <Autorenew fontSize='small' />
                 </IconButton>
               </Tooltip>
               <Tooltip content={t('rtlsGeometry.tooltip.verify')}>

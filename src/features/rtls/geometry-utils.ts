@@ -70,8 +70,9 @@ const cm = (metres: number): string => (metres * 100).toFixed(1);
 
 /**
  * The "Geometry" telemetry line of a tag: fit state, then the rectangle
- * residual and, when noticeable, the live drift since calibration (a moved
- * tripod). Undefined for a device without geometry telemetry.
+ * residual and the live drift since calibration. Neutral text: the server's
+ * agreement check decides when drift is a problem (the pill). Undefined for a
+ * device without geometry telemetry.
  */
 export const describeGeometryFit = (
   stats: RtlsDeviceStats | undefined
@@ -98,14 +99,13 @@ export const describeGeometryFit = (
     return { key: 'rtlsGeometry.fit.calibratedPending' };
   }
 
-  const residual = cm(stats.geometryResidualM);
-  const drift = stats.geometryDriftM;
-  return drift >= 0.01
-    ? {
-        key: 'rtlsGeometry.fit.calibratedDrift',
-        values: { residual, drift: cm(drift) },
-      }
-    : { key: 'rtlsGeometry.fit.calibrated', values: { residual } };
+  return {
+    key: 'rtlsGeometry.fit.calibratedDrift',
+    values: {
+      residual: cm(stats.geometryResidualM),
+      drift: cm(stats.geometryDriftM),
+    },
+  };
 };
 
 /**

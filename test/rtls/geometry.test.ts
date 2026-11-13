@@ -116,19 +116,20 @@ describe('geometry pill', () => {
         geometryDriftM: 0.002,
       })
     ).toEqual({
-      key: 'rtlsGeometry.fit.calibrated',
-      values: { residual: '-7.5' },
+      key: 'rtlsGeometry.fit.calibratedDrift',
+      values: { residual: '-7.5', drift: '0.2' },
     });
+    // neutral text: any drift is shown; the server's check decides the pill
     expect(
       describeGeometryFit({
         id: '1',
         geometryState: RtlsGeometryState.CALIBRATED,
         geometryResidualM: -0.075,
-        geometryDriftM: 0.03,
+        geometryDriftM: 0.12,
       })
     ).toEqual({
       key: 'rtlsGeometry.fit.calibratedDrift',
-      values: { residual: '-7.5', drift: '3.0' },
+      values: { residual: '-7.5', drift: '12.0' },
     });
     expect(
       describeGeometryFit({ id: '1', geometryState: RtlsGeometryState.WAITING })
