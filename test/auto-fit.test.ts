@@ -63,6 +63,8 @@ type ProblemOptions = {
   headingOffset?: number;
   /** Indices of takeoff positions that have no drone standing on them */
   missingDrones?: number[];
+  /** Show-local positions of drones that stand on no takeoff position */
+  extraDrones?: Coordinate2D[];
   seed?: number;
 };
 
@@ -80,13 +82,17 @@ const createProblem = (
     headingJitter = 0,
     headingOffset = 0,
     missingDrones = [],
+    extraDrones = [],
     seed = 42,
   } = options;
   const rng = createRng(seed);
 
-  const dronePositions = takeoffCoordinates.filter(
-    (_coord, index) => !missingDrones.includes(index)
-  );
+  const dronePositions = [
+    ...takeoffCoordinates.filter(
+      (_coord, index) => !missingDrones.includes(index)
+    ),
+    ...extraDrones,
+  ];
 
   /* Shuffle the drones (Fisher-Yates) so the matching is not trivial */
   for (let i = dronePositions.length - 1; i > 0; i--) {
@@ -172,6 +178,36 @@ describe('estimateShowCoordinateSystem()', () => {
     );
 
     expect(originErrorInMeters(estimate.origin)).toBeLessThan(0.05);
+    expect(orientationErrorInDegrees(estimate.orientation)).toBeLessThan(0.1);
+  });
+
+  test('ignores drones beyond the number of takeoff positions', () => {
+    const estimate = estimateShowCoordinateSystem(
+      createProblem(grid, {
+        extraDrones: [
+          [6, -2],
+          [6, 0],
+          [6, 2],
+        ],
+      })
+    );
+
+    expect(originErrorInMeters(estimate.origin)).toBeLessThan(0.05);
+    expect(orientationErrorInDegrees(estimate.orientation)).toBeLessThan(0.1);
+  });
+
+  test('fits a single-slot show with two drones onto one of the drones', () => {
+    const slot: Coordinate2D = [3, -1];
+    const problem = createProblem([slot], { extraDrones: [[3, 4]] });
+
+    const estimate = estimateShowCoordinateSystem(problem);
+
+    const fitted = new FlatEarthCoordinateSystem(estimate);
+    const slotToDroneDistances = problem.uavGPSCoordinates.map((drone) => {
+      const [x, y] = fitted.fromLonLat(drone);
+      return Math.hypot(x - slot[0], y - slot[1]);
+    });
+    expect(Math.min(...slotToDroneDistances)).toBeLessThan(0.05);
     expect(orientationErrorInDegrees(estimate.orientation)).toBeLessThan(0.1);
   });
 
