@@ -1,5 +1,6 @@
 import hungarianAlgorithm, { type Assignment } from 'hungarian-on3';
 import sortBy from 'lodash-es/sortBy';
+import unzip from 'lodash-es/unzip';
 import {
   calculateDistanceMatrix,
   type Coordinate2D,
@@ -51,7 +52,7 @@ export function findAssignmentInDistanceMatrix(
   const { algorithm, ...parameters } = options ?? { algorithm: 'greedy' };
   switch (algorithm) {
     case 'hungarian':
-      return hungarianAlgorithm(matrix);
+      return hungarianMatchingAlgorithm(matrix);
 
     case 'greedy':
       return greedyMatchingAlgorithm(matrix, parameters);
@@ -59,6 +60,25 @@ export function findAssignmentInDistanceMatrix(
     default:
       throw new Error(`unknown assignment algorithm: ${algorithm}`);
   }
+}
+
+/**
+ * Optimal matching that leaves surplus rows or columns unassigned.
+ *
+ * hungarian-on3 is only optimal when the matrix has no more rows than
+ * columns, so taller matrices are solved transposed. It reports rows left
+ * without a column as [row, -1]; those are not part of the assignment.
+ */
+function hungarianMatchingAlgorithm(matrix: number[][]): Assignment {
+  const numberOfColumns = matrix.length > 0 ? matrix[0].length : 0;
+  if (matrix.length > numberOfColumns) {
+    return hungarianMatchingAlgorithm(unzip(matrix)).map(([column, row]) => [
+      row,
+      column,
+    ]);
+  }
+
+  return hungarianAlgorithm(matrix).filter(([_, column]) => column >= 0);
 }
 
 /**
