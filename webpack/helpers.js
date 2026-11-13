@@ -8,7 +8,7 @@ const isDevelopment = process.env.NODE_ENV !== 'production';
 const useHotModuleReloading = isDevelopment && process.env.DEPLOYMENT !== '1';
 
 const htmlMetaTags = {
-  charset: 'utf-8',
+  charset: { charset: 'utf-8' },
   description:
     'Axio Control: ground control station for Axiovel drone light shows',
   viewport:
