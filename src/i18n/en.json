@@ -746,7 +746,9 @@
       "wifi": "WiFi"
     },
     "popup": {
+      "asleep": "asleep",
       "empty": "No RTLS tags",
+      "offline": "offline",
       "title": "Drone health"
     },
     "summary": {

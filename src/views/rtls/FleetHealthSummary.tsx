@@ -24,6 +24,16 @@ import {
 import { getRtlsDeviceDisplayName } from '~/features/rtls/selectors';
 import { type RtlsDevice, type RtlsDeviceStats } from '~/features/rtls/types';
 
+/**
+ * A drone's stats while its tag reports: an asleep or offline tag keeps its
+ * last stats, which say nothing about the drone now, so it grades unknown.
+ */
+const currentStats = (
+  device: RtlsDevice,
+  stats: RtlsDeviceStats | undefined
+): RtlsDeviceStats | undefined =>
+  device.online && !device.sleeping ? stats : undefined;
+
 type FleetHealthSummaryProps = {
   devices: RtlsDevice[];
   statsById: Record<string, RtlsDeviceStats | undefined>;
@@ -39,7 +49,10 @@ const FleetHealthSummary = ({
   const { t } = useTranslation();
   const [anchorElement, setAnchorElement] = useState<HTMLElement | null>(null);
   const summary = useMemo(
-    () => summarizeFleetHealth(devices.map((device) => statsById[device.id])),
+    () =>
+      summarizeFleetHealth(
+        devices.map((device) => currentStats(device, statsById[device.id]))
+      ),
     [devices, statsById]
   );
   // only computed while the popup is open
@@ -49,9 +62,14 @@ const FleetHealthSummary = ({
         ? []
         : devices.map((device) => {
             const worst = getWorstFleetHealthMetric(
-              describeFleetHealth(statsById[device.id])
+              describeFleetHealth(currentStats(device, statsById[device.id]))
             );
             const name = getRtlsDeviceDisplayName(device);
+            const absence = device.sleeping
+              ? t('rtlsFleetHealth.popup.asleep')
+              : device.online
+                ? undefined
+                : t('rtlsFleetHealth.popup.offline');
             return {
               id: device.id,
               // the drone's number, as on its row's drone pill; a tag on no
@@ -61,8 +79,9 @@ const FleetHealthSummary = ({
                   ? name
                   : String(device.flightController.systemId),
               status: worst?.status ?? Status.OFF,
-              tooltip:
-                worst && worst.status !== Status.SUCCESS
+              tooltip: absence
+                ? `${name} · ${absence}`
+                : worst && worst.status !== Status.SUCCESS
                   ? `${name} · ${t(`rtlsFleetHealth.label.${worst.id}`)}`
                   : name,
             };
