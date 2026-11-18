@@ -111,6 +111,10 @@ export function mapRtlsDeviceStatus(
     result.role = role;
   }
 
+  // Always assigned: the device update merges per-field, and a stale cell
+  // would name a tag's flagged anchors from the wrong anchor table.
+  result.cell = toString(raw.cell);
+
   const address = toString(raw.address);
   if (address !== undefined) {
     result.address = address;
@@ -212,6 +216,7 @@ export function mapRtlsAnchors(value: unknown): RtlsAnchor[] {
         down: toNumber(ned.down),
       },
       active: typeof row.active === 'boolean' ? row.active : undefined,
+      systemId: toNumber(row.systemId),
     });
   }
 
@@ -250,10 +255,20 @@ export function mapRtlsDeviceStats(
     clockPpm: toNumber(raw.clockPpm),
     anchorMask: toNumber(raw.anchorMask),
     geometryState: toNumber(raw.geometryState),
+    geometryReason: toNumber(raw.geometryReason),
     geometryResidualM: toNumber(raw.geometryResidualM),
     geometryDriftM: toNumber(raw.geometryDriftM),
     geometryDistancesM: Array.isArray(raw.geometryDistancesM)
       ? raw.geometryDistancesM.map((value: unknown) => toNumber(value) ?? null)
+      : undefined,
+    uwbRssiDbm: toNumber(raw.uwbRssiDbm),
+    nlosMask: toNumber(raw.nlosMask),
+    outvotedMask: toNumber(raw.outvotedMask),
+    residualRmsM: toNumber(raw.residualRmsM),
+    wifiRssiDbm: toNumber(raw.wifiRssiDbm),
+    wifiDisconnects: toNumber(raw.wifiDisconnects),
+    imuTemperaturesC: Array.isArray(raw.imuTemperaturesC)
+      ? raw.imuTemperaturesC.map((value: unknown) => toNumber(value) ?? null)
       : undefined,
   };
 }

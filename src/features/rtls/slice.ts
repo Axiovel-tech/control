@@ -464,6 +464,17 @@ const { actions, reducer } = createSlice({
         lastUpdatedAt?: number;
       }>
     ) {
+      // A tag whose fit state changed (it started or finished a
+      // recalibration) is no longer what the last verdict described.
+      const refitted = Object.entries(payload.byId).some(([id, stats]) => {
+        const before = state.stats.byId[id]?.geometryState;
+        const after = stats.geometryState;
+        return before !== undefined && after !== undefined && before !== after;
+      });
+      if (refitted) {
+        state.geometry.lastCheck = undefined;
+        state.geometry.invalidations += 1;
+      }
       Object.assign(state.stats.byId, payload.byId);
       state.stats.lastUpdatedAt = payload.lastUpdatedAt ?? Date.now();
     },

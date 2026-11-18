@@ -420,13 +420,18 @@ function getShowCertificationProblem(
     return 'kinematicsNotEnforced';
   }
 
-  // `checks` is informative and optional, but a check that did not pass
-  // means the show was not certified as written
+  // `checks` is informative and optional, and its statuses belong to the
+  // engine (spec §3.7): a check that failed or was demoted means the show was
+  // not certified as written; any other status, such as the `absent` the
+  // engine writes for the geofence of a show without one, is not a failure
   if (
     certification.checks !== undefined &&
     (!Array.isArray(certification.checks) ||
       certification.checks.some(
-        (check) => !isObject(check) || check.status !== 'pass'
+        (check) =>
+          !isObject(check) ||
+          check.status === 'fail' ||
+          check.status === 'demoted'
       ))
   ) {
     return 'checkNotPassed';

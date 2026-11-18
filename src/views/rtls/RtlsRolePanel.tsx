@@ -7,21 +7,31 @@
  * next to Map / UAVs / 3D View.
  */
 
+import Autorenew from '@mui/icons-material/Autorenew';
 import FactCheck from '@mui/icons-material/FactCheck';
 import Moon from '@mui/icons-material/NightsStay';
 import Rule from '@mui/icons-material/Rule';
+import UnfoldLess from '@mui/icons-material/UnfoldLess';
+import UnfoldMore from '@mui/icons-material/UnfoldMore';
 import Box from '@mui/material/Box';
 import CircularProgress from '@mui/material/CircularProgress';
 import Divider from '@mui/material/Divider';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
-import { useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDispatch, useSelector } from 'react-redux';
 
 import { BackgroundHint, StatusPill, Tooltip } from '@skybrush/mui-components';
 
-import { checkGeometryAgreement } from '~/features/rtls/geometry-actions';
+import {
+  anchorNamesForCell,
+  nameCellAnchors,
+} from '~/features/rtls/fleet-health';
+import {
+  checkGeometryAgreement,
+  recalibrateGeometry,
+} from '~/features/rtls/geometry-actions';
 import {
   describeGeometryAgreement,
   geometryPillFor,
@@ -29,6 +39,7 @@ import {
 import OverallRtlsStatusLight from '~/features/rtls/OverallRtlsStatusLight';
 import {
   getRtlsAnchorDevices,
+  getRtlsAnchors,
   getRtlsGeometryCheck,
   getRtlsGeometryInvalidations,
   getRtlsPairedUavStatuses,
@@ -53,6 +64,7 @@ import Bolt from '~/icons/Bolt';
 import type { AppDispatch } from '~/store/reducers';
 
 import DeviceStatsRow, { type DeviceRowHandlers } from './DeviceStatsRow';
+import FleetHealthSummary from './FleetHealthSummary';
 
 /** How often the tags panel silently re-runs the geometry check. */
 const GEOMETRY_RECHECK_MS = 10_000;
@@ -76,6 +88,13 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
     () => describeGeometryAgreement(geometryCheck),
     [geometryCheck]
   );
+  // names a tag's flagged anchors by system id; one array per cell, so the
+  // memoized rows keep a stable prop
+  const siteAnchors = useSelector(getRtlsAnchors);
+  const anchorNamesByCell = useMemo(
+    () => nameCellAnchors(siteAnchors),
+    [siteAnchors]
+  );
   // The tags fit the cell themselves at boot; the panel only asks the
   // server whether the fleet agrees. A cheap, read-only check, so it runs
   // whenever the slice voids a verdict (the tag set changed, a tag
@@ -95,6 +114,35 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
     }, GEOMETRY_RECHECK_MS);
     return () => clearInterval(timer);
   }, [dispatch, tags, haveTags, invalidations]);
+  // Tag rows show their header line; the ids here also show the rest of
+  // their telemetry
+  const [expanded, setExpanded] = useState<ReadonlySet<string>>(
+    () => new Set()
+  );
+  const anyExpanded = devices.some((device) => expanded.has(device.id));
+  const toggleExpanded = useCallback((id: string) => {
+    setExpanded((previous) => {
+      const next = new Set(previous);
+      if (!next.delete(id)) {
+        next.add(id);
+      }
+      return next;
+    });
+  }, []);
+  const rowElements = useRef(new Map<string, HTMLElement>());
+  // A drone picked in the health popup: expanded, so that its health lines
+  // show why it has its color, and scrolled to the top of the list
+  const showDevice = useCallback((id: string) => {
+    setExpanded((previous) =>
+      previous.has(id) ? previous : new Set(previous).add(id)
+    );
+    const element = rowElements.current.get(id);
+    if (element) {
+      window.requestAnimationFrame(() => {
+        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    }
+  }, []);
   // stable identity so the memoized rows are not re-rendered by the parent
   const handlers: DeviceRowHandlers = useMemo(
     () => ({
@@ -135,6 +183,36 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
                   {t(geometrySummary.key, geometrySummary.values)}
                 </StatusPill>
               )}
+              <FleetHealthSummary
+                devices={devices}
+                statsById={statsById}
+                onSelect={showDevice}
+              />
+              <Tooltip
+                content={t(
+                  anyExpanded
+                    ? 'rtlsTagDetails.collapseAll'
+                    : 'rtlsTagDetails.expandAll'
+                )}
+              >
+                <IconButton
+                  data-testid='rtls-tags-panel.expand-all'
+                  size='small'
+                  onClick={() =>
+                    setExpanded(
+                      anyExpanded
+                        ? new Set()
+                        : new Set(devices.map((device) => device.id))
+                    )
+                  }
+                >
+                  {anyExpanded ? (
+                    <UnfoldLess fontSize='small' />
+                  ) : (
+                    <UnfoldMore fontSize='small' />
+                  )}
+                </IconButton>
+              </Tooltip>
               <Tooltip content={t('rtlsGeometry.tooltip.check')}>
                 <IconButton
                   data-testid='rtls-tags-panel.check-geometry'
@@ -143,6 +221,16 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
                   onClick={() => void dispatch(checkGeometryAgreement())}
                 >
                   <Rule fontSize='small' />
+                </IconButton>
+              </Tooltip>
+              <Tooltip content={t('rtlsGeometry.tooltip.recalibrate')}>
+                <IconButton
+                  data-testid='rtls-tags-panel.recalibrate-geometry'
+                  size='small'
+                  disabled={geometryBusy}
+                  onClick={() => void dispatch(recalibrateGeometry())}
+                >
+                  <Autorenew fontSize='small' />
                 </IconButton>
               </Tooltip>
               <Tooltip content={t('rtlsGeometry.tooltip.verify')}>
@@ -203,11 +291,26 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
                 )
               : {};
             return (
-              <Box key={device.id}>
+              <Box
+                key={device.id}
+                ref={(element: HTMLElement | null) => {
+                  if (element) {
+                    rowElements.current.set(device.id, element);
+                  } else {
+                    rowElements.current.delete(device.id);
+                  }
+                }}
+              >
                 {index > 0 && <Divider />}
                 <DeviceStatsRow
+                  anchorNames={
+                    tags
+                      ? anchorNamesForCell(anchorNamesByCell, device.cell)
+                      : undefined
+                  }
                   busy={Boolean(sleepPending?.[device.id])}
                   device={device}
+                  expanded={expanded.has(device.id)}
                   geometryLabel={
                     geometry.text
                       ? t(geometry.text.key, geometry.text.values)
@@ -216,6 +319,7 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
                   geometryStatus={geometry.status}
                   handlers={handlers}
                   stats={statsById[device.id]}
+                  onToggleExpanded={tags ? toggleExpanded : undefined}
                   uavStatus={
                     device.uav === undefined
                       ? undefined
