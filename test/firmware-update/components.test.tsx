@@ -73,6 +73,46 @@ describe('flight firmware confirmation', () => {
     expect(markup).toContain('flight-firmware-update.result-7-success');
     expect(markup).toContain('Installed and verified');
   });
+
+  test.each([
+    [
+      'invalidDescriptor',
+      'The firmware image cannot boot: its checksum does not match its descriptor',
+    ],
+    [
+      'rebootNotObserved',
+      'Reboot was not observed after the image was committed; the staged image was removed and the firmware is unchanged',
+    ],
+  ])('shows a failed %s result with its detail', (code, detail) => {
+    const markup = renderToStaticMarkup(
+      <FirmwareRunList
+        runs={[
+          {
+            id: '7',
+            operationId: 'operation-1',
+            phase: 'complete',
+            status: 'failed',
+            committed: code === 'rebootNotObserved',
+            cancellable: false,
+            error: { code, detail },
+          },
+          {
+            id: '8',
+            phase: 'queued',
+            status: 'cancelled',
+            committed: false,
+            cancellable: false,
+          },
+        ]}
+      />
+    );
+    expect(markup).toContain('flight-firmware-update.result-7-failed');
+    expect(markup).toContain('Update failed');
+    expect(markup).toContain(`Update error: ${detail}`);
+    expect(markup).not.toContain('Installed and verified');
+    expect(markup).toContain('flight-firmware-update.result-8-cancelled');
+    expect(markup).toContain('Cancelled');
+  });
 });
 
 describe('flight firmware target selection', () => {

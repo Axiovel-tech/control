@@ -35,6 +35,10 @@ export const FirmwareRunList = ({ runs }: Props) => {
       {runs.map((run) => {
         const progress = progressOf(run);
         const error = run.error?.detail ?? run.error?.code;
+        const state =
+          run.status === 'running'
+            ? t(`flightFirmwareUpdate.phase.${run.phase}`)
+            : t(`flightFirmwareUpdate.result.${run.status}`);
         const installed =
           run.observedVersion || run.observedHash
             ? t('flightFirmwareUpdate.progress.installed', {
@@ -58,10 +62,10 @@ export const FirmwareRunList = ({ runs }: Props) => {
                 secondary={
                   installed
                     ? t('flightFirmwareUpdate.progress.phaseAndInstalled', {
-                        phase: t(`flightFirmwareUpdate.phase.${run.phase}`),
+                        phase: state,
                         installed,
                       })
-                    : t(`flightFirmwareUpdate.phase.${run.phase}`)
+                    : state
                 }
               />
               {run.status === 'running' && run.phase !== 'queued' ? (

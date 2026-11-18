@@ -311,14 +311,12 @@
     "introduction": "Choose an AXIOLIGHT ArduPilot firmware artifact. Control validates its basic APJ metadata; Axio Server independently validates it again before updating each drone.",
     "phase": {
       "committing": "Committing verified firmware",
-      "complete": "Installed and verified",
       "queued": "Waiting; not started",
       "rebooting": "Rebooting into the installer",
       "reconnecting": "Waiting for the flight controller to reconnect",
       "staging": "Uploading firmware to the flight controller",
       "validating": "Validating artifact and safety conditions",
-      "verifyingInstalled": "Verifying the installed firmware",
-      "verifyingUpload": "Verifying the staged firmware"
+      "verifyingInstalled": "Verifying the installed firmware"
     },
     "progress": {
       "error": "Update error: {{detail}}",
@@ -328,6 +326,12 @@
       "phaseAndInstalled": "{{phase}}. {{installed}}",
       "running": "Keep drones powered and leave this application connected. Closing the dialog does not cancel the update.",
       "target": "Drone {{id}}"
+    },
+    "result": {
+      "cancelled": "Cancelled",
+      "failed": "Update failed",
+      "indeterminate": "Outcome unknown",
+      "success": "Installed and verified"
     },
     "safety": {
       "fail": "failed",
