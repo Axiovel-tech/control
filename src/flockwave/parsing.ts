@@ -33,7 +33,6 @@ export function convertRGB565ToCSSNotation(value: number): string {
 }
 
 const MESSAGES_WITH_RECEIPTS: Record<string, boolean> = {
-  'FW-UPLOAD': true,
   'LOG-DATA': true,
   'LOG-INF': true,
   'OBJ-CMD': true,

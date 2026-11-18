@@ -1,0 +1,27 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "mutate": [
+    "src/features/firmware-update/actions.ts:42-284",
+    "src/features/firmware-update/apj.ts:47-124",
+    "src/features/firmware-update/messages.ts:96-134",
+    "src/features/firmware-update/slice.ts:106-171",
+    "src/features/firmware-update/slice.ts:216-220",
+    "src/features/firmware-update/selectors.ts:37-51"
+  ],
+  "testRunner": "jest",
+  "jest": {
+    "configFile": "jest.firmware-update.config.ts",
+    "enableFindRelatedTests": false
+  },
+  "ignorePatterns": ["coverage", "build"],
+  "coverageAnalysis": "perTest",
+  "concurrency": 1,
+  "reporters": ["clear-text", "progress"],
+  "thresholds": {
+    "high": 100,
+    "low": 100,
+    "break": 100
+  },
+  "timeoutMS": 60000,
+  "tempDirName": ".stryker-tmp"
+}
