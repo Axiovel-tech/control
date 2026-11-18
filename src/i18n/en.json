@@ -736,6 +736,40 @@
       "unknown": "Unknown status"
     }
   },
+  "rtlsFleetHealth": {
+    "label": {
+      "imuTemperature": "IMU temperature",
+      "nlosAnchors": "NLOS anchors",
+      "outvotedAnchors": "Outvoted anchors",
+      "residual": "Fit residual",
+      "uwbRssi": "UWB signal",
+      "wifi": "WiFi"
+    },
+    "popup": {
+      "asleep": "asleep",
+      "empty": "No RTLS tags",
+      "offline": "offline",
+      "title": "Drone health"
+    },
+    "summary": {
+      "counts": "health: {{ok}} ok · {{warning}} check · {{error}} attention",
+      "none": "health: no data"
+    },
+    "tooltip": {
+      "summary": "Pre-show health of the drones: IMU temperature, UWB signal, NLOS and outvoted anchors, fit residual and WiFi. Informative only; nothing is blocked. Click to see each drone."
+    },
+    "value": {
+      "anchors": "{{anchors}}",
+      "anchorsClear": "none",
+      "imuTemperature": "{{- temperatures}} °C",
+      "residual": "{{residual}} cm",
+      "unknown": "—",
+      "uwbRssi": "{{rssi}} dBm (weakest anchor)",
+      "wifi": "{{rssi}} dBm",
+      "wifiDisconnects_one": "{{rssi}} dBm · {{count}} drop since boot",
+      "wifiDisconnects_other": "{{rssi}} dBm · {{count}} drops since boot"
+    }
+  },
   "rtlsFlightController": {
     "pill": {
       "ambiguous": "drone {{id}}?",
@@ -827,6 +861,12 @@
       "unknown": "No tag RTLS data",
       "warning": "Tag fixes degraded"
     }
+  },
+  "rtlsTagDetails": {
+    "collapseAll": "Collapse all",
+    "expandAll": "Expand all",
+    "showLess": "Show less",
+    "showMore": "Show more"
   },
   "safetyDialog": {
     "geofence": "Geofence",

@@ -63,6 +63,11 @@ export type RtlsDevice = {
   /** Optional role string reported by the device. */
   role?: string;
 
+  /**
+   * The cell whose anchor slots a tag's anchor masks index (tags only).
+   */
+  cell?: string;
+
   /** Whether the device is currently considered online by the server. */
   online: boolean;
 
@@ -175,6 +180,20 @@ export type RtlsDeviceStats = {
   geometryDriftM?: number;
   /** The seven fitted AN0-ANi distances, metres (null where not fitted). */
   geometryDistancesM?: Array<number | null>;
+  /** The weakest anchor's mean UWB RSSI over the tag's last report, dBm. */
+  uwbRssiDbm?: number;
+  /** Anchors the chip flagged NLOS on most rows of the tag's last report. */
+  nlosMask?: number;
+  /** Anchors the tag's solver is outvoting as outliers. */
+  outvotedMask?: number;
+  /** The solver's mean residual RMS over the tag's last report, metres. */
+  residualRmsM?: number;
+  /** Signal strength of the tag's WiFi association, dBm. */
+  wifiRssiDbm?: number;
+  /** WiFi associations the tag lost since it booted. */
+  wifiDisconnects?: number;
+  /** Die temperature of each IMU of the tag's drone, °C (null: unknown). */
+  imuTemperaturesC?: Array<number | null>;
 };
 
 /** Firmware states of the automatic cell geometry (`geom` stat). */
@@ -249,6 +268,8 @@ export type RtlsAnchor = {
   };
   /** Whether a live anchor device with the matching MAC is online. */
   active?: boolean;
+  /** System id of that live anchor device, while one is online. */
+  systemId?: number;
 };
 
 /**

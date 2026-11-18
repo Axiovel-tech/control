@@ -1,15 +1,20 @@
 /**
  * @file One merged row of an RTLS role panel: status light, name, paired-drone
- * pill, per-role telemetry (inter-anchor TWR for anchors; solve stats for
- * tags) and an actions slot — the single place a device's state is shown, so
- * the tag/anchor panels need no separate "health" view.
+ * pill, per-role telemetry (inter-anchor TWR for anchors; for tags the solve
+ * rate and percentage on the header line, the rest behind "show more") and an
+ * actions slot — the single
+ * place a device's state is shown, so the tag/anchor panels need no separate
+ * "health" view.
  */
 
+import ExpandMore from '@mui/icons-material/ExpandMore';
 import Moon from '@mui/icons-material/NightsStay';
 import SystemUpdate from '@mui/icons-material/SystemUpdate';
 import Tune from '@mui/icons-material/Tune';
 import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
 import CircularProgress from '@mui/material/CircularProgress';
+import Collapse from '@mui/material/Collapse';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import React from 'react';
@@ -26,6 +31,10 @@ import {
 import BatteryIndicator from '~/components/BatteryIndicator';
 import { Status } from '~/components/semantics';
 import AnchorBars from '~/features/rtls/AnchorBars';
+import {
+  type AnchorNames,
+  describeFleetHealth,
+} from '~/features/rtls/fleet-health';
 import {
   describeGeometryFit,
   type I18nText,
@@ -241,6 +250,62 @@ export const AnchorTelemetryRows = ({
   );
 };
 
+/** A figure on a tag's header line: its name, with the value below it. */
+const HeaderStat = ({ label, value }: { label: string; value: string }) => (
+  <Box
+    sx={{
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      minWidth: 52,
+      whiteSpace: 'nowrap',
+    }}
+  >
+    <Typography
+      variant='caption'
+      color='textSecondary'
+      sx={{ lineHeight: 1.2 }}
+    >
+      {label}
+    </Typography>
+    <Typography variant='body2' sx={{ lineHeight: 1.2 }}>
+      {value}
+    </Typography>
+  </Box>
+);
+
+/**
+ * Width of a tag row's status light, name and drone pill, px: its solve
+ * figures then start at the same place on every row, and the values of its
+ * detail lines start right below them.
+ */
+const TAG_LEAD_WIDTH = 220;
+
+type DetailLine = { key: string; name: React.ReactNode; value: string };
+
+/**
+ * A tag's detail lines: each value beside its name, the values in one column
+ * under the header line's solve figures.
+ */
+const DetailLines = ({ lines }: { lines: DetailLine[] }) => (
+  <Box
+    sx={{
+      display: 'grid',
+      // same gap as the header line's, so the values line up with its figures
+      gridTemplateColumns: `${TAG_LEAD_WIDTH}px 1fr`,
+      columnGap: 1,
+      '& > div': { py: 0.5 },
+    }}
+  >
+    {lines.map(({ key, name, value }) => (
+      <React.Fragment key={key}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>{name}</Box>
+        <Box sx={{ color: 'text.secondary' }}>{value}</Box>
+      </React.Fragment>
+    ))}
+  </Box>
+);
+
 export type DeviceRowHandlers = {
   onShowOta: (id: string) => void;
   onShowParameters: (id: string) => void;
@@ -315,31 +380,45 @@ const RowActions = ({
 );
 
 export type DeviceStatsRowProps = {
+  /** Names of the anchors in a tag's anchor masks, by slot. */
+  anchorNames?: AnchorNames;
   /** Whether a sleep/wake transaction is in flight for this device. */
   busy?: boolean;
   device: RtlsDevice;
+  /**
+   * Whether a tag row shows all its telemetry rather than only the solve
+   * rate and percentage. Tags always show everything without
+   * `onToggleExpanded`.
+   */
+  expanded?: boolean;
   /** Label of the geometry-agreement pill; the pill is hidden if unset. */
   geometryLabel?: string;
   /** Status coloring the geometry-agreement pill. */
   geometryStatus?: Status;
   /** Stable action handlers; the actions are hidden when omitted. */
   handlers?: DeviceRowHandlers;
+  /** Stable "show more" / "show less" toggle of a tag row, by device id. */
+  onToggleExpanded?: (id: string) => void;
   stats: RtlsDeviceStats | undefined;
   /** Status of the paired UAV, used to color the drone pill. */
   uavStatus?: Status;
 };
 
 /**
- * One merged device row: header line (light, name, drone pill, initiator
- * label, battery, anchor bars, actions), then the role-appropriate telemetry
- * and the caption.
+ * One merged device row: header line (light, name, drone pill, a tag's solve
+ * rate and percentage, geometry pill, initiator label, battery, anchor bars,
+ * actions), then the role-appropriate telemetry and the caption; a tag's are
+ * behind "show more".
  */
 const DeviceStatsRow = ({
+  anchorNames,
   busy = false,
   device,
+  expanded = false,
   geometryLabel,
   geometryStatus,
   handlers,
+  onToggleExpanded,
   stats,
   uavStatus,
 }: DeviceStatsRowProps) => {
@@ -349,14 +428,52 @@ const DeviceStatsRow = ({
   const geometryFit = describeGeometryFit(stats);
   const anchorsSeen =
     stats?.anchorsSeen ?? countAnchorsInMask(stats?.anchorMask);
+  const fleetHealth = anchor ? [] : describeFleetHealth(stats, anchorNames);
+  const caption = (
+    <Typography
+      variant='caption'
+      color='textSecondary'
+      component='div'
+      sx={{ pl: 1, opacity: 0.6 }}
+    >
+      {describeDevice(device)}
+    </Typography>
+  );
 
   return (
     <Box data-testid={`rtls-device-${device.id}`} sx={{ px: 1, py: 1 }}>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-        <StatusLight status={getRowStatus(device, stats)} />
-        <Typography variant='subtitle2' sx={{ flexGrow: 1 }} component='div'>
-          {describeDeviceWithPairedUav(device, uavStatus)}
-        </Typography>
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
+            minWidth: anchor ? 0 : TAG_LEAD_WIDTH,
+          }}
+        >
+          <StatusLight status={getRowStatus(device, stats)} />
+          <Typography variant='subtitle2' component='div'>
+            {describeDeviceWithPairedUav(device, uavStatus)}
+          </Typography>
+        </Box>
+        {!anchor && (
+          <>
+            <HeaderStat
+              label='Solve rate'
+              value={formatNumber(stats?.solveRateHz, 'Hz')}
+            />
+            <HeaderStat
+              label='Solve %'
+              value={
+                stats?.solvePct === undefined
+                  ? '—'
+                  : `${stats.solvePct.toFixed(0)}%`
+              }
+            />
+          </>
+        )}
+        {/* the name and a tag's figures keep left, the rest keeps right */}
+        <Box sx={{ flexGrow: 1 }} />
         {geometryLabel && (
           <StatusPill inline status={geometryStatus ?? Status.OFF}>
             {geometryLabel}
@@ -383,48 +500,81 @@ const DeviceStatsRow = ({
         )}
       </Box>
       {anchor ? (
-        <AnchorTelemetryRows twr={device.twr} />
+        <>
+          <AnchorTelemetryRows twr={device.twr} />
+          {caption}
+        </>
       ) : (
-        <MiniList>
-          <MiniListItem
-            primaryText='Solve rate'
-            secondaryText={formatNumber(stats?.solveRateHz, 'Hz')}
-          />
-          <MiniListItem
-            primaryText='Solve %'
-            secondaryText={
-              stats?.solvePct === undefined
-                ? '—'
-                : `${stats.solvePct.toFixed(0)}%`
-            }
-          />
-          <MiniListItem
-            primaryText='Fix age'
-            secondaryText={formatNumber(stats?.fixAgeMs, 'ms', 0)}
-          />
-          <MiniListItem
-            primaryText='Clock drift'
-            secondaryText={formatNumber(stats?.clockPpm, 'ppm', 2)}
-          />
-          <MiniListItem
-            primaryText='Anchors seen'
-            secondaryText={String(anchorsSeen)}
-          />
-          {geometryFit && (
-            <MiniListItem
-              primaryText={t('rtlsGeometry.telemetry')}
-              secondaryText={t(geometryFit.key, geometryFit.values)}
-            />
+        <>
+          {onToggleExpanded && (
+            <Button
+              data-testid='rtls-device-show-more'
+              size='small'
+              color='inherit'
+              endIcon={
+                <ExpandMore
+                  sx={{
+                    transform: expanded ? 'rotate(180deg)' : 'none',
+                    transition: 'transform 150ms',
+                  }}
+                />
+              }
+              sx={{ color: 'text.secondary', textTransform: 'none', py: 0 }}
+              onClick={() => onToggleExpanded(device.id)}
+            >
+              {t(
+                expanded ? 'rtlsTagDetails.showLess' : 'rtlsTagDetails.showMore'
+              )}
+            </Button>
           )}
-        </MiniList>
+          <Collapse unmountOnExit in={expanded || !onToggleExpanded}>
+            <DetailLines
+              lines={[
+                {
+                  key: 'fixAge',
+                  name: 'Fix age',
+                  value: formatNumber(stats?.fixAgeMs, 'ms', 0),
+                },
+                {
+                  key: 'clockDrift',
+                  name: 'Clock drift',
+                  value: formatNumber(stats?.clockPpm, 'ppm', 2),
+                },
+                {
+                  key: 'anchorsSeen',
+                  name: 'Anchors seen',
+                  value: String(anchorsSeen),
+                },
+                ...(geometryFit
+                  ? [
+                      {
+                        key: 'geometry',
+                        name: t('rtlsGeometry.telemetry'),
+                        value: t(geometryFit.key, geometryFit.values),
+                      },
+                    ]
+                  : []),
+                ...fleetHealth.map(({ id, status, text }) => ({
+                  key: id,
+                  // gray values throughout; a metric out of its green zone
+                  // gets a dot in the zone's color beside its name
+                  name: (
+                    <>
+                      {t(`rtlsFleetHealth.label.${id}`)}
+                      {(status === Status.WARNING ||
+                        status === Status.ERROR) && (
+                        <StatusLight inline size='small' status={status} />
+                      )}
+                    </>
+                  ),
+                  value: t(text.key, text.values),
+                })),
+              ]}
+            />
+            {caption}
+          </Collapse>
+        </>
       )}
-      <Typography
-        variant='caption'
-        color='textSecondary'
-        sx={{ pl: 1, opacity: 0.6 }}
-      >
-        {describeDevice(device)}
-      </Typography>
     </Box>
   );
 };
