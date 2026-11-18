@@ -290,6 +290,50 @@ describe('flight firmware update state', () => {
     expect(managed.runs['8'].phase).toBe('queued');
   });
 
+  test.each(['success', 'failed', 'indeterminate'] as const)(
+    'a late running snapshot cannot replace a final %s result of its operation',
+    (status) => {
+      const final: FirmwareUpdateJob = {
+        ...JOB,
+        phase: 'complete',
+        status,
+        committed: true,
+        cancellable: false,
+      };
+      let state = reducer(initial(), firmwareJobUpdated(JOB));
+      state = reducer(state, firmwareJobUpdated(final));
+      state = reducer(
+        state,
+        firmwareJobUpdated({ ...JOB, phase: 'rebooting', committed: true })
+      );
+
+      expect(state.runs['7']).toEqual(final);
+      expect(state.running).toBe(false);
+      expect(state.currentId).toBeUndefined();
+    }
+  );
+
+  test('a new operation and a status after a transport loss still replace a run', () => {
+    const final: FirmwareUpdateJob = {
+      ...JOB,
+      phase: 'complete',
+      status: 'failed',
+      cancellable: false,
+    };
+    let state = reducer(initial(), firmwareJobUpdated(final));
+    const next = { ...JOB, operationId: 'operation-2' };
+    state = reducer(state, firmwareJobUpdated(next));
+    expect(state.runs['7']).toEqual(next);
+
+    state = reducer(
+      state,
+      firmwareRunIndeterminate({ id: '7', error: { code: 'transport' } })
+    );
+    state = reducer(state, firmwareJobUpdated(next));
+    expect(state.runs['7']).toEqual(next);
+    expect(state.running).toBe(true);
+  });
+
   test('marks an existing run indeterminate while preserving server progress', () => {
     let state = reducer(initial(), firmwareSequenceStarted(['7']));
     state = reducer(

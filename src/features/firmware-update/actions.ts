@@ -81,6 +81,10 @@ const waitForTerminalJob = async (
       throw error;
     });
     onUpdate(job);
+    const current = readCurrent();
+    if (isMatchingTerminalJob(current, job.operationId)) {
+      return current;
+    }
   }
 
   return job;

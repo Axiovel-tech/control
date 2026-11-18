@@ -281,6 +281,57 @@ describe('sequential flight firmware updates', () => {
     }
   });
 
+  test('a status poll that resolves after the terminal push cannot undo it', async () => {
+    jest.useFakeTimers();
+    try {
+      const running = {
+        id: '7',
+        operationId: 'operation-7',
+        phase: 'staging',
+        status: 'running',
+        committed: false,
+        cancellable: true,
+      };
+      let resolveStatus!: (value: { body: Record<string, unknown> }) => void;
+      mockSendMessage
+        .mockResolvedValueOnce({
+          body: { type: 'X-AP-OTA', op: 'start', job: running },
+        })
+        .mockReturnValueOnce(
+          new Promise((resolve) => {
+            resolveStatus = resolve;
+          })
+        )
+        .mockResolvedValueOnce(response('8', 'success'));
+      const { store, dispatch } = prepareStore();
+
+      const sequence = dispatch(runFirmwareUpdateSequence());
+      await jest.advanceTimersByTimeAsync(1000);
+      expect(mockSendMessage).toHaveBeenCalledTimes(2);
+      dispatch(
+        firmwareJobUpdated({
+          id: '7',
+          operationId: 'operation-7',
+          phase: 'complete',
+          status: 'success',
+          committed: true,
+          cancellable: false,
+        })
+      );
+      resolveStatus({
+        body: { type: 'X-AP-OTA', op: 'status', job: running },
+      });
+      await sequence;
+
+      expect(mockSendMessage).toHaveBeenCalledTimes(3);
+      expect(mockSendMessage.mock.calls[2][0].id).toBe('8');
+      expect(store.getState().firmwareUpdate.runs['7'].status).toBe('success');
+      expect(store.getState().firmwareUpdate.runs['8'].status).toBe('success');
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   test('marks a lost start response indeterminate and resolves it by UAV after reconnect', async () => {
     mockSendMessage.mockRejectedValueOnce(new Error('connection lost'));
     const { store, dispatch } = prepareStore();

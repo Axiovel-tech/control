@@ -60,6 +60,19 @@ const terminalRun = (
   status,
 });
 
+// A transport loss also marks a run indeterminate, but without the server's
+// 'complete' phase; a later status reply may still replace that guess.
+const isFinalServerResult = (run: FirmwareUpdateRun | undefined): boolean =>
+  run?.phase === 'complete' && run.status !== 'running';
+
+const isStaleRunningUpdate = (
+  run: FirmwareUpdateRun | undefined,
+  update: FirmwareUpdateJob
+): boolean =>
+  update.status === 'running' &&
+  run?.operationId === update.operationId &&
+  isFinalServerResult(run);
+
 const slice = createSlice({
   name: 'firmware-update',
   initialState,
@@ -194,6 +207,10 @@ const slice = createSlice({
     },
 
     firmwareJobUpdated(state, { payload }: PayloadAction<FirmwareUpdateJob>) {
+      if (isStaleRunningUpdate(state.runs[payload.id], payload)) {
+        return;
+      }
+
       if (!state.runs[payload.id]) {
         state.order.push(payload.id);
       }
