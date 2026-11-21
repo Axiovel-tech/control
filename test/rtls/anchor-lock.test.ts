@@ -495,3 +495,28 @@ describe('breaks for display', () => {
     ]);
   });
 });
+
+describe('lock warnings the client does not know', () => {
+  test("render the server's detail as is", () => {
+    const lock = mapAnchorLock({
+      locked: true,
+      lockedAt: 1795290000,
+      anchors: [203],
+      acknowledgedWarnings: [
+        {
+          code: 'not-operating',
+          device: 203,
+          detail: 'RTLS anchor A2 is asleep (not operating)',
+        },
+      ],
+      breaks: [],
+    })!;
+    expect(lock.warnings).toEqual([
+      {
+        code: 'not-operating',
+        device: '203',
+        text: 'RTLS anchor A2 is asleep (not operating)',
+      },
+    ]);
+  });
+});

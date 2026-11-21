@@ -959,12 +959,12 @@
       "title_one": "Anchor lock broken: {{count}} event since it was sealed",
       "title_other": "Anchor lock broken: {{count}} events since it was sealed"
     },
-    "break": "{{time}} · {{text}}",
+    "break": "{{- time}} · {{- text}}",
     "control": {
       "broken": "Lock broken",
       "brokenTooltip": "Something changed on the anchors since they were locked. Review the events and re-seal",
       "locked": "Locked",
-      "lockedTooltip": "Anchors locked since {{time}}: nothing can change them. Click to unlock",
+      "lockedTooltip": "Anchors locked since {{- time}}: nothing can change them. Click to unlock",
       "unlocked": "Lock anchors",
       "unlockedTooltip": "Lock the anchors so that nothing can change them. While the server's show gate applies, a new show authorization or a changed authorized start needs them locked"
     },
@@ -976,7 +976,7 @@
       "explanation": "While the anchors are locked, the server refuses every command that would change them: sleep and wake, parameter writes, firmware updates and forget. It watches them and raises an alarm if one goes offline, reboots, moves, changes a cell parameter or its firmware, or stops operating. While the server's show gate applies, a new show authorization or a changed authorized start needs them locked.",
       "lock": "Lock",
       "lockTitle": "Lock the anchors",
-      "lockedSince": "The anchors are locked since {{time}}.",
+      "lockedSince": "The anchors are locked since {{- time}}.",
       "lockedTitle": "Anchors locked",
       "notLocked": "The server did not lock the anchors.",
       "reseal": "Re-seal",
@@ -987,13 +987,13 @@
     "lockedTooltip": "Anchors are locked",
     "notification": {
       "locked": "Anchors locked",
-      "unlockFailed": "Could not unlock the anchors: {{reason}}",
+      "unlockFailed": "Could not unlock the anchors: {{- reason}}",
       "unlocked": "Anchors unlocked"
     },
     "otaLocked": "Anchors are locked: unlock them before updating an anchor's firmware.",
     "paramsReadOnly": "Anchors are locked: their parameters can be viewed but not changed.",
     "preflight": {
-      "authorizationRefused": "The server refuses a new authorization: {{reason}}",
+      "authorizationRefused": "The server refuses a new authorization: {{- reason}}",
       "broken": "Lock broken: the server refuses a new authorization or a changed authorized start until it is reviewed and re-sealed",
       "locked": "Locked",
       "title": "Anchors locked",
