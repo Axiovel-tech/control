@@ -19,17 +19,16 @@ jest.mock('~/features/prompt/actions', () => ({
   showConfirmationDialog: jest.fn(),
 }));
 
-import { getAnchorLockState, mapAnchorLock } from '~/features/rtls/anchor-lock';
+import { mapAnchorLock, sendRtlsLock } from '~/features/rtls/anchor-lock';
 import { forgetRtlsDevices } from '~/features/rtls/forget-actions';
 import { rtlsInformationActions } from '~/features/rtls/handlers';
 import {
+  describeLockOutcome,
   lockRtlsAnchors,
   unlockRtlsAnchors,
 } from '~/features/rtls/lock-actions';
-import { sendRtlsLock } from '~/features/rtls/messages';
 import { setRtlsDeviceParameter } from '~/features/rtls/param-actions';
 import {
-  areRtlsAnchorsLocked,
   getRtlsLockedOutDeviceIds,
   getRtlsShowGateRefusal,
   isRtlsAnchorLockRequired,
@@ -47,7 +46,7 @@ import {
   updateRtlsStats,
 } from '~/features/rtls/slice';
 import { showConfirmationDialog } from '~/features/prompt/actions';
-import { showError } from '~/features/snackbar/actions';
+import { showError, showNotification } from '~/features/snackbar/actions';
 import messageHub from '~/message-hub';
 import { UAVAge } from '~/model/uav';
 
@@ -86,8 +85,18 @@ const seedAnchorsAndTag = (store: Store) =>
     })
   );
 
-const lockStore = (store: Store) =>
+/** Every anchor reports its firmware lock on, and the server says so. */
+const lockStore = (store: Store) => {
   store.dispatch(setRtlsAnchorLock(mapAnchorLock(LOCKED)!));
+  store.dispatch(
+    updateRtlsStats({
+      byId: {
+        '101': { id: '101', locked: true },
+        '102': { id: '102', locked: true },
+      },
+    })
+  );
+};
 
 describe('lock state mapping', () => {
   test('maps the server shape', () => {
@@ -119,14 +128,6 @@ describe('lock state mapping', () => {
   test('a server without the lock reports none', () => {
     expect(mapAnchorLock(undefined)).toBe(undefined);
     expect(mapAnchorLock({ lockedCount: 1 })).toBe(undefined);
-    expect(getAnchorLockState(undefined)).toBe('unsupported');
-  });
-
-  test('locked, not locked', () => {
-    expect(getAnchorLockState(mapAnchorLock(LOCKED))).toBe('locked');
-    expect(getAnchorLockState(mapAnchorLock({ locked: false }))).toBe(
-      'unlocked'
-    );
   });
 
   test('X-RTLS-INF carries the lock; an older server leaves it alone', () => {
@@ -185,14 +186,8 @@ describe('X-RTLS-LOCK messages', () => {
     );
     const result = await sendRtlsLock(messageHub, 'lock');
     expect(result.result).toBe('warnings');
-    // an unknown code still shows the server's detail as is
-    expect(result.warnings).toEqual([
-      {
-        code: 'not-operating',
-        device: '203',
-        text: 'RTLS anchor A2 is asleep',
-      },
-    ]);
+    // whatever the code, the server's detail shows as is
+    expect(result.warnings).toEqual(['RTLS anchor A2 is asleep']);
   });
 
   test('a hard refusal carries the reason', async () => {
@@ -227,7 +222,9 @@ describe('X-RTLS-LOCK messages', () => {
       acknowledgeWarnings: true,
     });
     expect(result.result).toBe('incomplete');
-    expect(result.failures).toEqual(['RTLS anchor A1 refused LOCK=1']);
+    expect(result.failures).toEqual([
+      { id: '102', detail: 'RTLS anchor A1 refused LOCK=1' },
+    ]);
   });
 
   test("a NAK rejects with the server's reason", async () => {
@@ -256,7 +253,7 @@ describe('lock and unlock', () => {
       })
     );
     await dispatchThunk(store, lockRtlsAnchors(true));
-    expect(areRtlsAnchorsLocked(state(store))).toBe(true);
+    expect(state(store).rtls.anchorLock?.locked).toBe(true);
   });
 
   test('unlock asks in one line, then sends', async () => {
@@ -276,7 +273,7 @@ describe('lock and unlock', () => {
       type: 'X-RTLS-LOCK',
       action: 'unlock',
     });
-    expect(areRtlsAnchorsLocked(state(store))).toBe(false);
+    expect(state(store).rtls.anchorLock?.locked).toBe(false);
   });
 
   test('unlock asks more strongly while a drone may be armed; no stops it', async () => {
@@ -286,10 +283,9 @@ describe('lock and unlock', () => {
     await dispatchThunk(store, unlockRtlsAnchors());
     expect(confirm.mock.calls[0]).toEqual([
       'rtlsAnchorLock.unlock.armedMessage',
-      { title: 'rtlsAnchorLock.unlock.armedTitle' },
     ]);
     expect(sendMessage).not.toHaveBeenCalled();
-    expect(areRtlsAnchorsLocked(state(store))).toBe(true);
+    expect(state(store).rtls.anchorLock?.locked).toBe(true);
   });
 });
 
@@ -415,5 +411,84 @@ describe("the server's show-gate verdict", () => {
 
   test('no verdict, no requirement', () => {
     expect(isRtlsAnchorLockRequired(withGate(undefined))).toBe(false);
+  });
+});
+
+describe('lock outcomes', () => {
+  const failed = (
+    partial: Partial<Parameters<typeof describeLockOutcome>[1]>
+  ): Parameters<typeof describeLockOutcome>[1] => ({
+    result: 'incomplete',
+    warnings: [],
+    failures: [],
+    ...partial,
+  });
+
+  test('a timeout keeps the anchor it concerns', () => {
+    const store = createStore();
+    store.dispatch(
+      setRtlsDevicesFromStatus({
+        '103': {
+          online: true,
+          role: 'anchor-responder',
+          name: 'RTLS anchor A3',
+        },
+        '104': {
+          online: true,
+          role: 'anchor-responder',
+          name: 'RTLS anchor A4',
+        },
+      })
+    );
+    expect(
+      describeLockOutcome(
+        state(store),
+        failed({
+          failures: [
+            { id: '103', detail: 'no answer' },
+            { id: '104', detail: 'RTLS anchor A4 refused LOCK=1' },
+          ],
+        })
+      )
+    ).toBe('RTLS anchor A3: no answer; RTLS anchor A4 refused LOCK=1');
+  });
+
+  test('no online anchors is not a success', () => {
+    const store = createStore();
+    expect(
+      describeLockOutcome(state(store), failed({ reason: 'No online anchors' }))
+    ).toBe('No online anchors');
+    expect(
+      describeLockOutcome(state(store), failed({ result: 'unlocked' }))
+    ).toBe(undefined);
+  });
+
+  test('an unlock that reaches no anchor is reported, not announced', async () => {
+    const store = createStore();
+    lockStore(store);
+    confirm.mockReturnValueOnce(answer(true));
+    sendMessage.mockResolvedValueOnce(
+      reply({
+        type: 'X-RTLS-LOCK',
+        result: 'incomplete',
+        reason: 'No online anchors',
+        warnings: [],
+        results: {},
+      })
+    );
+    await dispatchThunk(store, unlockRtlsAnchors());
+    expect(showError).toHaveBeenCalledWith('No online anchors');
+    expect(showNotification).not.toHaveBeenCalled();
+  });
+
+  test('a stale lock stat of a lost anchor does not freeze it', () => {
+    const store = createStore();
+    seedAnchorsAndTag(store);
+    store.dispatch(
+      updateRtlsStats({
+        byId: { '102': { id: '102', locked: true, stale: true } },
+      })
+    );
+    expect(getRtlsLockedOutDeviceIds(state(store)).size).toBe(0);
   });
 });

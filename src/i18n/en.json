@@ -949,7 +949,6 @@
   },
   "rtlsAnchorLock": {
     "control": {
-      "lock": "Lock",
       "locked": "Locked",
       "partly": "Not locked ({{locked}}/{{total}})",
       "unlock": "Unlock",
@@ -957,27 +956,24 @@
     },
     "dialog": {
       "acknowledge": "Lock anyway",
-      "lock": "Lock",
-      "notLocked": "The anchors were not locked.",
-      "text": "Lock the anchors to prevent unwanted changes during the show.",
-      "title": "Lock anchors"
+      "text": "Lock the anchors to prevent unwanted changes during the show."
     },
+    "lock": "Lock",
     "locked": "Anchors are locked",
+    "notDone": "Not every anchor took it",
     "notification": {
       "locked": "Anchors locked",
       "unlocked": "Anchors unlocked"
     },
     "step": {
       "description": "Lock the anchors to prevent unwanted changes.",
-      "lockFirst": "Lock the anchors first",
-      "title": "Lock anchors"
+      "lockFirst": "Lock the anchors first"
     },
+    "title": "Lock anchors",
     "unlock": {
       "armedMessage_one": "{{count}} drone may be armed. Unlock the anchors?",
       "armedMessage_other": "{{count}} drones may be armed. Unlock the anchors?",
-      "armedTitle": "Drones may be armed",
-      "message": "Anchors can be changed again.",
-      "title": "Unlock anchors?"
+      "message": "Unlock the anchors?"
     }
   },
   "rtlsDevice": {

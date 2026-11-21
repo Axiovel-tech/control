@@ -29,10 +29,8 @@ here.
 - The ground only monitors devices and sends the operator's explicit commands;
   nothing in Control acts on a device by itself. Sleeping anchors always asks
   first, and `SLEEP` is never written from the parameter dialog.
-- The anchor lock lives in the anchors' firmware; the server writes it on the
-  operator's request and reports it. Control disables anchor changes while
-  locked; whether a show start needs the lock is the server's verdict
-  (`anchorLock.showGate`).
+- Control disables anchor changes while locked; the show gate is the server's
+  verdict.
 - Nothing in application code imports `src/e2e/`; the bridge is compiled in
   only with `AXIO_E2E=1`.
 

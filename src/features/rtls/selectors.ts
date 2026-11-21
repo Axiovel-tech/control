@@ -25,12 +25,7 @@ import {
   type RtlsHealth,
   RtlsRole,
 } from './stats-utils';
-import {
-  getAnchorLockState,
-  type AnchorLockState,
-  type RtlsAnchorLock,
-  type RtlsShowGate,
-} from './anchor-lock';
+import { type RtlsAnchorLock, type RtlsShowGate } from './anchor-lock';
 import {
   type RtlsAnchor,
   type RtlsDevice,
@@ -360,37 +355,23 @@ export const getRtlsAnchorLock: AppSelector<RtlsAnchorLock | undefined> = (
   state
 ) => state.rtls.anchorLock;
 
-/** Selector that returns whether the anchors are locked. */
-export const areRtlsAnchorsLocked: AppSelector<boolean> = (state) =>
-  state.rtls.anchorLock?.locked === true;
-
-/** Selector that returns the state of the anchor lock. */
-export const getRtlsAnchorLockState: AppSelector<AnchorLockState> = (state) =>
-  getAnchorLockState(state.rtls.anchorLock);
-
-/** Selector that returns whether the lock / re-seal dialog is open. */
+/** Selector that returns whether the lock dialog is open. */
 export const isRtlsLockDialogOpen: AppSelector<boolean> = (state) =>
   state.rtls.lockDialogOpen;
 
 /**
- * Selector that returns the ids of the devices the anchor lock freezes:
- * every anchor while the anchors are locked, and any device whose own
- * `locked` stat says so (a partly locked cell).
+ * Selector that returns the ids of the devices whose firmware lock is on,
+ * from fresh stats only: a stale snapshot of a lost anchor says nothing
+ * about its lock now.
  */
 export const getRtlsLockedOutDeviceIds: AppSelector<ReadonlySet<string>> =
   createSelector(
-    getRtlsAnchorLock,
-    getRtlsDevicesInOrder,
     getRtlsStatsById,
-    (lock, devices, statsById) =>
+    (statsById) =>
       new Set(
-        devices
-          .filter(
-            (device) =>
-              statsById[device.id]?.locked === true ||
-              (lock?.locked === true && isAnchorRole(classifyRole(device.role)))
-          )
-          .map((device) => device.id)
+        Object.values(statsById)
+          .filter((stats) => stats.locked === true && !stats.stale)
+          .map((stats) => String(stats.id))
       )
   );
 

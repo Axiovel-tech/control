@@ -1,20 +1,12 @@
 /**
- * @file The anchor lock as the server reports it. The lock lives in the
- * anchors' firmware (a `LOCK` parameter): a locked anchor refuses every
- * remote change. The server derives `anchorLock` from the anchors' `locked`
- * stats: `{locked, lockedCount, anchorCount, unlocked, showGate}`. A lock
- * warning is `{code, device, detail}`.
+ * @file The anchor lock as Control sees it: the server's `anchorLock` (derived
+ * from the anchors' `locked` stats) and the X-RTLS-LOCK request. What a
+ * locked anchor refuses, and when it can be locked, is the firmware's: see
+ * rtls-link-zephyr `docs/reference/anchor-power-path.md`, "Lock".
  */
 
-/** A warning the server raised before locking the anchors. */
-export type RtlsLockIssue = {
-  /** Machine-readable kind, e.g. `offline`, `moved`, `low-battery`. */
-  code: string;
-  /** System id of the anchor it concerns, when it concerns one. */
-  device?: string;
-  /** Human-readable text from the server; it names the anchor. */
-  text: string;
-};
+import type MessageHub from '~/flockwave/messages';
+import { type Message, type MessageBody } from '~/flockwave/types';
 
 /**
  * The server's verdict on scheduling or authorizing a show now (the same
@@ -49,7 +41,7 @@ const toText = (value: unknown): string | undefined =>
 const toCount = (value: unknown): number =>
   typeof value === 'number' && Number.isFinite(value) ? value : 0;
 
-/** A system id (a number on the wire, `null` for the cell) as a key. */
+/** A system id (a number on the wire) as a key. */
 const toDevice = (value: unknown): string | undefined =>
   typeof value === 'number' && Number.isFinite(value)
     ? String(value)
@@ -59,22 +51,6 @@ const mapList = <T>(value: unknown, map: (raw: unknown) => T | undefined) =>
   Array.isArray(value)
     ? value.map(map).filter((entry): entry is T => entry !== undefined)
     : [];
-
-/** A warning: `{code, device, detail}`. */
-const mapIssue = (raw: unknown): RtlsLockIssue | undefined => {
-  if (!isRecord(raw)) {
-    return undefined;
-  }
-  const code = toText(raw.code);
-  const text = toText(raw.detail);
-  return code === undefined || text === undefined
-    ? undefined
-    : { code, device: toDevice(raw.device), text };
-};
-
-/** Maps the warnings of a lock response. */
-export const mapLockIssues = (value: unknown): RtlsLockIssue[] =>
-  mapList(value, mapIssue);
 
 const mapShowGate = (value: unknown): RtlsShowGate | undefined =>
   isRecord(value) &&
@@ -104,10 +80,86 @@ export function mapAnchorLock(value: unknown): RtlsAnchorLock | undefined {
   };
 }
 
-/** The state of the lock, as the UI distinguishes it. */
-export type AnchorLockState = 'unsupported' | 'unlocked' | 'locked';
+/** An anchor that did not take a lock or unlock write. */
+export type RtlsLockFailure = { id: string; detail: string };
 
-export const getAnchorLockState = (
-  lock: RtlsAnchorLock | undefined
-): AnchorLockState =>
-  lock === undefined ? 'unsupported' : lock.locked ? 'locked' : 'unlocked';
+/** Outcome of an X-RTLS-LOCK request. */
+export type RtlsLockResult = {
+  /**
+   * `locked` / `unlocked` when every online anchor took the write,
+   * `warnings` when a lock waits for its warnings to be acknowledged,
+   * `refused` when the server will not lock (see `reason`), `incomplete`
+   * when some or no anchors took it (see `failures` and `reason`).
+   */
+  result:
+    | 'locked'
+    | 'unlocked'
+    | 'warnings'
+    | 'refused'
+    | 'incomplete'
+    | 'status'
+    | 'unknown';
+  /** Why the server refused, or why nothing was written. */
+  reason?: string;
+  /** The lock state after the request, when the server reported it. */
+  lock?: RtlsAnchorLock;
+  /** The warnings to acknowledge (`warnings` result): the server's texts. */
+  warnings: string[];
+  /** The anchors that did not take the write (`incomplete` result). */
+  failures: RtlsLockFailure[];
+};
+
+const LOCK_RESULTS = [
+  'locked',
+  'unlocked',
+  'warnings',
+  'refused',
+  'incomplete',
+  'status',
+] as const;
+
+/** The warnings' texts (`{code, device, detail}` each). */
+const mapWarnings = (value: unknown): string[] =>
+  mapList(value, (raw) => (isRecord(raw) ? toText(raw.detail) : undefined));
+
+/** The anchors that did not take the write, from `results`. */
+const mapFailures = (value: unknown): RtlsLockFailure[] =>
+  isRecord(value)
+    ? Object.entries(value)
+        .filter(([, entry]) => isRecord(entry) && entry.accepted !== true)
+        .map(([id, entry]) => ({
+          id,
+          detail: (isRecord(entry) && toText(entry.detail)) || 'refused',
+        }))
+    : [];
+
+/**
+ * Locks, unlocks or queries the anchor lock (X-RTLS-LOCK). Every answer is a
+ * normal response with a `result`; only a NAK (e.g. a server without the
+ * RTLS extension) rejects, with its reason.
+ */
+export async function sendRtlsLock(
+  hub: MessageHub,
+  action: 'lock' | 'unlock' | 'status',
+  { acknowledgeWarnings }: { acknowledgeWarnings?: boolean } = {}
+): Promise<RtlsLockResult> {
+  const response: Message<MessageBody & AnyRecord> = await hub.sendMessage({
+    type: 'X-RTLS-LOCK',
+    action,
+    ...(acknowledgeWarnings === undefined ? {} : { acknowledgeWarnings }),
+  });
+  const body = response.body;
+  if (body?.type !== 'X-RTLS-LOCK') {
+    throw new Error(
+      toText(body?.reason) ??
+        `Unexpected response to X-RTLS-LOCK (${String(body?.type)})`
+    );
+  }
+  return {
+    result: LOCK_RESULTS.find((value) => value === body.result) ?? 'unknown',
+    reason: toText(body.reason),
+    lock: mapAnchorLock(body.anchorLock),
+    warnings: mapWarnings(body.warnings),
+    failures: mapFailures(body.results),
+  };
+}

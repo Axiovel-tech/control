@@ -14,7 +14,7 @@ export type RtlsLockSliceState = {
    */
   anchorLock?: RtlsAnchorLock;
 
-  /** Whether the lock / re-seal dialog is open. */
+  /** Whether the lock dialog is open. */
   lockDialogOpen: boolean;
 };
 

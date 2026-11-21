@@ -13,12 +13,6 @@ import type MessageHub from '~/flockwave/messages';
 import { type Message, type MessageBody } from '~/flockwave/types';
 
 import {
-  mapAnchorLock,
-  mapLockIssues,
-  type RtlsAnchorLock,
-  type RtlsLockIssue,
-} from './anchor-lock';
-import {
   type RtlsOtaJob,
   type RtlsParam,
   type RtlsParamType,
@@ -150,6 +144,8 @@ export type RtlsParameterSetResult = {
   value: RtlsParamValue;
   paramType?: RtlsParamType;
   result?: string;
+  /** The server's explanation of a refusal, e.g. "RTLS anchor A3 is locked". */
+  detail?: string;
   accepted: boolean;
 };
 
@@ -187,6 +183,7 @@ export async function setRtlsParameter(
     value: (body.value as RtlsParamValue) ?? value,
     paramType: body.paramType as RtlsParamType | undefined,
     result: typeof body.result === 'string' ? body.result : undefined,
+    detail: typeof body.detail === 'string' ? body.detail : undefined,
     accepted: Boolean(body.accepted),
   };
 }
@@ -430,80 +427,4 @@ export async function verifyRtlsFleet(
     { timeout: 120 }
   );
   return ensureResponseType(response.body, 'X-RTLS-VERIFY');
-}
-
-/** Outcome of an X-RTLS-LOCK request. */
-export type RtlsLockResult = {
-  /**
-   * `locked` / `unlocked` when the request took effect, `warnings` when a
-   * lock waits for its warnings to be acknowledged, `refused` when the
-   * server will not lock (an anchor is not operating; see `reason`),
-   * `incomplete` when some anchors did not take the write (see `failures`).
-   */
-  result:
-    | 'locked'
-    | 'unlocked'
-    | 'warnings'
-    | 'refused'
-    | 'incomplete'
-    | 'status'
-    | 'unknown';
-  /** Why the server refused. */
-  reason?: string;
-  /** The lock state after the request, when the server reported it. */
-  lock?: RtlsAnchorLock;
-  /** The warnings to acknowledge (`warnings` result). */
-  warnings: RtlsLockIssue[];
-  /** Why anchors did not take the write (`incomplete` result). */
-  failures: string[];
-};
-
-const LOCK_RESULTS = [
-  'locked',
-  'unlocked',
-  'warnings',
-  'refused',
-  'incomplete',
-  'status',
-] as const;
-
-/**
- * Locks, unlocks or queries the anchor cell lock (X-RTLS-LOCK). A lock with
- * warnings that are not acknowledged answers normally with `locked: false`
- * and the warnings; a refusal (NAK) rejects with the server's reason.
- */
-export async function sendRtlsLock(
-  hub: MessageHub,
-  action: 'lock' | 'unlock' | 'status',
-  { acknowledgeWarnings }: { acknowledgeWarnings?: boolean } = {}
-): Promise<RtlsLockResult> {
-  const response: Message<AnyMessageBody> = await hub.sendMessage({
-    type: 'X-RTLS-LOCK',
-    action,
-    ...(acknowledgeWarnings === undefined ? {} : { acknowledgeWarnings }),
-  });
-  const body = response.body;
-  if (body?.type !== 'X-RTLS-LOCK') {
-    throw new Error(
-      typeof body?.reason === 'string'
-        ? body.reason
-        : `Unexpected response to X-RTLS-LOCK (${String(body?.type)})`
-    );
-  }
-  return {
-    result: LOCK_RESULTS.find((value) => value === body.result) ?? 'unknown',
-    reason: typeof body.reason === 'string' ? body.reason : undefined,
-    lock: mapAnchorLock(body.anchorLock),
-    warnings: mapLockIssues(body.warnings),
-    failures: Object.values(
-      body.results && typeof body.results === 'object' ? body.results : {}
-    )
-      .filter(
-        (entry): entry is { accepted: boolean; detail?: unknown } =>
-          typeof entry === 'object' && entry !== null && !entry.accepted
-      )
-      .map((entry) =>
-        typeof entry.detail === 'string' ? entry.detail : 'refused'
-      ),
-  };
 }

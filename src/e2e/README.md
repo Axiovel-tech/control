@@ -85,9 +85,9 @@ these is a breaking change for the harness.
 
 ### `data-testid`
 
-While the anchors are locked, every anchor-changing control below (row sleep,
-wake, firmware update and forget, and the anchors panel's Sleep all / Wake all)
-stays visible but disabled, with the tooltip "Anchors are locked".
+A locked anchor's changing controls below (row sleep, wake, firmware update and
+forget, and the panel's Sleep all / Wake all when they would reach it) stay
+visible but disabled, with the tooltip "Anchors are locked".
 
 | Test id                                       | Element                                                                                                                                                                                           |
 | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -148,7 +148,8 @@ stays visible but disabled, with the tooltip "Anchors are locked".
 | `rtls-tags-panel.expand-all`                  | Tags panel toolbar → expand every tag row, or collapse them all while any is expanded                                                                                                             |
 | `rtls-anchors-panel.expand-all`               | Anchors panel toolbar → expand every anchor row, or collapse them all while any is expanded                                                                                                       |
 | `rtls-anchors-panel.lock`                     | Anchors panel toolbar → the lock control: "Locked" (unlocks after a confirmation) or "Not locked" / "Not locked (n/m)" (opens the lock dialog); hidden when the server has no lock                |
-| `rtls-lock-dialog`                            | Lock dialog (`RtlsAnchorLockDialog`): one line, then the server's warnings or its refusal                                                                                                         |
+| `rtls-anchors-panel.unlock`                   | Anchors panel toolbar → Unlock beside the lock control while some anchors are locked                                                                                                              |
+| `rtls-lock-dialog`                            | Lock dialog (`RtlsAnchorLockDialog`): one line, then the server's warnings, its refusal, or the anchors that did not take the lock                                                                |
 | `rtls-lock-acknowledge`                       | Lock dialog → "Lock anyway" (shown only with warnings)                                                                                                                                            |
 | `rtls-lock-confirm`                           | Lock dialog → Lock                                                                                                                                                                                |
 | `rtls-ota-dialog.locked`                      | OTA dialog → "Anchors are locked" notice for a locked anchor (Start disabled)                                                                                                                     |

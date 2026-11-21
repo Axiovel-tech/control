@@ -25,13 +25,12 @@ import messageHub from '~/message-hub';
 import { type AppDispatch, type AppThunk } from '~/store/reducers';
 
 import { handleRtlsInformationMessage } from './handlers';
-import { refuseWhileAnchorsLocked } from './lock-actions';
+import { refuseLockedDevices } from './lock-actions';
 import { sendRtlsSleep } from './messages';
 import {
   getPossiblyArmedUavIds,
   getRtlsAnchorDevices,
   getRtlsDevicesInOrder,
-  getRtlsLockedOutDeviceIds,
   getRtlsSleepPendingMap,
   getRtlsStatsById,
 } from './selectors';
@@ -217,14 +216,9 @@ export const sleepAllRtlsDevices =
 export const wakeAllRtlsDevices =
   (): AppThunk<Promise<void>> => async (dispatch, getState) => {
     const state = getState();
-    // a sealed anchor whose role has not arrived is not a drone
-    const lockedOut = getRtlsLockedOutDeviceIds(state);
     const ids = withoutPendingDevices(
       getRtlsDevicesInOrder(state)
-        .filter(
-          (device) =>
-            isTagOrUnknownRtlsDevice(device) && !lockedOut.has(device.id)
-        )
+        .filter(isTagOrUnknownRtlsDevice)
         .map((device) => device.id),
       getRtlsSleepPendingMap(state)
     );
@@ -267,7 +261,7 @@ export const sleepRtlsAnchors =
   (deviceIds: string[]): AppThunk<Promise<void>> =>
   async (dispatch, getState) => {
     const state = getState();
-    if (refuseWhileAnchorsLocked(state)) {
+    if (refuseLockedDevices(state, deviceIds)) {
       return;
     }
     const ids = withoutPendingDevices(deviceIds, getRtlsSleepPendingMap(state));
@@ -278,8 +272,8 @@ export const sleepRtlsAnchors =
     if (!(await confirmAnchorSleep(dispatch, armed))) {
       return;
     }
-    // another client may have locked the anchors while the prompt was open
-    if (refuseWhileAnchorsLocked(getState())) {
+    // another client may have locked an anchor while the prompt was open
+    if (refuseLockedDevices(getState(), ids)) {
       return;
     }
     await dispatch(setRtlsDevicesSleeping(ids, true, ANCHOR_SLEEP_OPTIONS));
@@ -289,7 +283,7 @@ export const sleepRtlsAnchors =
 export const wakeRtlsAnchors =
   (deviceIds: string[]): AppThunk<Promise<void>> =>
   async (dispatch, getState) => {
-    if (refuseWhileAnchorsLocked(getState())) {
+    if (refuseLockedDevices(getState(), deviceIds)) {
       return;
     }
     const ids = withoutPendingDevices(

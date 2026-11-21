@@ -19,7 +19,7 @@ import Typography from '@mui/material/Typography';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { StatusLight, StatusPill, Tooltip } from '@skybrush/mui-components';
+import { StatusLight, StatusPill } from '@skybrush/mui-components';
 
 import { Status } from '~/components/semantics';
 import { isDeviceLost } from '~/features/rtls/anchor-utils';
@@ -47,7 +47,12 @@ import {
   AnchorStatusCluster,
   describeAnchorDetailLines,
 } from './AnchorRowParts';
-import { DetailLines, LastSeen, ShowMoreButton } from './row-parts';
+import {
+  ActionButton,
+  DetailLines,
+  LastSeen,
+  ShowMoreButton,
+} from './row-parts';
 import {
   describeDeviceWithPairedUav,
   describeTagDetailLines,
@@ -140,42 +145,6 @@ export type DeviceRowHandlers = {
   onShowParameters: (id: string) => void;
   onSleep: (id: string) => void;
   onWake: (id: string) => void;
-};
-
-/**
- * A row action. While the anchors are locked (`lockedOut`) it stays visible
- * but disabled, and says why.
- */
-const ActionButton = ({
-  icon,
-  lockedOut = false,
-  onClick,
-  testId,
-  tooltip,
-}: {
-  icon: React.ReactNode;
-  lockedOut?: boolean;
-  onClick: () => void;
-  testId: string;
-  tooltip: string;
-}) => {
-  const { t } = useTranslation();
-  return (
-    <Tooltip content={lockedOut ? t('rtlsAnchorLock.locked') : tooltip}>
-      {/* a disabled button gets no pointer events: the span keeps the
-       * tooltip */}
-      <Box component='span'>
-        <IconButton
-          data-testid={testId}
-          size='small'
-          disabled={lockedOut}
-          onClick={onClick}
-        >
-          {icon}
-        </IconButton>
-      </Box>
-    </Tooltip>
-  );
 };
 
 /**
@@ -275,10 +244,7 @@ export type DeviceStatsRowProps = {
   geometryStatus?: Status;
   /** Stable action handlers; the actions are hidden when omitted. */
   handlers?: DeviceRowHandlers;
-  /**
-   * Whether the anchor lock freezes this device (an anchor, or a sealed id
-   * whose role has not arrived): its changing actions are disabled.
-   */
+  /** Whether the device's firmware lock is on: its changing actions are disabled. */
   locked?: boolean;
   /** UWB MACs of the cell initiators, to find a responder's A0 distance. */
   initiatorMacs?: ReadonlySet<number>;

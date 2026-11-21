@@ -217,8 +217,8 @@ const stages: Record<Stage, StageSpecification> = {
           : isShowAuthorizedToStartLocally(state)
             ? Status.WAITING
             : Status.OFF,
-    // not a hard dependency: a break after authorization must not turn the
-    // authorization light off; the banner reports the break
+    // not a hard dependency: an unlock after authorization must not turn
+    // the authorization light off
     requires: ['waitForOnboardPreflightChecks', 'performManualPreflightChecks'],
     suggests: ['lockAnchors'],
   },

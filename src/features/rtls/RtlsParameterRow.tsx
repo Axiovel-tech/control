@@ -126,11 +126,8 @@ const RtlsParameterRow = ({
       if (result.accepted) {
         showNotification(`${param.name} updated`);
       } else {
-        showError(
-          `${param.name} rejected by device${
-            result.result ? `: ${result.result}` : ''
-          }`
-        );
+        const why = result.detail ?? result.result;
+        showError(`${param.name} rejected by device${why ? `: ${why}` : ''}`);
         // Revert the editor to the last known good value.
         setDraft(formatParamValue(param.value, param.type));
       }

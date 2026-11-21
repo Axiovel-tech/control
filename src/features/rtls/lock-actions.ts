@@ -10,19 +10,57 @@ import i18n from '~/i18n';
 import messageHub from '~/message-hub';
 import { type AppThunk, type RootState } from '~/store/reducers';
 
-import { type RtlsLockResult, sendRtlsLock } from './messages';
-import { areRtlsAnchorsLocked, getPossiblyArmedUavIds } from './selectors';
+import {
+  type RtlsLockFailure,
+  type RtlsLockResult,
+  sendRtlsLock,
+} from './anchor-lock';
+import {
+  getPossiblyArmedUavIds,
+  getRtlsDeviceDisplayName,
+  isRtlsDeviceLockedOut,
+} from './selectors';
 import { setRtlsAnchorLock } from './slice';
+
+/** A failure named by its anchor: "RTLS anchor A3: no answer". */
+const describeFailure = (
+  state: RootState,
+  { detail, id }: RtlsLockFailure
+): string => {
+  const device = state.rtls.devices.byId[id];
+  const name = device === undefined ? id : getRtlsDeviceDisplayName(device);
+  return detail.startsWith(name) ? detail : `${name}: ${detail}`;
+};
+
+/**
+ * Why a lock or unlock did not take effect, or `undefined` when it did: the
+ * server's reason, then the anchors that did not take the write.
+ */
+export const describeLockOutcome = (
+  state: RootState,
+  result: RtlsLockResult
+): string | undefined => {
+  if (result.result === 'locked' || result.result === 'unlocked') {
+    return undefined;
+  }
+  const parts = [
+    ...(result.reason === undefined ? [] : [result.reason]),
+    ...result.failures.map((failure) => describeFailure(state, failure)),
+  ];
+  return parts.length > 0 ? parts.join('; ') : i18n.t('rtlsAnchorLock.notDone');
+};
 
 /**
  * Thunk that locks the anchors. Without `acknowledgeWarnings` the server
- * returns the cell's warnings instead of locking, for the dialog to list.
- * An anchor that is not operating makes it refuse (`refused` and a reason,
- * or a rejection with the reason).
+ * answers `warnings` instead of locking, for the dialog to list; it answers
+ * `refused` when an anchor is not operating. Resolves to the result and,
+ * unless the anchors are locked or warnings wait, what went wrong.
  */
 export const lockRtlsAnchors =
-  (acknowledgeWarnings: boolean): AppThunk<Promise<RtlsLockResult>> =>
-  async (dispatch) => {
+  (
+    acknowledgeWarnings: boolean
+  ): AppThunk<Promise<RtlsLockResult & { error?: string }>> =>
+  async (dispatch, getState) => {
     const result = await sendRtlsLock(messageHub, 'lock', {
       acknowledgeWarnings,
     });
@@ -32,13 +70,15 @@ export const lockRtlsAnchors =
     if (result.result === 'locked') {
       showNotification(i18n.t('rtlsAnchorLock.notification.locked'));
     }
-    return result;
+    return result.result === 'warnings'
+      ? result
+      : { ...result, error: describeLockOutcome(getState(), result) };
   };
 
 /**
- * Thunk that unlocks the anchors after a confirmation, worded more strongly
- * while any drone may be armed. An existing authorization and start stay
- * intact.
+ * Thunk that unlocks the anchors after a one-line confirmation, worded more
+ * strongly while any drone may be armed. An existing authorization and
+ * start stay intact.
  */
 export const unlockRtlsAnchors =
   (): AppThunk<Promise<void>> => async (dispatch, getState) => {
@@ -47,14 +87,7 @@ export const unlockRtlsAnchors =
       showConfirmationDialog(
         armed > 0
           ? i18n.t('rtlsAnchorLock.unlock.armedMessage', { count: armed })
-          : i18n.t('rtlsAnchorLock.unlock.message'),
-        {
-          title: i18n.t(
-            armed > 0
-              ? 'rtlsAnchorLock.unlock.armedTitle'
-              : 'rtlsAnchorLock.unlock.title'
-          ),
-        }
+          : i18n.t('rtlsAnchorLock.unlock.message')
       )
     );
     if (!response?.confirmed) {
@@ -66,10 +99,11 @@ export const unlockRtlsAnchors =
       if (result.lock !== undefined) {
         dispatch(setRtlsAnchorLock(result.lock));
       }
-      if (result.failures.length > 0) {
-        showError(result.failures.join('; '));
-      } else {
+      const error = describeLockOutcome(getState(), result);
+      if (error === undefined) {
         showNotification(i18n.t('rtlsAnchorLock.notification.unlocked'));
+      } else {
+        showError(error);
       }
     } catch (error) {
       showError(error instanceof Error ? error.message : String(error));
@@ -77,11 +111,14 @@ export const unlockRtlsAnchors =
   };
 
 /**
- * Refuses an anchor command (with a note) while the anchors are locked. The
+ * Refuses a command (with a note) when one of its devices is locked. The
  * firmware refuses it anyway; this keeps the operator from waiting.
  */
-export const refuseWhileAnchorsLocked = (state: RootState): boolean => {
-  if (areRtlsAnchorsLocked(state)) {
+export const refuseLockedDevices = (
+  state: RootState,
+  ids: readonly string[]
+): boolean => {
+  if (ids.some((id) => isRtlsDeviceLockedOut(state, id))) {
     showError(i18n.t('rtlsAnchorLock.locked'));
     return true;
   }

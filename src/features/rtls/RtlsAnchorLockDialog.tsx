@@ -20,7 +20,6 @@ import { DraggableDialog } from '@skybrush/mui-components';
 import { errorToString } from '~/error-handling';
 import { type AppDispatch } from '~/store/reducers';
 
-import { type RtlsLockIssue } from './anchor-lock';
 import { lockRtlsAnchors } from './lock-actions';
 import { isRtlsLockDialogOpen } from './selectors';
 import { closeRtlsLockDialog } from './slice';
@@ -31,7 +30,7 @@ const RtlsAnchorLockDialog = () => {
   const open = useSelector(isRtlsLockDialogOpen);
 
   // the warnings the server answered the last lock attempt with
-  const [warnings, setWarnings] = useState<RtlsLockIssue[]>([]);
+  const [warnings, setWarnings] = useState<string[]>([]);
   const [acknowledged, setAcknowledged] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
@@ -59,26 +58,21 @@ const RtlsAnchorLockDialog = () => {
         setWarnings(result.warnings);
         setAcknowledged(false);
       } else {
-        setError(
-          result.reason ??
-            (result.failures.length > 0
-              ? result.failures.join('; ')
-              : t('rtlsAnchorLock.dialog.notLocked'))
-        );
+        setError(result.error);
       }
     } catch (lockError) {
       setError(errorToString(lockError));
     } finally {
       setBusy(false);
     }
-  }, [acknowledged, close, dispatch, t, warnings.length]);
+  }, [acknowledged, close, dispatch, warnings.length]);
 
   return (
     <DraggableDialog
       fullWidth
       open={open}
       maxWidth='sm'
-      title={t('rtlsAnchorLock.dialog.title')}
+      title={t('rtlsAnchorLock.title')}
       onClose={close}
     >
       <DialogContent data-testid='rtls-lock-dialog'>
@@ -88,9 +82,9 @@ const RtlsAnchorLockDialog = () => {
         {warnings.length > 0 && (
           <>
             <ul style={{ marginTop: 8, marginBottom: 0, paddingLeft: 20 }}>
-              {warnings.map((issue, index) => (
+              {warnings.map((text, index) => (
                 <li key={index}>
-                  <Typography variant='body2'>{issue.text}</Typography>
+                  <Typography variant='body2'>{text}</Typography>
                 </li>
               ))}
             </ul>
@@ -122,7 +116,7 @@ const RtlsAnchorLockDialog = () => {
           disabled={busy || (warnings.length > 0 && !acknowledged)}
           onClick={() => void handleLock()}
         >
-          {t('rtlsAnchorLock.dialog.lock')}
+          {t('rtlsAnchorLock.lock')}
         </Button>
       </DialogActions>
     </DraggableDialog>

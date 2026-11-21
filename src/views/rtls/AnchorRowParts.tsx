@@ -233,7 +233,7 @@ export const AnchorStatusCluster = ({
           tooltip={tooltip && t(tooltip.key, tooltip.values)}
         />
       ))}
-      {stats?.locked && (
+      {stats?.locked && !stats.stale && (
         <Tooltip content={t('rtlsAnchorLock.control.locked')}>
           <Box
             component='span'

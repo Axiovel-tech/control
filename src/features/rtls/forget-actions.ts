@@ -11,9 +11,8 @@ import i18n from '~/i18n';
 import messageHub from '~/message-hub';
 import { type AppThunk } from '~/store/reducers';
 
-import { refuseWhileAnchorsLocked } from './lock-actions';
+import { refuseLockedDevices } from './lock-actions';
 import { sendRtlsForget } from './messages';
-import { getRtlsLockedOutDeviceIds } from './selectors';
 
 /** Thunk that forgets the given offline devices, reporting the outcome. */
 export const forgetRtlsDevices =
@@ -22,11 +21,7 @@ export const forgetRtlsDevices =
     if (deviceIds.length === 0) {
       return;
     }
-    const lockedOut = getRtlsLockedOutDeviceIds(getState());
-    if (
-      deviceIds.some((id) => lockedOut.has(id)) &&
-      refuseWhileAnchorsLocked(getState())
-    ) {
+    if (refuseLockedDevices(getState(), deviceIds)) {
       return;
     }
 

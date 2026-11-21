@@ -35,7 +35,7 @@ const LockAnchorsButton = () => {
       >
         <StatusLight status={status} />
         <ListItemText
-          primary={t('rtlsAnchorLock.step.title')}
+          primary={t('rtlsAnchorLock.title')}
           secondary={t('rtlsAnchorLock.step.description')}
         />
       </ListItemButton>

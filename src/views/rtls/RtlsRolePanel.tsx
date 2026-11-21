@@ -42,7 +42,6 @@ import {
 import AnchorLockControl from '~/features/rtls/AnchorLockControl';
 import OverallRtlsStatusLight from '~/features/rtls/OverallRtlsStatusLight';
 import {
-  areRtlsAnchorsLocked,
   getRtlsAnchorDevices,
   getRtlsAnchors,
   getRtlsGeometryCheck,
@@ -75,6 +74,7 @@ import Bolt from '~/icons/Bolt';
 import type { AppDispatch } from '~/store/reducers';
 
 import DeviceStatsRow, { type DeviceRowHandlers } from './DeviceStatsRow';
+import { ActionButton } from './row-parts';
 import FleetHealthSummary from './FleetHealthSummary';
 
 /** The toolbar's Sleep all / Wake all pair, per panel. */
@@ -106,10 +106,9 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
   const statsById = useSelector(getRtlsStatsById);
   const uavStatuses = useSelector(getRtlsPairedUavStatuses);
   const sleepPending = useSelector(getRtlsSleepPendingMap);
-  const anchorsLocked = useSelector(areRtlsAnchorsLocked);
   const lockedOutIds = useSelector(getRtlsLockedOutDeviceIds);
-  // the anchor lock freezes the anchor panel's changing actions
-  const lockedOut = !tags && anchorsLocked;
+  // a bulk action that would reach a locked anchor is frozen
+  const bulkLockedOut = devices.some((device) => lockedOutIds.has(device.id));
   const lastUpdatedAt = useSelector(getRtlsStatsLastUpdatedAt);
   const geometryCheck = useSelector(getRtlsGeometryCheck);
   const geometryBusy = useSelector(isRtlsGeometryBusy);
@@ -297,36 +296,20 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
                 : 'no updates yet'}
             </Typography>
           )}
-          <Tooltip
-            content={t(lockedOut ? 'rtlsAnchorLock.locked' : bulk.sleepLabel)}
-          >
-            {/* a disabled button gets no pointer events: the span keeps the
-             * tooltip */}
-            <Box component='span'>
-              <IconButton
-                data-testid={`rtls-${variant}-panel.sleep-all`}
-                size='small'
-                disabled={lockedOut}
-                onClick={() => void dispatch(bulk.sleep())}
-              >
-                <Moon fontSize='small' />
-              </IconButton>
-            </Box>
-          </Tooltip>
-          <Tooltip
-            content={t(lockedOut ? 'rtlsAnchorLock.locked' : bulk.wakeLabel)}
-          >
-            <Box component='span'>
-              <IconButton
-                data-testid={`rtls-${variant}-panel.wake-all`}
-                size='small'
-                disabled={lockedOut}
-                onClick={() => void dispatch(bulk.wake())}
-              >
-                <Bolt fontSize='small' />
-              </IconButton>
-            </Box>
-          </Tooltip>
+          <ActionButton
+            icon={<Moon fontSize='small' />}
+            lockedOut={bulkLockedOut}
+            testId={`rtls-${variant}-panel.sleep-all`}
+            tooltip={t(bulk.sleepLabel)}
+            onClick={() => void dispatch(bulk.sleep())}
+          />
+          <ActionButton
+            icon={<Bolt fontSize='small' />}
+            lockedOut={bulkLockedOut}
+            testId={`rtls-${variant}-panel.wake-all`}
+            tooltip={t(bulk.wakeLabel)}
+            onClick={() => void dispatch(bulk.wake())}
+          />
         </Box>
       </Box>
       <Divider />
