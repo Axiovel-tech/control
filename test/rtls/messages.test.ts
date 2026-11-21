@@ -188,7 +188,29 @@ describe('rtls messages', () => {
   });
 });
 
+test('startRtlsOta declares the species the image is built for', async () => {
+  const { hub, sent } = makeHub({
+    type: 'X-RTLS-OTA',
+    id: '101',
+    job: { id: 'job-2', status: 'pending' },
+  });
+  await startRtlsOta(hub, '101', 'anchor.signed.bin', 'anchor');
+  expect(sent[0]).toMatchObject({ image: 'anchor.signed.bin', role: 'anchor' });
+});
+
 describe('sendRtlsSleep', () => {
+  test('waits as long as asked (an anchor reboots on every transition)', async () => {
+    const { hub, sendMessage } = makeHub({
+      type: 'X-RTLS-SLEEP',
+      result: { '101': { accepted: true, sleeping: true } },
+    });
+    await sendRtlsSleep(hub, ['101'], true, { timeout: 60 });
+    // the mock is typed with the request only; the options ride along
+    expect((sendMessage.mock.calls[0] as unknown[])[1]).toEqual({
+      timeout: 60,
+    });
+  });
+
   test('sends numeric ids and returns the per-device result map', async () => {
     const { hub, sendMessage, sent } = makeHub({
       type: 'X-RTLS-SLEEP',

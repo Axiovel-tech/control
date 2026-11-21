@@ -869,12 +869,8 @@
       "boots": "Boots",
       "charging": "Charging",
       "ethernet": "Ethernet",
-      "firmware": "Firmware",
-      "initiator": "A0 distance",
       "input": "Power input",
       "motion": "Motion",
-      "peers": "Inter-anchor TWR",
-      "rangingRate": "Ranging rate",
       "uwb": "UWB",
       "wifi": "Wi-Fi"
     },

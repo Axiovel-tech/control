@@ -4,6 +4,7 @@ import {
   classifyRole,
   countAnchorsInMask,
   decodeAnchorMask,
+  type DeviceLiveness,
   getAnchorHealth,
   getDeviceHealth,
   getDeviceHealthForRole,
@@ -12,6 +13,7 @@ import {
   RtlsHealth,
   RtlsRole,
 } from '~/features/rtls/stats-utils';
+import { type RtlsDeviceStats } from '~/features/rtls/types';
 
 describe('rtls stats-utils', () => {
   describe('getDeviceHealth', () => {
@@ -224,5 +226,93 @@ describe('rtls stats-utils', () => {
       expect(countAnchorsInMask(0)).toBe(0);
       expect(countAnchorsInMask(undefined)).toBe(0);
     });
+  });
+});
+
+describe('anchor health from the health stats', () => {
+  const live = { online: true, age: 0.5 };
+  const anchor = (
+    stats: Partial<RtlsDeviceStats>,
+    liveness: DeviceLiveness = live
+  ): RtlsHealth =>
+    getDeviceHealthForRole(
+      RtlsRole.ANCHOR_RESPONDER,
+      { id: '101', ...stats },
+      liveness
+    );
+
+  test('a ranging anchor is healthy', () => {
+    expect(
+      anchor({ powerState: 'operating', uwbStatus: 1, rangingRateHz: 9.8 })
+    ).toBe(RtlsHealth.OK);
+  });
+
+  test('asleep, standby, off and booting are neutral, not errors', () => {
+    for (const powerState of [
+      'asleep',
+      'standby',
+      'preview',
+      'off',
+      'booting',
+    ] as const) {
+      expect(anchor({ powerState })).toBe(RtlsHealth.IDLE);
+    }
+  });
+
+  test('the heartbeat sleep latch stands in for an unknown power state', () => {
+    expect(anchor({}, { ...live, sleeping: true })).toBe(RtlsHealth.IDLE);
+    expect(anchor({}, { ...live, sleeping: false })).toBe(RtlsHealth.OK);
+  });
+
+  test('fault, low battery and a refused UWB start are errors', () => {
+    expect(anchor({ powerState: 'fault' })).toBe(RtlsHealth.ERROR);
+    expect(anchor({ powerState: 'asleep', lowBattery: true })).toBe(
+      RtlsHealth.ERROR
+    );
+    expect(anchor({ powerState: 'operating', uwbStatus: 3 })).toBe(
+      RtlsHealth.ERROR
+    );
+    expect(anchor({ powerState: 'operating', uwbStatus: 4 })).toBe(
+      RtlsHealth.ERROR
+    );
+  });
+
+  test('an offline anchor is an error unless it was last seen powering down', () => {
+    expect(anchor({ powerState: 'operating' }, { online: false })).toBe(
+      RtlsHealth.ERROR
+    );
+    expect(anchor({ powerState: 'off', stale: true }, { online: false })).toBe(
+      RtlsHealth.IDLE
+    );
+    expect(anchor({ powerState: 'asleep' }, { online: true, age: 30 })).toBe(
+      RtlsHealth.ERROR
+    );
+  });
+
+  test('moved, radio restarts and operating without ranging are warnings', () => {
+    expect(anchor({ powerState: 'operating', moved: true })).toBe(
+      RtlsHealth.WARNING
+    );
+    expect(anchor({ powerState: 'operating', radioRestarts: 2 })).toBe(
+      RtlsHealth.WARNING
+    );
+    expect(anchor({ powerState: 'operating', rangingRateHz: 0 })).toBe(
+      RtlsHealth.WARNING
+    );
+    expect(anchor({ powerState: 'operating', uwbStatus: 0 })).toBe(
+      RtlsHealth.WARNING
+    );
+  });
+
+  test('a partly asleep fleet is degraded, a fully asleep one rests', () => {
+    expect(getOverallHealth([RtlsHealth.OK, RtlsHealth.IDLE])).toBe(
+      RtlsHealth.WARNING
+    );
+    expect(getOverallHealth([RtlsHealth.IDLE, RtlsHealth.UNKNOWN])).toBe(
+      RtlsHealth.IDLE
+    );
+    expect(getOverallHealth([RtlsHealth.IDLE, RtlsHealth.ERROR])).toBe(
+      RtlsHealth.ERROR
+    );
   });
 });
