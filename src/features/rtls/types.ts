@@ -46,6 +46,13 @@ export type RtlsTwrPeer = {
    * has gone quiet on the ether (stale telemetry).
    */
   ageMs?: number;
+  /**
+   * Median absolute deviation of the distance over the anchor's last TWR
+   * summary, metres (absent on legacy entries and once the summary is stale).
+   */
+  madM?: number;
+  /** Measurements in that summary. */
+  count?: number;
 };
 
 /**
@@ -76,6 +83,12 @@ export type RtlsDevice = {
 
   /** Seconds since the device was last heard from, if known. */
   age?: number;
+
+  /**
+   * Seconds since a lost device (`online: false`) was last heard from. The
+   * server keeps lost devices listed until the operator forgets them.
+   */
+  lastSeenAgeS?: number;
 
   /** Firmware version string reported by the device. */
   firmwareVersion?: string;
@@ -194,7 +207,107 @@ export type RtlsDeviceStats = {
   wifiDisconnects?: number;
   /** Die temperature of each IMU of the tag's drone, °C (null: unknown). */
   imuTemperaturesC?: Array<number | null>;
+
+  /**
+   * The last snapshot of a lost device: the server keeps answering it, but
+   * none of it is live.
+   */
+  stale?: boolean;
+
+  /* --- Anchor health (firmware 1 Hz health stats); absent = unknown --- */
+  /** Gauge state of charge, %; only while the gauge holds the cell profile. */
+  batteryPercent?: number;
+  /** Pack current, A, positive while discharging. */
+  batteryCurrentA?: number;
+  /** Gauge temperature, °C. */
+  batteryTemperatureC?: number;
+  /** The firmware's low-battery latch. */
+  lowBattery?: boolean;
+  powerState?: RtlsPowerState;
+  powerInput?: RtlsPowerInput;
+  charging?: RtlsChargingState;
+  /** Why charging is off; sent only while an external input is classified. */
+  chargeBlock?: RtlsChargeBlock;
+  /** UWB session start outcome (firmware `uwb::StartStatus`). */
+  uwbStatus?: RtlsUwbStatus;
+  /**
+   * Ranging activity over the last report, per second: valid A0
+   * measurements on a responder, ranging notifications on the initiator.
+   */
+  rangingRateHz?: number;
+  /** UWB radio restarts since boot. */
+  radioRestarts?: number;
+  /** Motion watch latch: the anchor tilted or was knocked since its start. */
+  moved?: boolean;
+  /** Tilt from the orientation captured at the start, degrees. */
+  tiltDeg?: number;
+  /** Knocks counted since the start. */
+  knocks?: number;
+  ethernetLink?: boolean;
+  /** Ethernet link drops since boot. */
+  ethernetDrops?: number;
+  /** WiFi transmit errors since boot. */
+  wifiTxErrors?: number;
+  /** Reboots since the retained boot record was reset. */
+  bootCount?: number;
+  /** Zephyr hwinfo reset-cause bitmask of this boot. */
+  resetCause?: number;
 };
+
+/** Anchor power state as the operator sees it (firmware `pwrst`). */
+export type RtlsPowerState =
+  | 'booting'
+  | 'preview'
+  | 'standby'
+  | 'asleep'
+  | 'off'
+  | 'operating'
+  | 'stopping'
+  | 'shutdown'
+  | 'fault'
+  | 'unknown';
+
+/** Classified input source of an anchor (firmware `pwrin`). */
+export type RtlsPowerInput =
+  | 'unknown'
+  | 'battery'
+  | 'usb'
+  | 'usb-1.5a'
+  | 'usb-3a'
+  | 'poe';
+
+/** Charger state of an anchor (firmware `chg`). */
+export type RtlsChargingState =
+  | 'off'
+  | 'idle'
+  | 'cc'
+  | 'cv'
+  | 'topoff'
+  | 'unknown';
+
+/** Why an anchor does not charge (firmware `chgblk`). */
+export type RtlsChargeBlock =
+  | 'none'
+  | 'no-profile'
+  | 'no-input'
+  | 'charger'
+  | 'gauge'
+  | 'temperature'
+  | 'gauge-inhibit'
+  | 'pack-voltage'
+  | 'charger-fault'
+  | 'overcurrent'
+  | 'stopping'
+  | 'unknown';
+
+/** Wire codes of the UWB session start outcome (`uwbst`). */
+export enum RtlsUwbStatus {
+  PENDING = 0,
+  RUNNING = 1,
+  DISABLED = 2,
+  INVALID_CONFIG = 3,
+  HARDWARE_FAILURE = 4,
+}
 
 /** Firmware states of the automatic cell geometry (`geom` stat). */
 export enum RtlsGeometryState {
@@ -283,6 +396,10 @@ export type RtlsOtaJob = {
   progress?: number;
   version?: string;
   error?: string;
+  /** The species the server established for the image. */
+  species?: string;
+  /** Where it came from: `receipt` (the build receipt) or `declared`. */
+  speciesSource?: string;
 };
 
 /** Per-tag verdict of an X-RTLS-GEOM agreement check. */

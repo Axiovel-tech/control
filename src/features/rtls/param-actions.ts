@@ -44,6 +44,7 @@ export const fetchRtlsDeviceParameters =
  * resolves normally with `accepted: false`; only transport errors reject).
  *
  * On an accepted set the cached parameter value is updated optimistically.
+ * `SLEEP` 2 (an anchor off, button start only) is refused before sending.
  */
 export const setRtlsDeviceParameter =
   (
@@ -53,6 +54,14 @@ export const setRtlsDeviceParameter =
     paramType?: RtlsParamType
   ): AppThunk<Promise<RtlsParameterSetResult>> =>
   async (dispatch) => {
+    if (name === 'SLEEP' && Number(value) === 2) {
+      // off is not a remote command: only the button starts an anchor again
+      throw new Error(
+        'SLEEP 2 (off) is not a remote command: only the button starts ' +
+          'an anchor from off. Use 1 to sleep with remote wake.'
+      );
+    }
+
     const result = await setRtlsParameter(
       messageHub,
       deviceId,

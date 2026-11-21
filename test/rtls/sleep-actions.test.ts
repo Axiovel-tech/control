@@ -46,8 +46,8 @@ const dispatchThunk = async (store: Store, thunk: unknown): Promise<void> =>
 const seedDevices = (store: Store, sleeping: boolean | undefined) => {
   store.dispatch(
     setRtlsDevicesFromStatus({
-      '1': { online: true, sleeping },
-      '2': { online: true, sleeping },
+      '1': { online: true, role: 'tag', sleeping },
+      '2': { online: true, role: 'tag', sleeping },
     })
   );
 };
@@ -189,6 +189,35 @@ describe('bulk sleep/wake', () => {
     expect(sendMessage.mock.calls[0][0]).toEqual({
       type: 'X-RTLS-SLEEP',
       ids: [2],
+      sleeping: true,
+    });
+  });
+
+  test('sleep all leaves out devices whose role is not known yet', async () => {
+    // such a device may be an anchor, which sleeps only through the anchor
+    // actions and their armed-drone confirmation
+    const store = createStore();
+    store.dispatch(
+      setRtlsDevicesFromStatus({
+        '1': { online: true, role: 'tag', sleeping: false },
+        '2': { online: true, sleeping: false },
+        '3': { online: true, role: 'anchor-responder' },
+      })
+    );
+    sendMessage
+      .mockResolvedValueOnce({
+        body: {
+          type: 'X-RTLS-SLEEP',
+          result: { '1': { accepted: true, sleeping: true } },
+        },
+      })
+      .mockResolvedValueOnce({ body: { type: 'X-RTLS-INF', status: {} } });
+
+    await dispatchThunk(store, sleepAllRtlsDevices());
+
+    expect(sendMessage.mock.calls[0][0]).toEqual({
+      type: 'X-RTLS-SLEEP',
+      ids: [1],
       sleeping: true,
     });
   });

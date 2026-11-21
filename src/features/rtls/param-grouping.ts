@@ -4,7 +4,8 @@
  * Groups are derived client-side from the parameter naming convention: the
  * token before the first underscore is the domain prefix (UWB_CHANNEL and
  * UWB_AN0_X are both UWB; SIM_UWB_DROP_PCT is SIM). The wire protocol has no
- * group metadata, so this is the single source of the taxonomy.
+ * group metadata, so this is the single source of the taxonomy. A few
+ * parameters without a prefix are filed explicitly (`SLEEP` under power).
  */
 
 import { getRtlsParamMetadata } from './param-metadata';
@@ -26,6 +27,9 @@ export type RtlsParamGroup = {
  */
 const GROUP_LABELS: Record<string, string> = {
   UWB: 'UWB ranging',
+  PWR: 'Power',
+  BAT: 'Battery',
+  MOT: 'Motion watch',
   POS: 'Positioning',
   ORIGIN: 'Site origin',
   WIFI: 'Wi-Fi',
@@ -39,13 +43,34 @@ const GROUP_LABELS: Record<string, string> = {
  * knobs last. Prefixes not listed here sort after the known ones,
  * alphabetically.
  */
-const GROUP_ORDER = ['UWB', 'POS', 'ORIGIN', 'WIFI', 'MAV', 'FW', 'SIM'];
+const GROUP_ORDER = [
+  'UWB',
+  'POS',
+  'ORIGIN',
+  'PWR',
+  'BAT',
+  'MOT',
+  'WIFI',
+  'MAV',
+  'FW',
+  'SIM',
+];
+
+/** Parameters whose name carries no group prefix, by group. */
+const GROUP_OVERRIDES: Record<string, string> = {
+  SLEEP: 'PWR',
+};
 
 /**
- * Returns the group prefix of an RTLS parameter name: the token before the
- * first underscore, or the whole name when it has no underscore.
+ * Returns the group prefix of an RTLS parameter name: its explicit group, else
+ * the token before the first underscore, or the whole name when it has no
+ * underscore.
  */
 export function getRtlsParamGroup(name: string): string {
+  const override = GROUP_OVERRIDES[name];
+  if (override !== undefined) {
+    return override;
+  }
   const index = name.indexOf('_');
   return index > 0 ? name.slice(0, index) : name;
 }

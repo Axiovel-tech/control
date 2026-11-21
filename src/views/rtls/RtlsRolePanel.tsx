@@ -1,7 +1,8 @@
 /**
  * @file The two top-level RTLS workbench panels: "RTLS Tags" (per-drone tags,
  * shown UAV-style with their solve telemetry and sleep/wake actions) and
- * "RTLS Anchors" (the site infrastructure, with inter-anchor TWR telemetry).
+ * "RTLS Anchors" (the site infrastructure: power, battery and ranging state,
+ * with manual sleep/wake).
  * These replace the old drawer-tucked "RTLS Link" panel: tags are a
  * pre-flight surface, anchors a site-setup surface, so each gets its own tab
  * next to Map / UAVs / 3D View.
@@ -25,9 +26,15 @@ import { useDispatch, useSelector } from 'react-redux';
 import { BackgroundHint, StatusPill, Tooltip } from '@skybrush/mui-components';
 
 import {
+  getAnchorSlot,
+  getInitiatorEvidence,
+  getInitiatorMacs,
+} from '~/features/rtls/anchor-utils';
+import {
   anchorNamesForCell,
   nameCellAnchors,
 } from '~/features/rtls/fleet-health';
+import { forgetRtlsDevices } from '~/features/rtls/forget-actions';
 import {
   checkGeometryAgreement,
   recalibrateGeometry,
@@ -37,6 +44,7 @@ import {
   geometryPillFor,
 } from '~/features/rtls/geometry-utils';
 import OverallRtlsStatusLight from '~/features/rtls/OverallRtlsStatusLight';
+import { classifyRole, RtlsRole } from '~/features/rtls/stats-utils';
 import {
   getRtlsAnchorDevices,
   getRtlsAnchors,
@@ -50,9 +58,13 @@ import {
   isRtlsGeometryBusy,
 } from '~/features/rtls/selectors';
 import {
+  sleepAllRtlsAnchors,
   sleepAllRtlsDevices,
+  sleepRtlsAnchors,
   sleepRtlsDevice,
+  wakeAllRtlsAnchors,
   wakeAllRtlsDevices,
+  wakeRtlsAnchors,
   wakeRtlsDevice,
 } from '~/features/rtls/sleep-actions';
 import {
@@ -95,6 +107,14 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
     () => nameCellAnchors(siteAnchors),
     [siteAnchors]
   );
+  const initiatorMacs = useMemo(
+    () => getInitiatorMacs(siteAnchors),
+    [siteAnchors]
+  );
+  const initiatorEvidence = useMemo(
+    () => (tags ? undefined : getInitiatorEvidence(devices, statsById)),
+    [tags, devices, statsById]
+  );
   // The tags fit the cell themselves at boot; the panel only asks the
   // server whether the fleet agrees. A cheap, read-only check, so it runs
   // whenever the slice voids a verdict (the tag set changed, a tag
@@ -114,8 +134,8 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
     }, GEOMETRY_RECHECK_MS);
     return () => clearInterval(timer);
   }, [dispatch, tags, haveTags, invalidations]);
-  // Tag rows show their header line; the ids here also show the rest of
-  // their telemetry
+  // Rows show their header line; the ids here also show the rest of their
+  // telemetry
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(
     () => new Set()
   );
@@ -146,12 +166,40 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
   // stable identity so the memoized rows are not re-rendered by the parent
   const handlers: DeviceRowHandlers = useMemo(
     () => ({
+      onForget: (id) => void dispatch(forgetRtlsDevices([id])),
       onShowOta: (id) => dispatch(openRtlsOtaDialog(id)),
       onShowParameters: (id) => dispatch(openRtlsParamDialog(id)),
-      onSleep: (id) => dispatch(sleepRtlsDevice(id)),
-      onWake: (id) => dispatch(wakeRtlsDevice(id)),
+      onSleep: (id) =>
+        dispatch(tags ? sleepRtlsDevice(id) : sleepRtlsAnchors([id])),
+      onWake: (id) =>
+        dispatch(tags ? wakeRtlsDevice(id) : wakeRtlsAnchors([id])),
     }),
-    [dispatch]
+    [dispatch, tags]
+  );
+  const expandAllButton = (
+    <Tooltip
+      content={t(
+        anyExpanded ? 'rtlsTagDetails.collapseAll' : 'rtlsTagDetails.expandAll'
+      )}
+    >
+      <IconButton
+        data-testid={`rtls-${variant}-panel.expand-all`}
+        size='small'
+        onClick={() =>
+          setExpanded(
+            anyExpanded
+              ? new Set()
+              : new Set(devices.map((device) => device.id))
+          )
+        }
+      >
+        {anyExpanded ? (
+          <UnfoldLess fontSize='small' />
+        ) : (
+          <UnfoldMore fontSize='small' />
+        )}
+      </IconButton>
+    </Tooltip>
   );
 
   return (
@@ -188,31 +236,7 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
                 statsById={statsById}
                 onSelect={showDevice}
               />
-              <Tooltip
-                content={t(
-                  anyExpanded
-                    ? 'rtlsTagDetails.collapseAll'
-                    : 'rtlsTagDetails.expandAll'
-                )}
-              >
-                <IconButton
-                  data-testid='rtls-tags-panel.expand-all'
-                  size='small'
-                  onClick={() =>
-                    setExpanded(
-                      anyExpanded
-                        ? new Set()
-                        : new Set(devices.map((device) => device.id))
-                    )
-                  }
-                >
-                  {anyExpanded ? (
-                    <UnfoldLess fontSize='small' />
-                  ) : (
-                    <UnfoldMore fontSize='small' />
-                  )}
-                </IconButton>
-              </Tooltip>
+              {expandAllButton}
               <Tooltip content={t('rtlsGeometry.tooltip.check')}>
                 <IconButton
                   data-testid='rtls-tags-panel.check-geometry'
@@ -244,6 +268,7 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
               </Tooltip>
             </>
           )}
+          {!tags && expandAllButton}
         </Box>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
           {/* TWR freshness is per-row (each peer carries its age); a global
@@ -270,6 +295,28 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
                 <IconButton
                   size='small'
                   onClick={() => void dispatch(wakeAllRtlsDevices())}
+                >
+                  <Bolt fontSize='small' />
+                </IconButton>
+              </Tooltip>
+            </>
+          )}
+          {!tags && (
+            <>
+              <Tooltip content={t('rtlsAnchor.action.sleepAll')}>
+                <IconButton
+                  data-testid='rtls-anchors-panel.sleep-all'
+                  size='small'
+                  onClick={() => void dispatch(sleepAllRtlsAnchors())}
+                >
+                  <Moon fontSize='small' />
+                </IconButton>
+              </Tooltip>
+              <Tooltip content={t('rtlsAnchor.action.wakeAll')}>
+                <IconButton
+                  data-testid='rtls-anchors-panel.wake-all'
+                  size='small'
+                  onClick={() => void dispatch(wakeAllRtlsAnchors())}
                 >
                   <Bolt fontSize='small' />
                 </IconButton>
@@ -308,6 +355,15 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
                       ? anchorNamesForCell(anchorNamesByCell, device.cell)
                       : undefined
                   }
+                  anchorSlot={
+                    tags ? undefined : getAnchorSlot(device, siteAnchors)
+                  }
+                  initiatorMacs={tags ? undefined : initiatorMacs}
+                  initiatorEvidence={
+                    classifyRole(device.role) === RtlsRole.ANCHOR_INITIATOR
+                      ? initiatorEvidence
+                      : undefined
+                  }
                   busy={Boolean(sleepPending?.[device.id])}
                   device={device}
                   expanded={expanded.has(device.id)}
@@ -319,7 +375,7 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
                   geometryStatus={geometry.status}
                   handlers={handlers}
                   stats={statsById[device.id]}
-                  onToggleExpanded={tags ? toggleExpanded : undefined}
+                  onToggleExpanded={toggleExpanded}
                   uavStatus={
                     device.uav === undefined
                       ? undefined

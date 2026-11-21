@@ -15,6 +15,8 @@ import {
   checkRtlsGeometryAgreement,
   getRtlsParameter,
   queryRtlsParameterList,
+  inspectRtlsOtaImage,
+  sendRtlsForget,
   sendRtlsSleep,
   setRtlsParameter,
   startRtlsOta,
@@ -188,7 +190,29 @@ describe('rtls messages', () => {
   });
 });
 
+test('startRtlsOta declares the species the image is built for', async () => {
+  const { hub, sent } = makeHub({
+    type: 'X-RTLS-OTA',
+    id: '101',
+    job: { id: 'job-2', status: 'pending' },
+  });
+  await startRtlsOta(hub, '101', 'anchor.signed.bin', 'anchor');
+  expect(sent[0]).toMatchObject({ image: 'anchor.signed.bin', role: 'anchor' });
+});
+
 describe('sendRtlsSleep', () => {
+  test('waits as long as asked (an anchor reboots on every transition)', async () => {
+    const { hub, sendMessage } = makeHub({
+      type: 'X-RTLS-SLEEP',
+      result: { '101': { accepted: true, sleeping: true } },
+    });
+    await sendRtlsSleep(hub, ['101'], true, { timeout: 60 });
+    // the mock is typed with the request only; the options ride along
+    expect((sendMessage.mock.calls[0] as unknown[])[1]).toEqual({
+      timeout: 60,
+    });
+  });
+
   test('sends numeric ids and returns the per-device result map', async () => {
     const { hub, sendMessage, sent } = makeHub({
       type: 'X-RTLS-SLEEP',
@@ -256,6 +280,71 @@ describe('sendRtlsSleep', () => {
     const { hub } = makeHub({ type: 'ACK-NAK', reason: 'nope' });
     await expect(sendRtlsSleep(hub, ['7'], false)).rejects.toThrow(
       /X-RTLS-SLEEP/
+    );
+  });
+});
+
+describe('sendRtlsForget', () => {
+  test('sends numeric ids and reports each device', async () => {
+    const { hub, sent } = makeHub({
+      type: 'X-RTLS-FORGET',
+      result: {
+        '42': { forgotten: true },
+        '43': { forgotten: false, detail: 'Device 43 is online' },
+      },
+    });
+    const result = await sendRtlsForget(hub, ['42', '43', '44']);
+    expect(sent[0]).toEqual({ type: 'X-RTLS-FORGET', ids: [42, 43, 44] });
+    expect(result).toEqual({
+      '42': { forgotten: true, detail: undefined },
+      '43': { forgotten: false, detail: 'Device 43 is online' },
+      '44': {
+        forgotten: false,
+        detail: 'no response from server for this device',
+      },
+    });
+  });
+
+  test('a NAK (older server without forget) throws', async () => {
+    const { hub } = makeHub({ type: 'ACK-NAK', reason: 'no handler' });
+    await expect(sendRtlsForget(hub, ['42'])).rejects.toThrow(/no handler/);
+  });
+});
+
+describe('inspectRtlsOtaImage', () => {
+  test('asks for the species the build receipt names', async () => {
+    const { hub, sent } = makeHub({
+      type: 'X-RTLS-OTA',
+      image: 'a.bin',
+      species: 'anchor',
+      speciesSource: 'receipt',
+      board: 'axio_anchor',
+    });
+    await expect(inspectRtlsOtaImage(hub, 'a.bin')).resolves.toBe('anchor');
+    expect(sent[0]).toEqual({
+      type: 'X-RTLS-OTA',
+      inspect: true,
+      image: 'a.bin',
+    });
+  });
+
+  test('an image without a receipt has no species', async () => {
+    const { hub } = makeHub({
+      type: 'X-RTLS-OTA',
+      image: 'a.bin',
+      species: null,
+      speciesSource: null,
+    });
+    await expect(inspectRtlsOtaImage(hub, 'a.bin')).resolves.toBe(undefined);
+  });
+
+  test("rejects with the server's reason (missing file, stale receipt)", async () => {
+    const { hub } = makeHub({
+      type: 'ACK-NAK',
+      reason: 'stale build receipt: the image digest differs',
+    });
+    await expect(inspectRtlsOtaImage(hub, 'a.bin')).rejects.toThrow(
+      'stale build receipt: the image digest differs'
     );
   });
 });

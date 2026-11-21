@@ -1,6 +1,6 @@
 /**
- * @file Thunk actions that put RTLS drones to sleep or wake them through the
- * message hub (X-RTLS-SLEEP).
+ * @file Thunk actions that put RTLS drones and anchors to sleep or wake them
+ * through the message hub (X-RTLS-SLEEP).
  *
  * Sleep is owned by the RTLS link firmware, not by ArduPilot: the drone cuts
  * its power rails (motors + flight controller, ELRS receiver, UWB module)
@@ -8,30 +8,50 @@
  * wakeable here. The firmware refuses to sleep while the flight controller is
  * armed; that refusal comes back as a normal per-device result and is
  * surfaced in the snackbar.
+ *
+ * An anchor sleeps with its UWB off and its network up, and reboots on every
+ * transition (8-15 s). Sleeping anchors removes positioning for every drone,
+ * so it asks for confirmation while any drone may be armed. Every command is
+ * an explicit operator action; nothing here runs on its own.
  */
 
 import { errorToString } from '~/error-handling';
+import { showConfirmationDialog } from '~/features/prompt/actions';
 import { showError, showNotification } from '~/features/snackbar/actions';
+import i18n from '~/i18n';
 import messageHub from '~/message-hub';
 import { type AppDispatch, type AppThunk } from '~/store/reducers';
 
 import { handleRtlsInformationMessage } from './handlers';
 import { sendRtlsSleep } from './messages';
-import { getRtlsDevicesInOrder, getRtlsSleepPendingMap } from './selectors';
+import {
+  getPossiblyArmedUavIds,
+  getRtlsAnchorDevices,
+  getRtlsDevicesInOrder,
+  getRtlsSleepPendingMap,
+  getRtlsStatsById,
+} from './selectors';
 import {
   applyRtlsSleepResults,
   rtlsSleepTransactionEnded,
   rtlsSleepTransactionStarted,
 } from './slice';
+import { classifyRole, RtlsRole } from './stats-utils';
 import { type RtlsDevice } from './types';
+import { isTagOrUnknownRtlsDevice } from './utils';
 
 /**
- * Devices that can meaningfully sleep: drones (tags). Anchors have no power
- * rails to cut and no SLEEP parameter; commanding them would only produce
- * per-device error noise.
+ * How long Control waits for an anchor sleep/wake, in seconds: the server
+ * waits for the anchor's reboot (8-15 s) and checks its heartbeat state.
  */
-const isSleepable = (device: RtlsDevice): boolean =>
-  !device.role || device.role === 'tag';
+export const ANCHOR_SLEEP_TIMEOUT_S = 60;
+
+type SleepOptions = {
+  /** How long to wait for the server's verified result, in seconds. */
+  timeout?: number;
+  /** Whether to re-query X-RTLS-INF after a sleep. */
+  refreshAfterSleep?: boolean;
+};
 
 /**
  * Re-queries X-RTLS-INF so the device list reflects the new sleep state
@@ -55,7 +75,11 @@ const refreshRtlsDevices = async (dispatch: AppDispatch): Promise<void> => {
  * the snackbar and refreshing the device list afterwards.
  */
 export const setRtlsDevicesSleeping =
-  (deviceIds: string[], sleeping: boolean): AppThunk<Promise<void>> =>
+  (
+    deviceIds: string[],
+    sleeping: boolean,
+    { timeout, refreshAfterSleep = true }: SleepOptions = {}
+  ): AppThunk<Promise<void>> =>
   async (dispatch) => {
     if (deviceIds.length === 0) {
       return;
@@ -64,7 +88,9 @@ export const setRtlsDevicesSleeping =
     const verb = sleeping ? 'sleep' : 'wake';
     dispatch(rtlsSleepTransactionStarted(deviceIds));
     try {
-      const result = await sendRtlsSleep(messageHub, deviceIds, sleeping);
+      const result = await sendRtlsSleep(messageHub, deviceIds, sleeping, {
+        timeout,
+      });
 
       // Each accepted per-device result carries the authoritative `sleeping`
       // value verified by the server; apply it to the store as ground truth
@@ -103,8 +129,9 @@ export const setRtlsDevicesSleeping =
     // after acking the wake, so an immediate poll only returns the stale
     // pre-reboot STANDBY latch and would overwrite the authoritative
     // `sleeping: false` applied above; the periodic INF refresh catches up
-    // once the device is back on the network.
-    if (sleeping) {
+    // once the device is back on the network. An anchor reboots on both
+    // transitions, so it is never re-polled.
+    if (sleeping && refreshAfterSleep) {
       await refreshRtlsDevices(dispatch);
     }
   };
@@ -132,21 +159,28 @@ export const wakeRtlsDevice = (deviceId: string): AppThunk<Promise<void>> =>
 const withoutPendingDevices = (
   ids: string[],
   pending: Record<string, boolean>,
-  verb: string
+  verb: string,
+  noun = 'drone'
 ): string[] => {
   const result = ids.filter((id) => !pending[id]);
   if (result.length === 0 && ids.length > 0) {
     showNotification(
       `RTLS ${verb} skipped — a sleep/wake transaction is already in ` +
-        `flight for every drone`
+        `flight for every ${noun}`
     );
   }
 
   return result;
 };
 
+/** A device whose role says it is a tag; an unknown role may be an anchor. */
+const isKnownTag = (device: RtlsDevice): boolean =>
+  classifyRole(device.role) === RtlsRole.TAG;
+
 /**
- * Thunk that puts every known drone (tag) to sleep.
+ * Thunk that puts every known drone (tag) to sleep. A device whose role has
+ * not arrived yet is left out: it may be an anchor, which sleeps only through
+ * the anchor actions and their armed-drone confirmation.
  */
 export const sleepAllRtlsDevices =
   (): AppThunk<Promise<void>> => async (dispatch, getState) => {
@@ -156,7 +190,7 @@ export const sleepAllRtlsDevices =
     // aged out of the list should still get its wake command.
     const ids = withoutPendingDevices(
       getRtlsDevicesInOrder(state)
-        .filter((device) => isSleepable(device) && device.online)
+        .filter((device) => isKnownTag(device) && device.online)
         .map((device) => device.id),
       getRtlsSleepPendingMap(state),
       'sleep'
@@ -172,10 +206,125 @@ export const wakeAllRtlsDevices =
     const state = getState();
     const ids = withoutPendingDevices(
       getRtlsDevicesInOrder(state)
-        .filter(isSleepable)
+        .filter(isTagOrUnknownRtlsDevice)
         .map((device) => device.id),
       getRtlsSleepPendingMap(state),
       'wake'
     );
     await dispatch(setRtlsDevicesSleeping(ids, false));
+  };
+
+const ANCHOR_SLEEP_OPTIONS: SleepOptions = {
+  timeout: ANCHOR_SLEEP_TIMEOUT_S,
+  refreshAfterSleep: false,
+};
+
+/**
+ * Asks the operator to confirm sleeping anchors while any drone may be
+ * armed; resolves to whether to proceed.
+ */
+const confirmAnchorSleep = async (
+  dispatch: AppDispatch,
+  armedCount: number,
+  anchorCount: number
+): Promise<boolean> => {
+  if (armedCount === 0) {
+    return true;
+  }
+  const response = await dispatch(
+    showConfirmationDialog(
+      i18n.t('rtlsAnchor.sleep.confirm.message', {
+        count: armedCount,
+        anchors: anchorCount,
+      }),
+      { title: i18n.t('rtlsAnchor.sleep.confirm.title') }
+    )
+  );
+  return Boolean(response?.confirmed);
+};
+
+/**
+ * Thunk that puts the given anchors to sleep, after a confirmation while any
+ * drone may be armed. Anchors with a transaction in flight are skipped.
+ */
+export const sleepRtlsAnchors =
+  (deviceIds: string[]): AppThunk<Promise<void>> =>
+  async (dispatch, getState) => {
+    const state = getState();
+    const ids = withoutPendingDevices(
+      deviceIds,
+      getRtlsSleepPendingMap(state),
+      'sleep',
+      'anchor'
+    );
+    if (ids.length === 0) {
+      return;
+    }
+    const armed = getPossiblyArmedUavIds(state).length;
+    if (!(await confirmAnchorSleep(dispatch, armed, ids.length))) {
+      return;
+    }
+    await dispatch(setRtlsDevicesSleeping(ids, true, ANCHOR_SLEEP_OPTIONS));
+  };
+
+/** Thunk that wakes the given anchors (each reboots into operation). */
+export const wakeRtlsAnchors =
+  (deviceIds: string[]): AppThunk<Promise<void>> =>
+  async (dispatch, getState) => {
+    const ids = withoutPendingDevices(
+      deviceIds,
+      getRtlsSleepPendingMap(getState()),
+      'wake',
+      'anchor'
+    );
+    await dispatch(setRtlsDevicesSleeping(ids, false, ANCHOR_SLEEP_OPTIONS));
+  };
+
+/**
+ * Thunk that puts every online anchor that is not already asleep or off to
+ * sleep.
+ */
+export const sleepAllRtlsAnchors =
+  (): AppThunk<Promise<void>> => async (dispatch, getState) => {
+    const state = getState();
+    const statsById = getRtlsStatsById(state);
+    const ids = getRtlsAnchorDevices(state)
+      .filter((device) => {
+        const powerState = statsById[device.id]?.powerState;
+        return (
+          device.online &&
+          powerState !== 'asleep' &&
+          powerState !== 'off' &&
+          !(powerState === undefined && device.sleeping === true)
+        );
+      })
+      .map((device) => device.id);
+    if (ids.length === 0) {
+      showNotification('No awake RTLS anchors to put to sleep');
+      return;
+    }
+    await dispatch(sleepRtlsAnchors(ids));
+  };
+
+/**
+ * Thunk that wakes every online anchor that is not already operating. An
+ * anchor that is off only starts with its button, so it is left alone.
+ */
+export const wakeAllRtlsAnchors =
+  (): AppThunk<Promise<void>> => async (dispatch, getState) => {
+    const state = getState();
+    const statsById = getRtlsStatsById(state);
+    const ids = getRtlsAnchorDevices(state)
+      .filter((device) => {
+        const powerState = statsById[device.id]?.powerState;
+        return (
+          device.online && powerState !== 'operating' && powerState !== 'off'
+        );
+      })
+      .map((device) => device.id);
+    if (ids.length === 0) {
+      showNotification('No resting RTLS anchors to wake');
+      return;
+    }
+    await dispatch(wakeRtlsAnchors(ids));
   };

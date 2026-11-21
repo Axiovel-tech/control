@@ -49,9 +49,24 @@ describe('role-filtered device selectors', () => {
 });
 
 describe('getRowStatus', () => {
-  test('offline devices are red regardless of anything else', () => {
+  test('a lost tag warns, or is grey when it was last seen asleep', () => {
     expect(
       getRowStatus({ id: '1', online: false } as RtlsDevice, undefined)
+    ).toBe('warning');
+    expect(
+      getRowStatus(
+        { id: '1', online: false, role: 'tag', sleeping: true } as RtlsDevice,
+        undefined
+      )
+    ).toBe('off');
+  });
+
+  test('a lost anchor is red', () => {
+    expect(
+      getRowStatus(
+        { id: '2', online: false, role: 'anchor-responder' } as RtlsDevice,
+        undefined
+      )
     ).toBe('error');
   });
 
