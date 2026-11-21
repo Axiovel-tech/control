@@ -973,7 +973,7 @@
       "acknowledgeWarnings": "Lock with these warnings",
       "acknowledgedWarnings": "Warnings acknowledged when they were locked:",
       "breaks": "These events broke the lock since it was sealed:",
-      "explanation": "While the anchors are locked, the server refuses every command that would change them: sleep and wake, parameter writes, firmware updates, forget and reboots. It watches them and raises an alarm if one goes offline, reboots, moves, changes a cell parameter or its firmware, or stops operating. While the server's show gate applies, a new show authorization or a changed authorized start needs them locked.",
+      "explanation": "While the anchors are locked, the server refuses every command that would change them: sleep and wake, parameter writes, firmware updates and forget. It watches them and raises an alarm if one goes offline, reboots, moves, changes a cell parameter or its firmware, or stops operating. While the server's show gate applies, a new show authorization or a changed authorized start needs them locked.",
       "lock": "Lock",
       "lockTitle": "Lock the anchors",
       "lockedSince": "The anchors are locked since {{time}}.",
@@ -993,13 +993,6 @@
     "otaLocked": "Anchors are locked: unlock them before updating an anchor's firmware.",
     "paramsReadOnly": "Anchors are locked: their parameters can be viewed but not changed.",
     "preflight": {
-      "advisory": {
-        "broken": "Lock broken: this server may refuse a new authorization until it is re-sealed",
-        "locked": "Locked",
-        "unlocked": "Not locked: this server may refuse a new authorization until they are",
-        "unsupported": "No anchor lock on this server"
-      },
-      "authorizationAdvisory": "This server may refuse a new authorization until the anchors are locked",
       "authorizationRefused": "The server refuses a new authorization: {{reason}}",
       "broken": "Lock broken: the server refuses a new authorization or a changed authorized start until it is reviewed and re-sealed",
       "locked": "Locked",

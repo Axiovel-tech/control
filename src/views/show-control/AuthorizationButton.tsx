@@ -10,10 +10,8 @@ import { StatusLight } from '@skybrush/mui-components';
 
 import { Status } from '~/components/semantics';
 import { setCommandsAreBroadcast } from '~/features/mission/slice';
-import {
-  getRtlsShowGateNotice,
-  type RtlsShowGateNotice,
-} from '~/features/rtls/selectors';
+import { type RtlsShowGate } from '~/features/rtls/anchor-lock';
+import { getRtlsShowGateRefusal } from '~/features/rtls/selectors';
 import {
   countUAVsTakingOffAutomatically,
   isShowAuthorizedToStartLocally,
@@ -32,8 +30,8 @@ const buttonStyle: SxProps<typeof ListItemButton> = {
 };
 
 type Props = Readonly<{
-  /** What the anchor lock means for authorizing now, if anything. */
-  gateNotice: RtlsShowGateNotice;
+  /** The server's refusal of a new authorization, if it refuses now. */
+  gateRefusal: RtlsShowGate | undefined;
   isAuthorized: boolean;
   numUAVsTakingOffAutomatically: number;
   status: Status;
@@ -45,7 +43,7 @@ type Props = Readonly<{
  * in automatic mode.
  */
 const AuthorizationButton = ({
-  gateNotice,
+  gateRefusal,
   isAuthorized,
   numUAVsTakingOffAutomatically,
   status,
@@ -86,13 +84,11 @@ const AuthorizationButton = ({
                     : t('show.takeOffMore', {
                         quantity: numUAVsTakingOffAutomatically,
                       })
-                : gateNotice?.kind === 'refused'
+                : gateRefusal
                   ? t('rtlsAnchorLock.preflight.authorizationRefused', {
-                      reason: gateNotice.reason ?? '',
+                      reason: gateRefusal.reason ?? '',
                     })
-                  : gateNotice?.kind === 'advisory'
-                    ? t('rtlsAnchorLock.preflight.authorizationAdvisory')
-                    : t('show.authorizationReq')}
+                  : t('show.authorizationReq')}
             </Typography>
           }
         />
@@ -104,7 +100,7 @@ const AuthorizationButton = ({
 export default connect(
   // mapStateToProps
   (state: RootState) => ({
-    gateNotice: getRtlsShowGateNotice(state),
+    gateRefusal: getRtlsShowGateRefusal(state),
     isAuthorized: isShowAuthorizedToStartLocally(state),
     numUAVsTakingOffAutomatically: countUAVsTakingOffAutomatically(state),
     status: getSetupStageStatuses(state).authorization,

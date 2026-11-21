@@ -12,7 +12,6 @@ import {
   EMPTY_COLLECTION,
 } from '~/utils/collections';
 
-import { type RtlsAnchorLock } from './anchor-lock';
 import {
   type RtlsAnchor,
   type RtlsDevice,
@@ -25,6 +24,12 @@ import {
 } from './types';
 import { classifyRole, isAnchorRole } from './stats-utils';
 import { updateStateOfRtlsDevice } from './utils';
+import {
+  clearLockState,
+  initialLockState,
+  lockReducers,
+  type RtlsLockSliceState,
+} from './slice-lock';
 
 /**
  * How long an applied sleep/wake transaction result guards the device's
@@ -45,7 +50,7 @@ export type RtlsDeviceParamsState = {
   lastFetchedAt?: number;
 };
 
-export type RtlsSliceState = {
+export type RtlsSliceState = RtlsLockSliceState & {
   /** Registry of known RTLS devices keyed by system id (numeric string). */
   devices: Collection<RtlsDevice>;
 
@@ -122,15 +127,6 @@ export type RtlsSliceState = {
     invalidations: number;
   };
 
-  /**
-   * The server's anchor cell lock; `undefined` while the server has not
-   * reported one (a server without the lock feature).
-   */
-  anchorLock?: RtlsAnchorLock;
-
-  /** Whether the lock / re-seal dialog is open. */
-  lockDialogOpen: boolean;
-
   /** Fleet pre-flight verification state (X-RTLS-VERIFY). */
   verify: {
     running: boolean;
@@ -167,8 +163,7 @@ const initialState: RtlsSliceState = {
     lastCheck: undefined,
     invalidations: 0,
   },
-  anchorLock: undefined,
-  lockDialogOpen: false,
+  ...initialLockState,
   verify: {
     running: false,
     lastResult: undefined,
@@ -180,25 +175,11 @@ const { actions, reducer } = createSlice({
   name: 'rtls',
   initialState,
   reducers: {
-    /** Replaces the anchor lock state with the server's latest report. */
-    setRtlsAnchorLock(state, { payload }: PayloadAction<RtlsAnchorLock>) {
-      state.anchorLock = payload;
-    },
-
-    openRtlsLockDialog(state) {
-      state.lockDialogOpen = true;
-    },
-
-    closeRtlsLockDialog(state) {
-      state.lockDialogOpen = false;
-    },
+    ...lockReducers,
 
     /** Clears the entire RTLS device registry, stats and OTA jobs. */
     clearRtlsDevices(state) {
-      // the lock belongs to the server we are leaving; the next one reports
-      // its own, and a dialog about this one must not act on that one
-      state.anchorLock = undefined;
-      state.lockDialogOpen = false;
+      clearLockState(state);
       clearOrderedCollection<RtlsDevice>(state.devices);
       state.stats = { byId: {}, lastUpdatedAt: undefined };
       state.positions = { byId: {} };

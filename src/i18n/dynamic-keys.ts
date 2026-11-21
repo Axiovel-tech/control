@@ -385,13 +385,9 @@
  * t("rtlsAnchorLock.control.unlockedTooltip")
  * t("rtlsAnchorLock.control.brokenTooltip")
  * t("rtlsAnchorLock.preflight.locked")
- * t("rtlsAnchorLock.preflight.advisory.locked")
  * t("rtlsAnchorLock.preflight.unlocked")
- * t("rtlsAnchorLock.preflight.advisory.unlocked")
  * t("rtlsAnchorLock.preflight.broken")
- * t("rtlsAnchorLock.preflight.advisory.broken")
  * t("rtlsAnchorLock.preflight.unsupported")
- * t("rtlsAnchorLock.preflight.advisory.unsupported")
  *
  * RTLS tag details toggles (keys chosen by views/rtls/DeviceStatsRow.tsx and
  * views/rtls/RtlsRolePanel.tsx)

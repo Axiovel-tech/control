@@ -22,7 +22,6 @@ import { handleObjectDeletionMessage } from './model/objects';
 
 import {
   handleRtlsInformationMessage,
-  handleRtlsLockMessage,
   handleRtlsOtaMessage,
   handleRtlsPositionMessage,
   handleRtlsStatsMessage,
@@ -104,7 +103,6 @@ messageHub.registerNotificationHandlers({
   'X-AP-OTA': (message) => handleFirmwareUpdateMessage(message.body, dispatch),
   'X-RTLS-INF': (message) =>
     handleRtlsInformationMessage(message.body, dispatch),
-  'X-RTLS-LOCK': (message) => handleRtlsLockMessage(message.body, dispatch),
   'X-RTLS-OTA': (message) => handleRtlsOtaMessage(message.body, dispatch),
   'X-RTLS-POS': (message) => handleRtlsPositionMessage(message.body, dispatch),
   'X-RTLS-STATS': (message) => handleRtlsStatsMessage(message.body, dispatch),

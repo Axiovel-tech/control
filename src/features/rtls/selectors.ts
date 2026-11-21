@@ -30,6 +30,7 @@ import {
   isLocked,
   type AnchorLockState,
   type RtlsAnchorLock,
+  type RtlsShowGate,
 } from './anchor-lock';
 import {
   type RtlsAnchor,
@@ -397,63 +398,20 @@ export const isRtlsDeviceLockedOut: AppSelector<boolean, [Identifier]> = (
 ) => getRtlsLockedOutDeviceIds(state).has(id);
 
 /**
- * How Control knows whether a show start needs the anchors locked:
- * - `server`: the server's own verdict (`anchorLock.showGate`, the check
- *   SHOW-SETCFG applies);
- * - `advisory`: an older server without the verdict, which reports a lock
- *   and knows anchors: it may refuse, so Control advises;
- * - `none`: no lock, or no anchors.
- */
-export type RtlsShowGateSource = 'server' | 'advisory' | 'none';
-
-/** Selector that returns where the show-gate verdict comes from. */
-export const getRtlsShowGateSource: AppSelector<RtlsShowGateSource> =
-  createSelector(
-    getRtlsAnchorLock,
-    getRtlsAnchorDevices,
-    getRtlsAnchors,
-    (lock, devices, anchors) =>
-      lock === undefined
-        ? 'none'
-        : lock.showGate !== undefined
-          ? 'server'
-          : devices.length > 0 || anchors.length > 0
-            ? 'advisory'
-            : 'none'
-  );
-
-/**
  * Selector that returns whether a show start needs the anchors locked: the
- * server's verdict when it reports one, else (advisory) whether it reports a
- * lock and knows anchors.
+ * server's own verdict (`anchorLock.showGate`, the check SHOW-SETCFG
+ * applies). A server without the lock requires nothing.
  */
-export const isRtlsAnchorLockRequired: AppSelector<boolean> = (state) => {
-  const lock = getRtlsAnchorLock(state);
-  return lock?.showGate !== undefined
-    ? lock.showGate.required
-    : getRtlsShowGateSource(state) === 'advisory';
-};
+export const isRtlsAnchorLockRequired: AppSelector<boolean> = (state) =>
+  getRtlsAnchorLock(state)?.showGate?.required ?? false;
 
 /**
- * What Control tells the operator about the show gate where a show is
- * authorized or scheduled: the server refuses now (with its reason), it may
- * refuse (an older server without a verdict, anchors not locked), or
- * nothing to say.
+ * Selector that returns the server's show-gate verdict while it refuses a
+ * new authorization or a changed authorized start, else `undefined`.
  */
-export type RtlsShowGateNotice =
-  | { kind: 'refused'; reason?: string }
-  | { kind: 'advisory' }
-  | undefined;
-
-export const getRtlsShowGateNotice: AppSelector<RtlsShowGateNotice> = (
+export const getRtlsShowGateRefusal: AppSelector<RtlsShowGate | undefined> = (
   state
 ) => {
-  const source = getRtlsShowGateSource(state);
-  if (source === 'server') {
-    const gate = getRtlsAnchorLock(state)!.showGate!; // non-null: source
-    return gate.refused ? { kind: 'refused', reason: gate.reason } : undefined;
-  }
-  return source === 'advisory' && getRtlsAnchorLockState(state) !== 'locked'
-    ? { kind: 'advisory' }
-    : undefined;
+  const gate = getRtlsAnchorLock(state)?.showGate;
+  return gate?.refused ? gate : undefined;
 };

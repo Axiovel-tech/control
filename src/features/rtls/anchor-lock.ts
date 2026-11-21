@@ -1,32 +1,30 @@
 /**
- * @file The anchor cell lock as the server reports it (axio-server #63):
- * its types, the mapping of the wire shape — X-RTLS-INF `anchorLock`,
- * X-RTLS-LOCK responses and pushes — and the questions the UI asks of it.
- * `anchorLock` is `{locked, lockedAt (UNIX s), anchors, acknowledgedWarnings,
- * breaks, showGate}`; a warning is `{code, device, detail}`, a break `{code,
- * device, detail, at}`, `showGate` `{required, refused, reason}`.
+ * @file The anchor cell lock as the server reports it: its types, the mapping
+ * of the wire shape (X-RTLS-INF `anchorLock` and X-RTLS-LOCK responses) and
+ * the questions the UI asks of it. `anchorLock` is `{locked, lockedAt (UNIX
+ * s), anchors, acknowledgedWarnings, breaks, showGate}`; a warning is `{code,
+ * device, detail}`, a break `{code, device, detail, at}`, `showGate`
+ * `{required, refused, reason}`.
  */
 
 /** A warning the server raised when the anchors were (or were about to be) locked. */
 export type RtlsLockIssue = {
   /** Machine-readable kind, e.g. `offline`, `moved`, `low-battery`. */
-  code?: string;
+  code: string;
   /** System id of the anchor it concerns, when it concerns one. */
   device?: string;
   /** Human-readable text from the server; it names the anchor. */
   text: string;
 };
 
-/** One event that broke the anchor lock (integrity watch while locked). */
-export type RtlsLockBreak = {
-  /** Machine-readable kind, e.g. `offline`, `rebooted`, `param-changed`. */
-  reason: string;
-  /** System id of the anchor it concerns, when it concerns one. */
-  device?: string;
+/**
+ * One event that broke the anchor lock (integrity watch while locked): a
+ * warning's fields, its `code` one of `offline`, `rebooted`, `param-changed`,
+ * `firmware-changed`, `moved`, `left-operating`.
+ */
+export type RtlsLockBreak = RtlsLockIssue & {
   /** When it happened, ms since the epoch. */
   time?: number;
-  /** Human-readable text from the server; it names the anchor. */
-  text: string;
 };
 
 /**
@@ -70,60 +68,38 @@ const isRecord = (value: unknown): value is AnyRecord =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
 const toText = (value: unknown): string | undefined =>
-  typeof value === 'string' && value.length > 0 ? value : undefined;
+  typeof value === 'string' ? value : undefined;
 
+/** A system id (a number on the wire, `null` for the cell) as a key. */
 const toDevice = (value: unknown): string | undefined =>
   typeof value === 'number' && Number.isFinite(value)
     ? String(value)
-    : toText(value);
+    : undefined;
 
-/**
- * A wire timestamp in ms since the epoch: a number in seconds (the server's
- * `time.time()`) or in ms, or an ISO string.
- */
-export const toEpochMs = (value: unknown): number | undefined => {
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    return value < 1e12 ? value * 1000 : value;
-  }
-  if (typeof value === 'string') {
-    const parsed = Date.parse(value);
-    return Number.isNaN(parsed) ? undefined : parsed;
-  }
-  return undefined;
-};
+/** UNIX seconds (the server's `time.time()`) as ms since the epoch. */
+const secondsToMs = (value: unknown): number | undefined =>
+  typeof value === 'number' && Number.isFinite(value)
+    ? value * 1000
+    : undefined;
 
+/** A warning: `{code, device, detail}`. */
 const mapIssue = (raw: unknown): RtlsLockIssue | undefined => {
-  if (typeof raw === 'string') {
-    return { text: raw };
-  }
   if (!isRecord(raw)) {
     return undefined;
   }
-  const code = toText(raw.code) ?? toText(raw.kind) ?? toText(raw.reason);
-  const text =
-    toText(raw.message) ?? toText(raw.detail) ?? toText(raw.text) ?? code;
-  return text === undefined
+  const code = toText(raw.code);
+  const text = toText(raw.detail);
+  return code === undefined || text === undefined
     ? undefined
-    : {
-        code,
-        device: toDevice(raw.device ?? raw.id ?? raw.systemId),
-        text,
-      };
+    : { code, device: toDevice(raw.device), text };
 };
 
+/** A break: a warning's fields and `at` (UNIX seconds). */
 const mapBreak = (raw: unknown): RtlsLockBreak | undefined => {
   const issue = mapIssue(raw);
-  if (issue === undefined) {
-    return undefined;
-  }
-  return {
-    reason: issue.code ?? 'unknown',
-    device: issue.device,
-    time: isRecord(raw)
-      ? toEpochMs(raw.at ?? raw.time ?? raw.timestamp)
-      : undefined,
-    text: issue.text,
-  };
+  return issue === undefined || !isRecord(raw)
+    ? undefined
+    : { ...issue, time: secondsToMs(raw.at) };
 };
 
 const mapList = <T>(value: unknown, map: (raw: unknown) => T | undefined) =>
@@ -146,7 +122,7 @@ export function mapAnchorLock(value: unknown): RtlsAnchorLock | undefined {
   }
   return {
     locked: value.locked,
-    lockedAt: value.locked ? toEpochMs(value.lockedAt) : undefined,
+    lockedAt: value.locked ? secondsToMs(value.lockedAt) : undefined,
     anchors: value.locked ? mapList(value.anchors, (raw) => toDevice(raw)) : [],
     warnings: mapLockIssues(value.acknowledgedWarnings ?? value.warnings),
     breaks: mapList(value.breaks, mapBreak),

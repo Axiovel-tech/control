@@ -27,7 +27,7 @@ import {
   lockRtlsAnchors,
   unlockRtlsAnchors,
 } from './lock-actions';
-import { describeLockBreak, describeLockIssue } from './lock-text';
+import { describeLockBreak, newestBreaksFirst } from './lock-text';
 import {
   getRtlsAnchorLock,
   getRtlsAnchorLockState,
@@ -159,7 +159,7 @@ const LockedSummary = ({ lock }: { lock: RtlsAnchorLock | undefined }) => {
           <Typography variant='body2' sx={{ mt: 1 }}>
             {t('rtlsAnchorLock.dialog.acknowledgedWarnings')}
           </Typography>
-          <IssueList lines={warnings.map(describeLockIssue)} />
+          <IssueList lines={warnings.map((issue) => issue.text)} />
         </>
       )}
     </>
@@ -200,7 +200,7 @@ const RtlsAnchorLockDialog = () => {
               {t('rtlsAnchorLock.dialog.breaks')}
             </Typography>
             <IssueList
-              lines={(lock?.breaks ?? []).map((entry) =>
+              lines={newestBreaksFirst(lock?.breaks ?? []).map((entry) =>
                 describeLockBreak(t, entry)
               )}
             />
@@ -217,7 +217,9 @@ const RtlsAnchorLockDialog = () => {
             <Typography variant='body2' sx={{ mt: 1 }}>
               {t('rtlsAnchorLock.dialog.warnings')}
             </Typography>
-            <IssueList lines={(flow.pending ?? []).map(describeLockIssue)} />
+            <IssueList
+              lines={(flow.pending ?? []).map((issue) => issue.text)}
+            />
           </>
         )}
         {!locked && flow.needsAcknowledgement && (

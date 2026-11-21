@@ -17,8 +17,8 @@ import {
   hasManualPreflightChecks,
 } from '~/features/preflight/selectors';
 import {
-  getRtlsAnchorLock,
   getRtlsAnchorLockState,
+  getRtlsShowGateRefusal,
   isRtlsAnchorLockRequired,
 } from '~/features/rtls/selectors';
 import { isConnected as isConnectedToServer } from '~/features/servers/selectors';
@@ -180,24 +180,18 @@ const stages: Record<Stage, StageSpecification> = {
 
   // The server refuses a new authorization or a changed authorized start
   // while it knows anchors that are not locked, or locked with breaks: its
-  // own verdict when it reports one, else the lock state (advisory)
+  // own verdict (`anchorLock.showGate`)
   lockAnchors: {
     evaluate(state) {
       if (!isRtlsAnchorLockRequired(state)) {
         return Status.SKIPPED;
       }
-      const gate = getRtlsAnchorLock(state)?.showGate;
-      if (gate !== undefined && !gate.refused) {
+      if (getRtlsShowGateRefusal(state) === undefined) {
         return Status.SUCCESS;
       }
-      switch (getRtlsAnchorLockState(state)) {
-        case 'locked':
-          return Status.SUCCESS;
-        case 'broken':
-          return Status.ERROR;
-        default:
-          return Status.OFF;
-      }
+      return getRtlsAnchorLockState(state) === 'broken'
+        ? Status.ERROR
+        : Status.OFF;
     },
     requires: ['selectShowFile'],
   },

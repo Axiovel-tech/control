@@ -19,7 +19,7 @@ import { triggerAlert } from '~/features/alert/slice';
 import { type AppDispatch } from '~/store/reducers';
 
 import { isLockBroken } from './anchor-lock';
-import { describeLockBreak } from './lock-text';
+import { describeLockBreak, newestBreaksFirst } from './lock-text';
 import { getRtlsAnchorLock } from './selectors';
 import { openRtlsLockDialog } from './slice';
 
@@ -56,9 +56,11 @@ const RtlsLockBrokenBanner = () => {
       <AlertTitle>
         {t('rtlsAnchorLock.banner.title', { count: breaks.length })}
       </AlertTitle>
-      {breaks.slice(0, LISTED_BREAKS).map((entry, index) => (
-        <div key={index}>{describeLockBreak(t, entry)}</div>
-      ))}
+      {newestBreaksFirst(breaks)
+        .slice(0, LISTED_BREAKS)
+        .map((entry, index) => (
+          <div key={index}>{describeLockBreak(t, entry)}</div>
+        ))}
       {breaks.length > LISTED_BREAKS && (
         <div>
           {t('rtlsAnchorLock.banner.more', {

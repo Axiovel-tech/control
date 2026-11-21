@@ -25,10 +25,8 @@ import {
   mapAnchorLock,
 } from '~/features/rtls/anchor-lock';
 import { forgetRtlsDevices } from '~/features/rtls/forget-actions';
-import {
-  handleRtlsInformationMessage,
-  handleRtlsLockMessage,
-} from '~/features/rtls/handlers';
+import { handleRtlsInformationMessage } from '~/features/rtls/handlers';
+import { newestBreaksFirst } from '~/features/rtls/lock-text';
 import {
   fetchRtlsLockStatus,
   lockRtlsAnchors,
@@ -39,7 +37,7 @@ import { setRtlsDeviceParameter } from '~/features/rtls/param-actions';
 import {
   areRtlsAnchorsLocked,
   getRtlsLockedOutDeviceIds,
-  getRtlsShowGateNotice,
+  getRtlsShowGateRefusal,
   isRtlsAnchorLockRequired,
 } from '~/features/rtls/selectors';
 import {
@@ -153,13 +151,13 @@ describe('lock state mapping', () => {
     const lock = mapAnchorLock(BROKEN)!;
     expect(lock.breaks).toEqual([
       {
-        reason: 'rebooted',
+        code: 'rebooted',
         device: '203',
         time: 1795290100500,
         text: 'RTLS anchor A2 rebooted',
       },
       {
-        reason: 'moved',
+        code: 'moved',
         device: undefined,
         time: 1795290200000,
         text: 'cell moved',
@@ -224,7 +222,7 @@ describe('X-RTLS-LOCK messages', () => {
     );
   });
 
-  test('X-RTLS-INF and pushes carry the lock', () => {
+  test('X-RTLS-INF carries the lock', () => {
     const dispatch = jest.fn<AppDispatch>();
     handleRtlsInformationMessage({ status: {}, anchorLock: BROKEN }, dispatch);
     expect(dispatch).toHaveBeenCalledWith(
@@ -235,21 +233,6 @@ describe('X-RTLS-LOCK messages', () => {
     handleRtlsInformationMessage({ status: {} }, dispatch);
     // an older server without the lock leaves the stored state alone
     expect(dispatch).toHaveBeenCalledTimes(1);
-
-    dispatch.mockClear();
-    handleRtlsLockMessage(
-      { type: 'X-RTLS-LOCK', anchorLock: { locked: false, breaks: [] } },
-      dispatch
-    );
-    expect(dispatch).toHaveBeenCalledWith(
-      setRtlsAnchorLock({
-        locked: false,
-        anchors: [],
-        warnings: [],
-        breaks: [],
-        showGate: undefined,
-      })
-    );
   });
 
   test('the lock belongs to the server: dropped with the registry', () => {
@@ -397,15 +380,14 @@ describe('while the anchors are locked', () => {
 });
 
 describe('show gating', () => {
-  test('a show needs the lock only when the server has one and knows anchors', () => {
+  test('only the server verdict requires a lock', () => {
     const store = createStore();
     expect(isRtlsAnchorLockRequired(state(store))).toBe(false);
 
+    // a lock without a verdict, even with anchors known, requires nothing
+    seedAnchorsAndTag(store);
     store.dispatch(setRtlsAnchorLock(mapAnchorLock({ locked: false })!));
     expect(isRtlsAnchorLockRequired(state(store))).toBe(false);
-
-    seedAnchorsAndTag(store);
-    expect(isRtlsAnchorLockRequired(state(store))).toBe(true);
   });
 });
 
@@ -490,8 +472,9 @@ describe("the server's show-gate verdict", () => {
       reason: 'the anchors are not locked',
     });
     expect(isRtlsAnchorLockRequired(root)).toBe(true);
-    expect(getRtlsShowGateNotice(root)).toEqual({
-      kind: 'refused',
+    expect(getRtlsShowGateRefusal(root)).toEqual({
+      required: true,
+      refused: true,
       reason: 'the anchors are not locked',
     });
   });
@@ -499,12 +482,16 @@ describe("the server's show-gate verdict", () => {
   test('a gate the server turned off requires nothing', () => {
     const root = withGate({ required: false, refused: false });
     expect(isRtlsAnchorLockRequired(root)).toBe(false);
-    expect(getRtlsShowGateNotice(root)).toBe(undefined);
+    expect(getRtlsShowGateRefusal(root)).toBe(undefined);
   });
+});
 
-  test('an older server without the verdict gets advisory wording', () => {
-    expect(getRtlsShowGateNotice(withGate(undefined))).toEqual({
-      kind: 'advisory',
-    });
+describe('breaks for display', () => {
+  test('newest first (the server appends them)', () => {
+    const lock = mapAnchorLock(BROKEN)!;
+    expect(newestBreaksFirst(lock.breaks).map((entry) => entry.code)).toEqual([
+      'moved',
+      'rebooted',
+    ]);
   });
 });

@@ -227,36 +227,44 @@ export function mapRtlsAnchors(value: unknown): RtlsAnchor[] {
   return result;
 }
 
-export function handleRtlsInformationMessage(
-  body: AnyRecord,
-  dispatch: AppDispatch
-): void {
+type RtlsInformationAction = ReturnType<
+  | typeof setRtlsDevicesFromStatus
+  | typeof setRtlsAnchors
+  | typeof setRtlsAnchorLock
+>;
+
+/**
+ * The actions an X-RTLS-INF body (pushed, answered, or polled by the saga)
+ * applies: the device registry wholesale, then the site anchor list and the
+ * anchor lock when the body carries them.
+ */
+export function rtlsInformationActions(
+  body: AnyRecord
+): RtlsInformationAction[] {
   const status = body?.status as Record<string, AnyRecord> | undefined;
-  dispatch(setRtlsDevicesFromStatus(buildRtlsDeviceStatusMap(status)));
+  const actions: RtlsInformationAction[] = [
+    setRtlsDevicesFromStatus(buildRtlsDeviceStatusMap(status)),
+  ];
   // Only an explicit anchor list may replace the stored one: an X-RTLS-INF
   // from a server that predates the anchors field must not wipe the
   // configured cell geometry off the debug position view.
   if (Array.isArray(body?.anchors)) {
-    dispatch(setRtlsAnchors(mapRtlsAnchors(body.anchors)));
+    actions.push(setRtlsAnchors(mapRtlsAnchors(body.anchors)));
   }
   // Likewise only an explicit lock state replaces the stored one
   const lock = mapAnchorLock(body?.anchorLock);
   if (lock !== undefined) {
-    dispatch(setRtlsAnchorLock(lock));
+    actions.push(setRtlsAnchorLock(lock));
   }
+  return actions;
 }
 
-/**
- * Handles a pushed X-RTLS-LOCK message (a lock, unlock or new break): the
- * lock state is its `anchorLock` field.
- */
-export function handleRtlsLockMessage(
+export function handleRtlsInformationMessage(
   body: AnyRecord,
   dispatch: AppDispatch
 ): void {
-  const lock = mapAnchorLock(body?.anchorLock);
-  if (lock !== undefined) {
-    dispatch(setRtlsAnchorLock(lock));
+  for (const action of rtlsInformationActions(body)) {
+    dispatch(action);
   }
 }
 

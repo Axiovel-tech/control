@@ -143,10 +143,6 @@ export type DeviceRowHandlers = {
 };
 
 /**
- * The per-row action cluster: sleep / wake (tags and anchors), parameters and
- * firmware update.
- */
-/**
  * A row action. While the anchors are locked (`lockedOut`) it stays visible
  * but disabled, and says why.
  */
@@ -182,6 +178,12 @@ const ActionButton = ({
   );
 };
 
+/**
+ * The per-row action cluster: forget (offline), sleep / wake (known tags and
+ * anchors), parameters and firmware update. `locked` (the anchor lock
+ * freezes this device) disables every changing action; parameters stay
+ * viewable.
+ */
 const RowActions = ({
   busy,
   device,
@@ -195,8 +197,6 @@ const RowActions = ({
 }) => {
   const { t } = useTranslation();
   const anchor = isAnchorRole(classifyRole(device.role));
-  // the anchor lock freezes every anchor-changing action; tags are unaffected
-  const lockedOut = locked;
   const sleepTooltip = anchor ? t('rtlsAnchor.action.sleep') : 'Sleep';
   const wakeTooltip = anchor ? t('rtlsAnchor.action.wake') : 'Wake';
   return (
@@ -208,7 +208,7 @@ const RowActions = ({
       {!device.online && handlers.onForget && (
         <ActionButton
           icon={<DeleteOutline fontSize='small' />}
-          lockedOut={lockedOut}
+          lockedOut={locked}
           testId='rtls-device-forget'
           tooltip={t('rtlsDevice.action.forget')}
           onClick={() => handlers.onForget?.(device.id)}
@@ -226,14 +226,14 @@ const RowActions = ({
           <>
             <ActionButton
               icon={<Moon fontSize='small' />}
-              lockedOut={lockedOut}
+              lockedOut={locked}
               testId='rtls-device-sleep'
               tooltip={sleepTooltip}
               onClick={() => handlers.onSleep(device.id)}
             />
             <ActionButton
               icon={<Bolt fontSize='small' />}
-              lockedOut={lockedOut}
+              lockedOut={locked}
               testId='rtls-device-wake'
               tooltip={wakeTooltip}
               onClick={() => handlers.onWake(device.id)}
@@ -249,7 +249,7 @@ const RowActions = ({
       />
       <ActionButton
         icon={<SystemUpdate fontSize='small' />}
-        lockedOut={lockedOut}
+        lockedOut={locked}
         testId='rtls-device-firmware'
         tooltip='Firmware update'
         onClick={() => handlers.onShowOta(device.id)}

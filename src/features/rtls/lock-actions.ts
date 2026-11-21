@@ -50,8 +50,9 @@ export const fetchRtlsLockStatus =
 
 /**
  * Thunk that unlocks the anchors after a confirmation, worded more strongly
- * while any drone may be armed: unlocked anchors can be changed again, and a
- * scheduled or authorized show then fails its server-side check.
+ * while any drone may be armed: unlocked anchors can be changed again. An
+ * existing authorization and start stay intact; a new authorization or a
+ * changed authorized start needs the anchors locked again.
  */
 export const unlockRtlsAnchors =
   (): AppThunk<Promise<void>> => async (dispatch, getState) => {
