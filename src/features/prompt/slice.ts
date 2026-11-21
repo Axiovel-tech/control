@@ -55,8 +55,10 @@ const { reducer, actions } = createSlice({
         payload,
       }: PayloadAction<Omit<PromptOptions, 'open'> & { type: PromptDialogType }>
     ) {
-      state.open = true;
-      Object.assign(state, payload);
+      // Every dialog starts from the defaults: an option one dialog set
+      // (a title, a button label) must not leak into the next one that
+      // leaves it out.
+      Object.assign(state, initialState, payload, { open: true });
     },
 
     /**
