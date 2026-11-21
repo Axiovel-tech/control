@@ -84,6 +84,7 @@ export const unlockRtlsAnchors =
   (): AppThunk<Promise<void>> => async (dispatch, getState) => {
     const armed = getPossiblyArmedUavIds(getState()).length;
     const response = await dispatch(
+      // one line on purpose: no title
       showConfirmationDialog(
         armed > 0
           ? i18n.t('rtlsAnchorLock.unlock.armedMessage', { count: armed })

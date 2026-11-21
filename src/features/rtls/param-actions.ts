@@ -41,11 +41,16 @@ export const fetchRtlsDeviceParameters =
   };
 
 /**
- * Parameters the dialog shows but never writes: `SLEEP` goes through the
- * row's Sleep/Wake buttons, which confirm (anchors), wait for the verified
- * result and never send off (2) or plain standby (3).
+ * Parameters the dialog shows but never writes, with the hint that says
+ * where they are changed: `SLEEP` through the row's Sleep/Wake buttons
+ * (which confirm, wait for the verified result and never send off or plain
+ * standby), `LOCK` through the panel's Lock/Unlock (which check the anchors
+ * and list the server's warnings).
  */
-export const READ_ONLY_RTLS_PARAMS: ReadonlySet<string> = new Set(['SLEEP']);
+export const READ_ONLY_RTLS_PARAMS: Readonly<Record<string, string>> = {
+  SLEEP: 'rtlsParams.sleepReadOnly',
+  LOCK: 'rtlsParams.lockReadOnly',
+};
 
 /**
  * Thunk that sets a single parameter on a device. The returned promise resolves
@@ -53,7 +58,8 @@ export const READ_ONLY_RTLS_PARAMS: ReadonlySet<string> = new Set(['SLEEP']);
  * resolves normally with `accepted: false`; only transport errors reject).
  *
  * On an accepted set the cached parameter value is updated optimistically.
- * `SLEEP` is refused before sending (see {@link READ_ONLY_RTLS_PARAMS}).
+ * `SLEEP` and `LOCK` are refused before sending (see
+ * {@link READ_ONLY_RTLS_PARAMS}).
  */
 export const setRtlsDeviceParameter =
   (
@@ -66,8 +72,9 @@ export const setRtlsDeviceParameter =
     if (isRtlsDeviceLockedOut(getState(), deviceId)) {
       throw new Error(i18n.t('rtlsAnchorLock.locked'));
     }
-    if (READ_ONLY_RTLS_PARAMS.has(name)) {
-      throw new Error(i18n.t('rtlsParams.sleepReadOnly'));
+    const readOnlyHint = READ_ONLY_RTLS_PARAMS[name];
+    if (readOnlyHint !== undefined) {
+      throw new Error(i18n.t(readOnlyHint));
     }
 
     const result = await setRtlsParameter(

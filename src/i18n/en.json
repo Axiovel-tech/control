@@ -1143,6 +1143,7 @@
     }
   },
   "rtlsParams": {
+    "lockReadOnly": "Use the panel's Lock and Unlock",
     "sleepReadOnly": "Use the row's Sleep and Wake buttons"
   },
   "rtlsTagDetails": {

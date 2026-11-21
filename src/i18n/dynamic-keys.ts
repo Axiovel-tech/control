@@ -372,6 +372,10 @@
  * t("rtlsOta.species.anchor")
  * t("rtlsOta.species.tag")
  *
+ * RTLS read-only parameter hints (keys chosen by features/rtls/param-actions.ts)
+ * t("rtlsParams.sleepReadOnly")
+ * t("rtlsParams.lockReadOnly")
+ *
  * RTLS tag details toggles (keys chosen by views/rtls/DeviceStatsRow.tsx and
  * views/rtls/RtlsRolePanel.tsx)
  * t("rtlsTagDetails.showMore")

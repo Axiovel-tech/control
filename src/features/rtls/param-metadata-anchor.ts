@@ -8,6 +8,15 @@
 import { type RtlsParamMetadata } from './param-metadata';
 
 export const ANCHOR_PARAM_METADATA: Record<string, RtlsParamMetadata> = {
+  /* --- Anchor lock (rtls-link-zephyr anchor-power-path.md, "Lock") --- */
+  LOCK: {
+    description: "Anchor lock: use the panel's Lock/Unlock",
+    enumLabels: { 0: 'unlocked', 1: 'locked' },
+    min: 0,
+    max: 1,
+    defaultValue: 0,
+  },
+
   /* --- Power and sleep (lib/power/src/{power_params,path/sleep_param}.cpp) --- */
   SLEEP: {
     description:

@@ -28,6 +28,8 @@ import {
   unlockRtlsAnchors,
 } from '~/features/rtls/lock-actions';
 import { setRtlsDeviceParameter } from '~/features/rtls/param-actions';
+import { getRtlsParamGroup } from '~/features/rtls/param-grouping';
+import { getRtlsParamMetadata } from '~/features/rtls/param-metadata';
 import {
   getRtlsLockedOutDeviceIds,
   getRtlsShowGateRefusal,
@@ -268,7 +270,8 @@ describe('lock and unlock', () => {
       })
     );
     await dispatchThunk(store, unlockRtlsAnchors());
-    expect(confirm.mock.calls[0][0]).toBe('rtlsAnchorLock.unlock.message');
+    // one line, no title
+    expect(confirm.mock.calls[0]).toEqual(['rtlsAnchorLock.unlock.message']);
     expect(sendMessage.mock.calls[0][0]).toEqual({
       type: 'X-RTLS-LOCK',
       action: 'unlock',
@@ -490,5 +493,23 @@ describe('lock outcomes', () => {
       })
     );
     expect(getRtlsLockedOutDeviceIds(state(store)).size).toBe(0);
+  });
+});
+
+describe('the LOCK parameter', () => {
+  test('is never written from the parameter dialog', async () => {
+    const store = createStore();
+    seedAnchorsAndTag(store);
+    await expect(
+      dispatchThunk(store, setRtlsDeviceParameter('101', 'LOCK', 1, 'uint8'))
+    ).rejects.toThrow('rtlsParams.lockReadOnly');
+    expect(sendMessage).not.toHaveBeenCalled();
+  });
+
+  test('is described and filed under Power', () => {
+    expect(getRtlsParamMetadata('LOCK')?.description).toBe(
+      "Anchor lock: use the panel's Lock/Unlock"
+    );
+    expect(getRtlsParamGroup('LOCK')).toBe('PWR');
   });
 });

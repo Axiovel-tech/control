@@ -5,7 +5,8 @@
  * token before the first underscore is the domain prefix (UWB_CHANNEL and
  * UWB_AN0_X are both UWB; SIM_UWB_DROP_PCT is SIM). The wire protocol has no
  * group metadata, so this is the single source of the taxonomy. A few
- * parameters without a prefix are filed explicitly (`SLEEP` under power).
+ * parameters without a prefix are filed explicitly (`SLEEP` and `LOCK`
+ * under power).
  */
 
 import { getRtlsParamMetadata } from './param-metadata';
@@ -59,6 +60,7 @@ const GROUP_ORDER = [
 /** Parameters whose name carries no group prefix, by group. */
 const GROUP_OVERRIDES: Record<string, string> = {
   SLEEP: 'PWR',
+  LOCK: 'PWR',
 };
 
 /**

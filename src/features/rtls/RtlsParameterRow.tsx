@@ -101,9 +101,9 @@ const RtlsParameterRow = ({
   const dirty = draft !== formatParamValue(param.value, param.type);
   const metadata = getRtlsParamMetadata(param.name);
   const enumLabel = enumLabelFor(metadata, draft);
-  // SLEEP goes through the row buttons; a locked anchor takes no write
-  const sleepParam = READ_ONLY_RTLS_PARAMS.has(param.name);
-  const readOnly = sleepParam || lockedReadOnly;
+  // SLEEP and LOCK change elsewhere; a locked anchor takes no write
+  const readOnlyHint = READ_ONLY_RTLS_PARAMS[param.name];
+  const readOnly = readOnlyHint !== undefined || lockedReadOnly;
 
   const handleCommit = useCallback(async () => {
     if (!dirty || busy) {
@@ -193,14 +193,14 @@ const RtlsParameterRow = ({
             = {enumLabel}
           </Typography>
         )}
-        {sleepParam && (
+        {readOnlyHint !== undefined && (
           <Typography
             variant='caption'
             color='text.secondary'
             component='div'
             data-testid='rtls-param-read-only'
           >
-            {t('rtlsParams.sleepReadOnly')}
+            {t(readOnlyHint)}
           </Typography>
         )}
       </TableCell>
