@@ -10,8 +10,10 @@ import { StatusLight } from '@skybrush/mui-components';
 
 import { Status } from '~/components/semantics';
 import { setCommandsAreBroadcast } from '~/features/mission/slice';
-import { type RtlsShowGate } from '~/features/rtls/anchor-lock';
 import { getRtlsShowGateRefusal } from '~/features/rtls/selectors';
+import { showNotification } from '~/features/snackbar/actions';
+import { MessageSemantics } from '~/features/snackbar/types';
+import i18n from '~/i18n';
 import {
   countUAVsTakingOffAutomatically,
   isShowAuthorizedToStartLocally,
@@ -30,8 +32,6 @@ const buttonStyle: SxProps<typeof ListItemButton> = {
 };
 
 type Props = Readonly<{
-  /** The server's refusal of a new authorization, if it refuses now. */
-  gateRefusal: RtlsShowGate | undefined;
   isAuthorized: boolean;
   numUAVsTakingOffAutomatically: number;
   status: Status;
@@ -43,7 +43,6 @@ type Props = Readonly<{
  * in automatic mode.
  */
 const AuthorizationButton = ({
-  gateRefusal,
   isAuthorized,
   numUAVsTakingOffAutomatically,
   status,
@@ -84,11 +83,7 @@ const AuthorizationButton = ({
                     : t('show.takeOffMore', {
                         quantity: numUAVsTakingOffAutomatically,
                       })
-                : gateRefusal
-                  ? t('rtlsAnchorLock.preflight.authorizationRefused', {
-                      reason: gateRefusal.reason ?? '',
-                    })
-                  : t('show.authorizationReq')}
+                : t('show.authorizationReq')}
             </Typography>
           }
         />
@@ -100,7 +95,6 @@ const AuthorizationButton = ({
 export default connect(
   // mapStateToProps
   (state: RootState) => ({
-    gateRefusal: getRtlsShowGateRefusal(state),
     isAuthorized: isShowAuthorizedToStartLocally(state),
     numUAVsTakingOffAutomatically: countUAVsTakingOffAutomatically(state),
     status: getSetupStageStatuses(state).authorization,
@@ -110,6 +104,14 @@ export default connect(
     onClick: () => (dispatch: AppDispatch, getState: () => RootState) => {
       const state = getState();
       const newAuthorizationState = !isShowAuthorizedToStartLocally(state);
+      if (newAuthorizationState && getRtlsShowGateRefusal(state)) {
+        // the server refuses a new authorization until the anchors are locked
+        showNotification({
+          message: i18n.t('rtlsAnchorLock.step.lockFirst'),
+          semantics: MessageSemantics.WARNING,
+        });
+        return;
+      }
       dispatch(setShowAuthorization(newAuthorizationState));
       dispatch(synchronizeShowSettings('toServer'));
       if (newAuthorizationState) {

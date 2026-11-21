@@ -298,9 +298,7 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
             </Typography>
           )}
           <Tooltip
-            content={t(
-              lockedOut ? 'rtlsAnchorLock.lockedTooltip' : bulk.sleepLabel
-            )}
+            content={t(lockedOut ? 'rtlsAnchorLock.locked' : bulk.sleepLabel)}
           >
             {/* a disabled button gets no pointer events: the span keeps the
              * tooltip */}
@@ -316,9 +314,7 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
             </Box>
           </Tooltip>
           <Tooltip
-            content={t(
-              lockedOut ? 'rtlsAnchorLock.lockedTooltip' : bulk.wakeLabel
-            )}
+            content={t(lockedOut ? 'rtlsAnchorLock.locked' : bulk.wakeLabel)}
           >
             <Box component='span'>
               <IconButton

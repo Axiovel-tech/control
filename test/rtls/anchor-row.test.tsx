@@ -311,3 +311,12 @@ describe('a locked anchor row', () => {
     expect(disabled(markup, 'rtls-device-parameters')).toBe(false);
   });
 });
+
+describe('a locked anchor', () => {
+  test('shows a lock icon', () => {
+    expect(render({ stats: { ...ranging, locked: true } })).toContain(
+      'data-testid="rtls-anchor-locked"'
+    );
+    expect(render()).not.toContain('data-testid="rtls-anchor-locked"');
+  });
+});

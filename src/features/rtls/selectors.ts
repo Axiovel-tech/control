@@ -27,7 +27,6 @@ import {
 } from './stats-utils';
 import {
   getAnchorLockState,
-  isLocked,
   type AnchorLockState,
   type RtlsAnchorLock,
   type RtlsShowGate,
@@ -363,7 +362,7 @@ export const getRtlsAnchorLock: AppSelector<RtlsAnchorLock | undefined> = (
 
 /** Selector that returns whether the anchors are locked. */
 export const areRtlsAnchorsLocked: AppSelector<boolean> = (state) =>
-  isLocked(state.rtls.anchorLock);
+  state.rtls.anchorLock?.locked === true;
 
 /** Selector that returns the state of the anchor lock. */
 export const getRtlsAnchorLockState: AppSelector<AnchorLockState> = (state) =>
@@ -375,20 +374,24 @@ export const isRtlsLockDialogOpen: AppSelector<boolean> = (state) =>
 
 /**
  * Selector that returns the ids of the devices the anchor lock freezes:
- * while locked, every anchor and every sealed id, even one whose role has
- * not arrived yet (it is listed with the tags until it does). Empty while
- * unlocked.
+ * every anchor while the anchors are locked, and any device whose own
+ * `locked` stat says so (a partly locked cell).
  */
 export const getRtlsLockedOutDeviceIds: AppSelector<ReadonlySet<string>> =
-  createSelector(getRtlsAnchorLock, getRtlsDevicesInOrder, (lock, devices) =>
-    lock?.locked
-      ? new Set([
-          ...lock.anchors,
-          ...devices
-            .filter((device) => isAnchorRole(classifyRole(device.role)))
-            .map((device) => device.id),
-        ])
-      : new Set<string>()
+  createSelector(
+    getRtlsAnchorLock,
+    getRtlsDevicesInOrder,
+    getRtlsStatsById,
+    (lock, devices, statsById) =>
+      new Set(
+        devices
+          .filter(
+            (device) =>
+              statsById[device.id]?.locked === true ||
+              (lock?.locked === true && isAnchorRole(classifyRole(device.role)))
+          )
+          .map((device) => device.id)
+      )
   );
 
 /** Selector that returns whether the anchor lock freezes the given device. */

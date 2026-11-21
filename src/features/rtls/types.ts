@@ -219,6 +219,8 @@ export type RtlsDeviceStats = {
   lowBattery?: boolean;
   /** The pack is below its warning level while the anchor runs from it. */
   batteryWarning?: boolean;
+  /** The anchor's firmware lock: it refuses every remote change. */
+  locked?: boolean;
   powerState?: RtlsPowerState;
   powerInput?: RtlsPowerInput;
   charging?: RtlsChargingState;

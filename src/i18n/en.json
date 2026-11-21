@@ -949,60 +949,36 @@
     }
   },
   "rtlsAnchorLock": {
-    "banner": {
-      "more_one": "and {{count}} more",
-      "more_other": "and {{count}} more",
-      "review": "Review and re-seal",
-      "title_one": "Anchor lock broken: {{count}} event since it was sealed",
-      "title_other": "Anchor lock broken: {{count}} events since it was sealed"
-    },
-    "break": "{{- time}} · {{- text}}",
     "control": {
-      "broken": "Lock broken",
-      "brokenTooltip": "Something changed on the anchors since they were locked. Review the events and re-seal",
+      "lock": "Lock",
       "locked": "Locked",
-      "lockedTooltip": "Anchors locked since {{- time}}: nothing can change them. Click to unlock",
-      "unlocked": "Lock anchors",
-      "unlockedTooltip": "Lock the anchors so that nothing can change them. While the server's show gate applies, a new show authorization or a changed authorized start needs them locked"
+      "partly": "Not locked ({{locked}}/{{total}})",
+      "unlock": "Unlock",
+      "unlocked": "Not locked"
     },
     "dialog": {
-      "acknowledgeBreaks": "I reviewed these events: take a fresh snapshot of the anchors as they are now",
-      "acknowledgeWarnings": "Lock with these warnings",
-      "acknowledgedWarnings": "Warnings acknowledged when they were locked:",
-      "breaks": "These events broke the lock since it was sealed:",
-      "explanation": "While the anchors are locked, the server refuses every command that would change them: sleep and wake, parameter writes, firmware updates and forget. It watches them and raises an alarm if one goes offline, reboots, moves, changes a cell parameter or its firmware, or stops operating. While the server's show gate applies, a new show authorization or a changed authorized start needs them locked.",
+      "acknowledge": "Lock anyway",
       "lock": "Lock",
-      "lockTitle": "Lock the anchors",
-      "lockedSince": "The anchors are locked since {{- time}}.",
-      "lockedTitle": "Anchors locked",
-      "notLocked": "The server did not lock the anchors.",
-      "reseal": "Re-seal",
-      "resealTitle": "Anchor lock broken",
-      "unlock": "Unlock",
-      "warnings": "The anchors have warnings:"
+      "notLocked": "The anchors were not locked.",
+      "text": "Lock the anchors to prevent unwanted changes during the show.",
+      "title": "Lock anchors"
     },
-    "lockedTooltip": "Anchors are locked",
+    "locked": "Anchors are locked",
     "notification": {
       "locked": "Anchors locked",
-      "unlockFailed": "Could not unlock the anchors: {{- reason}}",
       "unlocked": "Anchors unlocked"
     },
-    "otaLocked": "Anchors are locked: unlock them before updating an anchor's firmware.",
-    "paramsReadOnly": "Anchors are locked: their parameters can be viewed but not changed.",
-    "preflight": {
-      "authorizationRefused": "The server refuses a new authorization: {{- reason}}",
-      "broken": "Lock broken: the server refuses a new authorization or a changed authorized start until it is reviewed and re-sealed",
-      "locked": "Locked",
-      "title": "Anchors locked",
-      "unlocked": "Not locked: the server refuses a new authorization or a changed authorized start",
-      "unsupported": "No anchor lock on this server"
+    "step": {
+      "description": "Lock the anchors to prevent unwanted changes.",
+      "lockFirst": "Lock the anchors first",
+      "title": "Lock anchors"
     },
     "unlock": {
-      "armedMessage_one": "{{count}} drone may be armed. Unlocked anchors can be changed again. An existing authorization and start stay as they are; a new authorization or a changed authorized start needs the anchors locked again. Unlock?",
-      "armedMessage_other": "{{count}} drones may be armed. Unlocked anchors can be changed again. An existing authorization and start stay as they are; a new authorization or a changed authorized start needs the anchors locked again. Unlock?",
-      "armedTitle": "Unlock the anchors while drones are armed?",
-      "message": "Unlocked anchors can be changed again. An existing authorization and start stay as they are; a new authorization or a changed authorized start needs the anchors locked again. Unlock?",
-      "title": "Unlock the anchors?"
+      "armedMessage_one": "{{count}} drone may be armed. Unlock the anchors?",
+      "armedMessage_other": "{{count}} drones may be armed. Unlock the anchors?",
+      "armedTitle": "Drones may be armed",
+      "message": "Anchors can be changed again.",
+      "title": "Unlock anchors?"
     }
   },
   "rtlsDevice": {

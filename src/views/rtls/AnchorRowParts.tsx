@@ -5,6 +5,7 @@
  */
 
 import BatteryStd from '@mui/icons-material/BatteryStd';
+import Lock from '@mui/icons-material/Lock';
 import SettingsEthernet from '@mui/icons-material/SettingsEthernet';
 import Usb from '@mui/icons-material/Usb';
 import Box from '@mui/material/Box';
@@ -232,6 +233,17 @@ export const AnchorStatusCluster = ({
           tooltip={tooltip && t(tooltip.key, tooltip.values)}
         />
       ))}
+      {stats?.locked && (
+        <Tooltip content={t('rtlsAnchorLock.control.locked')}>
+          <Box
+            component='span'
+            data-testid='rtls-anchor-locked'
+            sx={{ display: 'flex', color: 'text.secondary' }}
+          >
+            <Lock fontSize='small' />
+          </Box>
+        </Tooltip>
+      )}
       {input !== undefined && inputIcon && (
         <Tooltip content={t(describePowerInput(input).key)}>
           <Box

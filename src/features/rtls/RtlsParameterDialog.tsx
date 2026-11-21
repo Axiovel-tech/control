@@ -209,7 +209,7 @@ const RtlsParameterDialog = () => {
             severity='info'
             sx={{ mb: 1 }}
           >
-            {t('rtlsAnchorLock.paramsReadOnly')}
+            {t('rtlsAnchorLock.locked')}
           </Alert>
         )}
         {status === 'error' && params.length === 0 ? (

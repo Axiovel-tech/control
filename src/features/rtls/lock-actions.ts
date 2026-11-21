@@ -1,7 +1,7 @@
 /**
- * @file Thunks behind the anchor cell lock (X-RTLS-LOCK). The lock lives in
- * axio-server; Control only asks for it and shows it. It never acts on the
- * devices: it guards operator actions, and the server raises the alarms.
+ * @file Thunks behind the anchor lock (X-RTLS-LOCK). The lock lives in the
+ * anchors' firmware; the server writes it to every online anchor on the
+ * operator's request and reports it back.
  */
 
 import { showConfirmationDialog } from '~/features/prompt/actions';
@@ -15,10 +15,10 @@ import { areRtlsAnchorsLocked, getPossiblyArmedUavIds } from './selectors';
 import { setRtlsAnchorLock } from './slice';
 
 /**
- * Thunk that locks the anchors, or re-seals a broken lock (a fresh snapshot
- * that clears the breaks). Without `acknowledgeWarnings` the server refuses
- * a cell with warnings and returns them, for the dialog to list. Rejects
- * with the server's reason when it refuses the request.
+ * Thunk that locks the anchors. Without `acknowledgeWarnings` the server
+ * returns the cell's warnings instead of locking, for the dialog to list.
+ * An anchor that is not operating makes it refuse (`refused` and a reason,
+ * or a rejection with the reason).
  */
 export const lockRtlsAnchors =
   (acknowledgeWarnings: boolean): AppThunk<Promise<RtlsLockResult>> =>
@@ -36,23 +36,9 @@ export const lockRtlsAnchors =
   };
 
 /**
- * Thunk that reads the lock state and the cell's current warnings (the
- * read-only `status` action), for a review before re-sealing.
- */
-export const fetchRtlsLockStatus =
-  (): AppThunk<Promise<RtlsLockResult>> => async (dispatch) => {
-    const result = await sendRtlsLock(messageHub, 'status');
-    if (result.lock !== undefined) {
-      dispatch(setRtlsAnchorLock(result.lock));
-    }
-    return result;
-  };
-
-/**
  * Thunk that unlocks the anchors after a confirmation, worded more strongly
- * while any drone may be armed: unlocked anchors can be changed again. An
- * existing authorization and start stay intact; a new authorization or a
- * changed authorized start needs the anchors locked again.
+ * while any drone may be armed. An existing authorization and start stay
+ * intact.
  */
 export const unlockRtlsAnchors =
   (): AppThunk<Promise<void>> => async (dispatch, getState) => {
@@ -82,22 +68,17 @@ export const unlockRtlsAnchors =
       }
       showNotification(i18n.t('rtlsAnchorLock.notification.unlocked'));
     } catch (error) {
-      showError(
-        i18n.t('rtlsAnchorLock.notification.unlockFailed', {
-          reason: error instanceof Error ? error.message : String(error),
-        })
-      );
+      showError(error instanceof Error ? error.message : String(error));
     }
   };
 
 /**
- * Whether an anchor command may go out: false (with a note) while the
- * anchors are locked. The server refuses such commands anyway; this keeps
- * the operator from waiting on a refusal.
+ * Refuses an anchor command (with a note) while the anchors are locked. The
+ * firmware refuses it anyway; this keeps the operator from waiting.
  */
 export const refuseWhileAnchorsLocked = (state: RootState): boolean => {
   if (areRtlsAnchorsLocked(state)) {
-    showError(i18n.t('rtlsAnchorLock.lockedTooltip'));
+    showError(i18n.t('rtlsAnchorLock.locked'));
     return true;
   }
   return false;

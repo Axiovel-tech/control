@@ -6,28 +6,19 @@ import { useDispatch, useSelector } from 'react-redux';
 
 import { StatusLight } from '@skybrush/mui-components';
 
-import {
-  getRtlsAnchorLockState,
-  getRtlsShowGateRefusal,
-  isRtlsAnchorLockRequired,
-} from '~/features/rtls/selectors';
+import { isRtlsAnchorLockRequired } from '~/features/rtls/selectors';
 import { openRtlsLockDialog } from '~/features/rtls/slice';
 import { getSetupStageStatuses } from '~/features/show/stages';
 import type { RootState } from '~/store/reducers';
 
 /**
- * Pre-flight item "Anchors locked": the server refuses a new authorization
- * or a changed authorized start while its gate requires locked anchors, so
- * the operator sees it before trying. It shows the server's own verdict
- * (`anchorLock.showGate`) and opens the lock (or re-seal) dialog. Hidden when
- * no lock is required.
+ * The "Lock anchors" step: its light is the server's verdict; a click opens
+ * the lock dialog. Hidden when no lock is required.
  */
 const LockAnchorsButton = () => {
   const { t } = useTranslation();
   const dispatch = useDispatch();
   const required = useSelector(isRtlsAnchorLockRequired);
-  const lockState = useSelector(getRtlsAnchorLockState);
-  const refusal = useSelector(getRtlsShowGateRefusal);
   const status = useSelector(
     (state: RootState) => getSetupStageStatuses(state).lockAnchors
   );
@@ -44,10 +35,8 @@ const LockAnchorsButton = () => {
       >
         <StatusLight status={status} />
         <ListItemText
-          primary={t('rtlsAnchorLock.preflight.title')}
-          secondary={
-            refusal?.reason ?? t(`rtlsAnchorLock.preflight.${lockState}`)
-          }
+          primary={t('rtlsAnchorLock.step.title')}
+          secondary={t('rtlsAnchorLock.step.description')}
         />
       </ListItemButton>
     </ListItem>

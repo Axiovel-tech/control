@@ -161,7 +161,7 @@ const ActionButton = ({
 }) => {
   const { t } = useTranslation();
   return (
-    <Tooltip content={lockedOut ? t('rtlsAnchorLock.lockedTooltip') : tooltip}>
+    <Tooltip content={lockedOut ? t('rtlsAnchorLock.locked') : tooltip}>
       {/* a disabled button gets no pointer events: the span keeps the
        * tooltip */}
       <Box component='span'>

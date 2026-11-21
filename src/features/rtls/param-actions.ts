@@ -64,7 +64,7 @@ export const setRtlsDeviceParameter =
   ): AppThunk<Promise<RtlsParameterSetResult>> =>
   async (dispatch, getState) => {
     if (isRtlsDeviceLockedOut(getState(), deviceId)) {
-      throw new Error(i18n.t('rtlsAnchorLock.lockedTooltip'));
+      throw new Error(i18n.t('rtlsAnchorLock.locked'));
     }
     if (READ_ONLY_RTLS_PARAMS.has(name)) {
       throw new Error(i18n.t('rtlsParams.sleepReadOnly'));

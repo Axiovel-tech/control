@@ -283,7 +283,7 @@ const RtlsOtaDialog = () => {
             severity='info'
             sx={{ mb: 1 }}
           >
-            {t('rtlsAnchorLock.otaLocked')}
+            {t('rtlsAnchorLock.locked')}
           </Alert>
         )}
         <TextField

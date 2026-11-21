@@ -17,7 +17,6 @@ import {
   hasManualPreflightChecks,
 } from '~/features/preflight/selectors';
 import {
-  getRtlsAnchorLockState,
   getRtlsShowGateRefusal,
   isRtlsAnchorLockRequired,
 } from '~/features/rtls/selectors';
@@ -179,20 +178,14 @@ const stages: Record<Stage, StageSpecification> = {
   },
 
   // The server refuses a new authorization or a changed authorized start
-  // while it knows anchors that are not locked, or locked with breaks: its
-  // own verdict (`anchorLock.showGate`)
+  // unless the anchors are locked (its verdict, `anchorLock.showGate`)
   lockAnchors: {
-    evaluate(state) {
-      if (!isRtlsAnchorLockRequired(state)) {
-        return Status.SKIPPED;
-      }
-      if (getRtlsShowGateRefusal(state) === undefined) {
-        return Status.SUCCESS;
-      }
-      return getRtlsAnchorLockState(state) === 'broken'
-        ? Status.ERROR
-        : Status.OFF;
-    },
+    evaluate: (state) =>
+      !isRtlsAnchorLockRequired(state)
+        ? Status.SKIPPED
+        : getRtlsShowGateRefusal(state) === undefined
+          ? Status.SUCCESS
+          : Status.OFF,
     requires: ['selectShowFile'],
   },
 
