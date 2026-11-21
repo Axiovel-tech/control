@@ -146,13 +146,11 @@ const SPECIES_HINTS: Record<ImageSpeciesSource, string> = {
 
 /** The species selector: locked to a receipt's species, else the operator's. */
 const SpeciesSelect = ({
-  deviceSpecies,
   disabled,
   mismatch,
   onChange,
   resolved,
 }: {
-  deviceSpecies: RtlsImageSpecies | undefined;
   disabled: boolean;
   mismatch: boolean;
   onChange: (species: RtlsImageSpecies) => void;
@@ -173,10 +171,7 @@ const SpeciesSelect = ({
       error={mismatch}
       helperText={
         mismatch
-          ? t('rtlsOta.species.mismatch', {
-              image: t(`rtlsOta.species.${species}`),
-              device: t(`rtlsOta.species.${deviceSpecies}`),
-            })
+          ? t(`rtlsOta.species.mismatch.${species}`)
           : t(SPECIES_HINTS[source])
       }
       onChange={(event) => onChange(event.target.value as RtlsImageSpecies)}
@@ -294,7 +289,6 @@ const RtlsOtaDialog = () => {
           }}
         />
         <SpeciesSelect
-          deviceSpecies={deviceSpecies}
           disabled={busy || active}
           mismatch={mismatch}
           resolved={resolved}

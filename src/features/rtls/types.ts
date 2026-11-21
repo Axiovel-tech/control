@@ -215,8 +215,10 @@ export type RtlsDeviceStats = {
   batteryCurrentA?: number;
   /** Gauge temperature, °C. */
   batteryTemperatureC?: number;
-  /** The firmware's low-battery latch. */
+  /** The firmware's low-battery latch (a confirmed low pack): an error. */
   lowBattery?: boolean;
+  /** The pack is below its warning level while the anchor runs from it. */
+  batteryWarning?: boolean;
   powerState?: RtlsPowerState;
   powerInput?: RtlsPowerInput;
   charging?: RtlsChargingState;

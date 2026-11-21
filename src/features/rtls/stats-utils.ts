@@ -221,7 +221,8 @@ function gradeAnchorLiveness(
 
 /**
  * Grades a live anchor's telemetry: errors first (fault, low battery, a
- * refused UWB start), then rest (idle), then warnings (moved, radio
+ * refused UWB start), a pack below its warning level, then rest (idle), then
+ * warnings (moved, radio
  * restarts, operating without a measured ranging rate, an initiator its
  * responders do not hear).
  */
@@ -232,6 +233,10 @@ function gradeAnchorTelemetry(
 ): RtlsHealth {
   if (stats?.powerState === 'fault' || stats?.lowBattery) {
     return RtlsHealth.ERROR;
+  }
+  if (stats?.batteryWarning) {
+    // running from a pack below its warning level, asleep or not
+    return RtlsHealth.WARNING;
   }
   if (isAnchorResting(stats, sleeping)) {
     return RtlsHealth.IDLE;

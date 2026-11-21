@@ -254,6 +254,13 @@ export function describeAnchorBadges(
       text: { key: 'rtlsAnchor.badge.lowBattery' },
     });
   }
+  if (stats.batteryWarning && !stats.lowBattery) {
+    badges.push({
+      id: 'batteryWarning',
+      status: Status.WARNING,
+      text: { key: 'rtlsAnchor.badge.batteryWarning' },
+    });
+  }
   if (isUwbStartRefused(stats)) {
     badges.push({
       id: 'uwb',

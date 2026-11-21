@@ -435,3 +435,21 @@ describe('OTA start', () => {
     expect(canStartOta({ ...base, inspection, mismatch: true })).toBe(false);
   });
 });
+
+describe('battery warning', () => {
+  test('a pack below its warning level is a warning badge', () => {
+    expect(
+      describeAnchorBadges(stats({ batteryWarning: true })).map(
+        ({ id, status }) => [id, status]
+      )
+    ).toEqual([['batteryWarning', Status.WARNING]]);
+  });
+
+  test('the low-battery latch stays the one error badge', () => {
+    expect(
+      describeAnchorBadges(
+        stats({ batteryWarning: true, lowBattery: true })
+      ).map(({ id }) => id)
+    ).toEqual(['lowBattery']);
+  });
+});

@@ -833,9 +833,10 @@
       "wakeAll": "Wake all resting anchors into ranging (each may reboot, up to 15 s)"
     },
     "badge": {
+      "batteryWarning": "battery low",
       "ethernetDrops_one": "{{count}} Ethernet drop",
       "ethernetDrops_other": "{{count}} Ethernet drops",
-      "lowBattery": "low battery",
+      "lowBattery": "battery critical",
       "moved": "moved",
       "radioRestarts_one": "{{count}} radio restart",
       "radioRestarts_other": "{{count}} radio restarts",
@@ -940,11 +941,11 @@
       "unknown": "unknown"
     },
     "value": {
-      "boots": "{{boots}} · reset cause: {{cause}}",
+      "boots": "{{boots}} · reset cause: {{- cause}}",
       "ethernetDown": "link down · {{drops}} drops",
       "ethernetUp": "link up · {{drops}} drops",
       "motion": "tilt {{tilt}} · {{knocks}} knocks",
-      "restarts": "{{status}} · {{restarts}} radio restarts",
+      "restarts": "{{- status}} · {{restarts}} radio restarts",
       "samples_one": "{{count}} sample",
       "samples_other": "{{count}} samples",
       "wifi": "{{rssi}} · {{disconnects}} drops · {{txErrors}} TX errors"
@@ -965,14 +966,14 @@
       },
       "noAnchorsToSleep": "No awake RTLS anchors to put to sleep",
       "noAnchorsToWake": "No resting RTLS anchors to wake",
-      "unverified": "RTLS command accepted but not verified: {{detail}}"
+      "unverified": "RTLS command accepted but not verified: {{- detail}}"
     },
     "forget": {
       "done_one": "RTLS device {{id}} forgotten",
       "done_other": "{{count}} RTLS devices forgotten",
-      "failed": "RTLS forget failed: {{reason}}",
+      "failed": "RTLS forget failed: {{- reason}}",
       "noDetail": "refused",
-      "refused": "RTLS forget refused: {{detail}}"
+      "refused": "RTLS forget refused: {{- detail}}"
     }
   },
   "rtlsFleetHealth": {
@@ -1111,9 +1112,12 @@
       "fromPath": "Suggested by the image path; the server checks the device's role",
       "fromReceipt": "Named by the image's build receipt",
       "hint": "The species the image is built for; the server refuses an image for the other species",
-      "job": "{{species}} image ({{source}})",
+      "job": "{{- species}} image ({{- source}})",
       "label": "Image built for",
-      "mismatch": "This is a {{image}} image but the device is a {{device}}: the device would not rejoin WiFi",
+      "mismatch": {
+        "anchor": "This is an anchor image but the device is a tag: the device would not rejoin WiFi",
+        "tag": "This is a tag image but the device is an anchor: the device would not rejoin WiFi"
+      },
       "tag": "Tag"
     }
   },

@@ -96,6 +96,13 @@ describe('anchor health fields', () => {
     expect(stats.batteryPercent).toBeUndefined();
   });
 
+  test('maps the battery warning flag', () => {
+    expect(
+      mapRtlsDeviceStats('101', { batteryWarning: true }).batteryWarning
+    ).toBe(true);
+    expect(mapRtlsDeviceStats('7', {}).batteryWarning).toBe(undefined);
+  });
+
   test('marks the retained snapshot of a lost device as stale', () => {
     expect(mapRtlsDeviceStats('101', { stale: true }).stale).toBe(true);
   });

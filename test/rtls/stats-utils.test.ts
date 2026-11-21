@@ -415,3 +415,40 @@ describe('stale telemetry and initiator evidence in health', () => {
     ).toBe(RtlsHealth.WARNING);
   });
 });
+
+describe('battery warning in health', () => {
+  test('warns, while the latch is an error', () => {
+    const live = { online: true };
+    expect(
+      getDeviceHealthForRole(
+        RtlsRole.ANCHOR_RESPONDER,
+        {
+          id: '2',
+          powerState: 'operating',
+          rangingRateHz: 9,
+          batteryWarning: true,
+        },
+        live
+      )
+    ).toBe(RtlsHealth.WARNING);
+    expect(
+      getDeviceHealthForRole(
+        RtlsRole.ANCHOR_RESPONDER,
+        { id: '2', powerState: 'asleep', batteryWarning: true },
+        live
+      )
+    ).toBe(RtlsHealth.WARNING);
+    expect(
+      getDeviceHealthForRole(
+        RtlsRole.ANCHOR_RESPONDER,
+        {
+          id: '2',
+          powerState: 'operating',
+          batteryWarning: true,
+          lowBattery: true,
+        },
+        live
+      )
+    ).toBe(RtlsHealth.ERROR);
+  });
+});
