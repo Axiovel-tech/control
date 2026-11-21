@@ -107,10 +107,18 @@ const MappingEditorToolbar = React.forwardRef<
           <Instructions />
         )}
         <Box sx={{ flex: 1 }} />
-        <IconButton size='large' onClick={finishMappingEditorSession}>
+        <IconButton
+          data-testid='mapping-editor.finish'
+          size='large'
+          onClick={finishMappingEditorSession}
+        >
           <Check htmlColor={Colors.success} />
         </IconButton>
-        <IconButton size='large' onClick={openMappingMenu}>
+        <IconButton
+          data-testid='mapping-editor.menu'
+          size='large'
+          onClick={openMappingMenu}
+        >
           <MoreVert />
         </IconButton>
         <Menu
