@@ -827,10 +827,8 @@
   },
   "rtlsAnchor": {
     "action": {
-      "sleep": "Sleep this anchor (UWB off, network up; may reboot, up to 15 s). No drone can position on an asleep anchor",
-      "sleepAll": "Sleep all anchors (each may reboot, up to 15 s). Removes positioning for every drone",
-      "wake": "Wake this anchor into ranging (may reboot, up to 15 s)",
-      "wakeAll": "Wake all resting anchors into ranging (each may reboot, up to 15 s)"
+      "sleepAll": "Sleep all anchors",
+      "wakeAll": "Wake all anchors"
     },
     "badge": {
       "batteryWarning": "battery low",
@@ -852,7 +850,7 @@
       "gauge": "no fresh gauge reading",
       "gaugeInhibit": "gauge inhibits charging",
       "noInput": "no external input",
-      "noProfile": "no battery profile (BAT_PROFILE 0)",
+      "noProfile": "no battery profile",
       "none": "none",
       "overcurrent": "overcurrent",
       "packVoltage": "pack voltage out of range",
@@ -861,9 +859,9 @@
       "unknown": "unknown reason"
     },
     "charging": {
-      "cc": "charging (constant current)",
-      "cv": "charging (constant voltage)",
-      "idle": "not charging (full or idle)",
+      "cc": "charging (CC)",
+      "cv": "charging (CV)",
+      "idle": "full or idle",
       "off": "charging off",
       "topoff": "topping off",
       "unknown": "unknown"
@@ -898,18 +896,17 @@
       "unknown": "last seen: unknown"
     },
     "role": {
-      "initiator": "Initiator: runs the ranging rounds of its cell",
-      "responder": "Responder: ranges with the initiator",
+      "initiator": "Initiator",
+      "responder": "Responder",
       "slot": "A{{slot}}",
       "unknownSlot": "A?"
     },
     "sleep": {
       "confirm": {
-        "armedMessage_one": "{{count}} drone may be armed. Sleeping {{anchors}} anchor(s) removes RTLS positioning for every drone in the cell. Continue?",
-        "armedMessage_other": "{{count}} drones may be armed. Sleeping {{anchors}} anchor(s) removes RTLS positioning for every drone in the cell. Continue?",
-        "armedTitle": "Sleep anchors while drones are armed?",
-        "message_one": "Sleep {{count}} anchor? No drone can position on an asleep anchor; it wakes remotely.",
-        "message_other": "Sleep {{count}} anchors? No drone can position on an asleep anchor; they wake remotely.",
+        "armedMessage_one": "{{count}} drone may be armed and will lose positioning. Sleep anyway?",
+        "armedMessage_other": "{{count}} drones may be armed and will lose positioning. Sleep anyway?",
+        "armedTitle": "Drones may be armed",
+        "message": "Drones lose positioning while anchors sleep.",
         "title": "Sleep anchors?"
       }
     },
@@ -929,8 +926,8 @@
       "unheard": "No responders hear A0"
     },
     "stateTooltip": {
-      "asleep": "Put to sleep: not ranging; keeps running on its pack if unplugged; wakes remotely",
-      "standby": "On PoE or USB power and not ranging; unplugging it powers it off; wakes remotely"
+      "asleep": "Stays on battery if unplugged; wakes remotely",
+      "standby": "Powers off if unplugged; wakes remotely"
     },
     "uwb": {
       "disabled": "disabled",
@@ -953,20 +950,22 @@
   },
   "rtlsDevice": {
     "action": {
-      "forget": "Forget this offline device (it is listed again if it comes back)",
+      "forget": "Forget",
+      "sleep": "Sleep",
       "sleepAllTags": "Sleep all drones",
+      "wake": "Wake",
       "wakeAllTags": "Wake all drones"
     },
     "bulk": {
       "busy": {
-        "sleepAnchors": "RTLS sleep skipped: a sleep/wake transaction is already in flight for every anchor",
-        "sleepTags": "RTLS sleep skipped: a sleep/wake transaction is already in flight for every drone",
-        "wakeAnchors": "RTLS wake skipped: a sleep/wake transaction is already in flight for every anchor",
-        "wakeTags": "RTLS wake skipped: a sleep/wake transaction is already in flight for every drone"
+        "sleepAnchors": "Already in progress for every anchor",
+        "sleepTags": "Already in progress for every drone",
+        "wakeAnchors": "Already in progress for every anchor",
+        "wakeTags": "Already in progress for every drone"
       },
-      "noAnchorsToSleep": "No awake RTLS anchors to put to sleep",
-      "noAnchorsToWake": "No resting RTLS anchors to wake",
-      "unverified": "RTLS command accepted but not verified: {{- detail}}"
+      "noAnchorsToSleep": "No awake anchors",
+      "noAnchorsToWake": "No resting anchors",
+      "unverified": "Accepted but not verified: {{- detail}}"
     },
     "forget": {
       "done_one": "RTLS device {{id}} forgotten",
@@ -1106,23 +1105,22 @@
     }
   },
   "rtlsOta": {
-    "inspecting": "Checking the image with the server…",
+    "inspecting": "Checking image…",
     "species": {
       "anchor": "Anchor",
-      "fromPath": "Suggested by the image path; the server checks the device's role",
-      "fromReceipt": "Named by the image's build receipt",
-      "hint": "The species the image is built for; the server refuses an image for the other species",
+      "fromPath": "From the image path",
+      "fromReceipt": "From the build receipt",
       "job": "{{- species}} image ({{- source}})",
       "label": "Image built for",
       "mismatch": {
-        "anchor": "This is an anchor image but the device is a tag: the device would not rejoin WiFi",
-        "tag": "This is a tag image but the device is an anchor: the device would not rejoin WiFi"
+        "anchor": "Anchor image, but this device is a tag",
+        "tag": "Tag image, but this device is an anchor"
       },
       "tag": "Tag"
     }
   },
   "rtlsParams": {
-    "sleepReadOnly": "Use the Sleep and Wake buttons on the device row: they confirm, wait for the result and never switch an anchor off"
+    "sleepReadOnly": "Use the row's Sleep and Wake buttons"
   },
   "rtlsTagDetails": {
     "collapseAll": "Collapse all",

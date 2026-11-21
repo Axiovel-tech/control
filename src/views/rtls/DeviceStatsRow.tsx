@@ -157,8 +157,6 @@ const RowActions = ({
 }) => {
   const { t } = useTranslation();
   const anchor = isAnchorRole(classifyRole(device.role));
-  const sleepTooltip = anchor ? t('rtlsAnchor.action.sleep') : 'Sleep';
-  const wakeTooltip = anchor ? t('rtlsAnchor.action.wake') : 'Wake';
   return (
     <Box sx={{ whiteSpace: 'nowrap' }}>
       {/* Two fixed-intent buttons, like the sleep-all/wake-all pair above the
@@ -186,7 +184,7 @@ const RowActions = ({
           </IconButton>
         ) : (
           <>
-            <Tooltip content={sleepTooltip}>
+            <Tooltip content={t('rtlsDevice.action.sleep')}>
               <IconButton
                 data-testid='rtls-device-sleep'
                 size='small'
@@ -195,7 +193,7 @@ const RowActions = ({
                 <Moon fontSize='small' />
               </IconButton>
             </Tooltip>
-            <Tooltip content={wakeTooltip}>
+            <Tooltip content={t('rtlsDevice.action.wake')}>
               <IconButton
                 data-testid='rtls-device-wake'
                 size='small'

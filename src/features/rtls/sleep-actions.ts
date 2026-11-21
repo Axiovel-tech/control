@@ -240,8 +240,7 @@ const ANCHOR_SLEEP_OPTIONS: SleepOptions = {
  */
 const confirmAnchorSleep = async (
   dispatch: AppDispatch,
-  armedCount: number,
-  anchorCount: number
+  armedCount: number
 ): Promise<boolean> => {
   const armed = armedCount > 0;
   const response = await dispatch(
@@ -249,9 +248,8 @@ const confirmAnchorSleep = async (
       armed
         ? i18n.t('rtlsAnchor.sleep.confirm.armedMessage', {
             count: armedCount,
-            anchors: anchorCount,
           })
-        : i18n.t('rtlsAnchor.sleep.confirm.message', { count: anchorCount }),
+        : i18n.t('rtlsAnchor.sleep.confirm.message'),
       {
         title: i18n.t(
           armed
@@ -282,7 +280,7 @@ export const sleepRtlsAnchors =
       return;
     }
     const armed = getPossiblyArmedUavIds(state).length;
-    if (!(await confirmAnchorSleep(dispatch, armed, ids.length))) {
+    if (!(await confirmAnchorSleep(dispatch, armed))) {
       return;
     }
     await dispatch(setRtlsDevicesSleeping(ids, true, ANCHOR_SLEEP_OPTIONS));
