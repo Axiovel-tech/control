@@ -966,14 +966,14 @@
       "locked": "Locked",
       "lockedTooltip": "Anchors locked since {{time}}: nothing can change them. Click to unlock",
       "unlocked": "Lock anchors",
-      "unlockedTooltip": "Lock the anchors so that nothing can change them; a show cannot be scheduled or authorized until they are locked"
+      "unlockedTooltip": "Lock the anchors so that nothing can change them. While the server's show gate applies, a new show authorization or a changed authorized start needs them locked"
     },
     "dialog": {
       "acknowledgeBreaks": "I reviewed these events: take a fresh snapshot of the anchors as they are now",
       "acknowledgeWarnings": "Lock with these warnings",
       "acknowledgedWarnings": "Warnings acknowledged when they were locked:",
       "breaks": "These events broke the lock since it was sealed:",
-      "explanation": "While the anchors are locked, the server refuses every command that would change them: sleep and wake, parameter writes, firmware updates, forget and reboots. It watches them and raises an alarm if one goes offline, reboots, moves, changes a cell parameter or its firmware, or stops operating. A show can only be scheduled or authorized while they are locked.",
+      "explanation": "While the anchors are locked, the server refuses every command that would change them: sleep and wake, parameter writes, firmware updates, forget and reboots. It watches them and raises an alarm if one goes offline, reboots, moves, changes a cell parameter or its firmware, or stops operating. While the server's show gate applies, a new show authorization or a changed authorized start needs them locked.",
       "lock": "Lock",
       "lockTitle": "Lock the anchors",
       "lockedSince": "The anchors are locked since {{time}}.",
@@ -993,24 +993,25 @@
     "otaLocked": "Anchors are locked: unlock them before updating an anchor's firmware.",
     "paramsReadOnly": "Anchors are locked: their parameters can be viewed but not changed.",
     "preflight": {
-      "authorizationRefused": "Lock the anchors first: the server refuses the start",
-      "broken": "Lock broken: review and re-seal",
+      "advisory": {
+        "broken": "Lock broken: this server may refuse a new authorization until it is re-sealed",
+        "locked": "Locked",
+        "unlocked": "Not locked: this server may refuse a new authorization until they are",
+        "unsupported": "No anchor lock on this server"
+      },
+      "authorizationAdvisory": "This server may refuse a new authorization until the anchors are locked",
+      "authorizationRefused": "The server refuses a new authorization: {{reason}}",
+      "broken": "Lock broken: the server refuses a new authorization or a changed authorized start until it is reviewed and re-sealed",
       "locked": "Locked",
       "title": "Anchors locked",
-      "unlocked": "Not locked: the server refuses to schedule or authorize the show",
+      "unlocked": "Not locked: the server refuses a new authorization or a changed authorized start",
       "unsupported": "No anchor lock on this server"
     },
-    "state": {
-      "broken": "Lock broken",
-      "locked": "Locked",
-      "unlocked": "Not locked",
-      "unsupported": "No lock"
-    },
     "unlock": {
-      "armedMessage_one": "{{count}} drone may be armed. Unlocked anchors can be changed again, and a scheduled or authorized show fails the server's lock check. Unlock?",
-      "armedMessage_other": "{{count}} drones may be armed. Unlocked anchors can be changed again, and a scheduled or authorized show fails the server's lock check. Unlock?",
+      "armedMessage_one": "{{count}} drone may be armed. Unlocked anchors can be changed again. An existing authorization and start stay as they are; a new authorization or a changed authorized start needs the anchors locked again. Unlock?",
+      "armedMessage_other": "{{count}} drones may be armed. Unlocked anchors can be changed again. An existing authorization and start stay as they are; a new authorization or a changed authorized start needs the anchors locked again. Unlock?",
       "armedTitle": "Unlock the anchors while drones are armed?",
-      "message": "Unlocked anchors can be changed again, and a show cannot be scheduled or authorized until they are locked again. Unlock?",
+      "message": "Unlocked anchors can be changed again. An existing authorization and start stay as they are; a new authorization or a changed authorized start needs the anchors locked again. Unlock?",
       "title": "Unlock the anchors?"
     }
   },

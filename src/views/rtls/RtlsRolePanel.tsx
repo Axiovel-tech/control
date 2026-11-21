@@ -51,6 +51,7 @@ import {
   getRtlsSleepPendingMap,
   getRtlsStatsById,
   getRtlsInitiatorEvidence,
+  getRtlsLockedOutDeviceIds,
   getRtlsStatsLastUpdatedAt,
   getRtlsTagDevices,
   isRtlsGeometryBusy,
@@ -106,6 +107,7 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
   const uavStatuses = useSelector(getRtlsPairedUavStatuses);
   const sleepPending = useSelector(getRtlsSleepPendingMap);
   const anchorsLocked = useSelector(areRtlsAnchorsLocked);
+  const lockedOutIds = useSelector(getRtlsLockedOutDeviceIds);
   // the anchor lock freezes the anchor panel's changing actions
   const lockedOut = !tags && anchorsLocked;
   const lastUpdatedAt = useSelector(getRtlsStatsLastUpdatedAt);
@@ -376,7 +378,7 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
                   }
                   geometryStatus={geometry.status}
                   handlers={handlers}
-                  locked={lockedOut}
+                  locked={lockedOutIds.has(device.id)}
                   stats={statsById[device.id]}
                   onToggleExpanded={toggleExpanded}
                   uavStatus={

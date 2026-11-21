@@ -300,13 +300,14 @@ describe('a locked anchor row', () => {
     expect(disabled(markup, 'rtls-device-sleep')).toBe(false);
   });
 
-  test('the lock leaves tag rows alone', () => {
+  test('a sealed id listed with the tags is frozen too', () => {
+    // the panel marks it (getRtlsLockedOutDeviceIds); tags are never marked
     const markup = render({
       locked: true,
-      device: { id: '7', online: true, role: 'tag', sleeping: false },
-      stats: { id: '7', solveRateHz: 10 },
+      device: { id: '201', online: true },
+      stats: undefined,
     });
-    expect(disabled(markup, 'rtls-device-sleep')).toBe(false);
-    expect(disabled(markup, 'rtls-device-firmware')).toBe(false);
+    expect(disabled(markup, 'rtls-device-firmware')).toBe(true);
+    expect(disabled(markup, 'rtls-device-parameters')).toBe(false);
   });
 });

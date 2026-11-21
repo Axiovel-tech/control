@@ -13,7 +13,7 @@ import { type AppThunk } from '~/store/reducers';
 
 import { refuseWhileAnchorsLocked } from './lock-actions';
 import { sendRtlsForget } from './messages';
-import { getRtlsAnchorDevices } from './selectors';
+import { getRtlsLockedOutDeviceIds } from './selectors';
 
 /** Thunk that forgets the given offline devices, reporting the outcome. */
 export const forgetRtlsDevices =
@@ -22,11 +22,9 @@ export const forgetRtlsDevices =
     if (deviceIds.length === 0) {
       return;
     }
-    const anchorIds = new Set(
-      getRtlsAnchorDevices(getState()).map((device) => device.id)
-    );
+    const lockedOut = getRtlsLockedOutDeviceIds(getState());
     if (
-      deviceIds.some((id) => anchorIds.has(id)) &&
+      deviceIds.some((id) => lockedOut.has(id)) &&
       refuseWhileAnchorsLocked(getState())
     ) {
       return;

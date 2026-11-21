@@ -12,9 +12,9 @@ import {
   EMPTY_COLLECTION,
 } from '~/utils/collections';
 
+import { type RtlsAnchorLock } from './anchor-lock';
 import {
   type RtlsAnchor,
-  type RtlsAnchorLock,
   type RtlsDevice,
   type RtlsDeviceStats,
   type RtlsGeometryAgreement,
@@ -196,8 +196,9 @@ const { actions, reducer } = createSlice({
     /** Clears the entire RTLS device registry, stats and OTA jobs. */
     clearRtlsDevices(state) {
       // the lock belongs to the server we are leaving; the next one reports
-      // its own
+      // its own, and a dialog about this one must not act on that one
       state.anchorLock = undefined;
+      state.lockDialogOpen = false;
       clearOrderedCollection<RtlsDevice>(state.devices);
       state.stats = { byId: {}, lastUpdatedAt: undefined };
       state.positions = { byId: {} };

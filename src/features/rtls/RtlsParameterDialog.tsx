@@ -43,14 +43,12 @@ import {
 } from './param-grouping';
 import RtlsParameterRow from './RtlsParameterRow';
 import {
-  areRtlsAnchorsLocked,
-  getRtlsDevicesAsCollection,
   getRtlsParamDialogDeviceId,
   getRtlsParamsStateForDevice,
+  isRtlsDeviceLockedOut,
   isRtlsParamDialogOpen,
 } from './selectors';
 import { closeRtlsParamDialog } from './slice';
-import { classifyRole, isAnchorRole } from './stats-utils';
 
 type GroupHeaderRowProps = {
   label: string;
@@ -160,11 +158,7 @@ const RtlsParameterDialog = () => {
   // a locked anchor's parameters stay viewable but cannot be changed
   const readOnly = useSelector(
     (state: RootState) =>
-      deviceId !== undefined &&
-      areRtlsAnchorsLocked(state) &&
-      isAnchorRole(
-        classifyRole(getRtlsDevicesAsCollection(state).byId[deviceId]?.role)
-      )
+      deviceId !== undefined && isRtlsDeviceLockedOut(state, deviceId)
   );
   const params = paramsState?.params ?? [];
 

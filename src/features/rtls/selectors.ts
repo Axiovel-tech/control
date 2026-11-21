@@ -29,10 +29,10 @@ import {
   getAnchorLockState,
   isLocked,
   type AnchorLockState,
+  type RtlsAnchorLock,
 } from './anchor-lock';
 import {
   type RtlsAnchor,
-  type RtlsAnchorLock,
   type RtlsDevice,
   type RtlsDeviceStats,
   type RtlsGeometryAgreement,
@@ -373,14 +373,87 @@ export const isRtlsLockDialogOpen: AppSelector<boolean> = (state) =>
   state.rtls.lockDialogOpen;
 
 /**
- * Selector that returns whether a show start needs the anchors locked: the
- * server reports a lock and knows anchors (live devices or a configured
- * cell). Without anchors there is no requirement.
+ * Selector that returns the ids of the devices the anchor lock freezes:
+ * while locked, every anchor and every sealed id, even one whose role has
+ * not arrived yet (it is listed with the tags until it does). Empty while
+ * unlocked.
  */
-export const isRtlsAnchorLockRequired: AppSelector<boolean> = createSelector(
-  getRtlsAnchorLock,
-  getRtlsAnchorDevices,
-  getRtlsAnchors,
-  (lock, devices, anchors) =>
-    lock !== undefined && (devices.length > 0 || anchors.length > 0)
-);
+export const getRtlsLockedOutDeviceIds: AppSelector<ReadonlySet<string>> =
+  createSelector(getRtlsAnchorLock, getRtlsDevicesInOrder, (lock, devices) =>
+    lock?.locked
+      ? new Set([
+          ...lock.anchors,
+          ...devices
+            .filter((device) => isAnchorRole(classifyRole(device.role)))
+            .map((device) => device.id),
+        ])
+      : new Set<string>()
+  );
+
+/** Selector that returns whether the anchor lock freezes the given device. */
+export const isRtlsDeviceLockedOut: AppSelector<boolean, [Identifier]> = (
+  state,
+  id
+) => getRtlsLockedOutDeviceIds(state).has(id);
+
+/**
+ * How Control knows whether a show start needs the anchors locked:
+ * - `server`: the server's own verdict (`anchorLock.showGate`, the check
+ *   SHOW-SETCFG applies);
+ * - `advisory`: an older server without the verdict, which reports a lock
+ *   and knows anchors: it may refuse, so Control advises;
+ * - `none`: no lock, or no anchors.
+ */
+export type RtlsShowGateSource = 'server' | 'advisory' | 'none';
+
+/** Selector that returns where the show-gate verdict comes from. */
+export const getRtlsShowGateSource: AppSelector<RtlsShowGateSource> =
+  createSelector(
+    getRtlsAnchorLock,
+    getRtlsAnchorDevices,
+    getRtlsAnchors,
+    (lock, devices, anchors) =>
+      lock === undefined
+        ? 'none'
+        : lock.showGate !== undefined
+          ? 'server'
+          : devices.length > 0 || anchors.length > 0
+            ? 'advisory'
+            : 'none'
+  );
+
+/**
+ * Selector that returns whether a show start needs the anchors locked: the
+ * server's verdict when it reports one, else (advisory) whether it reports a
+ * lock and knows anchors.
+ */
+export const isRtlsAnchorLockRequired: AppSelector<boolean> = (state) => {
+  const lock = getRtlsAnchorLock(state);
+  return lock?.showGate !== undefined
+    ? lock.showGate.required
+    : getRtlsShowGateSource(state) === 'advisory';
+};
+
+/**
+ * What Control tells the operator about the show gate where a show is
+ * authorized or scheduled: the server refuses now (with its reason), it may
+ * refuse (an older server without a verdict, anchors not locked), or
+ * nothing to say.
+ */
+export type RtlsShowGateNotice =
+  | { kind: 'refused'; reason?: string }
+  | { kind: 'advisory' }
+  | undefined;
+
+export const getRtlsShowGateNotice: AppSelector<RtlsShowGateNotice> = (
+  state
+) => {
+  const source = getRtlsShowGateSource(state);
+  if (source === 'server') {
+    const gate = getRtlsAnchorLock(state)!.showGate!; // non-null: source
+    return gate.refused ? { kind: 'refused', reason: gate.reason } : undefined;
+  }
+  return source === 'advisory' && getRtlsAnchorLockState(state) !== 'locked'
+    ? { kind: 'advisory' }
+    : undefined;
+};

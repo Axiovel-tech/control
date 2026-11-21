@@ -1,6 +1,8 @@
 import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
 
+import RtlsLockBrokenBanner from '~/features/rtls/RtlsLockBrokenBanner';
+
 import ExternalWindow from './ExternalWindow';
 import { detachedPanels } from './selectors';
 import { attachPanel } from './slice';
@@ -13,6 +15,8 @@ const DetachedPanelManagerPresentation = ({ attachPanel, detachedPanels }) =>
     const attach = () => attachPanel(name);
     return (
       <ExternalWindow key={name} title={label} onClose={attach}>
+        {/* a broken anchor lock shows in every window the operator watches */}
+        <RtlsLockBrokenBanner />
         <Component />
       </ExternalWindow>
     );

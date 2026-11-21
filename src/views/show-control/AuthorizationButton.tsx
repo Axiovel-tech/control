@@ -11,8 +11,8 @@ import { StatusLight } from '@skybrush/mui-components';
 import { Status } from '~/components/semantics';
 import { setCommandsAreBroadcast } from '~/features/mission/slice';
 import {
-  getRtlsAnchorLockState,
-  isRtlsAnchorLockRequired,
+  getRtlsShowGateNotice,
+  type RtlsShowGateNotice,
 } from '~/features/rtls/selectors';
 import {
   countUAVsTakingOffAutomatically,
@@ -32,8 +32,8 @@ const buttonStyle: SxProps<typeof ListItemButton> = {
 };
 
 type Props = Readonly<{
-  /** Whether the server will refuse the authorization: anchors not locked. */
-  anchorsUnlocked: boolean;
+  /** What the anchor lock means for authorizing now, if anything. */
+  gateNotice: RtlsShowGateNotice;
   isAuthorized: boolean;
   numUAVsTakingOffAutomatically: number;
   status: Status;
@@ -45,7 +45,7 @@ type Props = Readonly<{
  * in automatic mode.
  */
 const AuthorizationButton = ({
-  anchorsUnlocked,
+  gateNotice,
   isAuthorized,
   numUAVsTakingOffAutomatically,
   status,
@@ -86,9 +86,13 @@ const AuthorizationButton = ({
                     : t('show.takeOffMore', {
                         quantity: numUAVsTakingOffAutomatically,
                       })
-                : anchorsUnlocked
-                  ? t('rtlsAnchorLock.preflight.authorizationRefused')
-                  : t('show.authorizationReq')}
+                : gateNotice?.kind === 'refused'
+                  ? t('rtlsAnchorLock.preflight.authorizationRefused', {
+                      reason: gateNotice.reason ?? '',
+                    })
+                  : gateNotice?.kind === 'advisory'
+                    ? t('rtlsAnchorLock.preflight.authorizationAdvisory')
+                    : t('show.authorizationReq')}
             </Typography>
           }
         />
@@ -100,9 +104,7 @@ const AuthorizationButton = ({
 export default connect(
   // mapStateToProps
   (state: RootState) => ({
-    anchorsUnlocked:
-      isRtlsAnchorLockRequired(state) &&
-      getRtlsAnchorLockState(state) !== 'locked',
+    gateNotice: getRtlsShowGateNotice(state),
     isAuthorized: isShowAuthorizedToStartLocally(state),
     numUAVsTakingOffAutomatically: countUAVsTakingOffAutomatically(state),
     status: getSetupStageStatuses(state).authorization,

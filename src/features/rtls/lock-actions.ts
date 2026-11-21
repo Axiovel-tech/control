@@ -36,6 +36,19 @@ export const lockRtlsAnchors =
   };
 
 /**
+ * Thunk that reads the lock state and the cell's current warnings (the
+ * read-only `status` action), for a review before re-sealing.
+ */
+export const fetchRtlsLockStatus =
+  (): AppThunk<Promise<RtlsLockResult>> => async (dispatch) => {
+    const result = await sendRtlsLock(messageHub, 'status');
+    if (result.lock !== undefined) {
+      dispatch(setRtlsAnchorLock(result.lock));
+    }
+    return result;
+  };
+
+/**
  * Thunk that unlocks the anchors after a confirmation, worded more strongly
  * while any drone may be armed: unlocked anchors can be changed again, and a
  * scheduled or authorized show then fails its server-side check.

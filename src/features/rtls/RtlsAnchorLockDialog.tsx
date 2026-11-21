@@ -22,7 +22,11 @@ import { DraggableDialog } from '@skybrush/mui-components';
 import { errorToString } from '~/error-handling';
 import { type AppDispatch } from '~/store/reducers';
 
-import { lockRtlsAnchors, unlockRtlsAnchors } from './lock-actions';
+import {
+  fetchRtlsLockStatus,
+  lockRtlsAnchors,
+  unlockRtlsAnchors,
+} from './lock-actions';
 import { describeLockBreak, describeLockIssue } from './lock-text';
 import {
   getRtlsAnchorLock,
@@ -30,7 +34,11 @@ import {
   isRtlsLockDialogOpen,
 } from './selectors';
 import { closeRtlsLockDialog } from './slice';
-import { type RtlsLockIssue } from './types';
+import {
+  type AnchorLockState,
+  type RtlsAnchorLock,
+  type RtlsLockIssue,
+} from './anchor-lock';
 
 const IssueList = ({ lines }: { lines: string[] }) => (
   <ul style={{ marginTop: 4, marginBottom: 8, paddingLeft: 20 }}>
@@ -42,30 +50,50 @@ const IssueList = ({ lines }: { lines: string[] }) => (
   </ul>
 );
 
-const RtlsAnchorLockDialog = () => {
+/**
+ * The dialog's lock flow: the warnings the server answered with (or, for a
+ * re-seal, the current ones read with `status` before the operator can
+ * confirm), the acknowledgement, and the lock request.
+ */
+const useLockFlow = (open: boolean, reseal: boolean, onLocked: () => void) => {
   const { t } = useTranslation();
   const dispatch: AppDispatch = useDispatch();
-  const open = useSelector(isRtlsLockDialogOpen);
-  const lock = useSelector(getRtlsAnchorLock);
-  const state = useSelector(getRtlsAnchorLockState);
-
-  // the warnings the server answered the last lock attempt with
   const [pending, setPending] = useState<RtlsLockIssue[]>();
   const [acknowledged, setAcknowledged] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
+  const [reviewed, setReviewed] = useState(false);
 
   useEffect(() => {
-    if (open) {
-      setPending(undefined);
-      setAcknowledged(false);
-      setError(undefined);
+    if (!open) {
+      return undefined;
     }
-  }, [open]);
+    setPending(undefined);
+    setAcknowledged(false);
+    setError(undefined);
+    setReviewed(false);
+    if (!reseal) {
+      return undefined;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const result = await dispatch(fetchRtlsLockStatus());
+        if (!cancelled) {
+          setPending(result.warnings);
+          setReviewed(true);
+        }
+      } catch (statusError) {
+        if (!cancelled) {
+          setError(errorToString(statusError));
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [dispatch, open, reseal]);
 
-  const close = useCallback(() => dispatch(closeRtlsLockDialog()), [dispatch]);
-
-  const reseal = state === 'broken';
   // re-sealing always confirms a review; a first lock only when the server
   // raised warnings
   const needsAcknowledgement = reseal || (pending?.length ?? 0) > 0;
@@ -78,9 +106,11 @@ const RtlsAnchorLockDialog = () => {
         lockRtlsAnchors(needsAcknowledgement && acknowledged)
       );
       if (result.result === 'locked') {
-        // stay open to show the warnings acknowledged with the lock
+        // the locked view lists the acknowledged warnings; the pending list
+        // goes, and without warnings there is nothing left to show
+        setPending(undefined);
         if (result.warnings.length === 0) {
-          close();
+          onLocked();
         }
       } else if (result.result === 'warnings') {
         setPending(result.warnings);
@@ -93,22 +123,74 @@ const RtlsAnchorLockDialog = () => {
     } finally {
       setBusy(false);
     }
-  }, [acknowledged, close, dispatch, needsAcknowledgement, t]);
+  }, [acknowledged, dispatch, needsAcknowledgement, onLocked, t]);
 
+  return {
+    acknowledged,
+    busy,
+    canConfirm:
+      !busy &&
+      !(reseal && !reviewed) &&
+      !(needsAcknowledgement && !acknowledged),
+    error,
+    handleLock,
+    needsAcknowledgement,
+    pending,
+    setAcknowledged,
+  };
+};
+
+/** Since when the anchors are locked, and the warnings acknowledged then. */
+const LockedSummary = ({ lock }: { lock: RtlsAnchorLock | undefined }) => {
+  const { t } = useTranslation();
+  const warnings = lock?.warnings ?? [];
+  return (
+    <>
+      <Typography variant='body2'>
+        {t('rtlsAnchorLock.dialog.lockedSince', {
+          time:
+            lock?.lockedAt === undefined
+              ? '—'
+              : new Date(lock.lockedAt).toLocaleString(),
+        })}
+      </Typography>
+      {warnings.length > 0 && (
+        <>
+          <Typography variant='body2' sx={{ mt: 1 }}>
+            {t('rtlsAnchorLock.dialog.acknowledgedWarnings')}
+          </Typography>
+          <IssueList lines={warnings.map(describeLockIssue)} />
+        </>
+      )}
+    </>
+  );
+};
+
+const TITLES: Record<AnchorLockState, string> = {
+  broken: 'rtlsAnchorLock.dialog.resealTitle',
+  locked: 'rtlsAnchorLock.dialog.lockedTitle',
+  unlocked: 'rtlsAnchorLock.dialog.lockTitle',
+  unsupported: 'rtlsAnchorLock.dialog.lockTitle',
+};
+
+const RtlsAnchorLockDialog = () => {
+  const { t } = useTranslation();
+  const dispatch: AppDispatch = useDispatch();
+  const open = useSelector(isRtlsLockDialogOpen);
+  const lock = useSelector(getRtlsAnchorLock);
+  const state = useSelector(getRtlsAnchorLockState);
+  const reseal = state === 'broken';
   const locked = state === 'locked';
+
+  const close = useCallback(() => dispatch(closeRtlsLockDialog()), [dispatch]);
+  const flow = useLockFlow(open, reseal, close);
 
   return (
     <DraggableDialog
       fullWidth
       open={open}
       maxWidth='sm'
-      title={t(
-        reseal
-          ? 'rtlsAnchorLock.dialog.resealTitle'
-          : locked
-            ? 'rtlsAnchorLock.dialog.lockedTitle'
-            : 'rtlsAnchorLock.dialog.lockTitle'
-      )}
+      title={t(TITLES[state])}
       onClose={close}
     >
       <DialogContent data-testid='rtls-lock-dialog'>
@@ -118,57 +200,34 @@ const RtlsAnchorLockDialog = () => {
               {t('rtlsAnchorLock.dialog.breaks')}
             </Typography>
             <IssueList
-              lines={lock!.breaks.map((entry) => describeLockBreak(t, entry))} // non-null: broken
+              lines={(lock?.breaks ?? []).map((entry) =>
+                describeLockBreak(t, entry)
+              )}
             />
           </>
         )}
-        {locked && (
-          <>
-            <Typography variant='body2'>
-              {t('rtlsAnchorLock.dialog.lockedSince', {
-                time:
-                  lock?.lockedAt === undefined
-                    ? '—'
-                    : new Date(lock.lockedAt).toLocaleString(),
-              })}
-            </Typography>
-            {(lock?.warnings.length ?? 0) > 0 && (
-              <>
-                <Typography variant='body2' sx={{ mt: 1 }}>
-                  {t('rtlsAnchorLock.dialog.acknowledgedWarnings')}
-                </Typography>
-                <IssueList
-                  lines={lock!.warnings.map((issue) =>
-                    describeLockIssue(issue)
-                  )} // non-null: checked just above
-                />
-              </>
-            )}
-          </>
-        )}
+        {locked && <LockedSummary lock={lock} />}
         {state === 'unlocked' && (
           <Typography variant='body2'>
             {t('rtlsAnchorLock.dialog.explanation')}
           </Typography>
         )}
-        {pending !== undefined && pending.length > 0 && (
+        {(flow.pending?.length ?? 0) > 0 && (
           <>
             <Typography variant='body2' sx={{ mt: 1 }}>
               {t('rtlsAnchorLock.dialog.warnings')}
             </Typography>
-            <IssueList
-              lines={pending.map((issue) => describeLockIssue(issue))}
-            />
+            <IssueList lines={(flow.pending ?? []).map(describeLockIssue)} />
           </>
         )}
-        {!locked && needsAcknowledgement && (
+        {!locked && flow.needsAcknowledgement && (
           <FormControlLabel
             control={
               <Checkbox
                 data-testid='rtls-lock-acknowledge'
-                checked={acknowledged}
-                disabled={busy}
-                onChange={(event) => setAcknowledged(event.target.checked)}
+                checked={flow.acknowledged}
+                disabled={flow.busy}
+                onChange={(event) => flow.setAcknowledged(event.target.checked)}
               />
             }
             label={t(
@@ -178,16 +237,17 @@ const RtlsAnchorLockDialog = () => {
             )}
           />
         )}
-        {error !== undefined && (
+        {flow.error !== undefined && (
           <Alert severity='error' sx={{ mt: 1 }}>
-            {error}
+            {flow.error}
           </Alert>
         )}
       </DialogContent>
       <DialogActions>
         <Button onClick={close}>{t('general.action.close')}</Button>
-        {locked ? (
+        {(locked || reseal) && (
           <Button
+            data-testid='rtls-lock-unlock'
             color='warning'
             onClick={() => {
               close();
@@ -196,13 +256,14 @@ const RtlsAnchorLockDialog = () => {
           >
             {t('rtlsAnchorLock.dialog.unlock')}
           </Button>
-        ) : (
+        )}
+        {!locked && (
           <Button
             data-testid='rtls-lock-confirm'
             color='primary'
             variant='contained'
-            disabled={busy || (needsAcknowledgement && !acknowledged)}
-            onClick={() => void handleLock()}
+            disabled={!flow.canConfirm}
+            onClick={() => void flow.handleLock()}
           >
             {t(
               reseal

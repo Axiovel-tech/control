@@ -38,10 +38,10 @@ import {
   resolveImageSpecies,
 } from './ota-species';
 import {
-  areRtlsAnchorsLocked,
   getRtlsDevicesAsCollection,
   getRtlsOtaDialogDeviceId,
   getRtlsOtaJobForDevice,
+  isRtlsDeviceLockedOut,
   isRtlsOtaDialogOpen,
 } from './selectors';
 import { closeRtlsOtaDialog, setRtlsOtaJob } from './slice';
@@ -201,8 +201,10 @@ const RtlsOtaDialog = () => {
   );
 
   // a locked anchor takes no upload (inspecting an image stays possible)
-  const anchorsLocked = useSelector(areRtlsAnchorsLocked);
-  const lockedOut = anchorsLocked && deviceSpecies === 'anchor';
+  const lockedOut = useSelector(
+    (state: RootState) =>
+      deviceId !== undefined && isRtlsDeviceLockedOut(state, deviceId)
+  );
 
   const [image, setImage] = useState('');
   // The species the image is built for, always sent with the OTA: named by

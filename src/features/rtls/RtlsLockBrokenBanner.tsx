@@ -1,9 +1,11 @@
 /**
  * @file The banner raised when the anchor lock breaks: an anchor went
  * offline, rebooted, moved, changed a cell parameter or its firmware, or
- * left operation while locked. It sits under the app header, so it shows
- * whatever panel is open, and rings the alert bell once per new break. It
- * never withholds or cancels anything; the operator reviews and re-seals.
+ * left operation while locked. It sits under the app header and atop every
+ * detached panel window, so it shows whatever the operator watches. The
+ * alarm (`RtlsLockAlarm`, mounted once) rings the alert bell once per new
+ * break. Neither withholds or cancels anything; the operator reviews and
+ * re-seals, or unlocks.
  */
 
 import Alert from '@mui/material/Alert';
@@ -29,15 +31,6 @@ const RtlsLockBrokenBanner = () => {
   const dispatch: AppDispatch = useDispatch();
   const lock = useSelector(getRtlsAnchorLock);
   const breaks = isLockBroken(lock) ? lock!.breaks : []; // non-null: broken
-
-  // ring the bell for every break that was not there before
-  const seen = useRef(0);
-  useEffect(() => {
-    if (breaks.length > seen.current) {
-      dispatch(triggerAlert());
-    }
-    seen.current = breaks.length;
-  }, [breaks.length, dispatch]);
 
   if (breaks.length === 0) {
     return null;
@@ -75,6 +68,24 @@ const RtlsLockBrokenBanner = () => {
       )}
     </Alert>
   );
+};
+
+/**
+ * Rings the alert bell for every break that was not there before. Mounted
+ * once, in the main window: the banners only show.
+ */
+export const RtlsLockAlarm = () => {
+  const dispatch: AppDispatch = useDispatch();
+  const lock = useSelector(getRtlsAnchorLock);
+  const count = isLockBroken(lock) ? lock!.breaks.length : 0; // non-null: broken
+  const seen = useRef(0);
+  useEffect(() => {
+    if (count > seen.current) {
+      dispatch(triggerAlert());
+    }
+    seen.current = count;
+  }, [count, dispatch]);
+  return null;
 };
 
 export default RtlsLockBrokenBanner;

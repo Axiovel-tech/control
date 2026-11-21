@@ -31,7 +31,9 @@ import PromptDialog from './features/prompt/PromptDialog';
 import RTKCoordinateRestorationDialog from './features/rtk/RTKCoordinateRestorationDialog';
 import RTKSetupDialog from './features/rtk/RTKSetupDialog';
 import RtlsAnchorLockDialog from './features/rtls/RtlsAnchorLockDialog';
-import RtlsLockBrokenBanner from './features/rtls/RtlsLockBrokenBanner';
+import RtlsLockBrokenBanner, {
+  RtlsLockAlarm,
+} from './features/rtls/RtlsLockBrokenBanner';
 import RtlsVerifyDialog from './features/rtls/RtlsVerifyDialog';
 import RtlsOtaDialog from './features/rtls/RtlsOtaDialog';
 import RtlsParameterDialog from './features/rtls/RtlsParameterDialog';
@@ -163,6 +165,7 @@ const App = ({ onFirstRender }) => (
 
       <LanguageWatcher />
       <MissionProgressObserver />
+      <RtlsLockAlarm />
       <ShowFileWatcher />
 
       <dialogs.AppSettingsDialog />

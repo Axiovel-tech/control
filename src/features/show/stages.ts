@@ -17,6 +17,7 @@ import {
   hasManualPreflightChecks,
 } from '~/features/preflight/selectors';
 import {
+  getRtlsAnchorLock,
   getRtlsAnchorLockState,
   isRtlsAnchorLockRequired,
 } from '~/features/rtls/selectors';
@@ -177,12 +178,17 @@ const stages: Record<Stage, StageSpecification> = {
     requires: ['uploadShow'],
   },
 
-  // The server refuses to schedule or authorize a show while it knows
-  // anchors that are not locked, or locked with unreviewed breaks
+  // The server refuses a new authorization or a changed authorized start
+  // while it knows anchors that are not locked, or locked with breaks: its
+  // own verdict when it reports one, else the lock state (advisory)
   lockAnchors: {
     evaluate(state) {
       if (!isRtlsAnchorLockRequired(state)) {
         return Status.SKIPPED;
+      }
+      const gate = getRtlsAnchorLock(state)?.showGate;
+      if (gate !== undefined && !gate.refused) {
+        return Status.SUCCESS;
       }
       switch (getRtlsAnchorLockState(state)) {
         case 'locked':
@@ -224,11 +230,10 @@ const stages: Record<Stage, StageSpecification> = {
           : isShowAuthorizedToStartLocally(state)
             ? Status.WAITING
             : Status.OFF,
-    requires: [
-      'waitForOnboardPreflightChecks',
-      'performManualPreflightChecks',
-      'lockAnchors',
-    ],
+    // not a hard dependency: a break after authorization must not turn the
+    // authorization light off; the banner reports the break
+    requires: ['waitForOnboardPreflightChecks', 'performManualPreflightChecks'],
+    suggests: ['lockAnchors'],
   },
 };
 

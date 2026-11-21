@@ -31,6 +31,7 @@ import {
   getPossiblyArmedUavIds,
   getRtlsAnchorDevices,
   getRtlsDevicesInOrder,
+  getRtlsLockedOutDeviceIds,
   getRtlsSleepPendingMap,
   getRtlsStatsById,
 } from './selectors';
@@ -220,9 +221,14 @@ export const sleepAllRtlsDevices =
 export const wakeAllRtlsDevices =
   (): AppThunk<Promise<void>> => async (dispatch, getState) => {
     const state = getState();
+    // a sealed anchor whose role has not arrived is not a drone
+    const lockedOut = getRtlsLockedOutDeviceIds(state);
     const ids = withoutPendingDevices(
       getRtlsDevicesInOrder(state)
-        .filter(isTagOrUnknownRtlsDevice)
+        .filter(
+          (device) =>
+            isTagOrUnknownRtlsDevice(device) && !lockedOut.has(device.id)
+        )
         .map((device) => device.id),
       getRtlsSleepPendingMap(state),
       'wakeTags'
@@ -287,6 +293,10 @@ export const sleepRtlsAnchors =
     }
     const armed = getPossiblyArmedUavIds(state).length;
     if (!(await confirmAnchorSleep(dispatch, armed, ids.length))) {
+      return;
+    }
+    // another client may have locked the anchors while the prompt was open
+    if (refuseWhileAnchorsLocked(getState())) {
       return;
     }
     await dispatch(setRtlsDevicesSleeping(ids, true, ANCHOR_SLEEP_OPTIONS));

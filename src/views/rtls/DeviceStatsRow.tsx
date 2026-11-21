@@ -196,7 +196,7 @@ const RowActions = ({
   const { t } = useTranslation();
   const anchor = isAnchorRole(classifyRole(device.role));
   // the anchor lock freezes every anchor-changing action; tags are unaffected
-  const lockedOut = anchor && locked;
+  const lockedOut = locked;
   const sleepTooltip = anchor ? t('rtlsAnchor.action.sleep') : 'Sleep';
   const wakeTooltip = anchor ? t('rtlsAnchor.action.wake') : 'Wake';
   return (
@@ -277,7 +277,10 @@ export type DeviceStatsRowProps = {
   geometryStatus?: Status;
   /** Stable action handlers; the actions are hidden when omitted. */
   handlers?: DeviceRowHandlers;
-  /** Whether the anchors are locked: an anchor row's changing actions are disabled. */
+  /**
+   * Whether the anchor lock freezes this device (an anchor, or a sealed id
+   * whose role has not arrived): its changing actions are disabled.
+   */
   locked?: boolean;
   /** UWB MACs of the cell initiators, to find a responder's A0 distance. */
   initiatorMacs?: ReadonlySet<number>;

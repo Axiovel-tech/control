@@ -5,7 +5,7 @@
 
 import { type useTranslation } from 'react-i18next';
 
-import { type RtlsLockBreak, type RtlsLockIssue } from './types';
+import { type RtlsLockBreak, type RtlsLockIssue } from './anchor-lock';
 
 type T = ReturnType<typeof useTranslation>['t'];
 

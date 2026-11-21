@@ -12,10 +12,13 @@ import { errorToString } from '~/error-handling';
 import type MessageHub from '~/flockwave/messages';
 import { type Message, type MessageBody } from '~/flockwave/types';
 
-import { mapAnchorLock, mapLockIssues } from './anchor-lock';
 import {
+  mapAnchorLock,
+  mapLockIssues,
   type RtlsAnchorLock,
   type RtlsLockIssue,
+} from './anchor-lock';
+import {
   type RtlsOtaJob,
   type RtlsParam,
   type RtlsParamType,

@@ -1,19 +1,68 @@
 /**
  * @file The anchor cell lock as the server reports it (axio-server #63):
- * mapping of the wire shape — X-RTLS-INF `anchorLock`, X-RTLS-LOCK responses
- * and pushes — and the questions the UI asks of it. `anchorLock` is
- * `{locked, lockedAt (UNIX s), anchors, acknowledgedWarnings, breaks}`; a
- * warning is `{code, device, detail}`, a break `{code, device, detail, at}`.
+ * its types, the mapping of the wire shape — X-RTLS-INF `anchorLock`,
+ * X-RTLS-LOCK responses and pushes — and the questions the UI asks of it.
+ * `anchorLock` is `{locked, lockedAt (UNIX s), anchors, acknowledgedWarnings,
+ * breaks, showGate}`; a warning is `{code, device, detail}`, a break `{code,
+ * device, detail, at}`, `showGate` `{required, refused, reason}`.
  */
 
-import { Status } from '~/components/semantics';
+/** A warning the server raised when the anchors were (or were about to be) locked. */
+export type RtlsLockIssue = {
+  /** Machine-readable kind, e.g. `offline`, `moved`, `low-battery`. */
+  code?: string;
+  /** System id of the anchor it concerns, when it concerns one. */
+  device?: string;
+  /** Human-readable text from the server; it names the anchor. */
+  text: string;
+};
 
-import { type I18nText } from './geometry-utils';
-import {
-  type RtlsAnchorLock,
-  type RtlsLockBreak,
-  type RtlsLockIssue,
-} from './types';
+/** One event that broke the anchor lock (integrity watch while locked). */
+export type RtlsLockBreak = {
+  /** Machine-readable kind, e.g. `offline`, `rebooted`, `param-changed`. */
+  reason: string;
+  /** System id of the anchor it concerns, when it concerns one. */
+  device?: string;
+  /** When it happened, ms since the epoch. */
+  time?: number;
+  /** Human-readable text from the server; it names the anchor. */
+  text: string;
+};
+
+/**
+ * The server's verdict on scheduling or authorizing a show now (the same
+ * check SHOW-SETCFG applies): whether locked anchors are required, whether
+ * it refuses now, and why.
+ */
+export type RtlsShowGate = {
+  required: boolean;
+  refused: boolean;
+  reason?: string;
+};
+
+/**
+ * The ground-side anchor cell lock, kept by axio-server so that every client
+ * sees and honours the same lock. While locked, the server refuses every
+ * command that would change an anchor, and it refuses new show
+ * authorizations or changed authorized starts unless the anchors are locked
+ * without breaks.
+ */
+export type RtlsAnchorLock = {
+  locked: boolean;
+  /** When the anchors were locked, ms since the epoch. */
+  lockedAt?: number;
+  /**
+   * System ids of the sealed anchors: anchors for every lock check even
+   * before their role arrives (a server restart rediscovers them).
+   */
+  anchors: string[];
+  /** Warnings acknowledged at lock time. */
+  warnings: RtlsLockIssue[];
+  /** Events that broke the lock since it was sealed. */
+  breaks: RtlsLockBreak[];
+  /** The server's show-gate verdict; absent from older servers. */
+  showGate?: RtlsShowGate;
+};
 
 type AnyRecord = Record<string, unknown>;
 
@@ -98,10 +147,23 @@ export function mapAnchorLock(value: unknown): RtlsAnchorLock | undefined {
   return {
     locked: value.locked,
     lockedAt: value.locked ? toEpochMs(value.lockedAt) : undefined,
+    anchors: value.locked ? mapList(value.anchors, (raw) => toDevice(raw)) : [],
     warnings: mapLockIssues(value.acknowledgedWarnings ?? value.warnings),
     breaks: mapList(value.breaks, mapBreak),
+    showGate: mapShowGate(value.showGate),
   };
 }
+
+const mapShowGate = (value: unknown): RtlsShowGate | undefined =>
+  isRecord(value) &&
+  typeof value.required === 'boolean' &&
+  typeof value.refused === 'boolean'
+    ? {
+        required: value.required,
+        refused: value.refused,
+        reason: toText(value.reason),
+      }
+    : undefined;
 
 /** Whether the anchors are locked (anchor-changing commands are refused). */
 export const isLocked = (lock: RtlsAnchorLock | undefined): boolean =>
@@ -124,31 +186,3 @@ export const getAnchorLockState = (
       : lock.locked
         ? 'locked'
         : 'unlocked';
-
-/** The lock's status and label, for the panel control and the pre-flight item. */
-export const describeAnchorLock = (
-  state: AnchorLockState
-): { status: Status; text: I18nText } => {
-  switch (state) {
-    case 'locked':
-      return {
-        status: Status.SUCCESS,
-        text: { key: 'rtlsAnchorLock.state.locked' },
-      };
-    case 'broken':
-      return {
-        status: Status.ERROR,
-        text: { key: 'rtlsAnchorLock.state.broken' },
-      };
-    case 'unlocked':
-      return {
-        status: Status.WARNING,
-        text: { key: 'rtlsAnchorLock.state.unlocked' },
-      };
-    default:
-      return {
-        status: Status.OFF,
-        text: { key: 'rtlsAnchorLock.state.unsupported' },
-      };
-  }
-};
