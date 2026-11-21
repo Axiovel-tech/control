@@ -25,7 +25,11 @@ import { useDispatch, useSelector } from 'react-redux';
 
 import { BackgroundHint, StatusPill, Tooltip } from '@skybrush/mui-components';
 
-import { getAnchorSlot, getInitiatorMacs } from '~/features/rtls/anchor-utils';
+import {
+  getAnchorSlot,
+  getInitiatorEvidence,
+  getInitiatorMacs,
+} from '~/features/rtls/anchor-utils';
 import {
   anchorNamesForCell,
   nameCellAnchors,
@@ -40,6 +44,7 @@ import {
   geometryPillFor,
 } from '~/features/rtls/geometry-utils';
 import OverallRtlsStatusLight from '~/features/rtls/OverallRtlsStatusLight';
+import { classifyRole, RtlsRole } from '~/features/rtls/stats-utils';
 import {
   getRtlsAnchorDevices,
   getRtlsAnchors,
@@ -105,6 +110,10 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
   const initiatorMacs = useMemo(
     () => getInitiatorMacs(siteAnchors),
     [siteAnchors]
+  );
+  const initiatorEvidence = useMemo(
+    () => (tags ? undefined : getInitiatorEvidence(devices, statsById)),
+    [tags, devices, statsById]
   );
   // The tags fit the cell themselves at boot; the panel only asks the
   // server whether the fleet agrees. A cheap, read-only check, so it runs
@@ -350,6 +359,11 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
                     tags ? undefined : getAnchorSlot(device, siteAnchors)
                   }
                   initiatorMacs={tags ? undefined : initiatorMacs}
+                  initiatorEvidence={
+                    classifyRole(device.role) === RtlsRole.ANCHOR_INITIATOR
+                      ? initiatorEvidence
+                      : undefined
+                  }
                   busy={Boolean(sleepPending?.[device.id])}
                   device={device}
                   expanded={expanded.has(device.id)}

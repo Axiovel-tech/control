@@ -9,12 +9,14 @@ import {
   findInitiatorPeer,
   formatInitiatorDistance,
   getAnchorSlot,
+  getInitiatorEvidence,
   getInitiatorMacs,
   showsRangingFigures,
 } from '~/features/rtls/anchor-utils';
 import {
   getDeviceSpecies,
   inferImageSpecies,
+  resolveImageSpecies,
 } from '~/features/rtls/ota-species';
 import {
   type RtlsAnchor,
@@ -255,10 +257,81 @@ describe('OTA image species', () => {
     expect(inferImageSpecies('build/stagger/zephyr.bin')).toBe(undefined);
   });
 
+  test('a species the path settles is locked against the manual choice', () => {
+    expect(
+      resolveImageSpecies('build/sr250-anchor/anchor/z.bin', 'tag')
+    ).toEqual({ species: 'anchor', locked: true });
+    expect(resolveImageSpecies('fw/zephyr.signed.bin', 'tag')).toEqual({
+      species: 'tag',
+      locked: false,
+    });
+    expect(resolveImageSpecies('fw/zephyr.signed.bin', '')).toEqual({
+      species: '',
+      locked: false,
+    });
+  });
+
   test('derives the device species from its role', () => {
     expect(getDeviceSpecies('anchor-initiator')).toBe('anchor');
     expect(getDeviceSpecies('anchor-responder')).toBe('anchor');
     expect(getDeviceSpecies('tag')).toBe('tag');
     expect(getDeviceSpecies(undefined)).toBe(undefined);
+  });
+});
+
+describe('initiator ranging evidence', () => {
+  const a0 = device({ id: '101', role: 'anchor-initiator' });
+  const responder = (id: string, extra: Partial<RtlsDevice> = {}) =>
+    device({ id, ...extra });
+  const operating = stats({ powerState: 'operating', rangingRateHz: 50 });
+
+  test('A0 ranges when an online responder hears it', () => {
+    const evidence = getInitiatorEvidence(
+      [a0, responder('102'), responder('103')],
+      {
+        '102': stats({ powerState: 'asleep', rangingRateHz: 0 }),
+        '103': stats({ powerState: 'operating', rangingRateHz: 9.8 }),
+      }
+    );
+    expect(evidence).toBe('hearing');
+    expect(describeAnchorState(a0, operating, false, evidence)).toEqual({
+      status: Status.SUCCESS,
+      text: { key: 'rtlsAnchor.state.ranging' },
+    });
+  });
+
+  test('every responder asleep: A0 is not heard, whatever its own rate', () => {
+    const evidence = getInitiatorEvidence(
+      [a0, responder('102'), responder('103')],
+      {
+        '102': stats({ powerState: 'asleep' }),
+        '103': stats({ powerState: 'asleep', rangingRateHz: 0 }),
+      }
+    );
+    expect(evidence).toBe('unheard');
+    expect(describeAnchorState(a0, operating, false, evidence)).toEqual({
+      status: Status.WARNING,
+      text: { key: 'rtlsAnchor.state.unheard' },
+    });
+  });
+
+  test('A0 alone (responders lost or absent) is not ranging', () => {
+    const evidence = getInitiatorEvidence(
+      [a0, responder('102', { online: false })],
+      { '102': stats({ powerState: 'operating', rangingRateHz: 9 }) }
+    );
+    expect(evidence).toBe('alone');
+    expect(getInitiatorEvidence([a0], {})).toBe('alone');
+    expect(describeAnchorState(a0, operating, false, evidence).text.key).toBe(
+      'rtlsAnchor.state.notRanging'
+    );
+  });
+
+  test('a stale responder snapshot is no evidence', () => {
+    expect(
+      getInitiatorEvidence([a0, responder('102')], {
+        '102': stats({ rangingRateHz: 9, stale: true }),
+      })
+    ).toBe('alone');
   });
 });

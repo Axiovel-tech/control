@@ -33,7 +33,10 @@ import {
   type I18nText,
 } from '~/features/rtls/geometry-utils';
 import { getStatusForHealth } from '~/features/rtls/health-status';
-import { isDeviceLost } from '~/features/rtls/anchor-utils';
+import {
+  type InitiatorEvidence,
+  isDeviceLost,
+} from '~/features/rtls/anchor-utils';
 import { getRtlsDeviceDisplayName } from '~/features/rtls/selectors';
 import {
   classifyRole,
@@ -189,6 +192,16 @@ export const getRowStatus = (
       })
     );
   }
+  if (!device.online) {
+    // a lost tag warns (grey when it was last seen asleep) instead of
+    // staying red until forgotten
+    return getStatusForHealth(
+      getDeviceHealthForRole(role, stats, {
+        online: false,
+        sleeping: device.sleeping,
+      })
+    );
+  }
   const base = getRtlsDeviceListStatus(device);
   if (base !== 'success') {
     return base as Status;
@@ -200,6 +213,18 @@ export const getRowStatus = (
     })
   );
 };
+
+/**
+ * An initiator that no responder hears is not healthy, however fast its own
+ * ranging rounds run: a green light turns yellow.
+ */
+const withInitiatorEvidence = (
+  status: Status,
+  evidence: InitiatorEvidence | undefined
+): Status =>
+  status === Status.SUCCESS && evidence !== undefined && evidence !== 'hearing'
+    ? Status.WARNING
+    : status;
 
 /** The caption line: system id, sleep state, firmware and parameter count. */
 const describeDevice = (device: RtlsDevice): string => {
@@ -351,6 +376,11 @@ export type DeviceStatsRowProps = {
   handlers?: DeviceRowHandlers;
   /** UWB MACs of the cell initiators, to find a responder's A0 distance. */
   initiatorMacs?: ReadonlySet<number>;
+  /**
+   * Whether the responders hear the initiator (initiator rows only): its
+   * chip reads "Ranging", and its light stays green, only while one does.
+   */
+  initiatorEvidence?: InitiatorEvidence;
   /** Stable "show more" / "show less" toggle of a row, by device id. */
   onToggleExpanded?: (id: string) => void;
   stats: RtlsDeviceStats | undefined;
@@ -427,6 +457,7 @@ const DeviceStatsRow = ({
   geometryLabel,
   geometryStatus,
   handlers,
+  initiatorEvidence,
   initiatorMacs = NO_MACS,
   onToggleExpanded,
   stats,
@@ -456,7 +487,12 @@ const DeviceStatsRow = ({
         >
           <StatusLight
             status={
-              busy && anchor ? Status.WAITING : getRowStatus(device, stats)
+              busy && anchor
+                ? Status.WAITING
+                : withInitiatorEvidence(
+                    getRowStatus(device, stats),
+                    initiatorEvidence
+                  )
             }
           />
           <Typography variant='subtitle2' component='div'>
@@ -465,7 +501,12 @@ const DeviceStatsRow = ({
           {anchor && (
             <>
               <AnchorSlotBadge role={role} slot={anchorSlot} />
-              <AnchorStateChip busy={busy} device={device} stats={stats} />
+              <AnchorStateChip
+                busy={busy}
+                device={device}
+                initiatorEvidence={initiatorEvidence}
+                stats={stats}
+              />
             </>
           )}
         </Box>

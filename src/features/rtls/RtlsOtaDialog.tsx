@@ -27,7 +27,7 @@ import {
   startRtlsOta,
 } from './messages';
 import messageHub from '~/message-hub';
-import { getDeviceSpecies, inferImageSpecies } from './ota-species';
+import { getDeviceSpecies, resolveImageSpecies } from './ota-species';
 import {
   getRtlsDevicesAsCollection,
   getRtlsOtaDialogDeviceId,
@@ -69,20 +69,17 @@ const RtlsOtaDialog = () => {
   const deviceSpecies = getDeviceSpecies(deviceRole);
 
   const [image, setImage] = useState('');
-  // The species the image is built for: inferred from its path, or chosen
-  // by the operator when the path does not tell; always sent with the OTA
-  const [species, setSpecies] = useState<RtlsImageSpecies | ''>('');
+  // The species the image is built for, always sent with the OTA: settled by
+  // the image path when it names one (the selector is then locked), chosen by
+  // the operator only when it does not
+  const [chosenSpecies, setChosenSpecies] = useState<RtlsImageSpecies | ''>('');
+  const { locked: speciesLocked, species } = resolveImageSpecies(
+    image,
+    chosenSpecies
+  );
   const [busy, setBusy] = useState(false);
   const speciesMismatch =
     species !== '' && deviceSpecies !== undefined && species !== deviceSpecies;
-
-  const handleImageChange = useCallback((value: string) => {
-    setImage(value);
-    const inferred = inferImageSpecies(value);
-    if (inferred !== undefined) {
-      setSpecies(inferred);
-    }
-  }, []);
 
   // Query the current OTA job status when the dialog opens for a device.
   useEffect(() => {
@@ -149,7 +146,7 @@ const RtlsOtaDialog = () => {
           value={image}
           disabled={busy || active}
           margin='normal'
-          onChange={(event) => handleImageChange(event.target.value)}
+          onChange={(event) => setImage(event.target.value)}
         />
         <TextField
           select
@@ -157,7 +154,8 @@ const RtlsOtaDialog = () => {
           data-testid='rtls-ota-species'
           label={t('rtlsOta.species.label')}
           value={species}
-          disabled={busy || active}
+          // a species the path settles is not the operator's to flip
+          disabled={busy || active || speciesLocked}
           margin='normal'
           error={speciesMismatch}
           helperText={
@@ -166,10 +164,12 @@ const RtlsOtaDialog = () => {
                   image: t(`rtlsOta.species.${species}`),
                   device: t(`rtlsOta.species.${deviceSpecies}`),
                 })
-              : t('rtlsOta.species.hint')
+              : speciesLocked
+                ? t('rtlsOta.species.fromPath')
+                : t('rtlsOta.species.hint')
           }
           onChange={(event) =>
-            setSpecies(event.target.value as RtlsImageSpecies)
+            setChosenSpecies(event.target.value as RtlsImageSpecies)
           }
         >
           <MenuItem value='tag'>{t('rtlsOta.species.tag')}</MenuItem>

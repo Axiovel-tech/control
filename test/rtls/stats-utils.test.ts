@@ -183,7 +183,47 @@ describe('rtls stats-utils', () => {
           { id: '1', solveRateHz: 12, solvePct: 99, fixAgeMs: 50 },
           { online: false }
         )
+      ).toBe(RtlsHealth.WARNING);
+    });
+
+    test('a lost tag warns but cannot hold the header red', () => {
+      // the server keeps lost devices until they are forgotten: a drone
+      // swapped out or powered down must not keep the header in error
+      const healths = [
+        getDeviceHealthForRole(
+          RtlsRole.TAG,
+          { id: '1', solveRateHz: 12, solvePct: 99, fixAgeMs: 50 },
+          { online: true }
+        ),
+        getDeviceHealthForRole(RtlsRole.TAG, undefined, { online: false }),
+      ];
+      expect(getOverallHealth(healths)).toBe(RtlsHealth.WARNING);
+    });
+
+    test('a tag lost while asleep is neutral', () => {
+      const lostAsleep = getDeviceHealthForRole(RtlsRole.TAG, undefined, {
+        online: false,
+        sleeping: true,
+      });
+      expect(lostAsleep).toBe(RtlsHealth.UNKNOWN);
+      expect(getOverallHealth([RtlsHealth.OK, lostAsleep])).toBe(RtlsHealth.OK);
+    });
+
+    test('a lost anchor stays an error unless it was powering down', () => {
+      expect(
+        getDeviceHealthForRole(
+          RtlsRole.ANCHOR_RESPONDER,
+          { id: '2', powerState: 'operating', stale: true },
+          { online: false, sleeping: true }
+        )
       ).toBe(RtlsHealth.ERROR);
+      expect(
+        getDeviceHealthForRole(
+          RtlsRole.ANCHOR_RESPONDER,
+          { id: '2', powerState: 'off', stale: true },
+          { online: false }
+        )
+      ).toBe(RtlsHealth.IDLE);
     });
 
     test('a disabled device contributes no health signal', () => {

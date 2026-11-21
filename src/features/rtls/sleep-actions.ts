@@ -36,7 +36,9 @@ import {
   rtlsSleepTransactionEnded,
   rtlsSleepTransactionStarted,
 } from './slice';
-import { isTagOrUnknownRtlsDevice as isSleepableTag } from './utils';
+import { classifyRole, RtlsRole } from './stats-utils';
+import { type RtlsDevice } from './types';
+import { isTagOrUnknownRtlsDevice } from './utils';
 
 /**
  * How long Control waits for an anchor sleep/wake, in seconds: the server
@@ -171,8 +173,14 @@ const withoutPendingDevices = (
   return result;
 };
 
+/** A device whose role says it is a tag; an unknown role may be an anchor. */
+const isKnownTag = (device: RtlsDevice): boolean =>
+  classifyRole(device.role) === RtlsRole.TAG;
+
 /**
- * Thunk that puts every known drone (tag) to sleep.
+ * Thunk that puts every known drone (tag) to sleep. A device whose role has
+ * not arrived yet is left out: it may be an anchor, which sleeps only through
+ * the anchor actions and their armed-drone confirmation.
  */
 export const sleepAllRtlsDevices =
   (): AppThunk<Promise<void>> => async (dispatch, getState) => {
@@ -182,7 +190,7 @@ export const sleepAllRtlsDevices =
     // aged out of the list should still get its wake command.
     const ids = withoutPendingDevices(
       getRtlsDevicesInOrder(state)
-        .filter((device) => isSleepableTag(device) && device.online)
+        .filter((device) => isKnownTag(device) && device.online)
         .map((device) => device.id),
       getRtlsSleepPendingMap(state),
       'sleep'
@@ -198,7 +206,7 @@ export const wakeAllRtlsDevices =
     const state = getState();
     const ids = withoutPendingDevices(
       getRtlsDevicesInOrder(state)
-        .filter(isSleepableTag)
+        .filter(isTagOrUnknownRtlsDevice)
         .map((device) => device.id),
       getRtlsSleepPendingMap(state),
       'wake'

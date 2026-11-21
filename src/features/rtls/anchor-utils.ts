@@ -106,6 +106,37 @@ export const isDeviceLost = (
   stats: RtlsDeviceStats | undefined
 ): boolean => !device.online || stats?.stale === true;
 
+/**
+ * What the responders say about the initiator's ranging: an initiator's own
+ * rate only counts its ranging rounds, which run on with every responder
+ * asleep. A responder's rate counts valid A0 measurements, so it is the
+ * evidence that A0 ranges with someone:
+ * - `hearing`: an online responder reports a non-zero rate;
+ * - `unheard`: responders are online but none reports one;
+ * - `alone`: no responder is online.
+ */
+export type InitiatorEvidence = 'hearing' | 'unheard' | 'alone';
+
+/** Grades the initiator's ranging from its responders' rates. */
+export function getInitiatorEvidence(
+  anchors: readonly RtlsDevice[],
+  statsById: Record<string, RtlsDeviceStats | undefined>
+): InitiatorEvidence {
+  const responders = anchors.filter(
+    (anchor) =>
+      classifyRole(anchor.role) === RtlsRole.ANCHOR_RESPONDER &&
+      !isDeviceLost(anchor, statsById[anchor.id])
+  );
+  if (responders.length === 0) {
+    return 'alone';
+  }
+  return responders.some(
+    (anchor) => (statsById[anchor.id]?.rangingRateHz ?? 0) > 0
+  )
+    ? 'hearing'
+    : 'unheard';
+}
+
 const stateText = (key: string): I18nText => ({
   key: `rtlsAnchor.state.${key}`,
 });
@@ -115,11 +146,14 @@ const stateText = (key: string): I18nText => ({
  * A lost anchor reads "Off" when it was last seen powering down, else
  * "Offline"; `busy` (a sleep/wake in flight, which reboots the anchor)
  * overrides both, since the anchor drops off the network while it reboots.
+ * An operating initiator reads "Ranging" only when a responder hears it
+ * (`initiatorEvidence`, given for initiators only).
  */
 export function describeAnchorState(
   device: RtlsDevice,
   stats: RtlsDeviceStats | undefined,
-  busy = false
+  busy = false,
+  initiatorEvidence?: InitiatorEvidence
 ): StatusText {
   if (busy) {
     return { status: Status.WAITING, text: stateText('switching') };
@@ -147,9 +181,12 @@ export function describeAnchorState(
     case 'shutdown':
       return { status: Status.OFF, text: stateText('stopping') };
     case 'operating':
-      return isRanging(stats)
-        ? { status: Status.SUCCESS, text: stateText('ranging') }
-        : { status: Status.WARNING, text: stateText('notRanging') };
+      if (!isRanging(stats) || initiatorEvidence === 'alone') {
+        return { status: Status.WARNING, text: stateText('notRanging') };
+      }
+      return initiatorEvidence === 'unheard'
+        ? { status: Status.WARNING, text: stateText('unheard') }
+        : { status: Status.SUCCESS, text: stateText('ranging') };
     default:
       // firmware without the power state: only the heartbeat latch
       return isAnchorResting(stats, device.sleeping)

@@ -34,3 +34,17 @@ export function getDeviceSpecies(
   }
   return classified === RtlsRole.TAG ? 'tag' : undefined;
 }
+
+/**
+ * The species an OTA declares: the one the image path settles (`locked`, the
+ * operator cannot flip it), else the operator's choice ('' while none).
+ */
+export function resolveImageSpecies(
+  path: string,
+  chosen: RtlsImageSpecies | ''
+): { species: RtlsImageSpecies | ''; locked: boolean } {
+  const inferred = inferImageSpecies(path);
+  return inferred === undefined
+    ? { species: chosen, locked: false }
+    : { species: inferred, locked: true };
+}

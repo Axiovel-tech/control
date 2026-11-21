@@ -173,6 +173,44 @@ describe('anchor row status light', () => {
   });
 });
 
+describe('an initiator no responder hears', () => {
+  const a0: RtlsDevice = {
+    id: '101',
+    name: 'RTLS anchor A0',
+    online: true,
+    role: 'anchor-initiator',
+  };
+  const a0Stats: RtlsDeviceStats = {
+    id: '101',
+    powerState: 'operating',
+    uwbStatus: 1,
+    rangingRateHz: 50,
+  };
+
+  test('says so instead of "Ranging"', () => {
+    const markup = render({
+      anchorSlot: 0,
+      device: a0,
+      stats: a0Stats,
+      initiatorEvidence: 'unheard',
+    });
+    expect(markup).toContain('rtlsAnchor.state.unheard');
+    expect(markup).not.toContain('rtlsAnchor.state.ranging');
+    expect(markup).toContain('StatusLight-status-warning');
+  });
+
+  test('reads "Ranging" while a responder hears it', () => {
+    const markup = render({
+      anchorSlot: 0,
+      device: a0,
+      stats: a0Stats,
+      initiatorEvidence: 'hearing',
+    });
+    expect(markup).toContain('rtlsAnchor.state.ranging');
+    expect(markup).toContain('StatusLight-status-success');
+  });
+});
+
 describe('tag rows are unchanged', () => {
   test('a tag still shows its solve figures and no anchor parts', () => {
     const markup = render({

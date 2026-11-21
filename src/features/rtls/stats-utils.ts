@@ -245,8 +245,11 @@ export function getDeviceHealthForRole(
   if (liveness && !liveness.online) {
     // an offline device is never healthy, no matter how good its RETAINED
     // stats look — without this, a tag that dropped off the network kept
-    // the overall (header) health green on its cached solve stats
-    return RtlsHealth.ERROR;
+    // the overall (header) health green on its cached solve stats. The
+    // server keeps lost devices listed until forgotten, so a drone powered
+    // down asleep contributes nothing and any other lost tag only warns:
+    // neither may hold the header red until the operator forgets it.
+    return liveness.sleeping === true ? RtlsHealth.UNKNOWN : RtlsHealth.WARNING;
   }
 
   return getDeviceHealth(stats);

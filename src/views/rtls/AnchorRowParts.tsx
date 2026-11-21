@@ -28,6 +28,7 @@ import {
   describeUwbStatus,
   findInitiatorPeer,
   formatInitiatorDistance,
+  type InitiatorEvidence,
   isCharging,
   isDeviceLost,
   showsRangingFigures,
@@ -109,14 +110,21 @@ export const AnchorSlotBadge = ({
 export const AnchorStateChip = ({
   busy,
   device,
+  initiatorEvidence,
   stats,
 }: {
   busy: boolean;
   device: RtlsDevice;
+  initiatorEvidence?: InitiatorEvidence;
   stats: RtlsDeviceStats | undefined;
 }) => {
   const { t } = useTranslation();
-  const { status, text } = describeAnchorState(device, stats, busy);
+  const { status, text } = describeAnchorState(
+    device,
+    stats,
+    busy,
+    initiatorEvidence
+  );
   const lastSeen =
     !busy && isDeviceLost(device, stats)
       ? describeLastSeen(device.lastSeenAgeS ?? device.age)

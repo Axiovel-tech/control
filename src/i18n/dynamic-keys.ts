@@ -304,6 +304,7 @@
  * t("rtlsAnchor.state.standby")
  * t("rtlsAnchor.state.stopping")
  * t("rtlsAnchor.state.switching")
+ * t("rtlsAnchor.state.unheard")
  * t("rtlsAnchor.badge.ethernetDrops")
  * t("rtlsAnchor.badge.lowBattery")
  * t("rtlsAnchor.badge.moved")
