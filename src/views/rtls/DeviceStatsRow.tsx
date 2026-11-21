@@ -1,18 +1,16 @@
 /**
  * @file One merged row of an RTLS role panel: status light, name, paired-drone
- * pill, per-role telemetry (inter-anchor TWR for anchors; for tags the solve
- * rate and percentage on the header line, the rest behind "show more") and an
- * actions slot — the single
+ * pill, per-role telemetry on the header line (a tag's solve rate and
+ * percentage; an anchor's slot, state, ranging figures, warnings, input and
+ * battery), the rest behind "show more", and an actions slot — the single
  * place a device's state is shown, so the tag/anchor panels need no separate
  * "health" view.
  */
 
-import ExpandMore from '@mui/icons-material/ExpandMore';
 import Moon from '@mui/icons-material/NightsStay';
 import SystemUpdate from '@mui/icons-material/SystemUpdate';
 import Tune from '@mui/icons-material/Tune';
 import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
 import CircularProgress from '@mui/material/CircularProgress';
 import Collapse from '@mui/material/Collapse';
 import IconButton from '@mui/material/IconButton';
@@ -40,13 +38,13 @@ import {
   type I18nText,
 } from '~/features/rtls/geometry-utils';
 import { getStatusForHealth } from '~/features/rtls/health-status';
+import { isDeviceLost } from '~/features/rtls/anchor-utils';
 import { getRtlsDeviceDisplayName } from '~/features/rtls/selectors';
 import {
   classifyRole,
   countAnchorsInMask,
   getDeviceHealthForRole,
   isAnchorRole,
-  RtlsRole,
 } from '~/features/rtls/stats-utils';
 import {
   type RtlsDevice,
@@ -54,8 +52,26 @@ import {
   type RtlsFlightController,
   type RtlsTwrPeer,
 } from '~/features/rtls/types';
-import { getRtlsDeviceListStatus } from '~/features/rtls/utils';
+import {
+  getRtlsDeviceListStatus,
+  isSleepableRtlsDevice,
+  isTagOrUnknownRtlsDevice,
+} from '~/features/rtls/utils';
 import Bolt from '~/icons/Bolt';
+
+import {
+  AnchorRangingFigures,
+  AnchorSlotBadge,
+  AnchorStateChip,
+  AnchorStatusCluster,
+  describeAnchorDetailLines,
+} from './AnchorRowParts';
+import {
+  type DetailLine,
+  DetailLines,
+  HeaderStat,
+  ShowMoreButton,
+} from './row-parts';
 
 const formatNumber = (
   value: number | undefined,
@@ -68,13 +84,6 @@ const formatMac = (mac: number | undefined): string =>
   mac === undefined
     ? '—'
     : `0x${mac.toString(16).padStart(4, '0').toUpperCase()}`;
-
-/**
- * Sleep mode only applies to drones (tags): anchors have no power rails to
- * cut and no SLEEP parameter.
- */
-export const isSleepableRtlsDevice = (device: RtlsDevice): boolean =>
-  !device.role || device.role === 'tag';
 
 type DronePillText = {
   status: Status;
@@ -181,6 +190,17 @@ export const getRowStatus = (
   device: RtlsDevice,
   stats: RtlsDeviceStats | undefined
 ): Status => {
+  const role = classifyRole(device.role);
+  if (isAnchorRole(role)) {
+    // an anchor's liveness, sleep and power state are all in its health
+    return getStatusForHealth(
+      getDeviceHealthForRole(role, stats, {
+        online: device.online,
+        age: device.age,
+        sleeping: device.sleeping,
+      })
+    );
+  }
   const base = getRtlsDeviceListStatus(device);
   if (base !== 'success') {
     return base as Status;
@@ -198,7 +218,10 @@ const describeDevice = (device: RtlsDevice): string => {
   const parts = [`system id ${device.id}`];
   if (device.sleeping) {
     parts.push('sleeping');
-  } else if (device.sleeping === undefined && isSleepableRtlsDevice(device)) {
+  } else if (
+    device.sleeping === undefined &&
+    isTagOrUnknownRtlsDevice(device)
+  ) {
     // Distinguishes the grey "unknown" light from the grey "asleep" light.
     parts.push('sleep state unknown');
   }
@@ -250,30 +273,6 @@ export const AnchorTelemetryRows = ({
   );
 };
 
-/** A figure on a tag's header line: its name, with the value below it. */
-const HeaderStat = ({ label, value }: { label: string; value: string }) => (
-  <Box
-    sx={{
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      minWidth: 52,
-      whiteSpace: 'nowrap',
-    }}
-  >
-    <Typography
-      variant='caption'
-      color='textSecondary'
-      sx={{ lineHeight: 1.2 }}
-    >
-      {label}
-    </Typography>
-    <Typography variant='body2' sx={{ lineHeight: 1.2 }}>
-      {value}
-    </Typography>
-  </Box>
-);
-
 /**
  * Width of a tag row's status light, name and drone pill, px: its solve
  * figures then start at the same place on every row, and the values of its
@@ -281,30 +280,11 @@ const HeaderStat = ({ label, value }: { label: string; value: string }) => (
  */
 const TAG_LEAD_WIDTH = 220;
 
-type DetailLine = { key: string; name: React.ReactNode; value: string };
-
 /**
- * A tag's detail lines: each value beside its name, the values in one column
- * under the header line's solve figures.
+ * Width of an anchor row's status light, name, slot badge and state chip, px:
+ * its ranging figures then line up across rows, like a tag's solve figures.
  */
-const DetailLines = ({ lines }: { lines: DetailLine[] }) => (
-  <Box
-    sx={{
-      display: 'grid',
-      // same gap as the header line's, so the values line up with its figures
-      gridTemplateColumns: `${TAG_LEAD_WIDTH}px 1fr`,
-      columnGap: 1,
-      '& > div': { py: 0.5 },
-    }}
-  >
-    {lines.map(({ key, name, value }) => (
-      <React.Fragment key={key}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>{name}</Box>
-        <Box sx={{ color: 'text.secondary' }}>{value}</Box>
-      </React.Fragment>
-    ))}
-  </Box>
-);
+const ANCHOR_LEAD_WIDTH = 300;
 
 export type DeviceRowHandlers = {
   onShowOta: (id: string) => void;
@@ -314,8 +294,8 @@ export type DeviceRowHandlers = {
 };
 
 /**
- * The per-row action cluster: sleep / wake (sleepable devices only),
- * parameters and firmware update.
+ * The per-row action cluster: sleep / wake (tags and anchors), parameters and
+ * firmware update.
  */
 const RowActions = ({
   busy,
@@ -325,70 +305,77 @@ const RowActions = ({
   busy: boolean;
   device: RtlsDevice;
   handlers: DeviceRowHandlers;
-}) => (
-  <Box sx={{ whiteSpace: 'nowrap' }}>
-    {/* Two fixed-intent buttons, like the sleep-all/wake-all pair above the
-     * list — deliberately NOT a toggle of the current `sleeping` flag, which
-     * may have changed between paint and click and would then invert the
-     * user's intent. */}
-    {isSleepableRtlsDevice(device) &&
-      (busy ? (
-        <IconButton size='small' disabled>
-          <CircularProgress size={18} color='inherit' />
+}) => {
+  const { t } = useTranslation();
+  const anchor = isAnchorRole(classifyRole(device.role));
+  const sleepTooltip = anchor ? t('rtlsAnchor.action.sleep') : 'Sleep';
+  const wakeTooltip = anchor ? t('rtlsAnchor.action.wake') : 'Wake';
+  return (
+    <Box sx={{ whiteSpace: 'nowrap' }}>
+      {/* Two fixed-intent buttons, like the sleep-all/wake-all pair above the
+       * list — deliberately NOT a toggle of the current `sleeping` flag, which
+       * may have changed between paint and click and would then invert the
+       * user's intent. */}
+      {isSleepableRtlsDevice(device) &&
+        (busy ? (
+          <IconButton size='small' disabled>
+            <CircularProgress size={18} color='inherit' />
+          </IconButton>
+        ) : (
+          <>
+            <Tooltip content={sleepTooltip}>
+              <IconButton
+                data-testid='rtls-device-sleep'
+                size='small'
+                onClick={() => handlers.onSleep(device.id)}
+              >
+                <Moon fontSize='small' />
+              </IconButton>
+            </Tooltip>
+            <Tooltip content={wakeTooltip}>
+              <IconButton
+                data-testid='rtls-device-wake'
+                size='small'
+                onClick={() => handlers.onWake(device.id)}
+              >
+                <Bolt fontSize='small' />
+              </IconButton>
+            </Tooltip>
+          </>
+        ))}
+      <Tooltip content='Parameters'>
+        <IconButton
+          data-testid='rtls-device-parameters'
+          size='small'
+          onClick={() => handlers.onShowParameters(device.id)}
+        >
+          <Tune fontSize='small' />
         </IconButton>
-      ) : (
-        <>
-          <Tooltip content='Sleep'>
-            <IconButton
-              data-testid='rtls-device-sleep'
-              size='small'
-              onClick={() => handlers.onSleep(device.id)}
-            >
-              <Moon fontSize='small' />
-            </IconButton>
-          </Tooltip>
-          <Tooltip content='Wake'>
-            <IconButton
-              data-testid='rtls-device-wake'
-              size='small'
-              onClick={() => handlers.onWake(device.id)}
-            >
-              <Bolt fontSize='small' />
-            </IconButton>
-          </Tooltip>
-        </>
-      ))}
-    <Tooltip content='Parameters'>
-      <IconButton
-        data-testid='rtls-device-parameters'
-        size='small'
-        onClick={() => handlers.onShowParameters(device.id)}
-      >
-        <Tune fontSize='small' />
-      </IconButton>
-    </Tooltip>
-    <Tooltip content='Firmware update'>
-      <IconButton
-        data-testid='rtls-device-firmware'
-        size='small'
-        onClick={() => handlers.onShowOta(device.id)}
-      >
-        <SystemUpdate fontSize='small' />
-      </IconButton>
-    </Tooltip>
-  </Box>
-);
+      </Tooltip>
+      <Tooltip content='Firmware update'>
+        <IconButton
+          data-testid='rtls-device-firmware'
+          size='small'
+          onClick={() => handlers.onShowOta(device.id)}
+        >
+          <SystemUpdate fontSize='small' />
+        </IconButton>
+      </Tooltip>
+    </Box>
+  );
+};
 
 export type DeviceStatsRowProps = {
   /** Names of the anchors in a tag's anchor masks, by slot. */
   anchorNames?: AnchorNames;
+  /** An anchor's slot in its cell (0 = initiator), when known. */
+  anchorSlot?: number;
   /** Whether a sleep/wake transaction is in flight for this device. */
   busy?: boolean;
   device: RtlsDevice;
   /**
-   * Whether a tag row shows all its telemetry rather than only the solve
-   * rate and percentage. Tags always show everything without
-   * `onToggleExpanded`.
+   * Whether the row shows all its telemetry rather than only its header
+   * line. A row always shows everything without `onToggleExpanded`.
    */
   expanded?: boolean;
   /** Label of the geometry-agreement pill; the pill is hidden if unset. */
@@ -397,27 +384,85 @@ export type DeviceStatsRowProps = {
   geometryStatus?: Status;
   /** Stable action handlers; the actions are hidden when omitted. */
   handlers?: DeviceRowHandlers;
-  /** Stable "show more" / "show less" toggle of a tag row, by device id. */
+  /** UWB MACs of the cell initiators, to find a responder's A0 distance. */
+  initiatorMacs?: ReadonlySet<number>;
+  /** Stable "show more" / "show less" toggle of a row, by device id. */
   onToggleExpanded?: (id: string) => void;
   stats: RtlsDeviceStats | undefined;
   /** Status of the paired UAV, used to color the drone pill. */
   uavStatus?: Status;
 };
 
+/** The tag rows' detail lines, behind "show more". */
+const describeTagDetailLines = (
+  t: ReturnType<typeof useTranslation>['t'],
+  stats: RtlsDeviceStats | undefined,
+  anchorNames: AnchorNames | undefined
+): DetailLine[] => {
+  const geometryFit = describeGeometryFit(stats);
+  const anchorsSeen =
+    stats?.anchorsSeen ?? countAnchorsInMask(stats?.anchorMask);
+  return [
+    {
+      key: 'fixAge',
+      name: 'Fix age',
+      value: formatNumber(stats?.fixAgeMs, 'ms', 0),
+    },
+    {
+      key: 'clockDrift',
+      name: 'Clock drift',
+      value: formatNumber(stats?.clockPpm, 'ppm', 2),
+    },
+    {
+      key: 'anchorsSeen',
+      name: 'Anchors seen',
+      value: String(anchorsSeen),
+    },
+    ...(geometryFit
+      ? [
+          {
+            key: 'geometry',
+            name: t('rtlsGeometry.telemetry'),
+            value: t(geometryFit.key, geometryFit.values),
+          },
+        ]
+      : []),
+    ...describeFleetHealth(stats, anchorNames).map(({ id, status, text }) => ({
+      key: id,
+      // gray values throughout; a metric out of its green zone gets a dot in
+      // the zone's color beside its name
+      name: (
+        <>
+          {t(`rtlsFleetHealth.label.${id}`)}
+          {(status === Status.WARNING || status === Status.ERROR) && (
+            <StatusLight inline size='small' status={status} />
+          )}
+        </>
+      ),
+      value: t(text.key, text.values),
+    })),
+  ];
+};
+
+const NO_MACS: ReadonlySet<number> = new Set();
+
 /**
  * One merged device row: header line (light, name, drone pill, a tag's solve
- * rate and percentage, geometry pill, initiator label, battery, anchor bars,
- * actions), then the role-appropriate telemetry and the caption; a tag's are
- * behind "show more".
+ * rate and percentage or an anchor's slot, state and ranging figures,
+ * geometry pill, an anchor's warnings and input, battery, anchor bars,
+ * actions), then — behind "show more" — the rest of the telemetry and the
+ * caption. A lost anchor stays listed, greyed, with when it was last heard.
  */
 const DeviceStatsRow = ({
   anchorNames,
+  anchorSlot,
   busy = false,
   device,
   expanded = false,
   geometryLabel,
   geometryStatus,
   handlers,
+  initiatorMacs = NO_MACS,
   onToggleExpanded,
   stats,
   uavStatus,
@@ -425,38 +470,48 @@ const DeviceStatsRow = ({
   const { t } = useTranslation();
   const role = classifyRole(device.role);
   const anchor = isAnchorRole(role);
-  const geometryFit = describeGeometryFit(stats);
   const anchorsSeen =
     stats?.anchorsSeen ?? countAnchorsInMask(stats?.anchorMask);
-  const fleetHealth = anchor ? [] : describeFleetHealth(stats, anchorNames);
-  const caption = (
-    <Typography
-      variant='caption'
-      color='textSecondary'
-      component='div'
-      sx={{ pl: 1, opacity: 0.6 }}
-    >
-      {describeDevice(device)}
-    </Typography>
-  );
+  const lost = anchor && isDeviceLost(device, stats);
+  const showDetails = expanded || !onToggleExpanded;
 
   return (
-    <Box data-testid={`rtls-device-${device.id}`} sx={{ px: 1, py: 1 }}>
+    <Box
+      data-testid={`rtls-device-${device.id}`}
+      sx={{ px: 1, py: 1, opacity: lost ? 0.55 : 1 }}
+    >
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
         <Box
           sx={{
             display: 'flex',
             alignItems: 'center',
             gap: 1,
-            minWidth: anchor ? 0 : TAG_LEAD_WIDTH,
+            minWidth: anchor ? ANCHOR_LEAD_WIDTH : TAG_LEAD_WIDTH,
           }}
         >
-          <StatusLight status={getRowStatus(device, stats)} />
+          <StatusLight
+            status={
+              busy && anchor ? Status.WAITING : getRowStatus(device, stats)
+            }
+          />
           <Typography variant='subtitle2' component='div'>
             {describeDeviceWithPairedUav(device, uavStatus)}
           </Typography>
+          {anchor && (
+            <>
+              <AnchorSlotBadge role={role} slot={anchorSlot} />
+              <AnchorStateChip busy={busy} device={device} stats={stats} />
+            </>
+          )}
         </Box>
-        {!anchor && (
+        {anchor ? (
+          <AnchorRangingFigures
+            device={device}
+            initiatorMacs={initiatorMacs}
+            role={role}
+            stats={stats}
+          />
+        ) : (
           <>
             <HeaderStat
               label='Solve rate'
@@ -472,109 +527,57 @@ const DeviceStatsRow = ({
             />
           </>
         )}
-        {/* the name and a tag's figures keep left, the rest keeps right */}
+        {/* the name and the figures keep left, the rest keeps right */}
         <Box sx={{ flexGrow: 1 }} />
         {geometryLabel && (
           <StatusPill inline status={geometryStatus ?? Status.OFF}>
             {geometryLabel}
           </StatusPill>
         )}
-        {role === RtlsRole.ANCHOR_INITIATOR && (
-          <Typography variant='caption' color='textSecondary'>
-            initiator
-          </Typography>
-        )}
-        {stats?.batteryVoltage !== undefined && (
-          <Box sx={{ width: 56 }}>
-            <BatteryIndicator voltage={stats.batteryVoltage} />
-          </Box>
-        )}
-        {!anchor && (
-          <AnchorBars
-            anchorMask={stats?.anchorMask}
-            anchorsSeen={anchorsSeen}
-          />
+        {anchor ? (
+          <AnchorStatusCluster stats={stats} />
+        ) : (
+          <>
+            {stats?.batteryVoltage !== undefined && (
+              <Box sx={{ width: 56 }}>
+                <BatteryIndicator voltage={stats.batteryVoltage} />
+              </Box>
+            )}
+            <AnchorBars
+              anchorMask={stats?.anchorMask}
+              anchorsSeen={anchorsSeen}
+            />
+          </>
         )}
         {handlers && (
           <RowActions busy={busy} device={device} handlers={handlers} />
         )}
       </Box>
-      {anchor ? (
-        <>
-          <AnchorTelemetryRows twr={device.twr} />
-          {caption}
-        </>
-      ) : (
-        <>
-          {onToggleExpanded && (
-            <Button
-              data-testid='rtls-device-show-more'
-              size='small'
-              color='inherit'
-              endIcon={
-                <ExpandMore
-                  sx={{
-                    transform: expanded ? 'rotate(180deg)' : 'none',
-                    transition: 'transform 150ms',
-                  }}
-                />
-              }
-              sx={{ color: 'text.secondary', textTransform: 'none', py: 0 }}
-              onClick={() => onToggleExpanded(device.id)}
-            >
-              {t(
-                expanded ? 'rtlsTagDetails.showLess' : 'rtlsTagDetails.showMore'
-              )}
-            </Button>
-          )}
-          <Collapse unmountOnExit in={expanded || !onToggleExpanded}>
-            <DetailLines
-              lines={[
-                {
-                  key: 'fixAge',
-                  name: 'Fix age',
-                  value: formatNumber(stats?.fixAgeMs, 'ms', 0),
-                },
-                {
-                  key: 'clockDrift',
-                  name: 'Clock drift',
-                  value: formatNumber(stats?.clockPpm, 'ppm', 2),
-                },
-                {
-                  key: 'anchorsSeen',
-                  name: 'Anchors seen',
-                  value: String(anchorsSeen),
-                },
-                ...(geometryFit
-                  ? [
-                      {
-                        key: 'geometry',
-                        name: t('rtlsGeometry.telemetry'),
-                        value: t(geometryFit.key, geometryFit.values),
-                      },
-                    ]
-                  : []),
-                ...fleetHealth.map(({ id, status, text }) => ({
-                  key: id,
-                  // gray values throughout; a metric out of its green zone
-                  // gets a dot in the zone's color beside its name
-                  name: (
-                    <>
-                      {t(`rtlsFleetHealth.label.${id}`)}
-                      {(status === Status.WARNING ||
-                        status === Status.ERROR) && (
-                        <StatusLight inline size='small' status={status} />
-                      )}
-                    </>
-                  ),
-                  value: t(text.key, text.values),
-                })),
-              ]}
-            />
-            {caption}
-          </Collapse>
-        </>
+      {onToggleExpanded && (
+        <ShowMoreButton
+          expanded={expanded}
+          onClick={() => onToggleExpanded(device.id)}
+        />
       )}
+      <Collapse unmountOnExit in={showDetails}>
+        <DetailLines
+          leadWidth={anchor ? ANCHOR_LEAD_WIDTH : TAG_LEAD_WIDTH}
+          lines={
+            anchor
+              ? describeAnchorDetailLines(t, stats)
+              : describeTagDetailLines(t, stats, anchorNames)
+          }
+        />
+        {anchor && <AnchorTelemetryRows twr={device.twr} />}
+        <Typography
+          variant='caption'
+          color='textSecondary'
+          component='div'
+          sx={{ pl: 1, opacity: 0.6 }}
+        >
+          {describeDevice(device)}
+        </Typography>
+      </Collapse>
     </Box>
   );
 };

@@ -7,7 +7,11 @@
  * RtlsHealth} to a theme `Status` lives in `health-status.ts`.
  */
 
-import { type RtlsDeviceStats } from './types';
+import {
+  type RtlsDeviceStats,
+  type RtlsPowerState,
+  RtlsUwbStatus,
+} from './types';
 
 /** Overall health classification of an RTLS device, used to colour a light. */
 export enum RtlsHealth {
@@ -19,13 +23,18 @@ export enum RtlsHealth {
   OK = 'ok',
   /** Not solving / fix lost. */
   ERROR = 'error',
+  /**
+   * Deliberately not working: an anchor asleep, in standby or switched off.
+   * Neutral on its own row; see {@link getOverallHealth} for a fleet.
+   */
+  IDLE = 'idle',
 }
 
 /**
  * Coarse role classification of an RTLS device, derived from the device's
  * reported `role` (the server projects this from the firmware `UWB_ROLE`
  * param: 0 disabled, 1 tag, 2 anchor-initiator, 3 anchor-responder). A tag is
- * judged by its solve performance; an anchor is judged by liveness only.
+ * judged by its solve performance; an anchor by its liveness and health stats.
  */
 export enum RtlsRole {
   /** Role not reported / not recognised. */
@@ -103,50 +112,119 @@ const MIN_HEALTHY_SOLVE_PCT = 50;
 export const STALE_ANCHOR_AGE_S = 5;
 
 /**
- * Liveness of a device as reported in the X-RTLS-INF device snapshot. This is
- * the only signal that matters for anchor health: an anchor neither solves nor
- * reports a solve rate, so it is judged purely by whether the server still
- * hears it.
+ * Liveness of a device as reported in the X-RTLS-INF device snapshot.
  */
 export type DeviceLiveness = {
   /** Whether the server currently considers the device online. */
   online?: boolean;
   /** Seconds since the device was last heard from, if known. */
   age?: number;
+  /** The server's sleep latch (heartbeat STANDBY), when known. */
+  sleeping?: boolean;
 };
 
 /**
- * Derives the health of an anchor device from its liveness alone. Anchors do
- * not solve, so solve-rate/solve-% are irrelevant; an anchor is healthy iff the
- * server still hears it within the freshness window.
+ * Power states in which an anchor deliberately does not range: neutral, not
+ * a fault. Booting and stopping are the transitions into and out of them.
+ */
+const RESTING_POWER_STATES: ReadonlySet<RtlsPowerState> = new Set([
+  'booting',
+  'preview',
+  'standby',
+  'asleep',
+  'off',
+  'stopping',
+  'shutdown',
+]);
+
+/** Power states after which an anchor is expected to drop off the network. */
+const POWERED_DOWN_STATES: ReadonlySet<RtlsPowerState> = new Set([
+  'off',
+  'stopping',
+  'shutdown',
+]);
+
+/** Whether a lost anchor was last seen powering down (then gone is expected). */
+export function wasPoweringDown(stats: RtlsDeviceStats | undefined): boolean {
+  return (
+    stats?.powerState !== undefined && POWERED_DOWN_STATES.has(stats.powerState)
+  );
+}
+
+/** Whether an anchor rests deliberately (asleep, standby, off, booting...). */
+export function isAnchorResting(
+  stats: RtlsDeviceStats | undefined,
+  sleeping: boolean | undefined
+): boolean {
+  const state = stats?.powerState;
+  if (state === undefined || state === 'unknown') {
+    // firmware without the power state: the heartbeat latch is all there is
+    return sleeping === true;
+  }
+  return RESTING_POWER_STATES.has(state);
+}
+
+/** Whether the UWB session refused to start (configuration or hardware). */
+export function isUwbStartRefused(stats: RtlsDeviceStats | undefined): boolean {
+  return (
+    stats?.uwbStatus === RtlsUwbStatus.INVALID_CONFIG ||
+    stats?.uwbStatus === RtlsUwbStatus.HARDWARE_FAILURE
+  );
+}
+
+/**
+ * Derives the health of an anchor from its liveness and health stats:
+ * - error: offline (unless it was last seen powering down), fault, low
+ *   battery, or a UWB session that refused to start;
+ * - idle: asleep, standby, off or booting;
+ * - warning: moved, radio restarts since boot, or operating without ranging;
+ * - ok otherwise.
  */
 export function getAnchorHealth(
-  liveness: DeviceLiveness | undefined
+  liveness: DeviceLiveness | undefined,
+  stats?: RtlsDeviceStats
 ): RtlsHealth {
   if (!liveness) {
     return RtlsHealth.UNKNOWN;
   }
 
-  const { online, age } = liveness;
-
-  if (online === false) {
-    return RtlsHealth.ERROR;
-  }
-
-  if (age !== undefined && Number.isFinite(age) && age > STALE_ANCHOR_AGE_S) {
-    return RtlsHealth.ERROR;
+  const { online, age, sleeping } = liveness;
+  const lost =
+    online === false ||
+    (age !== undefined && Number.isFinite(age) && age > STALE_ANCHOR_AGE_S);
+  if (lost) {
+    return wasPoweringDown(stats) ? RtlsHealth.IDLE : RtlsHealth.ERROR;
   }
 
   if (online === undefined && age === undefined) {
     return RtlsHealth.UNKNOWN;
   }
 
+  if (stats?.powerState === 'fault' || stats?.lowBattery) {
+    return RtlsHealth.ERROR;
+  }
+
+  if (isAnchorResting(stats, sleeping)) {
+    return RtlsHealth.IDLE;
+  }
+
+  if (isUwbStartRefused(stats)) {
+    return RtlsHealth.ERROR;
+  }
+
+  const notRanging =
+    stats?.powerState === 'operating' &&
+    (stats.rangingRateHz === 0 || stats.uwbStatus === RtlsUwbStatus.PENDING);
+  if (stats?.moved || (stats?.radioRestarts ?? 0) > 0 || notRanging) {
+    return RtlsHealth.WARNING;
+  }
+
   return RtlsHealth.OK;
 }
 
 /**
- * Role-aware health for a single device. Anchors are judged by liveness
- * (last-seen), tags by their solve statistics. A disabled device contributes no
+ * Role-aware health for a single device. Anchors are judged by liveness and
+ * their health stats, tags by their solve statistics. A disabled device contributes no
  * health signal (UNKNOWN).
  */
 export function getDeviceHealthForRole(
@@ -160,15 +238,15 @@ export function getDeviceHealthForRole(
     return RtlsHealth.UNKNOWN;
   }
 
+  if (isAnchorRole(role)) {
+    return getAnchorHealth(liveness, stats);
+  }
+
   if (liveness && !liveness.online) {
     // an offline device is never healthy, no matter how good its RETAINED
     // stats look — without this, a tag that dropped off the network kept
     // the overall (header) health green on its cached solve stats
     return RtlsHealth.ERROR;
-  }
-
-  if (isAnchorRole(role)) {
-    return getAnchorHealth(liveness);
   }
 
   return getDeviceHealth(stats);
@@ -216,8 +294,10 @@ export function getDeviceHealth(
 
 /**
  * Combines per-device health values into a single worst-case overall health.
- * ERROR dominates WARNING dominates OK; UNKNOWN is only returned when every
- * device is unknown (or there are no devices).
+ * ERROR dominates WARNING dominates OK; a mix of OK and IDLE devices is a
+ * WARNING (part of the anchor set is asleep, so coverage is reduced), IDLE
+ * alone stays IDLE. UNKNOWN is only returned when every device is unknown
+ * (or there are no devices).
  */
 export function getOverallHealth(healths: RtlsHealth[]): RtlsHealth {
   if (healths.length === 0) {
@@ -232,11 +312,12 @@ export function getOverallHealth(healths: RtlsHealth[]): RtlsHealth {
     return RtlsHealth.WARNING;
   }
 
+  const idle = healths.includes(RtlsHealth.IDLE);
   if (healths.includes(RtlsHealth.OK)) {
-    return RtlsHealth.OK;
+    return idle ? RtlsHealth.WARNING : RtlsHealth.OK;
   }
 
-  return RtlsHealth.UNKNOWN;
+  return idle ? RtlsHealth.IDLE : RtlsHealth.UNKNOWN;
 }
 
 /**

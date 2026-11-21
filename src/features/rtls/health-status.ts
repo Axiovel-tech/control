@@ -21,6 +21,7 @@ export function getStatusForHealth(health: RtlsHealth): Status {
       return Status.WARNING;
     case RtlsHealth.ERROR:
       return Status.ERROR;
+    // IDLE (asleep, standby, off) is grey like UNKNOWN: neutral, not a fault
     default:
       return Status.OFF;
   }

@@ -206,7 +206,8 @@ export type RtlsSleepResult = {
 export async function sendRtlsSleep(
   hub: MessageHub,
   deviceIds: Iterable<string>,
-  sleeping: boolean
+  sleeping: boolean,
+  { timeout = 30 }: { timeout?: number } = {}
 ): Promise<Record<string, RtlsSleepResult>> {
   // Strict digits-only parsing: Number('') is 0 and Number('0x10') is 16,
   // either of which would silently command the wrong device.
@@ -221,11 +222,11 @@ export async function sendRtlsSleep(
   let response: Message<AnyMessageBody>;
   try {
     // The server verifies the sleep outcome on each device (including a
-    // settle delay for the firmware's arming gate), so allow a longer wait
-    // than the default message timeout.
+    // settle delay for the firmware's arming gate, or an anchor's reboot),
+    // so allow a longer wait than the default message timeout.
     response = await hub.sendMessage(
       { type: 'X-RTLS-SLEEP', ids, sleeping },
-      { timeout: 30 }
+      { timeout }
     );
   } catch (error) {
     throw new Error(
@@ -274,14 +275,20 @@ export async function queryRtlsOtaStatus(
   return (body.job as RtlsOtaJob) ?? {};
 }
 
+/** The device species an RTLS firmware image is built for. */
+export type RtlsImageSpecies = 'anchor' | 'tag';
+
 /**
  * Starts an OTA (over-the-air firmware update) job on an RTLS device using the
- * named image.
+ * named image. `role` declares the species the image is built for; the server
+ * then reads the device's UWB_ROLE and refuses a mismatch (a tag image on an
+ * anchor, or the reverse, never rejoins WiFi).
  */
 export async function startRtlsOta(
   hub: MessageHub,
   deviceId: string,
-  image: string
+  image: string,
+  role?: RtlsImageSpecies
 ): Promise<RtlsOtaJob> {
   let response: Message<AnyMessageBody>;
   try {
@@ -290,6 +297,7 @@ export async function startRtlsOta(
         type: 'X-RTLS-OTA',
         id: deviceId,
         image,
+        ...(role === undefined ? {} : { role }),
       },
       { timeout: 30 }
     );

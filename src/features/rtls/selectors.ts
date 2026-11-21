@@ -5,6 +5,8 @@ import {
   getSingleUAVStatusSummary,
   getUAVIdToStateMapping,
 } from '~/features/uavs/selectors';
+import UAVErrorCode from '~/flockwave/UAVErrorCode';
+import { UAVAge } from '~/model/uav';
 import { type AppSelector } from '~/store/reducers';
 import {
   type Collection,
@@ -221,8 +223,8 @@ export const getRtlsOtaDialogDeviceId: AppSelector<string | undefined> = (
 
 /**
  * Selector that returns the overall (worst-case) RTLS health across *all* known
- * RTLS devices. Health is role-aware: anchors are judged by liveness
- * (online/last-seen), tags by their solve statistics. A discovered device that
+ * RTLS devices. Health is role-aware: anchors are judged by liveness and
+ * their health stats, tags by their solve statistics. A discovered device that
  * has not yet reported the signal relevant to its role contributes an UNKNOWN
  * health, so a fleet with a mix of healthy and statless devices does not
  * collapse to "healthy".
@@ -237,7 +239,13 @@ export const getOverallRtlsHealth: AppSelector<RtlsHealth> = createSelector(
         return getDeviceHealthForRole(
           classifyRole(device?.role),
           byId[id],
-          device ? { online: device.online, age: device.age } : undefined
+          device
+            ? {
+                online: device.online,
+                age: device.age,
+                sleeping: device.sleeping,
+              }
+            : undefined
         );
       })
     )
@@ -252,6 +260,7 @@ const getHealthForDevices = (
       getDeviceHealthForRole(classifyRole(device.role), byId[device.id], {
         online: device.online,
         age: device.age,
+        sleeping: device.sleeping,
       })
     )
   );
@@ -310,3 +319,23 @@ export const getRtlsVerifyResult: AppSelector<RtlsVerifyResult | undefined> = (
 /** Selector that returns whether the verification dialog is open. */
 export const isRtlsVerifyDialogOpen: AppSelector<boolean> = (state) =>
   state.rtls.verify.dialogOpen;
+
+/**
+ * Selector that returns the ids of the UAVs that may be armed: every UAV
+ * still heard (not gone) that reports neither DISARMED nor SLEEPING. A UAV
+ * that has not reported its errors yet counts as armed — the selector only
+ * guards a confirmation, so it errs on the side of asking.
+ */
+export const getPossiblyArmedUavIds: AppSelector<string[]> = createSelector(
+  getUAVIdToStateMapping,
+  (uavsById) =>
+    Object.values(uavsById)
+      .filter(
+        (uav) =>
+          uav.age !== UAVAge.GONE &&
+          uav.age !== UAVAge.FORGOTTEN &&
+          !uav.errors.includes(UAVErrorCode.DISARMED) &&
+          !uav.errors.includes(UAVErrorCode.SLEEPING)
+      )
+      .map((uav) => uav.id)
+);
