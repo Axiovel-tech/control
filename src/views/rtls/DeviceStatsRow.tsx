@@ -197,8 +197,6 @@ const RowActions = ({
 }) => {
   const { t } = useTranslation();
   const anchor = isAnchorRole(classifyRole(device.role));
-  const sleepTooltip = anchor ? t('rtlsAnchor.action.sleep') : 'Sleep';
-  const wakeTooltip = anchor ? t('rtlsAnchor.action.wake') : 'Wake';
   return (
     <Box sx={{ whiteSpace: 'nowrap', display: 'inline-flex' }}>
       {/* Two fixed-intent buttons, like the sleep-all/wake-all pair above the
@@ -228,14 +226,14 @@ const RowActions = ({
               icon={<Moon fontSize='small' />}
               lockedOut={locked}
               testId='rtls-device-sleep'
-              tooltip={sleepTooltip}
+              tooltip={t('rtlsDevice.action.sleep')}
               onClick={() => handlers.onSleep(device.id)}
             />
             <ActionButton
               icon={<Bolt fontSize='small' />}
               lockedOut={locked}
               testId='rtls-device-wake'
-              tooltip={wakeTooltip}
+              tooltip={t('rtlsDevice.action.wake')}
               onClick={() => handlers.onWake(device.id)}
             />
           </>

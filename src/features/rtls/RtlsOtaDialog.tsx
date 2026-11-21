@@ -139,11 +139,10 @@ const OtaJobStatus = ({ job }: { job: RtlsOtaJob }) => {
   );
 };
 
-const SPECIES_HINTS: Record<ImageSpeciesSource, string> = {
+/** Where a species came from, when that is worth saying. */
+const SPECIES_HINTS: Partial<Record<ImageSpeciesSource, string>> = {
   receipt: 'rtlsOta.species.fromReceipt',
   path: 'rtlsOta.species.fromPath',
-  operator: 'rtlsOta.species.hint',
-  none: 'rtlsOta.species.hint',
 };
 
 /** The species selector: locked to a receipt's species, else the operator's. */
@@ -174,7 +173,7 @@ const SpeciesSelect = ({
       helperText={
         mismatch
           ? t(`rtlsOta.species.mismatch.${species}`)
-          : t(SPECIES_HINTS[source])
+          : SPECIES_HINTS[source] && t(SPECIES_HINTS[source])
       }
       onChange={(event) => onChange(event.target.value as RtlsImageSpecies)}
     >
