@@ -51,3 +51,7 @@
 - If something is unclear, ask for input
 - Follow clean code principles
 - Be succint
+
+# Axiovel fork
+
+Read [AXIOVEL.md](AXIOVEL.md) first; where it differs from this file, it wins.
