@@ -210,6 +210,26 @@ describe('X-RTLS-LOCK messages', () => {
     });
   });
 
+  test('an incomplete lock lists the anchors that did not take it', async () => {
+    sendMessage.mockResolvedValueOnce(
+      reply({
+        type: 'X-RTLS-LOCK',
+        result: 'incomplete',
+        reason: null,
+        warnings: [],
+        results: {
+          '101': { accepted: true },
+          '102': { accepted: false, detail: 'RTLS anchor A1 refused LOCK=1' },
+        },
+      })
+    );
+    const result = await sendRtlsLock(messageHub, 'lock', {
+      acknowledgeWarnings: true,
+    });
+    expect(result.result).toBe('incomplete');
+    expect(result.failures).toEqual(['RTLS anchor A1 refused LOCK=1']);
+  });
+
   test("a NAK rejects with the server's reason", async () => {
     sendMessage.mockResolvedValueOnce(
       reply({ type: 'ACK-NAK', reason: 'no RTLS extension' })

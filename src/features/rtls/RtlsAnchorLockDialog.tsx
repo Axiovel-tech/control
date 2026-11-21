@@ -59,7 +59,12 @@ const RtlsAnchorLockDialog = () => {
         setWarnings(result.warnings);
         setAcknowledged(false);
       } else {
-        setError(result.reason ?? t('rtlsAnchorLock.dialog.notLocked'));
+        setError(
+          result.reason ??
+            (result.failures.length > 0
+              ? result.failures.join('; ')
+              : t('rtlsAnchorLock.dialog.notLocked'))
+        );
       }
     } catch (lockError) {
       setError(errorToString(lockError));

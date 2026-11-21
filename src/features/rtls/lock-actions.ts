@@ -66,7 +66,11 @@ export const unlockRtlsAnchors =
       if (result.lock !== undefined) {
         dispatch(setRtlsAnchorLock(result.lock));
       }
-      showNotification(i18n.t('rtlsAnchorLock.notification.unlocked'));
+      if (result.failures.length > 0) {
+        showError(result.failures.join('; '));
+      } else {
+        showNotification(i18n.t('rtlsAnchorLock.notification.unlocked'));
+      }
     } catch (error) {
       showError(error instanceof Error ? error.message : String(error));
     }

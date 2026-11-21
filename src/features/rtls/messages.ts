@@ -437,15 +437,25 @@ export type RtlsLockResult = {
   /**
    * `locked` / `unlocked` when the request took effect, `warnings` when a
    * lock waits for its warnings to be acknowledged, `refused` when the
-   * server will not lock (an anchor is not operating; see `reason`).
+   * server will not lock (an anchor is not operating; see `reason`),
+   * `incomplete` when some anchors did not take the write (see `failures`).
    */
-  result: 'locked' | 'unlocked' | 'warnings' | 'refused' | 'status' | 'unknown';
+  result:
+    | 'locked'
+    | 'unlocked'
+    | 'warnings'
+    | 'refused'
+    | 'incomplete'
+    | 'status'
+    | 'unknown';
   /** Why the server refused. */
   reason?: string;
   /** The lock state after the request, when the server reported it. */
   lock?: RtlsAnchorLock;
   /** The warnings to acknowledge (`warnings` result). */
   warnings: RtlsLockIssue[];
+  /** Why anchors did not take the write (`incomplete` result). */
+  failures: string[];
 };
 
 const LOCK_RESULTS = [
@@ -453,6 +463,7 @@ const LOCK_RESULTS = [
   'unlocked',
   'warnings',
   'refused',
+  'incomplete',
   'status',
 ] as const;
 
@@ -484,5 +495,15 @@ export async function sendRtlsLock(
     reason: typeof body.reason === 'string' ? body.reason : undefined,
     lock: mapAnchorLock(body.anchorLock),
     warnings: mapLockIssues(body.warnings),
+    failures: Object.values(
+      body.results && typeof body.results === 'object' ? body.results : {}
+    )
+      .filter(
+        (entry): entry is { accepted: boolean; detail?: unknown } =>
+          typeof entry === 'object' && entry !== null && !entry.accepted
+      )
+      .map((entry) =>
+        typeof entry.detail === 'string' ? entry.detail : 'refused'
+      ),
   };
 }
