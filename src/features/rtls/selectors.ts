@@ -26,7 +26,13 @@ import {
   RtlsRole,
 } from './stats-utils';
 import {
+  getAnchorLockState,
+  isLocked,
+  type AnchorLockState,
+} from './anchor-lock';
+import {
   type RtlsAnchor,
+  type RtlsAnchorLock,
   type RtlsDevice,
   type RtlsDeviceStats,
   type RtlsGeometryAgreement,
@@ -347,4 +353,34 @@ export const getPossiblyArmedUavIds: AppSelector<string[]> = createSelector(
           !uav.errors.includes(UAVErrorCode.SLEEPING)
       )
       .map((uav) => uav.id)
+);
+
+/** Selector that returns the server's anchor lock, if it reports one. */
+export const getRtlsAnchorLock: AppSelector<RtlsAnchorLock | undefined> = (
+  state
+) => state.rtls.anchorLock;
+
+/** Selector that returns whether the anchors are locked. */
+export const areRtlsAnchorsLocked: AppSelector<boolean> = (state) =>
+  isLocked(state.rtls.anchorLock);
+
+/** Selector that returns the state of the anchor lock. */
+export const getRtlsAnchorLockState: AppSelector<AnchorLockState> = (state) =>
+  getAnchorLockState(state.rtls.anchorLock);
+
+/** Selector that returns whether the lock / re-seal dialog is open. */
+export const isRtlsLockDialogOpen: AppSelector<boolean> = (state) =>
+  state.rtls.lockDialogOpen;
+
+/**
+ * Selector that returns whether a show start needs the anchors locked: the
+ * server reports a lock and knows anchors (live devices or a configured
+ * cell). Without anchors there is no requirement.
+ */
+export const isRtlsAnchorLockRequired: AppSelector<boolean> = createSelector(
+  getRtlsAnchorLock,
+  getRtlsAnchorDevices,
+  getRtlsAnchors,
+  (lock, devices, anchors) =>
+    lock !== undefined && (devices.length > 0 || anchors.length > 0)
 );

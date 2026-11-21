@@ -467,3 +467,41 @@ export type RtlsVerifyResult = {
   rules: RtlsVerifyRule[];
   receivedAt: number;
 };
+
+/** A warning the server raised when the anchors were (or were about to be) locked. */
+export type RtlsLockIssue = {
+  /** Machine-readable kind, e.g. `offline`, `moved`, `lowBattery`. */
+  code?: string;
+  /** System id of the anchor it concerns, when it concerns one. */
+  device?: string;
+  /** Human-readable text from the server. */
+  text: string;
+};
+
+/** One event that broke the anchor lock (integrity watch while locked). */
+export type RtlsLockBreak = {
+  /** Machine-readable kind, e.g. `offline`, `rebooted`, `param`, `moved`. */
+  reason: string;
+  /** System id of the anchor it concerns, when it concerns one. */
+  device?: string;
+  /** When it happened, ms since the epoch. */
+  time?: number;
+  /** Human-readable text from the server. */
+  text: string;
+};
+
+/**
+ * The ground-side anchor cell lock, kept by axio-server so that every client
+ * sees and honours the same lock. While locked, the server refuses every
+ * command that would change an anchor, and a show cannot be scheduled or
+ * authorized unless the anchors are locked without unreviewed breaks.
+ */
+export type RtlsAnchorLock = {
+  locked: boolean;
+  /** When the anchors were locked, ms since the epoch. */
+  lockedAt?: number;
+  /** Warnings acknowledged at lock time, or raised by the last lock attempt. */
+  warnings: RtlsLockIssue[];
+  /** Events that broke the lock since it was sealed. */
+  breaks: RtlsLockBreak[];
+};

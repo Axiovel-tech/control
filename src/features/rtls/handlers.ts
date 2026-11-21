@@ -11,7 +11,9 @@ import isNil from 'lodash-es/isNil';
 
 import { type AppDispatch } from '~/store/reducers';
 
+import { mapAnchorLock } from './anchor-lock';
 import {
+  setRtlsAnchorLock,
   setRtlsAnchors,
   setRtlsDevicesFromStatus,
   setRtlsOtaJob,
@@ -236,6 +238,25 @@ export function handleRtlsInformationMessage(
   // configured cell geometry off the debug position view.
   if (Array.isArray(body?.anchors)) {
     dispatch(setRtlsAnchors(mapRtlsAnchors(body.anchors)));
+  }
+  // Likewise only an explicit lock state replaces the stored one
+  const lock = mapAnchorLock(body?.anchorLock);
+  if (lock !== undefined) {
+    dispatch(setRtlsAnchorLock(lock));
+  }
+}
+
+/**
+ * Handles an X-RTLS-LOCK message (a response or a pushed change, e.g. a new
+ * break): the lock state is the body itself or its `anchorLock` field.
+ */
+export function handleRtlsLockMessage(
+  body: AnyRecord,
+  dispatch: AppDispatch
+): void {
+  const lock = mapAnchorLock(body?.anchorLock ?? body);
+  if (lock !== undefined) {
+    dispatch(setRtlsAnchorLock(lock));
   }
 }
 

@@ -11,13 +11,24 @@ import i18n from '~/i18n';
 import messageHub from '~/message-hub';
 import { type AppThunk } from '~/store/reducers';
 
+import { refuseWhileAnchorsLocked } from './lock-actions';
 import { sendRtlsForget } from './messages';
+import { getRtlsAnchorDevices } from './selectors';
 
 /** Thunk that forgets the given offline devices, reporting the outcome. */
 export const forgetRtlsDevices =
   (deviceIds: string[]): AppThunk<Promise<void>> =>
-  async () => {
+  async (_dispatch, getState) => {
     if (deviceIds.length === 0) {
+      return;
+    }
+    const anchorIds = new Set(
+      getRtlsAnchorDevices(getState()).map((device) => device.id)
+    );
+    if (
+      deviceIds.some((id) => anchorIds.has(id)) &&
+      refuseWhileAnchorsLocked(getState())
+    ) {
       return;
     }
 

@@ -14,6 +14,7 @@ import {
 
 import {
   type RtlsAnchor,
+  type RtlsAnchorLock,
   type RtlsDevice,
   type RtlsDeviceStats,
   type RtlsGeometryAgreement,
@@ -121,6 +122,15 @@ export type RtlsSliceState = {
     invalidations: number;
   };
 
+  /**
+   * The server's anchor cell lock; `undefined` while the server has not
+   * reported one (a server without the lock feature).
+   */
+  anchorLock?: RtlsAnchorLock;
+
+  /** Whether the lock / re-seal dialog is open. */
+  lockDialogOpen: boolean;
+
   /** Fleet pre-flight verification state (X-RTLS-VERIFY). */
   verify: {
     running: boolean;
@@ -157,6 +167,8 @@ const initialState: RtlsSliceState = {
     lastCheck: undefined,
     invalidations: 0,
   },
+  anchorLock: undefined,
+  lockDialogOpen: false,
   verify: {
     running: false,
     lastResult: undefined,
@@ -168,8 +180,24 @@ const { actions, reducer } = createSlice({
   name: 'rtls',
   initialState,
   reducers: {
+    /** Replaces the anchor lock state with the server's latest report. */
+    setRtlsAnchorLock(state, { payload }: PayloadAction<RtlsAnchorLock>) {
+      state.anchorLock = payload;
+    },
+
+    openRtlsLockDialog(state) {
+      state.lockDialogOpen = true;
+    },
+
+    closeRtlsLockDialog(state) {
+      state.lockDialogOpen = false;
+    },
+
     /** Clears the entire RTLS device registry, stats and OTA jobs. */
     clearRtlsDevices(state) {
+      // the lock belongs to the server we are leaving; the next one reports
+      // its own
+      state.anchorLock = undefined;
       clearOrderedCollection<RtlsDevice>(state.devices);
       state.stats = { byId: {}, lastUpdatedAt: undefined };
       state.positions = { byId: {} };
@@ -522,9 +550,11 @@ const { actions, reducer } = createSlice({
 export const {
   applyRtlsSleepResults,
   clearRtlsDevices,
+  closeRtlsLockDialog,
   closeRtlsOtaDialog,
   closeRtlsParamDialog,
   closeRtlsVerifyDialog,
+  openRtlsLockDialog,
   openRtlsOtaDialog,
   openRtlsParamDialog,
   openRtlsVerifyDialog,
@@ -540,6 +570,7 @@ export const {
   rtlsParamValueUpdated,
   rtlsSleepTransactionEnded,
   rtlsSleepTransactionStarted,
+  setRtlsAnchorLock,
   setRtlsAnchors,
   setRtlsDevicesFromStatus,
   setRtlsOtaJob,

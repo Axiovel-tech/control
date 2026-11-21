@@ -11,6 +11,10 @@ import { StatusLight } from '@skybrush/mui-components';
 import { Status } from '~/components/semantics';
 import { setCommandsAreBroadcast } from '~/features/mission/slice';
 import {
+  getRtlsAnchorLockState,
+  isRtlsAnchorLockRequired,
+} from '~/features/rtls/selectors';
+import {
   countUAVsTakingOffAutomatically,
   isShowAuthorizedToStartLocally,
 } from '~/features/show/selectors';
@@ -28,6 +32,8 @@ const buttonStyle: SxProps<typeof ListItemButton> = {
 };
 
 type Props = Readonly<{
+  /** Whether the server will refuse the authorization: anchors not locked. */
+  anchorsUnlocked: boolean;
   isAuthorized: boolean;
   numUAVsTakingOffAutomatically: number;
   status: Status;
@@ -39,6 +45,7 @@ type Props = Readonly<{
  * in automatic mode.
  */
 const AuthorizationButton = ({
+  anchorsUnlocked,
   isAuthorized,
   numUAVsTakingOffAutomatically,
   status,
@@ -79,7 +86,9 @@ const AuthorizationButton = ({
                     : t('show.takeOffMore', {
                         quantity: numUAVsTakingOffAutomatically,
                       })
-                : t('show.authorizationReq')}
+                : anchorsUnlocked
+                  ? t('rtlsAnchorLock.preflight.authorizationRefused')
+                  : t('show.authorizationReq')}
             </Typography>
           }
         />
@@ -91,6 +100,9 @@ const AuthorizationButton = ({
 export default connect(
   // mapStateToProps
   (state: RootState) => ({
+    anchorsUnlocked:
+      isRtlsAnchorLockRequired(state) &&
+      getRtlsAnchorLockState(state) !== 'locked',
     isAuthorized: isShowAuthorizedToStartLocally(state),
     numUAVsTakingOffAutomatically: countUAVsTakingOffAutomatically(state),
     status: getSetupStageStatuses(state).authorization,

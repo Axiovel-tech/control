@@ -25,6 +25,7 @@ import messageHub from '~/message-hub';
 import { type AppDispatch, type AppThunk } from '~/store/reducers';
 
 import { handleRtlsInformationMessage } from './handlers';
+import { refuseWhileAnchorsLocked } from './lock-actions';
 import { sendRtlsSleep } from './messages';
 import {
   getPossiblyArmedUavIds,
@@ -273,6 +274,9 @@ export const sleepRtlsAnchors =
   (deviceIds: string[]): AppThunk<Promise<void>> =>
   async (dispatch, getState) => {
     const state = getState();
+    if (refuseWhileAnchorsLocked(state)) {
+      return;
+    }
     const ids = withoutPendingDevices(
       deviceIds,
       getRtlsSleepPendingMap(state),
@@ -292,6 +296,9 @@ export const sleepRtlsAnchors =
 export const wakeRtlsAnchors =
   (deviceIds: string[]): AppThunk<Promise<void>> =>
   async (dispatch, getState) => {
+    if (refuseWhileAnchorsLocked(getState())) {
+      return;
+    }
     const ids = withoutPendingDevices(
       deviceIds,
       getRtlsSleepPendingMap(getState()),

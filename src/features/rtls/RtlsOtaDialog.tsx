@@ -4,6 +4,7 @@
  * image, and reflects live progress from pushed X-RTLS-OTA notifications.
  */
 
+import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import DialogActions from '@mui/material/DialogActions';
@@ -37,6 +38,7 @@ import {
   resolveImageSpecies,
 } from './ota-species';
 import {
+  areRtlsAnchorsLocked,
   getRtlsDevicesAsCollection,
   getRtlsOtaDialogDeviceId,
   getRtlsOtaJobForDevice,
@@ -198,6 +200,10 @@ const RtlsOtaDialog = () => {
     )
   );
 
+  // a locked anchor takes no upload (inspecting an image stays possible)
+  const anchorsLocked = useSelector(areRtlsAnchorsLocked);
+  const lockedOut = anchorsLocked && deviceSpecies === 'anchor';
+
   const [image, setImage] = useState('');
   // The species the image is built for, always sent with the OTA: named by
   // the image's build receipt, as the server reads it (the selector is then
@@ -219,6 +225,7 @@ const RtlsOtaDialog = () => {
   const startable =
     !busy &&
     !active &&
+    !lockedOut &&
     canStartOta({ image: trimmedImage, inspection, mismatch, species });
 
   // Query the current OTA job status when the dialog opens for a device.
@@ -269,6 +276,15 @@ const RtlsOtaDialog = () => {
       onClose={handleClose}
     >
       <DialogContent>
+        {lockedOut && (
+          <Alert
+            data-testid='rtls-ota-dialog.locked'
+            severity='info'
+            sx={{ mb: 1 }}
+          >
+            {t('rtlsAnchorLock.otaLocked')}
+          </Alert>
+        )}
         <TextField
           fullWidth
           label='Firmware image'

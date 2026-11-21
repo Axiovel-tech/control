@@ -16,6 +16,10 @@ import {
   areAllPreflightChecksTicked,
   hasManualPreflightChecks,
 } from '~/features/preflight/selectors';
+import {
+  getRtlsAnchorLockState,
+  isRtlsAnchorLockRequired,
+} from '~/features/rtls/selectors';
 import { isConnected as isConnectedToServer } from '~/features/servers/selectors';
 import {
   areAllUAVsInMissionWithoutErrors,
@@ -55,6 +59,7 @@ type Stage =
   | 'uploadShow'
   | 'waitForOnboardPreflightChecks'
   | 'performManualPreflightChecks'
+  | 'lockAnchors'
   | 'setupStartTime'
   | 'authorization';
 
@@ -172,6 +177,25 @@ const stages: Record<Stage, StageSpecification> = {
     requires: ['uploadShow'],
   },
 
+  // The server refuses to schedule or authorize a show while it knows
+  // anchors that are not locked, or locked with unreviewed breaks
+  lockAnchors: {
+    evaluate(state) {
+      if (!isRtlsAnchorLockRequired(state)) {
+        return Status.SKIPPED;
+      }
+      switch (getRtlsAnchorLockState(state)) {
+        case 'locked':
+          return Status.SUCCESS;
+        case 'broken':
+          return Status.ERROR;
+        default:
+          return Status.OFF;
+      }
+    },
+    requires: ['selectShowFile'],
+  },
+
   setupStartTime: {
     evaluate: (state) =>
       didStartConditionSyncFail(state)
@@ -184,7 +208,11 @@ const stages: Record<Stage, StageSpecification> = {
             ? Status.WAITING
             : Status.OFF,
     requires: ['selectShowFile'],
-    suggests: ['waitForOnboardPreflightChecks', 'performManualPreflightChecks'],
+    suggests: [
+      'waitForOnboardPreflightChecks',
+      'performManualPreflightChecks',
+      'lockAnchors',
+    ],
   },
 
   authorization: {
@@ -196,7 +224,11 @@ const stages: Record<Stage, StageSpecification> = {
           : isShowAuthorizedToStartLocally(state)
             ? Status.WAITING
             : Status.OFF,
-    requires: ['waitForOnboardPreflightChecks', 'performManualPreflightChecks'],
+    requires: [
+      'waitForOnboardPreflightChecks',
+      'performManualPreflightChecks',
+      'lockAnchors',
+    ],
   },
 };
 
@@ -214,6 +246,7 @@ const stageOrder: Stage[] = [
   'uploadShow',
   'waitForOnboardPreflightChecks',
   'performManualPreflightChecks',
+  'lockAnchors',
   'setupStartTime',
   'authorization',
 ];

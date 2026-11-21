@@ -39,8 +39,10 @@ import {
   describeGeometryAgreement,
   geometryPillFor,
 } from '~/features/rtls/geometry-utils';
+import AnchorLockControl from '~/features/rtls/AnchorLockControl';
 import OverallRtlsStatusLight from '~/features/rtls/OverallRtlsStatusLight';
 import {
+  areRtlsAnchorsLocked,
   getRtlsAnchorDevices,
   getRtlsAnchors,
   getRtlsGeometryCheck,
@@ -103,6 +105,9 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
   const statsById = useSelector(getRtlsStatsById);
   const uavStatuses = useSelector(getRtlsPairedUavStatuses);
   const sleepPending = useSelector(getRtlsSleepPendingMap);
+  const anchorsLocked = useSelector(areRtlsAnchorsLocked);
+  // the anchor lock freezes the anchor panel's changing actions
+  const lockedOut = !tags && anchorsLocked;
   const lastUpdatedAt = useSelector(getRtlsStatsLastUpdatedAt);
   const geometryCheck = useSelector(getRtlsGeometryCheck);
   const geometryBusy = useSelector(isRtlsGeometryBusy);
@@ -277,6 +282,7 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
             </>
           )}
           {!tags && expandAllButton}
+          {!tags && <AnchorLockControl />}
         </Box>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
           {/* TWR freshness is per-row (each peer carries its age); a global
@@ -289,23 +295,39 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
                 : 'no updates yet'}
             </Typography>
           )}
-          <Tooltip content={t(bulk.sleepLabel)}>
-            <IconButton
-              data-testid={`rtls-${variant}-panel.sleep-all`}
-              size='small'
-              onClick={() => void dispatch(bulk.sleep())}
-            >
-              <Moon fontSize='small' />
-            </IconButton>
+          <Tooltip
+            content={t(
+              lockedOut ? 'rtlsAnchorLock.lockedTooltip' : bulk.sleepLabel
+            )}
+          >
+            {/* a disabled button gets no pointer events: the span keeps the
+             * tooltip */}
+            <Box component='span'>
+              <IconButton
+                data-testid={`rtls-${variant}-panel.sleep-all`}
+                size='small'
+                disabled={lockedOut}
+                onClick={() => void dispatch(bulk.sleep())}
+              >
+                <Moon fontSize='small' />
+              </IconButton>
+            </Box>
           </Tooltip>
-          <Tooltip content={t(bulk.wakeLabel)}>
-            <IconButton
-              data-testid={`rtls-${variant}-panel.wake-all`}
-              size='small'
-              onClick={() => void dispatch(bulk.wake())}
-            >
-              <Bolt fontSize='small' />
-            </IconButton>
+          <Tooltip
+            content={t(
+              lockedOut ? 'rtlsAnchorLock.lockedTooltip' : bulk.wakeLabel
+            )}
+          >
+            <Box component='span'>
+              <IconButton
+                data-testid={`rtls-${variant}-panel.wake-all`}
+                size='small'
+                disabled={lockedOut}
+                onClick={() => void dispatch(bulk.wake())}
+              >
+                <Bolt fontSize='small' />
+              </IconButton>
+            </Box>
           </Tooltip>
         </Box>
       </Box>
@@ -354,6 +376,7 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
                   }
                   geometryStatus={geometry.status}
                   handlers={handlers}
+                  locked={lockedOut}
                   stats={statsById[device.id]}
                   onToggleExpanded={toggleExpanded}
                   uavStatus={

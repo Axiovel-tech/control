@@ -19,6 +19,8 @@ import {
   rtlsParamsFetchSucceeded,
   rtlsParamValueUpdated,
 } from './slice';
+import { areRtlsAnchorsLocked } from './selectors';
+import { classifyRole, isAnchorRole } from './stats-utils';
 import { type RtlsParamType, type RtlsParamValue } from './types';
 
 /**
@@ -61,7 +63,15 @@ export const setRtlsDeviceParameter =
     value: RtlsParamValue,
     paramType?: RtlsParamType
   ): AppThunk<Promise<RtlsParameterSetResult>> =>
-  async (dispatch) => {
+  async (dispatch, getState) => {
+    const device = getState().rtls.devices.byId[deviceId];
+    if (
+      device !== undefined &&
+      isAnchorRole(classifyRole(device.role)) &&
+      areRtlsAnchorsLocked(getState())
+    ) {
+      throw new Error(i18n.t('rtlsAnchorLock.lockedTooltip'));
+    }
     if (READ_ONLY_RTLS_PARAMS.has(name)) {
       throw new Error(i18n.t('rtlsParams.sleepReadOnly'));
     }

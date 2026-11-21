@@ -146,35 +146,73 @@ export type DeviceRowHandlers = {
  * The per-row action cluster: sleep / wake (tags and anchors), parameters and
  * firmware update.
  */
+/**
+ * A row action. While the anchors are locked (`lockedOut`) it stays visible
+ * but disabled, and says why.
+ */
+const ActionButton = ({
+  icon,
+  lockedOut = false,
+  onClick,
+  testId,
+  tooltip,
+}: {
+  icon: React.ReactNode;
+  lockedOut?: boolean;
+  onClick: () => void;
+  testId: string;
+  tooltip: string;
+}) => {
+  const { t } = useTranslation();
+  return (
+    <Tooltip content={lockedOut ? t('rtlsAnchorLock.lockedTooltip') : tooltip}>
+      {/* a disabled button gets no pointer events: the span keeps the
+       * tooltip */}
+      <Box component='span'>
+        <IconButton
+          data-testid={testId}
+          size='small'
+          disabled={lockedOut}
+          onClick={onClick}
+        >
+          {icon}
+        </IconButton>
+      </Box>
+    </Tooltip>
+  );
+};
+
 const RowActions = ({
   busy,
   device,
   handlers,
+  locked,
 }: {
   busy: boolean;
   device: RtlsDevice;
   handlers: DeviceRowHandlers;
+  locked: boolean;
 }) => {
   const { t } = useTranslation();
   const anchor = isAnchorRole(classifyRole(device.role));
+  // the anchor lock freezes every anchor-changing action; tags are unaffected
+  const lockedOut = anchor && locked;
   const sleepTooltip = anchor ? t('rtlsAnchor.action.sleep') : 'Sleep';
   const wakeTooltip = anchor ? t('rtlsAnchor.action.wake') : 'Wake';
   return (
-    <Box sx={{ whiteSpace: 'nowrap' }}>
+    <Box sx={{ whiteSpace: 'nowrap', display: 'inline-flex' }}>
       {/* Two fixed-intent buttons, like the sleep-all/wake-all pair above the
        * list — deliberately NOT a toggle of the current `sleeping` flag, which
        * may have changed between paint and click and would then invert the
        * user's intent. */}
       {!device.online && handlers.onForget && (
-        <Tooltip content={t('rtlsDevice.action.forget')}>
-          <IconButton
-            data-testid='rtls-device-forget'
-            size='small'
-            onClick={() => handlers.onForget?.(device.id)}
-          >
-            <DeleteOutline fontSize='small' />
-          </IconButton>
-        </Tooltip>
+        <ActionButton
+          icon={<DeleteOutline fontSize='small' />}
+          lockedOut={lockedOut}
+          testId='rtls-device-forget'
+          tooltip={t('rtlsDevice.action.forget')}
+          onClick={() => handlers.onForget?.(device.id)}
+        />
       )}
       {/* a lost anchor cannot be commanded; a tag keeps its buttons, since
        * waking a drone that dropped off the list must stay possible */}
@@ -186,44 +224,36 @@ const RowActions = ({
           </IconButton>
         ) : (
           <>
-            <Tooltip content={sleepTooltip}>
-              <IconButton
-                data-testid='rtls-device-sleep'
-                size='small'
-                onClick={() => handlers.onSleep(device.id)}
-              >
-                <Moon fontSize='small' />
-              </IconButton>
-            </Tooltip>
-            <Tooltip content={wakeTooltip}>
-              <IconButton
-                data-testid='rtls-device-wake'
-                size='small'
-                onClick={() => handlers.onWake(device.id)}
-              >
-                <Bolt fontSize='small' />
-              </IconButton>
-            </Tooltip>
+            <ActionButton
+              icon={<Moon fontSize='small' />}
+              lockedOut={lockedOut}
+              testId='rtls-device-sleep'
+              tooltip={sleepTooltip}
+              onClick={() => handlers.onSleep(device.id)}
+            />
+            <ActionButton
+              icon={<Bolt fontSize='small' />}
+              lockedOut={lockedOut}
+              testId='rtls-device-wake'
+              tooltip={wakeTooltip}
+              onClick={() => handlers.onWake(device.id)}
+            />
           </>
         ))}
-      <Tooltip content='Parameters'>
-        <IconButton
-          data-testid='rtls-device-parameters'
-          size='small'
-          onClick={() => handlers.onShowParameters(device.id)}
-        >
-          <Tune fontSize='small' />
-        </IconButton>
-      </Tooltip>
-      <Tooltip content='Firmware update'>
-        <IconButton
-          data-testid='rtls-device-firmware'
-          size='small'
-          onClick={() => handlers.onShowOta(device.id)}
-        >
-          <SystemUpdate fontSize='small' />
-        </IconButton>
-      </Tooltip>
+      {/* the parameters stay viewable while locked; the dialog is read-only */}
+      <ActionButton
+        icon={<Tune fontSize='small' />}
+        testId='rtls-device-parameters'
+        tooltip='Parameters'
+        onClick={() => handlers.onShowParameters(device.id)}
+      />
+      <ActionButton
+        icon={<SystemUpdate fontSize='small' />}
+        lockedOut={lockedOut}
+        testId='rtls-device-firmware'
+        tooltip='Firmware update'
+        onClick={() => handlers.onShowOta(device.id)}
+      />
     </Box>
   );
 };
@@ -247,6 +277,8 @@ export type DeviceStatsRowProps = {
   geometryStatus?: Status;
   /** Stable action handlers; the actions are hidden when omitted. */
   handlers?: DeviceRowHandlers;
+  /** Whether the anchors are locked: an anchor row's changing actions are disabled. */
+  locked?: boolean;
   /** UWB MACs of the cell initiators, to find a responder's A0 distance. */
   initiatorMacs?: ReadonlySet<number>;
   /**
@@ -314,6 +346,7 @@ const DeviceStatsRow = ({
   handlers,
   initiatorEvidence,
   initiatorMacs = NO_MACS,
+  locked = false,
   onToggleExpanded,
   stats,
   uavStatus,
@@ -384,7 +417,12 @@ const DeviceStatsRow = ({
           where='cluster'
         />
         {handlers && (
-          <RowActions busy={busy} device={device} handlers={handlers} />
+          <RowActions
+            busy={busy}
+            device={device}
+            handlers={handlers}
+            locked={locked}
+          />
         )}
       </Box>
       {onToggleExpanded && (

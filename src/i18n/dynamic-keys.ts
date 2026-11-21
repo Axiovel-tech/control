@@ -377,6 +377,22 @@
  * t("rtlsOta.species.anchor")
  * t("rtlsOta.species.tag")
  *
+ * RTLS anchor lock (keys assembled by features/rtls/anchor-lock.ts,
+ * features/rtls/AnchorLockControl.tsx and views/show-control/LockAnchorsButton.tsx)
+ * t("rtlsAnchorLock.control.locked")
+ * t("rtlsAnchorLock.control.unlocked")
+ * t("rtlsAnchorLock.control.broken")
+ * t("rtlsAnchorLock.control.unlockedTooltip")
+ * t("rtlsAnchorLock.control.brokenTooltip")
+ * t("rtlsAnchorLock.preflight.locked")
+ * t("rtlsAnchorLock.preflight.unlocked")
+ * t("rtlsAnchorLock.preflight.broken")
+ * t("rtlsAnchorLock.preflight.unsupported")
+ * t("rtlsAnchorLock.state.locked")
+ * t("rtlsAnchorLock.state.unlocked")
+ * t("rtlsAnchorLock.state.broken")
+ * t("rtlsAnchorLock.state.unsupported")
+ *
  * RTLS tag details toggles (keys chosen by views/rtls/DeviceStatsRow.tsx and
  * views/rtls/RtlsRolePanel.tsx)
  * t("rtlsTagDetails.showMore")

@@ -951,6 +951,70 @@
       "wifi": "{{rssi}} · {{disconnects}} drops · {{txErrors}} TX errors"
     }
   },
+  "rtlsAnchorLock": {
+    "banner": {
+      "more_one": "and {{count}} more",
+      "more_other": "and {{count}} more",
+      "review": "Review and re-seal",
+      "title_one": "Anchor lock broken: {{count}} event since it was sealed",
+      "title_other": "Anchor lock broken: {{count}} events since it was sealed"
+    },
+    "break": "{{time}} · {{text}}",
+    "control": {
+      "broken": "Lock broken",
+      "brokenTooltip": "Something changed on the anchors since they were locked. Review the events and re-seal",
+      "locked": "Locked",
+      "lockedTooltip": "Anchors locked since {{time}}: nothing can change them. Click to unlock",
+      "unlocked": "Lock anchors",
+      "unlockedTooltip": "Lock the anchors so that nothing can change them; a show cannot be scheduled or authorized until they are locked"
+    },
+    "dialog": {
+      "acknowledgeBreaks": "I reviewed these events: take a fresh snapshot of the anchors as they are now",
+      "acknowledgeWarnings": "Lock with these warnings",
+      "acknowledgedWarnings": "Warnings acknowledged when they were locked:",
+      "breaks": "These events broke the lock since it was sealed:",
+      "explanation": "While the anchors are locked, the server refuses every command that would change them: sleep and wake, parameter writes, firmware updates, forget and reboots. It watches them and raises an alarm if one goes offline, reboots, moves, changes a cell parameter or its firmware, or stops operating. A show can only be scheduled or authorized while they are locked.",
+      "lock": "Lock",
+      "lockTitle": "Lock the anchors",
+      "lockedSince": "The anchors are locked since {{time}}.",
+      "lockedTitle": "Anchors locked",
+      "notLocked": "The server did not lock the anchors.",
+      "reseal": "Re-seal",
+      "resealTitle": "Anchor lock broken",
+      "unlock": "Unlock",
+      "warnings": "The anchors have warnings:"
+    },
+    "issue": "Anchor {{device}}: {{text}}",
+    "lockedTooltip": "Anchors are locked",
+    "notification": {
+      "locked": "Anchors locked",
+      "unlockFailed": "Could not unlock the anchors: {{reason}}",
+      "unlocked": "Anchors unlocked"
+    },
+    "otaLocked": "Anchors are locked: unlock them before updating an anchor's firmware.",
+    "paramsReadOnly": "Anchors are locked: their parameters can be viewed but not changed.",
+    "preflight": {
+      "authorizationRefused": "Lock the anchors first: the server refuses the start",
+      "broken": "Lock broken: review and re-seal",
+      "locked": "Locked",
+      "title": "Anchors locked",
+      "unlocked": "Not locked: the server refuses to schedule or authorize the show",
+      "unsupported": "No anchor lock on this server"
+    },
+    "state": {
+      "broken": "Lock broken",
+      "locked": "Locked",
+      "unlocked": "Not locked",
+      "unsupported": "No lock"
+    },
+    "unlock": {
+      "armedMessage_one": "{{count}} drone may be armed. Unlocked anchors can be changed again, and a scheduled or authorized show fails the server's lock check. Unlock?",
+      "armedMessage_other": "{{count}} drones may be armed. Unlocked anchors can be changed again, and a scheduled or authorized show fails the server's lock check. Unlock?",
+      "armedTitle": "Unlock the anchors while drones are armed?",
+      "message": "Unlocked anchors can be changed again, and a show cannot be scheduled or authorized until they are locked again. Unlock?",
+      "title": "Unlock the anchors?"
+    }
+  },
   "rtlsDevice": {
     "action": {
       "forget": "Forget this offline device (it is listed again if it comes back)",

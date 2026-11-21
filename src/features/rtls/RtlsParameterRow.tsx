@@ -77,9 +77,15 @@ const MetadataTooltipContent = ({
 type RtlsParameterRowProps = {
   deviceId: string;
   param: RtlsParam;
+  /** Shows the value without letting it be changed (a locked anchor). */
+  readOnly?: boolean;
 };
 
-const RtlsParameterRow = ({ deviceId, param }: RtlsParameterRowProps) => {
+const RtlsParameterRow = ({
+  deviceId,
+  param,
+  readOnly: lockedReadOnly = false,
+}: RtlsParameterRowProps) => {
   const { t } = useTranslation();
   const dispatch = useDispatch<AppDispatch>();
   const [draft, setDraft] = useState<string>(
@@ -95,7 +101,9 @@ const RtlsParameterRow = ({ deviceId, param }: RtlsParameterRowProps) => {
   const dirty = draft !== formatParamValue(param.value, param.type);
   const metadata = getRtlsParamMetadata(param.name);
   const enumLabel = enumLabelFor(metadata, draft);
-  const readOnly = READ_ONLY_RTLS_PARAMS.has(param.name);
+  // SLEEP goes through the row buttons; a locked anchor takes no write
+  const sleepParam = READ_ONLY_RTLS_PARAMS.has(param.name);
+  const readOnly = sleepParam || lockedReadOnly;
 
   const handleCommit = useCallback(async () => {
     if (!dirty || busy) {
@@ -188,7 +196,7 @@ const RtlsParameterRow = ({ deviceId, param }: RtlsParameterRowProps) => {
             = {enumLabel}
           </Typography>
         )}
-        {readOnly && (
+        {sleepParam && (
           <Typography
             variant='caption'
             color='text.secondary'
