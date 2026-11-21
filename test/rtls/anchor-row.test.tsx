@@ -150,6 +150,16 @@ describe('a lost anchor', () => {
   });
 });
 
+describe('a standby anchor', () => {
+  test('offers sleep (it moves into real sleep in place)', () => {
+    const markup = render({
+      stats: { id: '103', powerState: 'standby', powerInput: 'usb' },
+    });
+    expect(markup).toContain('rtlsAnchor.state.standby');
+    expect(markup).toContain('data-testid="rtls-device-sleep"');
+  });
+});
+
 describe('anchor row status light', () => {
   test('an asleep anchor is grey, not red', () => {
     expect(getRowStatus(responder, { id: '103', powerState: 'asleep' })).toBe(

@@ -137,6 +137,15 @@ describe('describeAnchorState', () => {
     expect(chip({}, { powerState: 'fault' })).toEqual([Status.ERROR, 'fault']);
   });
 
+  test('standby and asleep explain how they differ', () => {
+    expect(
+      describeAnchorState(device(), stats({ powerState: 'standby' })).tooltip
+    ).toEqual({ key: 'rtlsAnchor.stateTooltip.standby' });
+    expect(
+      describeAnchorState(device(), stats({ powerState: 'asleep' })).tooltip
+    ).toEqual({ key: 'rtlsAnchor.stateTooltip.asleep' });
+  });
+
   test('an operating anchor that does not range says so', () => {
     expect(chip({}, { powerState: 'operating', uwbStatus: 3 })).toEqual([
       Status.WARNING,
@@ -213,6 +222,12 @@ describe('describeAnchorBadges', () => {
       ['ethernetDrops', Status.WARNING],
     ]);
     expect(badges[3].text.values).toEqual({ count: 2 });
+  });
+
+  test('radio restarts say what they count', () => {
+    expect(
+      describeAnchorBadges(stats({ radioRestarts: 1 }))[0].tooltip?.key
+    ).toBe('rtlsAnchor.badgeTooltip.radioRestarts');
   });
 
   test('names a UWB hardware failure apart from a refused configuration', () => {

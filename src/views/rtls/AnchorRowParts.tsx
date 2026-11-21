@@ -16,6 +16,7 @@ import { useTranslation } from 'react-i18next';
 import { StatusPill, Tooltip } from '@skybrush/mui-components';
 
 import { BatteryFormatter } from '~/components/battery';
+import { type Status } from '~/components/semantics';
 import BatteryIndicator from '~/components/BatteryIndicator';
 import {
   describeAnchorBadges,
@@ -75,6 +76,33 @@ const INPUT_ICONS: Partial<Record<RtlsPowerInput, React.ReactElement>> = {
   poe: <SettingsEthernet fontSize='small' />,
 };
 
+/** A status pill, with what it means in a tooltip when there is one. */
+const ExplainedPill = ({
+  status,
+  testId,
+  text,
+  tooltip,
+}: {
+  status: Status;
+  testId: string;
+  text: string;
+  tooltip?: string;
+}) => {
+  const pill = (
+    <StatusPill inline data-testid={testId} status={status}>
+      {text}
+    </StatusPill>
+  );
+  return tooltip === undefined ? (
+    pill
+  ) : (
+    <Tooltip content={tooltip}>
+      {/* Tippy needs a child that forwards refs, which StatusPill does not. */}
+      <Box component='span'>{pill}</Box>
+    </Tooltip>
+  );
+};
+
 /** The slot badge (A0..A7) with the role in its tooltip. */
 export const AnchorSlotBadge = ({
   role,
@@ -119,7 +147,7 @@ export const AnchorStateChip = ({
   stats: RtlsDeviceStats | undefined;
 }) => {
   const { t } = useTranslation();
-  const { status, text } = describeAnchorState(
+  const { status, text, tooltip } = describeAnchorState(
     device,
     stats,
     busy,
@@ -134,9 +162,12 @@ export const AnchorStateChip = ({
       component='span'
       sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
     >
-      <StatusPill inline data-testid='rtls-anchor-state' status={status}>
-        {t(text.key, text.values)}
-      </StatusPill>
+      <ExplainedPill
+        status={status}
+        testId='rtls-anchor-state'
+        text={t(text.key, text.values)}
+        tooltip={tooltip && t(tooltip.key, tooltip.values)}
+      />
       {lastSeen && (
         <Typography variant='caption' color='textSecondary' noWrap>
           {t(lastSeen.key, lastSeen.values)}
@@ -202,15 +233,14 @@ export const AnchorStatusCluster = ({
     stats?.batteryPercent !== undefined || stats?.batteryVoltage !== undefined;
   return (
     <>
-      {badges.map(({ id, status, text }) => (
-        <StatusPill
+      {badges.map(({ id, status, text, tooltip }) => (
+        <ExplainedPill
           key={id}
-          inline
-          data-testid={`rtls-anchor-badge-${id}`}
           status={status}
-        >
-          {t(text.key, text.values)}
-        </StatusPill>
+          testId={`rtls-anchor-badge-${id}`}
+          text={t(text.key, text.values)}
+          tooltip={tooltip && t(tooltip.key, tooltip.values)}
+        />
       ))}
       {input !== undefined && inputIcon && (
         <Tooltip content={t(describePowerInput(input).key)}>

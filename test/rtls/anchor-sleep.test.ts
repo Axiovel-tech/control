@@ -1,4 +1,4 @@
-import { describe, expect, jest, test } from '@jest/globals';
+import { beforeEach, describe, expect, jest, test } from '@jest/globals';
 import { configureStore, createSlice } from '@reduxjs/toolkit';
 
 // Same thin mocks as sleep-actions.test.ts: the message hub and the snackbar
@@ -113,8 +113,18 @@ const acceptAll = (ids: string[], sleeping: boolean) =>
     },
   });
 
+const answer = (confirmed: boolean) => ({
+  type: 'test/prompt',
+  response: { confirmed },
+});
+
 describe('anchor sleep and wake', () => {
-  test('sleeps without asking while every drone is disarmed', async () => {
+  beforeEach(() => {
+    // the operator says yes unless a test says otherwise
+    confirm.mockReturnValue(answer(true));
+  });
+
+  test('always asks, plainly while every drone is disarmed', async () => {
     const store = createStore([
       { id: 'd1', age: UAVAge.ACTIVE, errors: [UAVErrorCode.DISARMED] },
       { id: 'd2', age: UAVAge.GONE, errors: [] },
@@ -124,7 +134,11 @@ describe('anchor sleep and wake', () => {
 
     await dispatchThunk(store, sleepRtlsAnchors(['101']));
 
-    expect(confirm).not.toHaveBeenCalled();
+    expect(confirm).toHaveBeenCalledTimes(1);
+    expect(confirm.mock.calls[0]).toEqual([
+      'rtlsAnchor.sleep.confirm.message',
+      { title: 'rtlsAnchor.sleep.confirm.title' },
+    ]);
     expect(sendMessage).toHaveBeenCalledTimes(1);
     expect(sendMessage.mock.calls[0]).toEqual([
       { type: 'X-RTLS-SLEEP', ids: [101], sleeping: true },
@@ -134,28 +148,24 @@ describe('anchor sleep and wake', () => {
     expect(store.getState().rtls.devices.byId['101'].sleeping).toBe(true);
   });
 
-  test('asks first while a drone may be armed, and stops on a no', async () => {
+  test('asks more strongly while a drone may be armed, and stops on a no', async () => {
     const store = createStore([{ id: 'd1', age: UAVAge.ACTIVE, errors: [] }]);
     seedAnchors(store, { '101': 'operating' });
-    confirm.mockReturnValueOnce({
-      type: 'test/prompt',
-      response: { confirmed: false },
-    });
+    confirm.mockReturnValueOnce(answer(false));
 
     await dispatchThunk(store, sleepRtlsAnchors(['101']));
 
     expect(confirm).toHaveBeenCalledTimes(1);
-    expect(confirm.mock.calls[0][0]).toBe('rtlsAnchor.sleep.confirm.message');
+    expect(confirm.mock.calls[0]).toEqual([
+      'rtlsAnchor.sleep.confirm.armedMessage',
+      { title: 'rtlsAnchor.sleep.confirm.armedTitle' },
+    ]);
     expect(sendMessage).not.toHaveBeenCalled();
   });
 
   test('proceeds after a yes', async () => {
     const store = createStore([{ id: 'd1', age: UAVAge.ACTIVE, errors: [] }]);
     seedAnchors(store, { '101': 'operating' });
-    confirm.mockReturnValueOnce({
-      type: 'test/prompt',
-      response: { confirmed: true },
-    });
     acceptAll(['101'], true);
 
     await dispatchThunk(store, sleepRtlsAnchors(['101']));
@@ -172,7 +182,30 @@ describe('anchor sleep and wake', () => {
 
     await dispatchThunk(store, sleepRtlsAnchors(['101']));
 
-    expect(confirm).not.toHaveBeenCalled();
+    expect(confirm.mock.calls[0][0]).toBe('rtlsAnchor.sleep.confirm.message');
+  });
+
+  test('a standby anchor sleeps in place: the answer needs no reboot', async () => {
+    const store = createStore();
+    seedAnchors(store, { '101': 'standby' });
+    acceptAll(['101'], true);
+
+    await dispatchThunk(store, sleepRtlsAnchors(['101']));
+
+    expect(sendMessage).toHaveBeenCalledTimes(1);
+    expect(store.getState().rtls.devices.byId['101'].sleeping).toBe(true);
+    expect(store.getState().rtls.sleepPending).toEqual({});
+  });
+
+  test('sleep all asks too, and a no stops it', async () => {
+    const store = createStore();
+    seedAnchors(store, { '101': 'operating' });
+    confirm.mockReturnValueOnce(answer(false));
+
+    await dispatchThunk(store, sleepAllRtlsAnchors());
+
+    expect(confirm).toHaveBeenCalledTimes(1);
+    expect(sendMessage).not.toHaveBeenCalled();
   });
 
   test('sleep all skips anchors already asleep or off, and tags', async () => {

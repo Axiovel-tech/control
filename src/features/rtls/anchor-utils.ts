@@ -25,8 +25,8 @@ import {
   RtlsUwbStatus,
 } from './types';
 
-/** A short label with the status that colors it. */
-export type StatusText = { status: Status; text: I18nText };
+/** A short label with the status that colors it, and what it means. */
+export type StatusText = { status: Status; text: I18nText; tooltip?: I18nText };
 
 /** A warning badge of an anchor row. */
 export type AnchorBadge = StatusText & { id: string };
@@ -142,6 +142,21 @@ const stateText = (key: string): I18nText => ({
 });
 
 /**
+ * Standby and asleep look alike (neither ranges, both wake remotely) but
+ * differ on what unplugging does, so their chips say it.
+ */
+const STANDBY: StatusText = {
+  status: Status.OFF,
+  text: stateText('standby'),
+  tooltip: { key: 'rtlsAnchor.stateTooltip.standby' },
+};
+const ASLEEP: StatusText = {
+  status: Status.OFF,
+  text: stateText('asleep'),
+  tooltip: { key: 'rtlsAnchor.stateTooltip.asleep' },
+};
+
+/**
  * The state chip of an anchor: power state first, then whether it ranges.
  * A lost anchor reads "Off" when it was last seen powering down, else
  * "Offline"; `busy` (a sleep/wake in flight, which reboots the anchor)
@@ -172,9 +187,9 @@ export function describeAnchorState(
       return { status: Status.WAITING, text: stateText('booting') };
     case 'preview':
     case 'standby':
-      return { status: Status.OFF, text: stateText('standby') };
+      return STANDBY;
     case 'asleep':
-      return { status: Status.OFF, text: stateText('asleep') };
+      return ASLEEP;
     case 'off':
       return { status: Status.OFF, text: stateText('off') };
     case 'stopping':
@@ -190,7 +205,7 @@ export function describeAnchorState(
     default:
       // firmware without the power state: only the heartbeat latch
       return isAnchorResting(stats, device.sleeping)
-        ? { status: Status.OFF, text: stateText('asleep') }
+        ? ASLEEP
         : { status: Status.SUCCESS, text: stateText('online') };
   }
 }
@@ -254,6 +269,7 @@ export function describeAnchorBadges(
         key: 'rtlsAnchor.badge.radioRestarts',
         values: { count: stats.radioRestarts! }, // non-null: checked above
       },
+      tooltip: { key: 'rtlsAnchor.badgeTooltip.radioRestarts' },
     });
   }
   if ((stats.ethernetDrops ?? 0) > 0) {

@@ -827,10 +827,10 @@
   },
   "rtlsAnchor": {
     "action": {
-      "sleep": "Sleep this anchor (UWB off, network up; reboots, 8-15 s). No drone can position on an asleep anchor",
-      "sleepAll": "Sleep all anchors (each reboots, 8-15 s). Removes positioning for every drone",
-      "wake": "Wake this anchor (reboots into ranging, 8-15 s)",
-      "wakeAll": "Wake all resting anchors (each reboots into ranging, 8-15 s)"
+      "sleep": "Sleep this anchor (UWB off, network up; may reboot, up to 15 s). No drone can position on an asleep anchor",
+      "sleepAll": "Sleep all anchors (each may reboot, up to 15 s). Removes positioning for every drone",
+      "wake": "Wake this anchor into ranging (may reboot, up to 15 s)",
+      "wakeAll": "Wake all resting anchors into ranging (each may reboot, up to 15 s)"
     },
     "badge": {
       "ethernetDrops_one": "{{count}} Ethernet drop",
@@ -841,6 +841,9 @@
       "radioRestarts_other": "{{count}} radio restarts",
       "uwbHardware": "UWB hardware failure",
       "uwbRefused": "UWB start refused"
+    },
+    "badgeTooltip": {
+      "radioRestarts": "The firmware restarted the UWB radio after a fault or silence (count since boot)"
     },
     "chargeBlock": {
       "charger": "charger not ready",
@@ -901,9 +904,12 @@
     },
     "sleep": {
       "confirm": {
-        "message_one": "{{count}} drone may be armed. Sleeping {{anchors}} anchor(s) removes RTLS positioning for every drone in the cell. Continue?",
-        "message_other": "{{count}} drones may be armed. Sleeping {{anchors}} anchor(s) removes RTLS positioning for every drone in the cell. Continue?",
-        "title": "Sleep anchors while drones are armed?"
+        "armedMessage_one": "{{count}} drone may be armed. Sleeping {{anchors}} anchor(s) removes RTLS positioning for every drone in the cell. Continue?",
+        "armedMessage_other": "{{count}} drones may be armed. Sleeping {{anchors}} anchor(s) removes RTLS positioning for every drone in the cell. Continue?",
+        "armedTitle": "Sleep anchors while drones are armed?",
+        "message_one": "Sleep {{count}} anchor? No drone can position on an asleep anchor; it wakes remotely.",
+        "message_other": "Sleep {{count}} anchors? No drone can position on an asleep anchor; they wake remotely.",
+        "title": "Sleep anchors?"
       }
     },
     "state": {
@@ -917,8 +923,12 @@
       "ranging": "Ranging",
       "standby": "Standby",
       "stopping": "Stopping",
-      "switching": "Rebooting…",
+      "switching": "Switching…",
       "unheard": "No responders hear A0"
+    },
+    "stateTooltip": {
+      "asleep": "Put to sleep: not ranging; keeps running on its pack if unplugged; wakes remotely",
+      "standby": "On PoE or USB power and not ranging; unplugging it powers it off; wakes remotely"
     },
     "uwb": {
       "disabled": "disabled",

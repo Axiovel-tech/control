@@ -9,10 +9,11 @@
  * armed; that refusal comes back as a normal per-device result and is
  * surfaced in the snackbar.
  *
- * An anchor sleeps with its UWB off and its network up, and reboots on every
- * transition (8-15 s). Sleeping anchors removes positioning for every drone,
- * so it asks for confirmation while any drone may be armed. Every command is
- * an explicit operator action; nothing here runs on its own.
+ * An anchor sleeps with its UWB off and its network up; a transition may
+ * reboot it (8-15 s), or happen in place (standby to asleep). Sleeping
+ * anchors removes positioning for every drone, so it always asks for
+ * confirmation, more strongly while any drone may be armed. Every command
+ * is an explicit operator action; nothing here runs on its own.
  */
 
 import { errorToString } from '~/error-handling';
@@ -228,24 +229,31 @@ const confirmAnchorSleep = async (
   armedCount: number,
   anchorCount: number
 ): Promise<boolean> => {
-  if (armedCount === 0) {
-    return true;
-  }
+  const armed = armedCount > 0;
   const response = await dispatch(
     showConfirmationDialog(
-      i18n.t('rtlsAnchor.sleep.confirm.message', {
-        count: armedCount,
-        anchors: anchorCount,
-      }),
-      { title: i18n.t('rtlsAnchor.sleep.confirm.title') }
+      armed
+        ? i18n.t('rtlsAnchor.sleep.confirm.armedMessage', {
+            count: armedCount,
+            anchors: anchorCount,
+          })
+        : i18n.t('rtlsAnchor.sleep.confirm.message', { count: anchorCount }),
+      {
+        title: i18n.t(
+          armed
+            ? 'rtlsAnchor.sleep.confirm.armedTitle'
+            : 'rtlsAnchor.sleep.confirm.title'
+        ),
+      }
     )
   );
   return Boolean(response?.confirmed);
 };
 
 /**
- * Thunk that puts the given anchors to sleep, after a confirmation while any
- * drone may be armed. Anchors with a transaction in flight are skipped.
+ * Thunk that puts the given anchors to sleep after a confirmation, worded
+ * more strongly while any drone may be armed. Anchors with a transaction in
+ * flight are skipped.
  */
 export const sleepRtlsAnchors =
   (deviceIds: string[]): AppThunk<Promise<void>> =>
@@ -267,7 +275,7 @@ export const sleepRtlsAnchors =
     await dispatch(setRtlsDevicesSleeping(ids, true, ANCHOR_SLEEP_OPTIONS));
   };
 
-/** Thunk that wakes the given anchors (each reboots into operation). */
+/** Thunk that wakes the given anchors into operation. */
 export const wakeRtlsAnchors =
   (deviceIds: string[]): AppThunk<Promise<void>> =>
   async (dispatch, getState) => {
