@@ -35,16 +35,32 @@ export function getDeviceSpecies(
   return classified === RtlsRole.TAG ? 'tag' : undefined;
 }
 
+/** Where the species an OTA declares comes from. */
+export type ImageSpeciesSource = 'receipt' | 'operator' | 'path' | 'none';
+
 /**
- * The species an OTA declares: the one the image path settles (`locked`, the
- * operator cannot flip it), else the operator's choice ('' while none).
+ * The species an OTA declares: the one the image's build receipt names (as
+ * the server reports it; `locked`, the operator cannot flip it), else the
+ * operator's choice, else the one the image path suggests as a default, else
+ * none (''). Without a receipt the server takes the declared species.
  */
 export function resolveImageSpecies(
   path: string,
-  chosen: RtlsImageSpecies | ''
-): { species: RtlsImageSpecies | ''; locked: boolean } {
+  chosen: RtlsImageSpecies | '',
+  receipt?: RtlsImageSpecies
+): {
+  species: RtlsImageSpecies | '';
+  locked: boolean;
+  source: ImageSpeciesSource;
+} {
+  if (receipt !== undefined) {
+    return { species: receipt, locked: true, source: 'receipt' };
+  }
+  if (chosen !== '') {
+    return { species: chosen, locked: false, source: 'operator' };
+  }
   const inferred = inferImageSpecies(path);
   return inferred === undefined
-    ? { species: chosen, locked: false }
-    : { species: inferred, locked: true };
+    ? { species: '', locked: false, source: 'none' }
+    : { species: inferred, locked: false, source: 'path' };
 }

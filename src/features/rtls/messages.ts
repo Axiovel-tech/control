@@ -322,10 +322,40 @@ export async function queryRtlsOtaStatus(
 export type RtlsImageSpecies = 'anchor' | 'tag';
 
 /**
+ * Asks the server which species an image's build receipt names (X-RTLS-OTA
+ * with `inspect`, nothing is uploaded). Resolves to the species when the
+ * receipt names it, `undefined` for an image without a receipt. Rejects with
+ * the server's reason for a missing file or a bad or stale receipt (a server
+ * without inspect also rejects).
+ */
+export async function inspectRtlsOtaImage(
+  hub: MessageHub,
+  image: string
+): Promise<RtlsImageSpecies | undefined> {
+  const response: Message<AnyMessageBody> = await hub.sendMessage({
+    type: 'X-RTLS-OTA',
+    inspect: true,
+    image,
+  });
+  const body = response.body;
+  if (body?.type !== 'X-RTLS-OTA') {
+    throw new Error(
+      typeof body?.reason === 'string' ? body.reason : 'image not inspected'
+    );
+  }
+  return body.speciesSource === 'receipt' &&
+    (body.species === 'anchor' || body.species === 'tag')
+    ? body.species
+    : undefined;
+}
+
+/**
  * Starts an OTA (over-the-air firmware update) job on an RTLS device using the
  * named image. `role` declares the species the image is built for; the server
- * then reads the device's UWB_ROLE and refuses a mismatch (a tag image on an
- * anchor, or the reverse, never rejoins WiFi).
+ * uses it only for an image without a build receipt, NAKs one that
+ * contradicts the receipt, and refuses a species that differs from the
+ * device's UWB_ROLE (a tag image on an anchor, or the reverse, never rejoins
+ * WiFi).
  */
 export async function startRtlsOta(
   hub: MessageHub,

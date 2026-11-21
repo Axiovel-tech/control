@@ -1076,8 +1076,10 @@
   "rtlsOta": {
     "species": {
       "anchor": "Anchor",
-      "fromPath": "Read from the image path; the server checks the image and the device too",
+      "fromPath": "Suggested by the image path; the server checks the device's role",
+      "fromReceipt": "Named by the image's build receipt",
       "hint": "The species the image is built for; the server refuses an image for the other species",
+      "job": "{{species}} image ({{source}})",
       "label": "Image built for",
       "mismatch": "This is a {{image}} image but the device is a {{device}}: the device would not rejoin WiFi",
       "tag": "Tag"

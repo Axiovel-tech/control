@@ -15,6 +15,7 @@ import {
   checkRtlsGeometryAgreement,
   getRtlsParameter,
   queryRtlsParameterList,
+  inspectRtlsOtaImage,
   sendRtlsForget,
   sendRtlsSleep,
   setRtlsParameter,
@@ -307,5 +308,43 @@ describe('sendRtlsForget', () => {
   test('a NAK (older server without forget) throws', async () => {
     const { hub } = makeHub({ type: 'ACK-NAK', reason: 'no handler' });
     await expect(sendRtlsForget(hub, ['42'])).rejects.toThrow(/no handler/);
+  });
+});
+
+describe('inspectRtlsOtaImage', () => {
+  test('asks for the species the build receipt names', async () => {
+    const { hub, sent } = makeHub({
+      type: 'X-RTLS-OTA',
+      image: 'a.bin',
+      species: 'anchor',
+      speciesSource: 'receipt',
+      board: 'axio_anchor',
+    });
+    await expect(inspectRtlsOtaImage(hub, 'a.bin')).resolves.toBe('anchor');
+    expect(sent[0]).toEqual({
+      type: 'X-RTLS-OTA',
+      inspect: true,
+      image: 'a.bin',
+    });
+  });
+
+  test('an image without a receipt has no species', async () => {
+    const { hub } = makeHub({
+      type: 'X-RTLS-OTA',
+      image: 'a.bin',
+      species: null,
+      speciesSource: null,
+    });
+    await expect(inspectRtlsOtaImage(hub, 'a.bin')).resolves.toBe(undefined);
+  });
+
+  test("rejects with the server's reason (missing file, stale receipt)", async () => {
+    const { hub } = makeHub({
+      type: 'ACK-NAK',
+      reason: 'stale build receipt: the image digest differs',
+    });
+    await expect(inspectRtlsOtaImage(hub, 'a.bin')).rejects.toThrow(
+      'stale build receipt: the image digest differs'
+    );
   });
 });

@@ -257,17 +257,25 @@ describe('OTA image species', () => {
     expect(inferImageSpecies('build/stagger/zephyr.bin')).toBe(undefined);
   });
 
-  test('a species the path settles is locked against the manual choice', () => {
+  test('the build receipt locks the species', () => {
+    expect(
+      resolveImageSpecies('build/x/anchor/zephyr.signed.bin', 'anchor', 'tag')
+    ).toEqual({ species: 'tag', locked: true, source: 'receipt' });
+  });
+
+  test('without a receipt the operator chooses, the path suggests', () => {
+    expect(resolveImageSpecies('build/sr250-anchor/anchor/z.bin', '')).toEqual({
+      species: 'anchor',
+      locked: false,
+      source: 'path',
+    });
     expect(
       resolveImageSpecies('build/sr250-anchor/anchor/z.bin', 'tag')
-    ).toEqual({ species: 'anchor', locked: true });
-    expect(resolveImageSpecies('fw/zephyr.signed.bin', 'tag')).toEqual({
-      species: 'tag',
-      locked: false,
-    });
+    ).toEqual({ species: 'tag', locked: false, source: 'operator' });
     expect(resolveImageSpecies('fw/zephyr.signed.bin', '')).toEqual({
       species: '',
       locked: false,
+      source: 'none',
     });
   });
 

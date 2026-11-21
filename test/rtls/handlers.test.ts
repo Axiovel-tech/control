@@ -616,3 +616,15 @@ describe('lost devices and TWR summaries in X-RTLS-INF', () => {
     ]);
   });
 });
+
+describe('OTA job species', () => {
+  test('maps the species the server established and its source', () => {
+    expect(
+      mapRtlsOtaJob({
+        status: 'running',
+        species: 'anchor',
+        speciesSource: 'receipt',
+      })
+    ).toMatchObject({ species: 'anchor', speciesSource: 'receipt' });
+  });
+});

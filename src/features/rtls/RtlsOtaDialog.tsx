@@ -18,10 +18,12 @@ import { useDispatch, useSelector } from 'react-redux';
 
 import { DraggableDialog } from '@skybrush/mui-components';
 
+import { errorToString } from '~/error-handling';
 import { showError } from '~/features/snackbar/actions';
 import { type AppDispatch, type RootState } from '~/store/reducers';
 
 import {
+  inspectRtlsOtaImage,
   queryRtlsOtaStatus,
   type RtlsImageSpecies,
   startRtlsOta,
@@ -69,17 +71,54 @@ const RtlsOtaDialog = () => {
   const deviceSpecies = getDeviceSpecies(deviceRole);
 
   const [image, setImage] = useState('');
-  // The species the image is built for, always sent with the OTA: settled by
-  // the image path when it names one (the selector is then locked), chosen by
-  // the operator only when it does not
+  // The species the image is built for, always sent with the OTA: named by
+  // the image's build receipt, as the server reads it (the selector is then
+  // locked), else chosen by the operator, with the path's hint as default
   const [chosenSpecies, setChosenSpecies] = useState<RtlsImageSpecies | ''>('');
-  const { locked: speciesLocked, species } = resolveImageSpecies(
-    image,
-    chosenSpecies
-  );
+  // The server's answer about the image: its receipt species, or why it
+  // refuses the image (missing file, bad or stale receipt)
+  const [inspection, setInspection] = useState<{
+    image: string;
+    species?: RtlsImageSpecies;
+    error?: string;
+  }>();
+  const trimmedImage = image.trim();
+  const current = inspection?.image === trimmedImage ? inspection : undefined;
+  const {
+    locked: speciesLocked,
+    source: speciesSource,
+    species,
+  } = resolveImageSpecies(trimmedImage, chosenSpecies, current?.species);
   const [busy, setBusy] = useState(false);
   const speciesMismatch =
     species !== '' && deviceSpecies !== undefined && species !== deviceSpecies;
+
+  // Ask the server what the image's build receipt says, once typing settles
+  useEffect(() => {
+    if (!open || trimmedImage.length === 0) {
+      return undefined;
+    }
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      void (async () => {
+        let result: { species?: RtlsImageSpecies; error?: string };
+        try {
+          result = {
+            species: await inspectRtlsOtaImage(messageHub, trimmedImage),
+          };
+        } catch (error) {
+          result = { error: errorToString(error) };
+        }
+        if (!cancelled) {
+          setInspection({ image: trimmedImage, ...result });
+        }
+      })();
+    }, 400);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [open, trimmedImage]);
 
   // Query the current OTA job status when the dialog opens for a device.
   useEffect(() => {
@@ -146,6 +185,8 @@ const RtlsOtaDialog = () => {
           value={image}
           disabled={busy || active}
           margin='normal'
+          error={current?.error !== undefined}
+          helperText={current?.error}
           onChange={(event) => setImage(event.target.value)}
         />
         <TextField
@@ -164,9 +205,11 @@ const RtlsOtaDialog = () => {
                   image: t(`rtlsOta.species.${species}`),
                   device: t(`rtlsOta.species.${deviceSpecies}`),
                 })
-              : speciesLocked
-                ? t('rtlsOta.species.fromPath')
-                : t('rtlsOta.species.hint')
+              : speciesSource === 'receipt'
+                ? t('rtlsOta.species.fromReceipt')
+                : speciesSource === 'path'
+                  ? t('rtlsOta.species.fromPath')
+                  : t('rtlsOta.species.hint')
           }
           onChange={(event) =>
             setChosenSpecies(event.target.value as RtlsImageSpecies)
@@ -181,6 +224,12 @@ const RtlsOtaDialog = () => {
             <Typography variant='body2' color='textSecondary'>
               {`Status: ${status}`}
               {job.version ? ` · version ${job.version}` : ''}
+              {job.species
+                ? ` · ${t('rtlsOta.species.job', {
+                    species: job.species,
+                    source: job.speciesSource ?? '—',
+                  })}`
+                : ''}
             </Typography>
             {percent !== undefined ? (
               <LinearProgress

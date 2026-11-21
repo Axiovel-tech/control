@@ -396,6 +396,10 @@ export type RtlsOtaJob = {
   progress?: number;
   version?: string;
   error?: string;
+  /** The species the server established for the image. */
+  species?: string;
+  /** Where it came from: `receipt` (the build receipt) or `declared`. */
+  speciesSource?: string;
 };
 
 /** Per-tag verdict of an X-RTLS-GEOM agreement check. */

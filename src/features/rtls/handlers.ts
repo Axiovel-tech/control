@@ -470,6 +470,8 @@ export function mapRtlsOtaJob(raw: AnyRecord | undefined): RtlsOtaJob {
     progress: toNumber(raw.progress),
     version: toString(raw.version),
     error: toString(raw.error),
+    species: toString(raw.species),
+    speciesSource: toString(raw.speciesSource),
   };
 }
 
