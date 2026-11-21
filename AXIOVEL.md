@@ -8,13 +8,13 @@ here.
 
 ## What the fork adds
 
-| Area                                       | Code                                    | Contract (AxioStack `contracts/`)                       |
-| ------------------------------------------ | --------------------------------------- | ------------------------------------------------------- |
-| RTLS tags and anchors panels, fleet health | `src/features/rtls/`, `src/views/rtls/` | `rtls-fleet-health.md`, `rtls-geometry-stats.md`        |
-| `.gdm` shows: load, preview, upload gate   | `src/features/show/gdm/`                | `gdm-format.md`, `show-artifacts.md`                    |
-| Show music on the server's player          | `src/features/show-audio/`              | `show-timing.md`                                        |
-| ArduPilot flight-firmware update           | `src/features/firmware-update/`         | none; the server's `X-AP-OTA` handler is the other half |
-| In-app E2E bridge                          | `src/e2e/` (see its README)             | `control-e2e-bridge.md`                                 |
+| Area                                                                            | Code                                    | Contract (AxioStack `contracts/`)                                      |
+| ------------------------------------------------------------------------------- | --------------------------------------- | ---------------------------------------------------------------------- |
+| RTLS tags and anchors panels, fleet health, anchor health and manual sleep/wake | `src/features/rtls/`, `src/views/rtls/` | `rtls-fleet-health.md`, `rtls-geometry-stats.md`, `rtls-client-api.md` |
+| `.gdm` shows: load, preview, upload gate                                        | `src/features/show/gdm/`                | `gdm-format.md`, `show-artifacts.md`                                   |
+| Show music on the server's player                                               | `src/features/show-audio/`              | `show-timing.md`                                                       |
+| ArduPilot flight-firmware update                                                | `src/features/firmware-update/`         | none; the server's `X-AP-OTA` handler is the other half                |
+| In-app E2E bridge                                                               | `src/e2e/` (see its README)             | `control-e2e-bridge.md`                                                |
 
 ## Rules
 
@@ -25,6 +25,9 @@ here.
   `AGENTS.md` carries only the pointer to this file.
 - The GUI never writes anchor geometry. Tags fit the cell themselves; the GUI
   only shows the fit and the fleet agreement verdict.
+- The ground only monitors devices and sends the operator's explicit commands;
+  nothing in Control acts on a device by itself. Sleeping anchors always asks
+  first, and `SLEEP` is never written from the parameter dialog.
 - Nothing in application code imports `src/e2e/`; the bridge is compiled in
   only with `AXIO_E2E=1`.
 
