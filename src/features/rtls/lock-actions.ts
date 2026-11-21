@@ -29,7 +29,7 @@ export const lockRtlsAnchors =
     if (result.lock !== undefined) {
       dispatch(setRtlsAnchorLock(result.lock));
     }
-    if (result.locked) {
+    if (result.result === 'locked') {
       showNotification(i18n.t('rtlsAnchorLock.notification.locked'));
     }
     return result;

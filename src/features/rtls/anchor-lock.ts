@@ -1,7 +1,9 @@
 /**
- * @file The anchor cell lock as the server reports it: tolerant mapping of
- * the wire shape (X-RTLS-INF `anchorLock`, X-RTLS-LOCK responses and
- * notifications) and the questions the UI asks of it.
+ * @file The anchor cell lock as the server reports it (axio-server #63):
+ * mapping of the wire shape — X-RTLS-INF `anchorLock`, X-RTLS-LOCK responses
+ * and pushes — and the questions the UI asks of it. `anchorLock` is
+ * `{locked, lockedAt (UNIX s), anchors, acknowledgedWarnings, breaks}`; a
+ * warning is `{code, device, detail}`, a break `{code, device, detail, at}`.
  */
 
 import { Status } from '~/components/semantics';
@@ -69,7 +71,7 @@ const mapBreak = (raw: unknown): RtlsLockBreak | undefined => {
     reason: issue.code ?? 'unknown',
     device: issue.device,
     time: isRecord(raw)
-      ? toEpochMs(raw.time ?? raw.at ?? raw.timestamp)
+      ? toEpochMs(raw.at ?? raw.time ?? raw.timestamp)
       : undefined,
     text: issue.text,
   };
@@ -96,7 +98,7 @@ export function mapAnchorLock(value: unknown): RtlsAnchorLock | undefined {
   return {
     locked: value.locked,
     lockedAt: value.locked ? toEpochMs(value.lockedAt) : undefined,
-    warnings: mapLockIssues(value.warnings),
+    warnings: mapLockIssues(value.acknowledgedWarnings ?? value.warnings),
     breaks: mapList(value.breaks, mapBreak),
   };
 }

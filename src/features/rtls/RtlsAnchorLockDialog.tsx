@@ -77,12 +77,12 @@ const RtlsAnchorLockDialog = () => {
       const result = await dispatch(
         lockRtlsAnchors(needsAcknowledgement && acknowledged)
       );
-      if (result.locked) {
+      if (result.result === 'locked') {
         // stay open to show the warnings acknowledged with the lock
         if (result.warnings.length === 0) {
           close();
         }
-      } else if (result.warnings.length > 0) {
+      } else if (result.result === 'warnings') {
         setPending(result.warnings);
         setAcknowledged(false);
       } else {
@@ -139,7 +139,7 @@ const RtlsAnchorLockDialog = () => {
                 </Typography>
                 <IssueList
                   lines={lock!.warnings.map((issue) =>
-                    describeLockIssue(t, issue)
+                    describeLockIssue(issue)
                   )} // non-null: checked just above
                 />
               </>
@@ -157,7 +157,7 @@ const RtlsAnchorLockDialog = () => {
               {t('rtlsAnchorLock.dialog.warnings')}
             </Typography>
             <IssueList
-              lines={pending.map((issue) => describeLockIssue(t, issue))}
+              lines={pending.map((issue) => describeLockIssue(issue))}
             />
           </>
         )}

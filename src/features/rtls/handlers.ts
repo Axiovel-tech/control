@@ -247,14 +247,14 @@ export function handleRtlsInformationMessage(
 }
 
 /**
- * Handles an X-RTLS-LOCK message (a response or a pushed change, e.g. a new
- * break): the lock state is the body itself or its `anchorLock` field.
+ * Handles a pushed X-RTLS-LOCK message (a lock, unlock or new break): the
+ * lock state is its `anchorLock` field.
  */
 export function handleRtlsLockMessage(
   body: AnyRecord,
   dispatch: AppDispatch
 ): void {
-  const lock = mapAnchorLock(body?.anchorLock ?? body);
+  const lock = mapAnchorLock(body?.anchorLock);
   if (lock !== undefined) {
     dispatch(setRtlsAnchorLock(lock));
   }

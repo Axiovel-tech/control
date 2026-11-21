@@ -500,7 +500,7 @@ export type RtlsAnchorLock = {
   locked: boolean;
   /** When the anchors were locked, ms since the epoch. */
   lockedAt?: number;
-  /** Warnings acknowledged at lock time, or raised by the last lock attempt. */
+  /** Warnings acknowledged at lock time. */
   warnings: RtlsLockIssue[];
   /** Events that broke the lock since it was sealed. */
   breaks: RtlsLockBreak[];

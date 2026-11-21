@@ -984,7 +984,6 @@
       "unlock": "Unlock",
       "warnings": "The anchors have warnings:"
     },
-    "issue": "Anchor {{device}}: {{text}}",
     "lockedTooltip": "Anchors are locked",
     "notification": {
       "locked": "Anchors locked",

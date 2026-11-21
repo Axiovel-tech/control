@@ -267,5 +267,44 @@ describe('a responder that measures nothing', () => {
       stats: { ...ranging, rangingRateHz: 0 },
     });
     expect(markup).not.toContain('14.10 m');
+
+describe('a locked anchor row', () => {
+  const disabled = (markup: string, testId: string): boolean =>
+    new RegExp(`<button[^>]*disabled=""[^>]*data-testid="${testId}"`).test(
+      markup
+    ) ||
+    new RegExp(`<button[^>]*data-testid="${testId}"[^>]*disabled=""`).test(
+      markup
+    );
+
+  test('disables sleep, wake and firmware update, but not the parameters', () => {
+    const markup = render({ locked: true });
+    expect(disabled(markup, 'rtls-device-sleep')).toBe(true);
+    expect(disabled(markup, 'rtls-device-wake')).toBe(true);
+    expect(disabled(markup, 'rtls-device-firmware')).toBe(true);
+    expect(disabled(markup, 'rtls-device-parameters')).toBe(false);
+  });
+
+  test('disables forget on a lost anchor', () => {
+    const markup = render({
+      locked: true,
+      device: { ...responder, online: false },
+    });
+    expect(disabled(markup, 'rtls-device-forget')).toBe(true);
+  });
+
+  test('an unlocked anchor row keeps its actions', () => {
+    const markup = render();
+    expect(disabled(markup, 'rtls-device-sleep')).toBe(false);
+  });
+
+  test('the lock leaves tag rows alone', () => {
+    const markup = render({
+      locked: true,
+      device: { id: '7', online: true, role: 'tag', sleeping: false },
+      stats: { id: '7', solveRateHz: 10 },
+    });
+    expect(disabled(markup, 'rtls-device-sleep')).toBe(false);
+    expect(disabled(markup, 'rtls-device-firmware')).toBe(false);
   });
 });

@@ -431,16 +431,19 @@ export async function verifyRtlsFleet(
 
 /** Outcome of an X-RTLS-LOCK request. */
 export type RtlsLockResult = {
+  /**
+   * `locked` / `unlocked` when the request took effect, `warnings` when a
+   * lock (or re-seal) waits for the warnings or breaks to be acknowledged,
+   * `status` for a query.
+   */
+  result: 'locked' | 'unlocked' | 'warnings' | 'status' | 'unknown';
   /** The lock state after the request, when the server reported it. */
   lock?: RtlsAnchorLock;
-  /** Whether the anchors are locked after the request. */
-  locked: boolean;
-  /**
-   * The cell's warnings: on a lock refused for want of acknowledgement, the
-   * ones to acknowledge.
-   */
+  /** The cell's warnings now: on a `warnings` result, the ones to acknowledge. */
   warnings: RtlsLockIssue[];
 };
+
+const LOCK_RESULTS = ['locked', 'unlocked', 'warnings', 'status'] as const;
 
 /**
  * Locks, unlocks or queries the anchor cell lock (X-RTLS-LOCK). A lock with
@@ -465,10 +468,9 @@ export async function sendRtlsLock(
         : `Unexpected response to X-RTLS-LOCK (${String(body?.type)})`
     );
   }
-  const lock = mapAnchorLock(body.anchorLock ?? body);
   return {
-    lock,
-    locked: lock?.locked ?? body.locked === true,
-    warnings: mapLockIssues(body.warnings ?? lock?.warnings),
+    result: LOCK_RESULTS.find((value) => value === body.result) ?? 'unknown',
+    lock: mapAnchorLock(body.anchorLock),
+    warnings: mapLockIssues(body.warnings),
   };
 }
