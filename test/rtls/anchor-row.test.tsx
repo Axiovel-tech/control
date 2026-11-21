@@ -267,6 +267,8 @@ describe('a responder that measures nothing', () => {
       stats: { ...ranging, rangingRateHz: 0 },
     });
     expect(markup).not.toContain('14.10 m');
+  });
+});
 
 describe('a locked anchor row', () => {
   const disabled = (markup: string, testId: string): boolean =>
