@@ -129,7 +129,7 @@ describe('anchor sleep and wake', () => {
     expect(confirm).toHaveBeenCalledTimes(1);
     expect(confirm.mock.calls[0]).toEqual([
       'rtlsAnchor.sleep.confirm.armedMessage',
-      { title: 'rtlsAnchor.sleep.confirm.armedTitle' },
+      { title: 'rtlsAnchor.sleep.confirm.title' },
     ]);
     expect(sendMessage).not.toHaveBeenCalled();
   });

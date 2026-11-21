@@ -230,8 +230,6 @@ describe('bulk sleep/wake', () => {
     await dispatchThunk(store, wakeAllRtlsDevices());
 
     expect(sendMessage).not.toHaveBeenCalled();
-    expect(showNotification).toHaveBeenCalledWith(
-      'rtlsDevice.bulk.busy.wakeTags'
-    );
+    expect(showNotification).toHaveBeenCalledWith('rtlsDevice.bulk.busy');
   });
 });

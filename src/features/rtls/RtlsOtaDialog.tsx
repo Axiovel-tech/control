@@ -108,10 +108,7 @@ const OtaJobStatus = ({ job }: { job: RtlsOtaJob }) => {
         {`Status: ${job.status}`}
         {job.version ? ` · version ${job.version}` : ''}
         {job.species
-          ? ` · ${t('rtlsOta.species.job', {
-              species: job.species,
-              source: job.speciesSource ?? '—',
-            })}`
+          ? ` · ${t('rtlsOta.species.job', { species: job.species })}`
           : ''}
       </Typography>
       {percent !== undefined ? (
