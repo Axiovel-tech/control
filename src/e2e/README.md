@@ -45,7 +45,7 @@ See `types.ts` for the authoritative definition. In short:
 
 | Member                   | Purpose                                                                                                                                                                              |
 | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `version`                | Contract version; the harness refuses an unrecognized major.                                                                                                                         |
+| `version`                | Contract version; the harness refuses any version but its own.                                                                                                                       |
 | `getState(path?)`        | JSON-safe Redux state, optionally a lodash path such as `uavs.byId`.                                                                                                                 |
 | `mapProbe()`             | View parameters plus every identified map feature, in both lon/lat and viewport pixels.                                                                                              |
 | `messages(filter?)`      | Recorded Flockwave traffic, both directions. Filter by `type`, `direction`, `origin` or `since`.                                                                                     |
@@ -68,7 +68,7 @@ assertions are made on numbers. Screenshots stay for human review only.
 
 Asserting that a dialog closed does not prove the GUI asked the server to do
 anything. The tap records what actually went over the wire, so a test can
-assert on, say, an outgoing `X-RTLS-GEO` request rather than on its UI
+assert on, say, an outgoing `X-RTLS-GEOM` request rather than on its UI
 side-effects.
 
 Two details keep that evidence honest. Outbound messages are recorded only when
@@ -137,7 +137,7 @@ these is a breaking change for the harness.
 | `rtls-tags-panel.health-popup`                | Fleet-health popup → every drone in its zone's color (`FleetHealthSummary`)                                                                                                            |
 | `rtls-tags-panel.health-drone-<id>`           | Fleet-health popup → the drone of tag `<id>`: closes the popup, expands its row and scrolls to it                                                                                      |
 | `rtls-tags-panel.expand-all`                  | Tags panel toolbar → expand every tag row, or collapse them all while any is expanded                                                                                                  |
-| `rtls-tags-panel.check-geometry`              | Tags panel toolbar → run an X-RTLS-GEOM agreement check (disabled while one is in flight; the panel also runs one silently whenever the tag set changes)                               |
+| `rtls-tags-panel.check-geometry`              | Tags panel toolbar → run an X-RTLS-GEOM agreement check (disabled while one is in flight; the panel also runs one silently when the tag set changes and every 10 s)                    |
 | `rtls-tags-panel.verify`                      | Tags panel toolbar → open the fleet pre-flight verification dialog                                                                                                                     |
 
 ### Pre-existing stable hooks
@@ -164,24 +164,23 @@ response, including `targets`, `start`, `status`, and `cancel`.
 
 ## RTLS geometry facts in Redux
 
-Every tag fits the anchor table itself at boot (rtls-link-zephyr#208) and
+Every tag fits the anchor table itself at boot (rtls-link-zephyr#210) and
 streams the fit as health stats; the ground station never writes geometry.
 The `rtls` slice keeps the live fit per tag and the last fleet agreement
 verdict, and the panels render straight from it — so a harness should assert
 on these paths via `getState` rather than on pills and spinners:
 
-| Path                          | Meaning                                                                                                                                                                                                                                                              |
-| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `rtls.devices`                | Device registry (`order` + `byId`; each device carries `role`, `online`, `sleeping`, `uav`, `firmwareVersion`, `uptimeMs`, ...)                                                                                                                                      |
-| `rtls.stats.byId`             | Live per-device telemetry (`solveRateHz`, `solvePct`, `fixAgeMs`, `anchorsSeen`, ...) plus the tag's automatic geometry: `geometryState` (0 manual, 1 waiting, 2 calibrating, 3 calibrated, 4 failed), `geometryResidualM`, `geometryDriftM`, `geometryDistancesM`   |
-| `rtls.anchors`                | Site-level anchor list; the set of `cell` values here is the live cell inventory                                                                                                                                                                                     |
-| `rtls.geometry.checking`      | An X-RTLS-GEOM agreement check is in flight                                                                                                                                                                                                                          |
-| `rtls.geometry.invalidations` | Counts the verdicts the slice voided (tag set changed, a tag rebooted); the tags panel re-checks whenever it moves                                                                                                                                                   |
-| `rtls.geometry.lastCheck`     | Last agreement verdict: `tolerance`, per-distance `reference`, `consistent`, per-tag verdicts (`agree`/`deviates`/`manual`/`calibrating`/`failed`/`stale`/`unknown`, with `maxDeviationM` and `deviations`) and `receivedAt`. Voided when the device ID set changes. |
-| `rtls.verify`                 | Fleet pre-flight verification state (`running`, `lastResult`)                                                                                                                                                                                                        |
+| Path                          | Meaning                                                                                                                                                                                                                                                                     |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `rtls.devices`                | Device registry (`order` + `byId`; each device carries `role`, `online`, `sleeping`, `uav`, `firmwareVersion`, `uptimeMs`, ...)                                                                                                                                             |
+| `rtls.stats.byId`             | Live per-device telemetry (`solveRateHz`, `solvePct`, `fixAgeMs`, `anchorsSeen`, ...) plus the tag's automatic geometry (`geometryState`, `geometryReason`, `geometryResidualM`, `geometryDriftM`, `geometryDistancesM`; see `RtlsDeviceStats` in `features/rtls/types.ts`) |
+| `rtls.anchors`                | Site-level anchor list; the set of `cell` values here is the live cell inventory                                                                                                                                                                                            |
+| `rtls.geometry.checking`      | An X-RTLS-GEOM agreement check is in flight                                                                                                                                                                                                                                 |
+| `rtls.geometry.invalidations` | Counts the verdicts the slice voided (tag set changed, a tag rebooted); the tags panel re-checks whenever it moves                                                                                                                                                          |
+| `rtls.geometry.lastCheck`     | Last agreement verdict (`RtlsGeometryAgreement` in `features/rtls/types.ts`, including every per-tag status). Voided when the device ID set changes.                                                                                                                        |
+| `rtls.verify`                 | Fleet pre-flight verification state (`running`, `lastResult`)                                                                                                                                                                                                               |
 
 ## Changing the contract
 
-`BRIDGE_PROTOCOL_VERSION` in `types.ts` is the version the harness checks. Bump
-it when an existing member changes shape or is removed; adding a new member
-does not require a bump.
+Version and compatibility rules live in AxioStack
+`contracts/control-e2e-bridge.md`.

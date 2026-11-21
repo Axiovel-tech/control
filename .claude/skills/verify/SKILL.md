@@ -1,67 +1,34 @@
 ---
 name: verify
-description: How to build, launch, and drive this app (Skybrush Live fork) to verify UI changes end-to-end with a real server and virtual drones.
+description: How to see a Control change working end-to-end, with a real server and drones behind the GUI.
 ---
 
-# Verifying changes in the control app
+# Verifying a Control change
 
-## Launch the web build
+Use the `axio-e2e` harness in AxioStack (`repos/sw/axio-e2e`); its README is
+the manual. In short, from the AxioStack root:
 
-```bash
-npm start          # rimraf build && webpack serve (browser config), serves http://localhost:8080
+```sh
+eval "$(tooling/stack env)"
+CONTROL_REPO=$PWD/<your control worktree> repos/sw/axio-e2e/bin/axio-e2e.mjs up --profile virtual --drones 6
+repos/sw/axio-e2e/bin/axio-e2e.mjs status    # what the app thinks
+repos/sw/axio-e2e/bin/axio-e2e.mjs shot      # screenshot path
+repos/sw/axio-e2e/bin/axio-e2e.mjs down
 ```
 
-First compile takes ~1-2 min; wait for `[webpack.Progress] 100%` in the log.
-The web build auto-connects to a Skybrush server at `ws://localhost:5000`.
-
-## Launch a server with virtual drones
-
-axio-server lives at `/home/singu/dev/fw/axiovel/axio-server` with a ready venv:
-
-```bash
-/home/singu/dev/fw/axiovel/axio-server/.venv/bin/skybrushd -c <config.jsonc>
-```
-
-Config for N virtual drones on a grid at a known origin/orientation:
-
-```jsonc
-{
-  "EXTENSIONS": {
-    "http_server": { "host": "localhost", "port": 5000 },
-    "virtual_uavs": {
-      "enabled": true,
-      "count": 20,
-      "id_format": "{0:03}",
-      "origin": [2.1734, 41.3851, 100],   // lon, lat, AMSL
-      "orientation": 30,
-      "takeoff_area": { "type": "grid", "spacing": 5 }
-    }
-  }
-}
-```
-
-`place_drones(count, type='grid', spacing=s)` puts drones at x ∈ {0..}, y ∈ {0..}
-(corner at origin, 4 columns for 20 drones), in the NWU frame of `origin`/`orientation`.
-
-## Drive it with Playwright
-
-Playwright 1.61 works with the system Chrome: `chromium.launch({ channel: 'chrome', headless: true })`.
-Install `playwright` into a scratch dir (`npm i playwright`), no browser download needed.
-
-- Load a show: `page.locator('input[type="file"]').first().setInputFiles('demo.skyc')`
-  (the visible `#show-file-upload` element is a label, not the input).
-- A sample outdoor 20-drone show (4×5 grid, 5 m spacing, homes centered on origin):
-  `assets/shows/demo.skyc` under the `.autodev/worktrees/run-*` copies of this repo.
-- Show Control panel buttons are `.MuiListItemButton-root` items; disabled state shows
-  as `Mui-disabled` in the class list. Tooltips render into `[role="tooltip"]` /
-  `[data-tippy-root]` nodes.
-- The map "fit all features" button is the crosshair at ~(257, 100); zoom "+" at ~(68, 88)
-  in a 1600×900 viewport.
+- Pick the profile by what the change touches: `mock` for GUI logic,
+  `virtual` for show upload and the map, `sim` (firmware + SITL) for anything
+  RTLS or flight. Only `sim` is evidence about the production stack.
+- Assert on state and numbers, not pixels: read Redux through the bridge's
+  `getState`, map features through `mapProbe()`, and locate elements by the
+  test ids in `src/e2e/README.md`. Add a test id there when you need a new
+  hook.
+- The first webpack compile takes one to two minutes; the session outlives the
+  command, so later commands reconnect to the same browser.
 
 ## Gotchas
 
-- `socket.io` connection-refused console errors just mean no server on :5000.
-- Redux state is not persisted to localStorage in the dev web build, so verify
-  state changes via the UI (dialogs, status lights, map markers), not storage.
-- Jest ESM: new deps imported by tested modules may need to be added to
-  `transformIgnorePatterns` in `jest.config.ts`.
+- `socket.io` connection-refused errors in the console only mean no server is
+  listening yet.
+- Jest is ESM-sensitive: a new dependency imported by a tested module may need
+  adding to `transformIgnorePatterns` in `jest.config.ts`.
