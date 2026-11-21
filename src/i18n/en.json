@@ -871,6 +871,7 @@
       "ethernet": "Ethernet",
       "input": "Power input",
       "motion": "Motion",
+      "peer": "TWR peer {{mac}}",
       "uwb": "UWB",
       "wifi": "Wi-Fi"
     },
@@ -932,6 +933,8 @@
       "ethernetUp": "link up · {{drops}} drops",
       "motion": "tilt {{tilt}} · {{knocks}} knocks",
       "restarts": "{{status}} · {{restarts}} radio restarts",
+      "samples_one": "{{count}} sample",
+      "samples_other": "{{count}} samples",
       "wifi": "{{rssi}} · {{disconnects}} drops · {{txErrors}} TX errors"
     }
   },

@@ -37,6 +37,7 @@ import {
   type RtlsDevice,
   type RtlsDeviceStats,
   type RtlsPowerInput,
+  type RtlsTwrPeer,
 } from '~/features/rtls/types';
 import { BatteryDisplayStyle } from '~/model/settings';
 
@@ -53,6 +54,12 @@ const formatValue = (
   digits = 1
 ): string | undefined =>
   value === undefined ? undefined : `${value.toFixed(digits)} ${unit}`;
+
+/** Formats a TWR peer MAC for display (e.g. 0x0100). */
+const formatMac = (mac: number | undefined): string =>
+  mac === undefined
+    ? '—'
+    : `0x${mac.toString(16).padStart(4, '0').toUpperCase()}`;
 
 const joinKnown = (parts: Array<string | undefined>): string => {
   const known = parts.filter((part): part is string => part !== undefined);
@@ -227,9 +234,34 @@ type T = ReturnType<typeof useTranslation>['t'];
 
 /**
  * The anchor's detail lines: battery, charging, input, UWB, motion, links
- * and boots, each only when the anchor reports it.
+ * and boots, each only when the anchor reports it, then one line per TWR
+ * peer it hears (distance, spread and freshness).
  */
 export const describeAnchorDetailLines = (
+  t: T,
+  stats: RtlsDeviceStats | undefined,
+  twr: RtlsTwrPeer[] | undefined
+): DetailLine[] => {
+  const lines: DetailLine[] = [
+    ...describeHealthLines(t, stats),
+    ...(twr ?? []).map((peer, index) => ({
+      key: `peer-${peer.peerMac ?? index}`,
+      name: t('rtlsAnchor.detail.peer', { mac: formatMac(peer.peerMac) }),
+      value: joinKnown([
+        peer.distanceM === undefined
+          ? undefined
+          : formatInitiatorDistance(peer),
+        peer.count === undefined
+          ? undefined
+          : t('rtlsAnchor.value.samples', { count: peer.count }),
+        formatValue(peer.ageMs, 'ms', 0),
+      ]),
+    })),
+  ];
+  return lines;
+};
+
+const describeHealthLines = (
   t: T,
   stats: RtlsDeviceStats | undefined
 ): DetailLine[] => {
@@ -248,7 +280,9 @@ export const describeAnchorDetailLines = (
     add(
       'battery',
       joinKnown([
-        formatValue(stats.batteryPercent, '%', 0),
+        stats.batteryPercent === undefined
+          ? undefined
+          : `${Math.round(stats.batteryPercent)}%`,
         formatValue(stats.batteryVoltage, 'V', 2),
         formatValue(stats.batteryCurrentA, 'A', 2),
         formatValue(stats.batteryTemperatureC, '°C'),
@@ -285,7 +319,8 @@ export const describeAnchorDetailLines = (
     add(
       'motion',
       t('rtlsAnchor.value.motion', {
-        tilt: formatValue(stats.tiltDeg, '°') ?? '—',
+        tilt:
+          stats.tiltDeg === undefined ? '—' : `${stats.tiltDeg.toFixed(1)}°`,
         knocks: stats.knocks ?? '—',
       })
     );

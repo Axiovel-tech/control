@@ -350,6 +350,7 @@
  * t("rtlsAnchor.detail.ethernet")
  * t("rtlsAnchor.detail.input")
  * t("rtlsAnchor.detail.motion")
+ * t("rtlsAnchor.detail.peer")
  * t("rtlsAnchor.detail.uwb")
  * t("rtlsAnchor.detail.wifi")
  * t("rtlsHealth.all.idle")

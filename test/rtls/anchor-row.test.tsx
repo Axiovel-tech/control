@@ -95,7 +95,7 @@ describe('anchor row header', () => {
   test('keeps the details behind "show more"', () => {
     expect(markup).toContain('rtlsTagDetails.showMore');
     expect(markup).not.toContain('rtlsAnchor.detail.boots');
-    expect(markup).not.toContain('Peer 0x0010');
+    expect(markup).not.toContain('rtlsAnchor.detail.peer(mac=0x0010)');
   });
 
   test('a voltage-only battery shows volts', () => {
@@ -115,7 +115,8 @@ describe('anchor row details', () => {
     expect(markup).toContain('boots=4');
     expect(markup).toContain('watchdog');
     expect(markup).toContain('rtlsAnchor.charging.cc');
-    expect(markup).toContain('Peer 0x0010');
+    expect(markup).toContain('rtlsAnchor.detail.peer(mac=0x0010)');
+    expect(markup).toContain('14.10 m ±2 cm · 200 ms');
     expect(markup).toContain('fw 1.4.0');
   });
 });

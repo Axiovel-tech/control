@@ -19,13 +19,7 @@ import Typography from '@mui/material/Typography';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 
-import {
-  MiniList,
-  MiniListItem,
-  StatusLight,
-  StatusPill,
-  Tooltip,
-} from '@skybrush/mui-components';
+import { StatusLight, StatusPill, Tooltip } from '@skybrush/mui-components';
 
 import BatteryIndicator from '~/components/BatteryIndicator';
 import { Status } from '~/components/semantics';
@@ -51,7 +45,6 @@ import {
   type RtlsDevice,
   type RtlsDeviceStats,
   type RtlsFlightController,
-  type RtlsTwrPeer,
 } from '~/features/rtls/types';
 import {
   getRtlsDeviceListStatus,
@@ -79,12 +72,6 @@ const formatNumber = (
   unit: string,
   digits = 1
 ): string => (value === undefined ? '—' : `${value.toFixed(digits)} ${unit}`);
-
-/** Formats an inter-anchor TWR peer MAC for display (e.g. 0x0001). */
-const formatMac = (mac: number | undefined): string =>
-  mac === undefined
-    ? '—'
-    : `0x${mac.toString(16).padStart(4, '0').toUpperCase()}`;
 
 type DronePillText = {
   status: Status;
@@ -233,45 +220,6 @@ const describeDevice = (device: RtlsDevice): string => {
     parts.push(`${device.paramCount} params`);
   }
   return parts.join(' · ');
-};
-
-/**
- * Renders the anchor inter-anchor TWR telemetry: one row per peer anchor heard
- * on the UWB ether, showing the measured distance and its freshness. This is
- * the anchor analogue of the tag's solve stats — it proves the anchor is
- * hearing the ether.
- */
-export const AnchorTelemetryRows = ({
-  twr,
-}: {
-  twr: RtlsTwrPeer[] | undefined;
-}) => {
-  if (!twr || twr.length === 0) {
-    return (
-      <MiniList>
-        <MiniListItem primaryText='Inter-anchor TWR' secondaryText='—' />
-      </MiniList>
-    );
-  }
-  return (
-    <MiniList>
-      {twr.map((peer, index) => (
-        <MiniListItem
-          key={peer.peerMac ?? index}
-          primaryText={`Peer ${formatMac(peer.peerMac)}`}
-          secondaryText={
-            peer.distanceM === undefined
-              ? '—'
-              : `${peer.distanceM.toFixed(2)} m · ${formatNumber(
-                  peer.ageMs,
-                  'ms',
-                  0
-                )}`
-          }
-        />
-      ))}
-    </MiniList>
-  );
 };
 
 /**
@@ -581,11 +529,10 @@ const DeviceStatsRow = ({
           leadWidth={anchor ? ANCHOR_LEAD_WIDTH : TAG_LEAD_WIDTH}
           lines={
             anchor
-              ? describeAnchorDetailLines(t, stats)
+              ? describeAnchorDetailLines(t, stats, device.twr)
               : describeTagDetailLines(t, stats, anchorNames)
           }
         />
-        {anchor && <AnchorTelemetryRows twr={device.twr} />}
         <Typography
           variant='caption'
           color='textSecondary'
