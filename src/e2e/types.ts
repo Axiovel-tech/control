@@ -11,7 +11,7 @@ import type { FirmwareUpdateRun } from '~/features/firmware-update/types';
 
 /**
  * Version of the bridge contract. The harness refuses to drive an app whose
- * major version it does not recognize.
+ * version differs from its own.
  */
 export const BRIDGE_PROTOCOL_VERSION = 3;
 
