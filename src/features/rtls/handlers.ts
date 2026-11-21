@@ -227,10 +227,9 @@ export function mapRtlsDeviceStatus(
   result.uav = toString(raw.uav);
   result.flightController = mapFlightController(raw.flightController);
 
-  const twr = mapTwrPeers(raw.twr);
-  if (twr !== undefined) {
-    result.twr = twr;
-  }
+  // Always assigned: a device that rebooted (or was rediscovered) must not
+  // keep a pre-reboot measurement the server no longer reports.
+  result.twr = mapTwrPeers(raw.twr);
 
   return result;
 }

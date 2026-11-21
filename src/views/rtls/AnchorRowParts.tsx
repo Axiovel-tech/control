@@ -9,7 +9,6 @@ import SettingsEthernet from '@mui/icons-material/SettingsEthernet';
 import Usb from '@mui/icons-material/Usb';
 import Box from '@mui/material/Box';
 import Chip from '@mui/material/Chip';
-import Typography from '@mui/material/Typography';
 import type React from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -23,18 +22,16 @@ import {
   describeAnchorState,
   describeChargeBlock,
   describeCharging,
-  describeLastSeen,
   describePowerInput,
   describeResetCause,
   describeUwbStatus,
   findInitiatorPeer,
   formatInitiatorDistance,
-  type InitiatorEvidence,
   isCharging,
   isDeviceLost,
   showsRangingFigures,
 } from '~/features/rtls/anchor-utils';
-import { RtlsRole } from '~/features/rtls/stats-utils';
+import { type InitiatorEvidence, RtlsRole } from '~/features/rtls/stats-utils';
 import {
   type RtlsDevice,
   type RtlsDeviceStats,
@@ -43,7 +40,7 @@ import {
 } from '~/features/rtls/types';
 import { BatteryDisplayStyle } from '~/model/settings';
 
-import { type DetailLine, HeaderStat } from './row-parts';
+import { type DetailLine, HeaderStat, LastSeen } from './row-parts';
 
 /** Percent when the gauge knows it, else voltage; anchors carry one cell. */
 const ANCHOR_BATTERY_FORMATTER = new BatteryFormatter({
@@ -153,10 +150,6 @@ export const AnchorStateChip = ({
     busy,
     initiatorEvidence
   );
-  const lastSeen =
-    !busy && isDeviceLost(device, stats)
-      ? describeLastSeen(device.lastSeenAgeS ?? device.age)
-      : undefined;
   return (
     <Box
       component='span'
@@ -168,11 +161,7 @@ export const AnchorStateChip = ({
         text={t(text.key, text.values)}
         tooltip={tooltip && t(tooltip.key, tooltip.values)}
       />
-      {lastSeen && (
-        <Typography variant='caption' color='textSecondary' noWrap>
-          {t(lastSeen.key, lastSeen.values)}
-        </Typography>
-      )}
+      {!busy && isDeviceLost(device) && <LastSeen device={device} />}
     </Box>
   );
 };
@@ -207,7 +196,8 @@ export const AnchorRangingFigures = ({
         <HeaderStat
           label={t('rtlsAnchor.header.initiator')}
           value={
-            live
+            // a distance is live only while the responder measures A0
+            live && (stats?.rangingRateHz ?? 0) > 0
               ? formatInitiatorDistance(
                   findInitiatorPeer(device.twr, initiatorMacs)
                 )
@@ -299,25 +289,21 @@ export const describeAnchorDetailLines = (
   return lines;
 };
 
-const describeHealthLines = (
-  t: T,
-  stats: RtlsDeviceStats | undefined
-): DetailLine[] => {
-  if (!stats) {
-    return [];
-  }
-  const lines: DetailLine[] = [];
-  const add = (key: string, value: string) =>
-    lines.push({ key, name: t(`rtlsAnchor.detail.${key}`), value });
+const anyKnown = (...values: unknown[]): boolean =>
+  values.some((value) => value !== undefined);
 
-  if (
-    stats.batteryVoltage !== undefined ||
-    stats.batteryCurrentA !== undefined ||
-    stats.batteryTemperatureC !== undefined
-  ) {
-    add(
-      'battery',
-      joinKnown([
+const dash = (value: number | string | undefined): number | string =>
+  value ?? '—';
+
+type DetailGroup = (t: T, stats: RtlsDeviceStats) => string | undefined;
+
+const batteryLine: DetailGroup = (_t, stats) =>
+  anyKnown(
+    stats.batteryVoltage,
+    stats.batteryCurrentA,
+    stats.batteryTemperatureC
+  )
+    ? joinKnown([
         stats.batteryPercent === undefined
           ? undefined
           : `${Math.round(stats.batteryPercent)}%`,
@@ -325,80 +311,95 @@ const describeHealthLines = (
         formatValue(stats.batteryCurrentA, 'A', 2),
         formatValue(stats.batteryTemperatureC, '°C'),
       ])
-    );
+    : undefined;
+
+const chargingLine: DetailGroup = (t, stats) => {
+  if (stats.charging === undefined) {
+    return undefined;
   }
-  if (stats.charging !== undefined) {
-    const charging = describeCharging(stats.charging);
-    const block =
-      stats.chargeBlock !== undefined && stats.chargeBlock !== 'none'
-        ? describeChargeBlock(stats.chargeBlock)
-        : undefined;
-    add(
-      'charging',
-      joinKnown([t(charging.key), block ? t(block.key) : undefined])
-    );
-  }
-  if (stats.powerInput !== undefined) {
-    add('input', t(describePowerInput(stats.powerInput).key));
-  }
-  if (stats.uwbStatus !== undefined || stats.radioRestarts !== undefined) {
-    add(
-      'uwb',
-      t('rtlsAnchor.value.restarts', {
+  const block =
+    stats.chargeBlock !== undefined && stats.chargeBlock !== 'none'
+      ? t(describeChargeBlock(stats.chargeBlock).key)
+      : undefined;
+  return joinKnown([t(describeCharging(stats.charging).key), block]);
+};
+
+const inputLine: DetailGroup = (t, stats) =>
+  stats.powerInput === undefined
+    ? undefined
+    : t(describePowerInput(stats.powerInput).key);
+
+const uwbLine: DetailGroup = (t, stats) =>
+  anyKnown(stats.uwbStatus, stats.radioRestarts)
+    ? t('rtlsAnchor.value.restarts', {
         status:
           stats.uwbStatus === undefined
             ? '—'
             : t(describeUwbStatus(stats.uwbStatus).key),
-        restarts: stats.radioRestarts ?? '—',
+        restarts: dash(stats.radioRestarts),
       })
-    );
-  }
-  if (stats.tiltDeg !== undefined || stats.knocks !== undefined) {
-    add(
-      'motion',
-      t('rtlsAnchor.value.motion', {
+    : undefined;
+
+const motionLine: DetailGroup = (t, stats) =>
+  anyKnown(stats.tiltDeg, stats.knocks)
+    ? t('rtlsAnchor.value.motion', {
         tilt:
           stats.tiltDeg === undefined ? '—' : `${stats.tiltDeg.toFixed(1)}°`,
-        knocks: stats.knocks ?? '—',
+        knocks: dash(stats.knocks),
       })
-    );
-  }
-  if (stats.ethernetLink !== undefined || stats.ethernetDrops !== undefined) {
-    add(
-      'ethernet',
-      t(
+    : undefined;
+
+const ethernetLine: DetailGroup = (t, stats) =>
+  anyKnown(stats.ethernetLink, stats.ethernetDrops)
+    ? t(
         stats.ethernetLink
           ? 'rtlsAnchor.value.ethernetUp'
           : 'rtlsAnchor.value.ethernetDown',
-        { drops: stats.ethernetDrops ?? '—' }
+        { drops: dash(stats.ethernetDrops) }
       )
-    );
-  }
-  if (
-    stats.wifiRssiDbm !== undefined ||
-    stats.wifiDisconnects !== undefined ||
-    stats.wifiTxErrors !== undefined
-  ) {
-    add(
-      'wifi',
-      t('rtlsAnchor.value.wifi', {
-        rssi: formatValue(stats.wifiRssiDbm, 'dBm', 0) ?? '—',
-        disconnects: stats.wifiDisconnects ?? '—',
-        txErrors: stats.wifiTxErrors ?? '—',
+    : undefined;
+
+const wifiLine: DetailGroup = (t, stats) =>
+  anyKnown(stats.wifiRssiDbm, stats.wifiDisconnects, stats.wifiTxErrors)
+    ? t('rtlsAnchor.value.wifi', {
+        rssi: dash(formatValue(stats.wifiRssiDbm, 'dBm', 0)),
+        disconnects: dash(stats.wifiDisconnects),
+        txErrors: dash(stats.wifiTxErrors),
       })
-    );
-  }
-  if (stats.bootCount !== undefined || stats.resetCause !== undefined) {
-    add(
-      'boots',
-      t('rtlsAnchor.value.boots', {
-        boots: stats.bootCount ?? '—',
+    : undefined;
+
+const bootsLine: DetailGroup = (t, stats) =>
+  anyKnown(stats.bootCount, stats.resetCause)
+    ? t('rtlsAnchor.value.boots', {
+        boots: dash(stats.bootCount),
         cause:
           stats.resetCause === undefined
             ? '—'
             : describeResetCause(stats.resetCause),
       })
-    );
-  }
-  return lines;
-};
+    : undefined;
+
+/** The detail groups in display order, by their `rtlsAnchor.detail` key. */
+const DETAIL_GROUPS: Array<[string, DetailGroup]> = [
+  ['battery', batteryLine],
+  ['charging', chargingLine],
+  ['input', inputLine],
+  ['uwb', uwbLine],
+  ['motion', motionLine],
+  ['ethernet', ethernetLine],
+  ['wifi', wifiLine],
+  ['boots', bootsLine],
+];
+
+const describeHealthLines = (
+  t: T,
+  stats: RtlsDeviceStats | undefined
+): DetailLine[] =>
+  stats === undefined
+    ? []
+    : DETAIL_GROUPS.flatMap(([key, line]) => {
+        const value = line(t, stats);
+        return value === undefined
+          ? []
+          : [{ key, name: t(`rtlsAnchor.detail.${key}`), value }];
+      });

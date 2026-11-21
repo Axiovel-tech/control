@@ -15,10 +15,12 @@ import {
 } from '~/utils/collections';
 
 import { type RtlsDeviceParamsState } from './slice';
+import { getInitiatorEvidenceById } from './anchor-utils';
 import {
   classifyRole,
   getDeviceHealthForRole,
   getOverallHealth,
+  type InitiatorEvidence,
   isAnchorRole,
   type RtlsHealth,
   RtlsRole,
@@ -222,6 +224,40 @@ export const getRtlsOtaDialogDeviceId: AppSelector<string | undefined> = (
 ) => state.rtls.otaDialog.deviceId;
 
 /**
+ * Selector that returns every initiator's ranging evidence (whether the
+ * responders of its own cell hear it), keyed by the initiator's id: one
+ * verdict for the row, the panel and the header lights.
+ */
+export const getRtlsInitiatorEvidence: AppSelector<
+  Record<string, InitiatorEvidence>
+> = createSelector(
+  getRtlsAnchorDevices,
+  getRtlsStatsById,
+  getRtlsAnchors,
+  getInitiatorEvidenceById
+);
+
+const getHealthForDevices = (
+  devices: RtlsDevice[],
+  byId: Record<string, RtlsDeviceStats>,
+  evidence: Record<string, InitiatorEvidence>
+): RtlsHealth =>
+  getOverallHealth(
+    devices.map((device) =>
+      getDeviceHealthForRole(
+        classifyRole(device.role),
+        byId[device.id],
+        {
+          online: device.online,
+          age: device.age,
+          sleeping: device.sleeping,
+        },
+        evidence[device.id]
+      )
+    )
+  );
+
+/**
  * Selector that returns the overall (worst-case) RTLS health across *all* known
  * RTLS devices. Health is role-aware: anchors are judged by liveness and
  * their health stats, tags by their solve statistics. A discovered device that
@@ -230,45 +266,17 @@ export const getRtlsOtaDialogDeviceId: AppSelector<string | undefined> = (
  * collapse to "healthy".
  */
 export const getOverallRtlsHealth: AppSelector<RtlsHealth> = createSelector(
-  getRtlsDevicesAsCollection,
+  getRtlsDevicesInOrder,
   getRtlsStatsById,
-  (devices, byId) =>
-    getOverallHealth(
-      devices.order.map((id) => {
-        const device = devices.byId[id];
-        return getDeviceHealthForRole(
-          classifyRole(device?.role),
-          byId[id],
-          device
-            ? {
-                online: device.online,
-                age: device.age,
-                sleeping: device.sleeping,
-              }
-            : undefined
-        );
-      })
-    )
+  getRtlsInitiatorEvidence,
+  getHealthForDevices
 );
-
-const getHealthForDevices = (
-  devices: RtlsDevice[],
-  byId: Record<string, RtlsDeviceStats>
-): RtlsHealth =>
-  getOverallHealth(
-    devices.map((device) =>
-      getDeviceHealthForRole(classifyRole(device.role), byId[device.id], {
-        online: device.online,
-        age: device.age,
-        sleeping: device.sleeping,
-      })
-    )
-  );
 
 /** Anchor-only infrastructure health; tag solve loss cannot affect it. */
 export const getRtlsAnchorHealth: AppSelector<RtlsHealth> = createSelector(
   getRtlsAnchorDevices,
   getRtlsStatsById,
+  getRtlsInitiatorEvidence,
   getHealthForDevices
 );
 
@@ -276,6 +284,7 @@ export const getRtlsAnchorHealth: AppSelector<RtlsHealth> = createSelector(
 export const getRtlsTagHealth: AppSelector<RtlsHealth> = createSelector(
   getRtlsTagDevices,
   getRtlsStatsById,
+  getRtlsInitiatorEvidence,
   getHealthForDevices
 );
 

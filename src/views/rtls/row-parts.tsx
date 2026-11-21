@@ -10,6 +10,9 @@ import Typography from '@mui/material/Typography';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { describeLastSeen } from '~/features/rtls/anchor-utils';
+import { type RtlsDevice } from '~/features/rtls/types';
+
 /** A figure on a row's header line: its name, with the value below it. */
 export const HeaderStat = ({
   label,
@@ -98,5 +101,21 @@ export const ShowMoreButton = ({
     >
       {t(expanded ? 'rtlsTagDetails.showLess' : 'rtlsTagDetails.showMore')}
     </Button>
+  );
+};
+
+/** When a lost device was last heard, beside its name. */
+export const LastSeen = ({ device }: { device: RtlsDevice }) => {
+  const { t } = useTranslation();
+  const { key, values } = describeLastSeen(device.lastSeenAgeS ?? device.age);
+  return (
+    <Typography
+      data-testid='rtls-device-last-seen'
+      variant='caption'
+      color='textSecondary'
+      noWrap
+    >
+      {t(key, values)}
+    </Typography>
   );
 };

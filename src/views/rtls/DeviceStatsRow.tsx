@@ -21,34 +21,18 @@ import { useTranslation } from 'react-i18next';
 
 import { StatusLight, StatusPill, Tooltip } from '@skybrush/mui-components';
 
-import BatteryIndicator from '~/components/BatteryIndicator';
 import { Status } from '~/components/semantics';
-import AnchorBars from '~/features/rtls/AnchorBars';
-import {
-  type AnchorNames,
-  describeFleetHealth,
-} from '~/features/rtls/fleet-health';
-import {
-  describeGeometryFit,
-  type I18nText,
-} from '~/features/rtls/geometry-utils';
+import { isDeviceLost } from '~/features/rtls/anchor-utils';
+import { type AnchorNames } from '~/features/rtls/fleet-health';
 import { getStatusForHealth } from '~/features/rtls/health-status';
 import {
-  type InitiatorEvidence,
-  isDeviceLost,
-} from '~/features/rtls/anchor-utils';
-import { getRtlsDeviceDisplayName } from '~/features/rtls/selectors';
-import {
   classifyRole,
-  countAnchorsInMask,
   getDeviceHealthForRole,
+  type InitiatorEvidence,
   isAnchorRole,
+  type RtlsRole,
 } from '~/features/rtls/stats-utils';
-import {
-  type RtlsDevice,
-  type RtlsDeviceStats,
-  type RtlsFlightController,
-} from '~/features/rtls/types';
+import { type RtlsDevice, type RtlsDeviceStats } from '~/features/rtls/types';
 import {
   getRtlsDeviceListStatus,
   isSleepableRtlsDevice,
@@ -63,113 +47,14 @@ import {
   AnchorStatusCluster,
   describeAnchorDetailLines,
 } from './AnchorRowParts';
+import { DetailLines, LastSeen, ShowMoreButton } from './row-parts';
 import {
-  type DetailLine,
-  DetailLines,
-  HeaderStat,
-  ShowMoreButton,
-} from './row-parts';
-
-const formatNumber = (
-  value: number | undefined,
-  unit: string,
-  digits = 1
-): string => (value === undefined ? '—' : `${value.toFixed(digits)} ${unit}`);
-
-type DronePillText = {
-  status: Status;
-  label: I18nText;
-  tooltip: I18nText;
-  /** Server explanation of an ambiguous claim, shown instead of `tooltip`. */
-  reason?: string;
-};
-
-/**
- * Pill of the drone a tag belongs to, named by the flight-controller system id
- * the tag reports also while asleep: in the drone's UAV-list status color
- * while the tag hears its flight controller, grey while the tag only
- * remembers it (asleep or powered off), a warning for an unusable claim.
- */
-export const describeDronePill = (
-  flightController: RtlsFlightController,
-  uavStatus: Status | undefined
-): DronePillText => {
-  if (flightController.state === 'ambiguous') {
-    const { reason, systemId } = flightController;
-    return {
-      status: Status.WARNING,
-      label:
-        systemId === undefined
-          ? { key: 'rtlsFlightController.pill.ambiguousNoId' }
-          : {
-              key: 'rtlsFlightController.pill.ambiguous',
-              values: { id: systemId },
-            },
-      tooltip: { key: 'rtlsFlightController.tooltip.ambiguous' },
-      reason,
-    };
-  }
-
-  const values = { id: flightController.systemId };
-  const live = flightController.state === 'live';
-  return {
-    status: live ? (uavStatus ?? Status.INFO) : Status.OFF,
-    label: { key: 'rtlsFlightController.pill.known', values },
-    tooltip: {
-      key: live
-        ? 'rtlsFlightController.tooltip.live'
-        : 'rtlsFlightController.tooltip.remembered',
-      values,
-    },
-  };
-};
-
-const DronePill = ({
-  flightController,
-  uavStatus,
-}: {
-  flightController: RtlsFlightController;
-  uavStatus: Status | undefined;
-}) => {
-  const { t } = useTranslation();
-  const { label, reason, status, tooltip } = describeDronePill(
-    flightController,
-    uavStatus
-  );
-  return (
-    <Tooltip content={reason ?? t(tooltip.key, tooltip.values)}>
-      {/* Tippy needs a child that forwards refs, which StatusPill does not. */}
-      <Box component='span'>
-        <StatusPill inline status={status}>
-          {t(label.key, label.values)}
-        </StatusPill>
-      </Box>
-    </Tooltip>
-  );
-};
-
-/**
- * Builds the primary line for a device row: the device name and, for a tag
- * that reports its flight controller, the drone it belongs to as a pill.
- */
-export const describeDeviceWithPairedUav = (
-  device: RtlsDevice,
-  uavStatus: Status | undefined
-): React.ReactNode =>
-  device.flightController === undefined ? (
-    getRtlsDeviceDisplayName(device)
-  ) : (
-    <Box
-      component='span'
-      sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
-    >
-      {getRtlsDeviceDisplayName(device)}
-      <DronePill
-        flightController={device.flightController}
-        uavStatus={uavStatus}
-      />
-    </Box>
-  );
+  describeDeviceWithPairedUav,
+  describeTagDetailLines,
+  TAG_LEAD_WIDTH,
+  TagSolveFigures,
+  TagStatusCluster,
+} from './TagRowParts';
 
 /**
  * The status light of a merged row: liveness and the sleep latch first
@@ -179,17 +64,24 @@ export const describeDeviceWithPairedUav = (
  */
 export const getRowStatus = (
   device: RtlsDevice,
-  stats: RtlsDeviceStats | undefined
+  stats: RtlsDeviceStats | undefined,
+  initiatorEvidence?: InitiatorEvidence
 ): Status => {
   const role = classifyRole(device.role);
   if (isAnchorRole(role)) {
-    // an anchor's liveness, sleep and power state are all in its health
+    // an anchor's liveness, sleep and power state, and for an initiator
+    // whether its responders hear it, are all in its health
     return getStatusForHealth(
-      getDeviceHealthForRole(role, stats, {
-        online: device.online,
-        age: device.age,
-        sleeping: device.sleeping,
-      })
+      getDeviceHealthForRole(
+        role,
+        stats,
+        {
+          online: device.online,
+          age: device.age,
+          sleeping: device.sleeping,
+        },
+        initiatorEvidence
+      )
     );
   }
   if (!device.online) {
@@ -214,18 +106,6 @@ export const getRowStatus = (
   );
 };
 
-/**
- * An initiator that no responder hears is not healthy, however fast its own
- * ranging rounds run: a green light turns yellow.
- */
-const withInitiatorEvidence = (
-  status: Status,
-  evidence: InitiatorEvidence | undefined
-): Status =>
-  status === Status.SUCCESS && evidence !== undefined && evidence !== 'hearing'
-    ? Status.WARNING
-    : status;
-
 /** The caption line: system id, sleep state, firmware and parameter count. */
 const describeDevice = (device: RtlsDevice): string => {
   const parts = [`system id ${device.id}`];
@@ -246,13 +126,6 @@ const describeDevice = (device: RtlsDevice): string => {
   }
   return parts.join(' · ');
 };
-
-/**
- * Width of a tag row's status light, name and drone pill, px: its solve
- * figures then start at the same place on every row, and the values of its
- * detail lines start right below them.
- */
-const TAG_LEAD_WIDTH = 220;
 
 /**
  * Width of an anchor row's status light, name, slot badge and state chip, px:
@@ -388,65 +261,47 @@ export type DeviceStatsRowProps = {
   uavStatus?: Status;
 };
 
-/** The tag rows' detail lines, behind "show more". */
-const describeTagDetailLines = (
-  t: ReturnType<typeof useTranslation>['t'],
-  stats: RtlsDeviceStats | undefined,
-  anchorNames: AnchorNames | undefined
-): DetailLine[] => {
-  const geometryFit = describeGeometryFit(stats);
-  const anchorsSeen =
-    stats?.anchorsSeen ?? countAnchorsInMask(stats?.anchorMask);
-  return [
-    {
-      key: 'fixAge',
-      name: 'Fix age',
-      value: formatNumber(stats?.fixAgeMs, 'ms', 0),
-    },
-    {
-      key: 'clockDrift',
-      name: 'Clock drift',
-      value: formatNumber(stats?.clockPpm, 'ppm', 2),
-    },
-    {
-      key: 'anchorsSeen',
-      name: 'Anchors seen',
-      value: String(anchorsSeen),
-    },
-    ...(geometryFit
-      ? [
-          {
-            key: 'geometry',
-            name: t('rtlsGeometry.telemetry'),
-            value: t(geometryFit.key, geometryFit.values),
-          },
-        ]
-      : []),
-    ...describeFleetHealth(stats, anchorNames).map(({ id, status, text }) => ({
-      key: id,
-      // gray values throughout; a metric out of its green zone gets a dot in
-      // the zone's color beside its name
-      name: (
-        <>
-          {t(`rtlsFleetHealth.label.${id}`)}
-          {(status === Status.WARNING || status === Status.ERROR) && (
-            <StatusLight inline size='small' status={status} />
-          )}
-        </>
-      ),
-      value: t(text.key, text.values),
-    })),
-  ];
-};
-
 const NO_MACS: ReadonlySet<number> = new Set();
 
+/** The header line's role-specific figures, middle and right. */
+const RoleContent = ({
+  device,
+  initiatorMacs,
+  role,
+  stats,
+  where,
+}: {
+  device: RtlsDevice;
+  initiatorMacs: ReadonlySet<number>;
+  role: RtlsRole;
+  stats: RtlsDeviceStats | undefined;
+  where: 'figures' | 'cluster';
+}) => {
+  if (!isAnchorRole(role)) {
+    return where === 'figures' ? (
+      <TagSolveFigures stats={stats} />
+    ) : (
+      <TagStatusCluster stats={stats} />
+    );
+  }
+  return where === 'figures' ? (
+    <AnchorRangingFigures
+      device={device}
+      initiatorMacs={initiatorMacs}
+      role={role}
+      stats={stats}
+    />
+  ) : (
+    <AnchorStatusCluster stats={stats} />
+  );
+};
+
 /**
- * One merged device row: header line (light, name, drone pill, a tag's solve
- * rate and percentage or an anchor's slot, state and ranging figures,
- * geometry pill, an anchor's warnings and input, battery, anchor bars,
- * actions), then — behind "show more" — the rest of the telemetry and the
- * caption. A lost anchor stays listed, greyed, with when it was last heard.
+ * One merged device row: header line (light, name, drone pill or an
+ * anchor's slot and state, the role's figures, geometry pill, the role's
+ * status cluster, actions), then — behind "show more" — the rest of the
+ * telemetry and the caption. A lost device stays listed, greyed, with when
+ * it was last heard.
  */
 const DeviceStatsRow = ({
   anchorNames,
@@ -466,10 +321,8 @@ const DeviceStatsRow = ({
   const { t } = useTranslation();
   const role = classifyRole(device.role);
   const anchor = isAnchorRole(role);
-  const anchorsSeen =
-    stats?.anchorsSeen ?? countAnchorsInMask(stats?.anchorMask);
-  const lost = anchor && isDeviceLost(device, stats);
-  const showDetails = expanded || !onToggleExpanded;
+  const lost = isDeviceLost(device);
+  const leadWidth = anchor ? ANCHOR_LEAD_WIDTH : TAG_LEAD_WIDTH;
 
   return (
     <Box
@@ -482,23 +335,20 @@ const DeviceStatsRow = ({
             display: 'flex',
             alignItems: 'center',
             gap: 1,
-            minWidth: anchor ? ANCHOR_LEAD_WIDTH : TAG_LEAD_WIDTH,
+            minWidth: leadWidth,
           }}
         >
           <StatusLight
             status={
               busy && anchor
                 ? Status.WAITING
-                : withInitiatorEvidence(
-                    getRowStatus(device, stats),
-                    initiatorEvidence
-                  )
+                : getRowStatus(device, stats, initiatorEvidence)
             }
           />
           <Typography variant='subtitle2' component='div'>
             {describeDeviceWithPairedUav(device, uavStatus)}
           </Typography>
-          {anchor && (
+          {anchor ? (
             <>
               <AnchorSlotBadge role={role} slot={anchorSlot} />
               <AnchorStateChip
@@ -508,31 +358,17 @@ const DeviceStatsRow = ({
                 stats={stats}
               />
             </>
+          ) : (
+            lost && <LastSeen device={device} />
           )}
         </Box>
-        {anchor ? (
-          <AnchorRangingFigures
-            device={device}
-            initiatorMacs={initiatorMacs}
-            role={role}
-            stats={stats}
-          />
-        ) : (
-          <>
-            <HeaderStat
-              label='Solve rate'
-              value={formatNumber(stats?.solveRateHz, 'Hz')}
-            />
-            <HeaderStat
-              label='Solve %'
-              value={
-                stats?.solvePct === undefined
-                  ? '—'
-                  : `${stats.solvePct.toFixed(0)}%`
-              }
-            />
-          </>
-        )}
+        <RoleContent
+          device={device}
+          initiatorMacs={initiatorMacs}
+          role={role}
+          stats={stats}
+          where='figures'
+        />
         {/* the name and the figures keep left, the rest keeps right */}
         <Box sx={{ flexGrow: 1 }} />
         {geometryLabel && (
@@ -540,21 +376,13 @@ const DeviceStatsRow = ({
             {geometryLabel}
           </StatusPill>
         )}
-        {anchor ? (
-          <AnchorStatusCluster stats={stats} />
-        ) : (
-          <>
-            {stats?.batteryVoltage !== undefined && (
-              <Box sx={{ width: 56 }}>
-                <BatteryIndicator voltage={stats.batteryVoltage} />
-              </Box>
-            )}
-            <AnchorBars
-              anchorMask={stats?.anchorMask}
-              anchorsSeen={anchorsSeen}
-            />
-          </>
-        )}
+        <RoleContent
+          device={device}
+          initiatorMacs={initiatorMacs}
+          role={role}
+          stats={stats}
+          where='cluster'
+        />
         {handlers && (
           <RowActions busy={busy} device={device} handlers={handlers} />
         )}
@@ -565,9 +393,9 @@ const DeviceStatsRow = ({
           onClick={() => onToggleExpanded(device.id)}
         />
       )}
-      <Collapse unmountOnExit in={showDetails}>
+      <Collapse unmountOnExit in={expanded || !onToggleExpanded}>
         <DetailLines
-          leadWidth={anchor ? ANCHOR_LEAD_WIDTH : TAG_LEAD_WIDTH}
+          leadWidth={leadWidth}
           lines={
             anchor
               ? describeAnchorDetailLines(t, stats, device.twr)

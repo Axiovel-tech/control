@@ -29,7 +29,13 @@ import {
   startRtlsOta,
 } from './messages';
 import messageHub from '~/message-hub';
-import { getDeviceSpecies, resolveImageSpecies } from './ota-species';
+import {
+  canStartOta,
+  getDeviceSpecies,
+  type ImageInspection,
+  type ImageSpeciesSource,
+  resolveImageSpecies,
+} from './ota-species';
 import {
   getRtlsDevicesAsCollection,
   getRtlsOtaDialogDeviceId,
@@ -37,6 +43,7 @@ import {
   isRtlsOtaDialogOpen,
 } from './selectors';
 import { closeRtlsOtaDialog, setRtlsOtaJob } from './slice';
+import { type RtlsOtaJob } from './types';
 
 /**
  * Normalises an OTA progress value to an integer percentage. The X-RTLS-OTA
@@ -54,63 +61,31 @@ const toPercent = (progress: number | undefined): number | undefined => {
 
 const ACTIVE_STATUSES = new Set(['pending', 'inProgress']);
 
-const RtlsOtaDialog = () => {
-  const dispatch = useDispatch<AppDispatch>();
-  const open = useSelector(isRtlsOtaDialogOpen);
-  const deviceId = useSelector(getRtlsOtaDialogDeviceId);
-  const job = useSelector((state: RootState) =>
-    deviceId ? getRtlsOtaJobForDevice(state, deviceId) : undefined
-  );
-
-  const { t } = useTranslation();
-  const deviceRole = useSelector((state: RootState) =>
-    deviceId
-      ? getRtlsDevicesAsCollection(state).byId[deviceId]?.role
-      : undefined
-  );
-  const deviceSpecies = getDeviceSpecies(deviceRole);
-
-  const [image, setImage] = useState('');
-  // The species the image is built for, always sent with the OTA: named by
-  // the image's build receipt, as the server reads it (the selector is then
-  // locked), else chosen by the operator, with the path's hint as default
-  const [chosenSpecies, setChosenSpecies] = useState<RtlsImageSpecies | ''>('');
-  // The server's answer about the image: its receipt species, or why it
-  // refuses the image (missing file, bad or stale receipt)
-  const [inspection, setInspection] = useState<{
-    image: string;
-    species?: RtlsImageSpecies;
-    error?: string;
-  }>();
-  const trimmedImage = image.trim();
-  const current = inspection?.image === trimmedImage ? inspection : undefined;
-  const {
-    locked: speciesLocked,
-    source: speciesSource,
-    species,
-  } = resolveImageSpecies(trimmedImage, chosenSpecies, current?.species);
-  const [busy, setBusy] = useState(false);
-  const speciesMismatch =
-    species !== '' && deviceSpecies !== undefined && species !== deviceSpecies;
-
-  // Ask the server what the image's build receipt says, once typing settles
+/**
+ * Asks the server about the image path once typing settles (X-RTLS-OTA
+ * `inspect`). Returns the answer for the current path only: `undefined`
+ * while it is pending.
+ */
+const useImageInspection = (
+  open: boolean,
+  image: string
+): ImageInspection | undefined => {
+  const [inspection, setInspection] = useState<ImageInspection>();
   useEffect(() => {
-    if (!open || trimmedImage.length === 0) {
+    if (!open || image.length === 0) {
       return undefined;
     }
     let cancelled = false;
     const timer = setTimeout(() => {
       void (async () => {
-        let result: { species?: RtlsImageSpecies; error?: string };
+        let result: Omit<ImageInspection, 'image'>;
         try {
-          result = {
-            species: await inspectRtlsOtaImage(messageHub, trimmedImage),
-          };
+          result = { species: await inspectRtlsOtaImage(messageHub, image) };
         } catch (error) {
           result = { error: errorToString(error) };
         }
         if (!cancelled) {
-          setInspection({ image: trimmedImage, ...result });
+          setInspection({ image, ...result });
         }
       })();
     }, 400);
@@ -118,7 +93,138 @@ const RtlsOtaDialog = () => {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [open, trimmedImage]);
+  }, [open, image]);
+  return inspection?.image === image ? inspection : undefined;
+};
+
+/** The current job: status, version, species, progress and error. */
+const OtaJobStatus = ({ job }: { job: RtlsOtaJob }) => {
+  const { t } = useTranslation();
+  const active = job.status !== undefined && ACTIVE_STATUSES.has(job.status);
+  const percent = toPercent(job.progress);
+  return (
+    <Box sx={{ mt: 2 }}>
+      <Typography variant='body2' color='textSecondary'>
+        {`Status: ${job.status}`}
+        {job.version ? ` · version ${job.version}` : ''}
+        {job.species
+          ? ` · ${t('rtlsOta.species.job', {
+              species: job.species,
+              source: job.speciesSource ?? '—',
+            })}`
+          : ''}
+      </Typography>
+      {percent !== undefined ? (
+        <>
+          <LinearProgress
+            variant='determinate'
+            value={percent}
+            sx={{ mt: 1 }}
+          />
+          <Typography variant='caption' color='textSecondary'>
+            {`${percent}%`}
+          </Typography>
+        </>
+      ) : (
+        active && <LinearProgress sx={{ mt: 1 }} />
+      )}
+      {job.error && (
+        <Typography variant='body2' color='error' sx={{ mt: 1 }}>
+          {job.error}
+        </Typography>
+      )}
+    </Box>
+  );
+};
+
+const SPECIES_HINTS: Record<ImageSpeciesSource, string> = {
+  receipt: 'rtlsOta.species.fromReceipt',
+  path: 'rtlsOta.species.fromPath',
+  operator: 'rtlsOta.species.hint',
+  none: 'rtlsOta.species.hint',
+};
+
+/** The species selector: locked to a receipt's species, else the operator's. */
+const SpeciesSelect = ({
+  deviceSpecies,
+  disabled,
+  mismatch,
+  onChange,
+  resolved,
+}: {
+  deviceSpecies: RtlsImageSpecies | undefined;
+  disabled: boolean;
+  mismatch: boolean;
+  onChange: (species: RtlsImageSpecies) => void;
+  resolved: ReturnType<typeof resolveImageSpecies>;
+}) => {
+  const { t } = useTranslation();
+  const { locked, source, species } = resolved;
+  return (
+    <TextField
+      select
+      fullWidth
+      data-testid='rtls-ota-species'
+      label={t('rtlsOta.species.label')}
+      value={species}
+      // a species the receipt names is not the operator's to flip
+      disabled={disabled || locked}
+      margin='normal'
+      error={mismatch}
+      helperText={
+        mismatch
+          ? t('rtlsOta.species.mismatch', {
+              image: t(`rtlsOta.species.${species}`),
+              device: t(`rtlsOta.species.${deviceSpecies}`),
+            })
+          : t(SPECIES_HINTS[source])
+      }
+      onChange={(event) => onChange(event.target.value as RtlsImageSpecies)}
+    >
+      <MenuItem value='tag'>{t('rtlsOta.species.tag')}</MenuItem>
+      <MenuItem value='anchor'>{t('rtlsOta.species.anchor')}</MenuItem>
+    </TextField>
+  );
+};
+
+const RtlsOtaDialog = () => {
+  const { t } = useTranslation();
+  const dispatch = useDispatch<AppDispatch>();
+  const open = useSelector(isRtlsOtaDialogOpen);
+  const deviceId = useSelector(getRtlsOtaDialogDeviceId);
+  const job = useSelector((state: RootState) =>
+    deviceId ? getRtlsOtaJobForDevice(state, deviceId) : undefined
+  );
+  const deviceSpecies = getDeviceSpecies(
+    useSelector((state: RootState) =>
+      deviceId
+        ? getRtlsDevicesAsCollection(state).byId[deviceId]?.role
+        : undefined
+    )
+  );
+
+  const [image, setImage] = useState('');
+  // The species the image is built for, always sent with the OTA: named by
+  // the image's build receipt, as the server reads it (the selector is then
+  // locked), else chosen by the operator, with the path's hint as default.
+  // A new path resets the choice: it belonged to the previous image.
+  const [chosenSpecies, setChosenSpecies] = useState<RtlsImageSpecies | ''>('');
+  const [busy, setBusy] = useState(false);
+  const trimmedImage = image.trim();
+  const inspection = useImageInspection(open, trimmedImage);
+  const resolved = resolveImageSpecies(
+    trimmedImage,
+    chosenSpecies,
+    inspection?.species
+  );
+  const { species } = resolved;
+  const mismatch =
+    species !== '' && deviceSpecies !== undefined && species !== deviceSpecies;
+  const active = job?.status !== undefined && ACTIVE_STATUSES.has(job.status);
+  const startable =
+    !busy &&
+    !active &&
+    canStartOta({ image: trimmedImage, inspection, mismatch, species });
 
   // Query the current OTA job status when the dialog opens for a device.
   useEffect(() => {
@@ -135,13 +241,7 @@ const RtlsOtaDialog = () => {
   }, [open, deviceId, dispatch]);
 
   const handleStart = useCallback(async () => {
-    if (
-      !deviceId ||
-      busy ||
-      image.trim().length === 0 ||
-      species === '' ||
-      speciesMismatch
-    ) {
+    if (!deviceId || !startable || species === '') {
       return;
     }
 
@@ -150,7 +250,7 @@ const RtlsOtaDialog = () => {
       const started = await startRtlsOta(
         messageHub,
         deviceId,
-        image.trim(),
+        trimmedImage,
         species
       );
       dispatch(setRtlsOtaJob({ id: deviceId, job: started }));
@@ -159,15 +259,11 @@ const RtlsOtaDialog = () => {
     } finally {
       setBusy(false);
     }
-  }, [busy, deviceId, dispatch, image, species, speciesMismatch]);
+  }, [deviceId, dispatch, species, startable, trimmedImage]);
 
   const handleClose = useCallback(() => {
     dispatch(closeRtlsOtaDialog());
   }, [dispatch]);
-
-  const status = job?.status;
-  const active = status !== undefined && ACTIVE_STATUSES.has(status);
-  const percent = toPercent(job?.progress);
 
   return (
     <DraggableDialog
@@ -185,86 +281,34 @@ const RtlsOtaDialog = () => {
           value={image}
           disabled={busy || active}
           margin='normal'
-          error={current?.error !== undefined}
-          helperText={current?.error}
-          onChange={(event) => setImage(event.target.value)}
-        />
-        <TextField
-          select
-          fullWidth
-          data-testid='rtls-ota-species'
-          label={t('rtlsOta.species.label')}
-          value={species}
-          // a species the path settles is not the operator's to flip
-          disabled={busy || active || speciesLocked}
-          margin='normal'
-          error={speciesMismatch}
+          error={inspection?.error !== undefined}
           helperText={
-            speciesMismatch
-              ? t('rtlsOta.species.mismatch', {
-                  image: t(`rtlsOta.species.${species}`),
-                  device: t(`rtlsOta.species.${deviceSpecies}`),
-                })
-              : speciesSource === 'receipt'
-                ? t('rtlsOta.species.fromReceipt')
-                : speciesSource === 'path'
-                  ? t('rtlsOta.species.fromPath')
-                  : t('rtlsOta.species.hint')
+            inspection?.error ??
+            (trimmedImage.length > 0 && inspection === undefined
+              ? t('rtlsOta.inspecting')
+              : undefined)
           }
-          onChange={(event) =>
-            setChosenSpecies(event.target.value as RtlsImageSpecies)
-          }
-        >
-          <MenuItem value='tag'>{t('rtlsOta.species.tag')}</MenuItem>
-          <MenuItem value='anchor'>{t('rtlsOta.species.anchor')}</MenuItem>
-        </TextField>
+          onChange={(event) => {
+            setImage(event.target.value);
+            setChosenSpecies('');
+          }}
+        />
+        <SpeciesSelect
+          deviceSpecies={deviceSpecies}
+          disabled={busy || active}
+          mismatch={mismatch}
+          resolved={resolved}
+          onChange={setChosenSpecies}
+        />
 
-        {job && status ? (
-          <Box sx={{ mt: 2 }}>
-            <Typography variant='body2' color='textSecondary'>
-              {`Status: ${status}`}
-              {job.version ? ` · version ${job.version}` : ''}
-              {job.species
-                ? ` · ${t('rtlsOta.species.job', {
-                    species: job.species,
-                    source: job.speciesSource ?? '—',
-                  })}`
-                : ''}
-            </Typography>
-            {percent !== undefined ? (
-              <LinearProgress
-                variant='determinate'
-                value={percent}
-                sx={{ mt: 1 }}
-              />
-            ) : active ? (
-              <LinearProgress sx={{ mt: 1 }} />
-            ) : null}
-            {percent !== undefined ? (
-              <Typography variant='caption' color='textSecondary'>
-                {`${percent}%`}
-              </Typography>
-            ) : null}
-            {job.error ? (
-              <Typography variant='body2' color='error' sx={{ mt: 1 }}>
-                {job.error}
-              </Typography>
-            ) : null}
-          </Box>
-        ) : null}
+        {job?.status && <OtaJobStatus job={job} />}
 
         <DialogActions>
           <Button onClick={handleClose}>Close</Button>
           <Button
             color='primary'
             variant='contained'
-            disabled={
-              busy ||
-              active ||
-              image.trim().length === 0 ||
-              species === '' ||
-              speciesMismatch
-            }
+            disabled={!startable}
             onClick={() => void handleStart()}
           >
             Start update

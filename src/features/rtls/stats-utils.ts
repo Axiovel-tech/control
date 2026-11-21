@@ -173,53 +173,99 @@ export function isUwbStartRefused(stats: RtlsDeviceStats | undefined): boolean {
 }
 
 /**
- * Derives the health of an anchor from its liveness and health stats:
- * - error: offline (unless it was last seen powering down), fault, low
- *   battery, or a UWB session that refused to start;
- * - idle: asleep, standby, off or booting;
- * - warning: moved, radio restarts since boot, or operating without ranging;
- * - ok otherwise.
+ * What the responders of its cell say about an initiator's ranging. An
+ * initiator's own rate counts its ranging rounds, which run on with every
+ * responder asleep; a responder's rate counts valid A0 measurements, so it
+ * is the evidence that A0 ranges with someone:
+ * - `hearing`: an online responder of the cell reports a positive rate;
+ * - `unheard`: responders of the cell are online but none reports one;
+ * - `alone`: no responder of the cell is online.
  */
-export function getAnchorHealth(
-  liveness: DeviceLiveness | undefined,
-  stats?: RtlsDeviceStats
-): RtlsHealth {
-  if (!liveness) {
-    return RtlsHealth.UNKNOWN;
-  }
+export type InitiatorEvidence = 'hearing' | 'unheard' | 'alone';
 
-  const { online, age, sleeping } = liveness;
+/** Whether an operating anchor's own telemetry says it ranges. */
+export function isRangingByTelemetry(stats: RtlsDeviceStats): boolean {
+  return (
+    !isUwbStartRefused(stats) &&
+    stats.uwbStatus !== RtlsUwbStatus.PENDING &&
+    (stats.rangingRateHz ?? 0) > 0
+  );
+}
+
+/**
+ * Grades an anchor's liveness: `undefined` when it is live with fresh
+ * telemetry, so that the telemetry decides.
+ * - lost (offline, or not heard within the window): error, or idle when it
+ *   was last seen powering down;
+ * - no liveness signal: unknown;
+ * - online but its stats snapshot is stale (no stats for a while while
+ *   heartbeats continue): warning, telemetry unavailable; the cached values
+ *   are not graded.
+ */
+function gradeAnchorLiveness(
+  liveness: DeviceLiveness,
+  stats: RtlsDeviceStats | undefined
+): RtlsHealth | undefined {
+  const { online, age } = liveness;
   const lost =
     online === false ||
     (age !== undefined && Number.isFinite(age) && age > STALE_ANCHOR_AGE_S);
   if (lost) {
     return wasPoweringDown(stats) ? RtlsHealth.IDLE : RtlsHealth.ERROR;
   }
-
   if (online === undefined && age === undefined) {
     return RtlsHealth.UNKNOWN;
   }
+  return stats?.stale ? RtlsHealth.WARNING : undefined;
+}
 
+/**
+ * Grades a live anchor's telemetry: errors first (fault, low battery, a
+ * refused UWB start), then rest (idle), then warnings (moved, radio
+ * restarts, operating without a measured ranging rate, an initiator its
+ * responders do not hear).
+ */
+function gradeAnchorTelemetry(
+  stats: RtlsDeviceStats | undefined,
+  sleeping: boolean | undefined,
+  evidence: InitiatorEvidence | undefined
+): RtlsHealth {
   if (stats?.powerState === 'fault' || stats?.lowBattery) {
     return RtlsHealth.ERROR;
   }
-
   if (isAnchorResting(stats, sleeping)) {
     return RtlsHealth.IDLE;
   }
-
   if (isUwbStartRefused(stats)) {
     return RtlsHealth.ERROR;
   }
-
+  const operating = stats?.powerState === 'operating';
   const notRanging =
-    stats?.powerState === 'operating' &&
-    (stats.rangingRateHz === 0 || stats.uwbStatus === RtlsUwbStatus.PENDING);
-  if (stats?.moved || (stats?.radioRestarts ?? 0) > 0 || notRanging) {
-    return RtlsHealth.WARNING;
-  }
+    operating &&
+    (!isRangingByTelemetry(stats) ||
+      (evidence !== undefined && evidence !== 'hearing'));
+  return stats?.moved || (stats?.radioRestarts ?? 0) > 0 || notRanging
+    ? RtlsHealth.WARNING
+    : RtlsHealth.OK;
+}
 
-  return RtlsHealth.OK;
+/**
+ * Derives the health of an anchor from its liveness and health stats (see
+ * {@link gradeAnchorLiveness} and {@link gradeAnchorTelemetry}).
+ * `initiatorEvidence` is given for an initiator only.
+ */
+export function getAnchorHealth(
+  liveness: DeviceLiveness | undefined,
+  stats?: RtlsDeviceStats,
+  initiatorEvidence?: InitiatorEvidence
+): RtlsHealth {
+  if (!liveness) {
+    return RtlsHealth.UNKNOWN;
+  }
+  return (
+    gradeAnchorLiveness(liveness, stats) ??
+    gradeAnchorTelemetry(stats, liveness.sleeping, initiatorEvidence)
+  );
 }
 
 /**
@@ -230,7 +276,8 @@ export function getAnchorHealth(
 export function getDeviceHealthForRole(
   role: RtlsRole,
   stats: RtlsDeviceStats | undefined,
-  liveness: DeviceLiveness | undefined
+  liveness: DeviceLiveness | undefined,
+  initiatorEvidence?: InitiatorEvidence
 ): RtlsHealth {
   if (role === RtlsRole.DISABLED) {
     // deliberately out of service: contributes no health signal, not even
@@ -239,7 +286,11 @@ export function getDeviceHealthForRole(
   }
 
   if (isAnchorRole(role)) {
-    return getAnchorHealth(liveness, stats);
+    return getAnchorHealth(
+      liveness,
+      stats,
+      role === RtlsRole.ANCHOR_INITIATOR ? initiatorEvidence : undefined
+    );
   }
 
   if (liveness && !liveness.online) {
@@ -250,6 +301,12 @@ export function getDeviceHealthForRole(
     // down asleep contributes nothing and any other lost tag only warns:
     // neither may hold the header red until the operator forgets it.
     return liveness.sleeping === true ? RtlsHealth.UNKNOWN : RtlsHealth.WARNING;
+  }
+
+  if (stats?.stale) {
+    // online, but its stats stopped: telemetry unavailable, and the cached
+    // solve figures must not read as green
+    return RtlsHealth.WARNING;
   }
 
   return getDeviceHealth(stats);

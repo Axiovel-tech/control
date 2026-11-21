@@ -89,6 +89,7 @@ describe('role-scoped RTLS health', () => {
           },
           order: ['10', '11', '20'],
         },
+        anchors: [],
         stats: {
           byId: {
             '20': { id: '20', solveRateHz: 0, fixAgeMs: 20_000 },
@@ -122,6 +123,7 @@ describe('role-scoped RTLS health', () => {
           },
           order: ['10', '11', '20'],
         },
+        anchors: [],
         stats: {
           byId: {
             '20': { id: '20', solveRateHz: 8, solvePct: 97, fixAgeMs: 120 },
@@ -132,5 +134,53 @@ describe('role-scoped RTLS health', () => {
 
     expect(getRtlsAnchorHealth(state)).toBe(RtlsHealth.ERROR);
     expect(getRtlsTagHealth(state)).toBe(RtlsHealth.OK);
+  });
+});
+
+describe('one initiator verdict for every light', () => {
+  const stateWith = (responderRate: number | undefined): RootState =>
+    ({
+      rtls: {
+        devices: {
+          byId: {
+            '10': { id: '10', role: 'anchor-initiator', online: true },
+            ...(responderRate === undefined
+              ? {}
+              : {
+                  '11': { id: '11', role: 'anchor-responder', online: true },
+                }),
+          },
+          order: responderRate === undefined ? ['10'] : ['10', '11'],
+        },
+        anchors: [],
+        stats: {
+          byId: {
+            '10': {
+              id: '10',
+              powerState: 'operating',
+              uwbStatus: 1,
+              rangingRateHz: 50,
+            },
+            ...(responderRate === undefined
+              ? {}
+              : {
+                  '11': {
+                    id: '11',
+                    powerState: 'operating',
+                    uwbStatus: 1,
+                    rangingRateHz: responderRate,
+                  },
+                }),
+          },
+        },
+      },
+    }) as unknown as RootState;
+
+  test('a lone A0 is not "Anchors ready", whatever its own round rate', () => {
+    expect(getRtlsAnchorHealth(stateWith(undefined))).toBe(RtlsHealth.WARNING);
+  });
+
+  test('A0 is ready once a responder hears it', () => {
+    expect(getRtlsAnchorHealth(stateWith(9.8))).toBe(RtlsHealth.OK);
   });
 });

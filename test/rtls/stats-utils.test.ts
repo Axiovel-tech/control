@@ -356,3 +356,62 @@ describe('anchor health from the health stats', () => {
     );
   });
 });
+
+describe('stale telemetry and initiator evidence in health', () => {
+  test('an online tag whose stats stopped warns instead of reading green', () => {
+    expect(
+      getDeviceHealthForRole(
+        RtlsRole.TAG,
+        { id: '7', solveRateHz: 12, solvePct: 99, fixAgeMs: 50, stale: true },
+        { online: true }
+      )
+    ).toBe(RtlsHealth.WARNING);
+  });
+
+  test('an online anchor whose stats stopped warns, whatever they last said', () => {
+    expect(
+      getDeviceHealthForRole(
+        RtlsRole.ANCHOR_RESPONDER,
+        { id: '2', powerState: 'operating', rangingRateHz: 9, stale: true },
+        { online: true }
+      )
+    ).toBe(RtlsHealth.WARNING);
+  });
+
+  test('an operating initiator its responders do not hear warns', () => {
+    const a0 = {
+      id: '1',
+      powerState: 'operating' as const,
+      uwbStatus: 1,
+      rangingRateHz: 50,
+    };
+    for (const evidence of ['unheard', 'alone'] as const) {
+      expect(
+        getDeviceHealthForRole(
+          RtlsRole.ANCHOR_INITIATOR,
+          a0,
+          { online: true },
+          evidence
+        )
+      ).toBe(RtlsHealth.WARNING);
+    }
+    expect(
+      getDeviceHealthForRole(
+        RtlsRole.ANCHOR_INITIATOR,
+        a0,
+        { online: true },
+        'hearing'
+      )
+    ).toBe(RtlsHealth.OK);
+  });
+
+  test('operating without a measured rate is not ranging', () => {
+    expect(
+      getDeviceHealthForRole(
+        RtlsRole.ANCHOR_RESPONDER,
+        { id: '2', powerState: 'operating', uwbStatus: 1 },
+        { online: true }
+      )
+    ).toBe(RtlsHealth.WARNING);
+  });
+});

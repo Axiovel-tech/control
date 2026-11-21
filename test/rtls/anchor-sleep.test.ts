@@ -35,17 +35,32 @@ import reducer, {
   updateRtlsStats,
 } from '~/features/rtls/slice';
 import { type RtlsDeviceStats } from '~/features/rtls/types';
+import { type PromptResponse } from '~/features/prompt/types';
+import { type Message } from '~/flockwave/types';
 import messageHub from '~/message-hub';
 import { UAVAge } from '~/model/uav';
+import {
+  type AppDispatch,
+  type AppThunk,
+  type RootState,
+} from '~/store/reducers';
 
-const sendMessage = (
-  messageHub as unknown as {
-    sendMessage: jest.Mock<(...args: unknown[]) => Promise<unknown>>;
-  }
-).sendMessage;
-const confirm = showConfirmationDialog as unknown as jest.Mock<
-  (...args: unknown[]) => { type: string; response: unknown }
->;
+// eslint-disable-next-line @typescript-eslint/unbound-method -- a jest mock, never called through `this`
+const sendMessage = jest.mocked(messageHub.sendMessage);
+const confirm = jest.mocked(showConfirmationDialog);
+
+/** A server reply carrying the given body. */
+const reply = (body: { type: string } & Record<string, unknown>): Message => ({
+  '$fw.version': '1.0',
+  id: 'test-reply',
+  body,
+});
+
+/** The operator's answer to the confirmation dialog (a prompt thunk). */
+const answer =
+  (confirmed: boolean): AppThunk<Promise<PromptResponse>> =>
+  () =>
+    Promise.resolve({ confirmed });
 
 type FakeUav = { id: string; age?: UAVAge; errors: UAVErrorCode[] };
 
@@ -59,23 +74,22 @@ const createStore = (uavs: FakeUav[] = []) => {
     },
     reducers: {},
   });
-  // the prompt thunk is mocked as a plain action carrying its answer
-  const promptAnswer =
-    () =>
-    (next: (action: unknown) => unknown) =>
-    (action: unknown): unknown => {
-      const { response } = (action ?? {}) as { response?: unknown };
-      return response === undefined ? next(action) : Promise.resolve(response);
-    };
   return configureStore({
     reducer: { rtls: reducer, uavs: uavSlice.reducer },
-    middleware: (getDefault) => getDefault().prepend(promptAnswer),
   });
 };
 type Store = ReturnType<typeof createStore>;
 
-const dispatchThunk = async (store: Store, thunk: unknown): Promise<unknown> =>
-  (store.dispatch as unknown as (action: unknown) => Promise<unknown>)(thunk);
+/**
+ * Runs an app thunk against the test store, which carries only the slices
+ * the RTLS actions read; the real store's state has them all.
+ */
+const dispatchThunk = <R>(store: Store, thunk: AppThunk<R>) =>
+  thunk(
+    store.dispatch as AppDispatch,
+    () => store.getState() as RootState,
+    undefined
+  );
 
 const seedAnchors = (
   store: Store,
@@ -104,19 +118,14 @@ const seedAnchors = (
 };
 
 const acceptAll = (ids: string[], sleeping: boolean) =>
-  sendMessage.mockResolvedValueOnce({
-    body: {
+  sendMessage.mockResolvedValueOnce(
+    reply({
       type: 'X-RTLS-SLEEP',
       result: Object.fromEntries(
         ids.map((id) => [id, { accepted: true, sleeping }])
       ),
-    },
-  });
-
-const answer = (confirmed: boolean) => ({
-  type: 'test/prompt',
-  response: { confirmed },
-});
+    })
+  );
 
 describe('anchor sleep and wake', () => {
   beforeEach(() => {
@@ -265,41 +274,38 @@ describe('anchor sleep and wake', () => {
 
     expect(sendMessage).not.toHaveBeenCalled();
     expect(showNotification).toHaveBeenCalledWith(
-      'No resting RTLS anchors to wake'
+      'rtlsDevice.bulk.noAnchorsToWake'
     );
   });
 });
 
 describe('SLEEP from the parameter dialog', () => {
-  test('refuses SLEEP 2 (off): only the button starts an anchor again', async () => {
+  test('is never written: sleep and wake go through the row buttons', async () => {
     const store = createStore();
-    await expect(
-      dispatchThunk(store, setRtlsDeviceParameter('101', 'SLEEP', 2, 'uint8'))
-    ).rejects.toThrow(/not a remote command/);
+    for (const value of [0, 1, 2, 3]) {
+      await expect(
+        dispatchThunk(
+          store,
+          setRtlsDeviceParameter('101', 'SLEEP', value, 'uint8')
+        )
+      ).rejects.toThrow('rtlsParams.sleepReadOnly');
+    }
     expect(sendMessage).not.toHaveBeenCalled();
   });
 
-  test('refuses SLEEP 3 (plain standby): not a command the UI offers', async () => {
+  test('other parameters still go out', async () => {
     const store = createStore();
-    await expect(
-      dispatchThunk(store, setRtlsDeviceParameter('101', 'SLEEP', 3, 'uint8'))
-    ).rejects.toThrow(/SLEEP 3 \(standby\)/);
-    expect(sendMessage).not.toHaveBeenCalled();
-  });
-
-  test('passes sleep and wake writes through', async () => {
-    const store = createStore();
-    sendMessage.mockResolvedValueOnce({
-      body: {
+    sendMessage.mockResolvedValueOnce(
+      reply({
         type: 'X-RTLS-PARAM-SET',
-        name: 'SLEEP',
+        name: 'MOT_TILT_DEG',
         value: 1,
         accepted: true,
-      },
-    });
+      })
+    );
     await dispatchThunk(
       store,
-      setRtlsDeviceParameter('101', 'SLEEP', 1, 'uint8')
+      setRtlsDeviceParameter('101', 'MOT_TILT_DEG', 1, 'real32')
     );
     expect(sendMessage).toHaveBeenCalledTimes(1);
   });

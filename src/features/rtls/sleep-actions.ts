@@ -157,18 +157,16 @@ export const wakeRtlsDevice = (deviceId: string): AppThunk<Promise<void>> =>
  * here. Shows a snackbar note (and returns an empty list) when every
  * candidate is busy.
  */
+type BusyNotice = 'sleepTags' | 'wakeTags' | 'sleepAnchors' | 'wakeAnchors';
+
 const withoutPendingDevices = (
   ids: string[],
   pending: Record<string, boolean>,
-  verb: string,
-  noun = 'drone'
+  notice: BusyNotice
 ): string[] => {
   const result = ids.filter((id) => !pending[id]);
   if (result.length === 0 && ids.length > 0) {
-    showNotification(
-      `RTLS ${verb} skipped — a sleep/wake transaction is already in ` +
-        `flight for every ${noun}`
-    );
+    showNotification(i18n.t(`rtlsDevice.bulk.busy.${notice}`));
   }
 
   return result;
@@ -194,7 +192,7 @@ export const sleepAllRtlsDevices =
         .filter((device) => isKnownTag(device) && device.online)
         .map((device) => device.id),
       getRtlsSleepPendingMap(state),
-      'sleep'
+      'sleepTags'
     );
     await dispatch(setRtlsDevicesSleeping(ids, true));
   };
@@ -210,7 +208,7 @@ export const wakeAllRtlsDevices =
         .filter(isTagOrUnknownRtlsDevice)
         .map((device) => device.id),
       getRtlsSleepPendingMap(state),
-      'wake'
+      'wakeTags'
     );
     await dispatch(setRtlsDevicesSleeping(ids, false));
   };
@@ -262,8 +260,7 @@ export const sleepRtlsAnchors =
     const ids = withoutPendingDevices(
       deviceIds,
       getRtlsSleepPendingMap(state),
-      'sleep',
-      'anchor'
+      'sleepAnchors'
     );
     if (ids.length === 0) {
       return;
@@ -282,8 +279,7 @@ export const wakeRtlsAnchors =
     const ids = withoutPendingDevices(
       deviceIds,
       getRtlsSleepPendingMap(getState()),
-      'wake',
-      'anchor'
+      'wakeAnchors'
     );
     await dispatch(setRtlsDevicesSleeping(ids, false, ANCHOR_SLEEP_OPTIONS));
   };
@@ -308,7 +304,7 @@ export const sleepAllRtlsAnchors =
       })
       .map((device) => device.id);
     if (ids.length === 0) {
-      showNotification('No awake RTLS anchors to put to sleep');
+      showNotification(i18n.t('rtlsDevice.bulk.noAnchorsToSleep'));
       return;
     }
     await dispatch(sleepRtlsAnchors(ids));
@@ -331,7 +327,7 @@ export const wakeAllRtlsAnchors =
       })
       .map((device) => device.id);
     if (ids.length === 0) {
-      showNotification('No resting RTLS anchors to wake');
+      showNotification(i18n.t('rtlsDevice.bulk.noAnchorsToWake'));
       return;
     }
     await dispatch(wakeRtlsAnchors(ids));

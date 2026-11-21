@@ -232,3 +232,40 @@ describe('tag rows are unchanged', () => {
     expect(markup).not.toContain('rtls-anchor-state');
   });
 });
+
+describe('a device whose role has not arrived', () => {
+  test('offers no sleep or wake (it may be an anchor)', () => {
+    const markup = render({
+      device: { id: '9', online: true },
+      stats: undefined,
+    });
+    expect(markup).not.toContain('data-testid="rtls-device-sleep"');
+    expect(markup).not.toContain('data-testid="rtls-device-wake"');
+  });
+});
+
+describe('a lost tag', () => {
+  test('is greyed with when it was last heard', () => {
+    const markup = render({
+      device: {
+        id: '7',
+        online: false,
+        role: 'tag',
+        sleeping: false,
+        lastSeenAgeS: 42,
+      },
+      stats: { id: '7', solveRateHz: 10 },
+    });
+    expect(markup).toContain('opacity:0.55');
+    expect(markup).toContain('rtlsAnchor.lastSeen.seconds(count=42)');
+  });
+});
+
+describe('a responder that measures nothing', () => {
+  test('shows no A0 distance', () => {
+    const markup = render({
+      stats: { ...ranging, rangingRateHz: 0 },
+    });
+    expect(markup).not.toContain('14.10 m');
+  });
+});

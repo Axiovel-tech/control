@@ -231,7 +231,7 @@ describe('bulk sleep/wake', () => {
 
     expect(sendMessage).not.toHaveBeenCalled();
     expect(showNotification).toHaveBeenCalledWith(
-      expect.stringContaining('already in flight')
+      'rtlsDevice.bulk.busy.wakeTags'
     );
   });
 });

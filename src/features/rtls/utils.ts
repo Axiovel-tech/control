@@ -2,7 +2,7 @@ import { type Draft } from '@reduxjs/toolkit';
 
 import { type Collection } from '~/utils/collections';
 
-import { classifyRole, isAnchorRole } from './stats-utils';
+import { classifyRole, isAnchorRole, RtlsRole } from './stats-utils';
 import { type RtlsDevice } from './types';
 
 /** Whether a device is a tag, or a device whose role is not known yet. */
@@ -10,12 +10,14 @@ export const isTagOrUnknownRtlsDevice = (device: RtlsDevice): boolean =>
   !device.role || device.role === 'tag';
 
 /**
- * Whether a device offers sleep/wake: tags (or devices whose role is not
- * known yet) and anchors. A disabled device does not range, so there is
- * nothing to sleep.
+ * Whether a device offers sleep/wake: a known tag or an anchor. A device
+ * whose role has not arrived yet offers neither: it may be an anchor, which
+ * sleeps only through the anchor actions and their confirmation.
  */
-export const isSleepableRtlsDevice = (device: RtlsDevice): boolean =>
-  isTagOrUnknownRtlsDevice(device) || isAnchorRole(classifyRole(device.role));
+export const isSleepableRtlsDevice = (device: RtlsDevice): boolean => {
+  const role = classifyRole(device.role);
+  return role === RtlsRole.TAG || isAnchorRole(role);
+};
 
 /**
  * Updates the state of an RTLS device with the given ID in a device collection,

@@ -64,3 +64,33 @@ export function resolveImageSpecies(
     ? { species: '', locked: false, source: 'none' }
     : { species: inferred, locked: false, source: 'path' };
 }
+
+/** The server's answer about one image path. */
+export type ImageInspection = {
+  image: string;
+  /** The species its build receipt names (absent: no receipt). */
+  species?: RtlsImageSpecies;
+  /** Why the server refuses the image (missing file, bad or stale receipt). */
+  error?: string;
+};
+
+/**
+ * Whether an OTA may start: an image the server inspected successfully, a
+ * declared species, and one that matches the device.
+ */
+export const canStartOta = ({
+  image,
+  inspection,
+  mismatch,
+  species,
+}: {
+  image: string;
+  inspection: ImageInspection | undefined;
+  mismatch: boolean;
+  species: RtlsImageSpecies | '';
+}): boolean =>
+  image.length > 0 &&
+  inspection !== undefined &&
+  inspection.error === undefined &&
+  species !== '' &&
+  !mismatch;

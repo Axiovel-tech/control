@@ -4,6 +4,7 @@
  */
 
 import { errorToString } from '~/error-handling';
+import i18n from '~/i18n';
 import messageHub from '~/message-hub';
 import { type AppThunk } from '~/store/reducers';
 
@@ -39,19 +40,11 @@ export const fetchRtlsDeviceParameters =
   };
 
 /**
- * Anchor SLEEP states the UI never commands: off is left only with the
- * button, and plain standby is where an anchor on external power rests, not
- * something an operator puts it into. Sleep (1) and wake (0) are the remote
- * commands.
+ * Parameters the dialog shows but never writes: `SLEEP` goes through the
+ * row's Sleep/Wake buttons, which confirm (anchors), wait for the verified
+ * result and never send off (2) or plain standby (3).
  */
-const REFUSED_SLEEP_WRITES: Record<number, string> = {
-  2:
-    'SLEEP 2 (off) is not a remote command: only the button starts an ' +
-    'anchor from off. Use 1 to sleep with remote wake.',
-  3:
-    'SLEEP 3 (standby) is not a remote command: an anchor on external ' +
-    'power rests there by itself. Use 1 to sleep or 0 to wake.',
-};
+export const READ_ONLY_RTLS_PARAMS: ReadonlySet<string> = new Set(['SLEEP']);
 
 /**
  * Thunk that sets a single parameter on a device. The returned promise resolves
@@ -59,7 +52,7 @@ const REFUSED_SLEEP_WRITES: Record<number, string> = {
  * resolves normally with `accepted: false`; only transport errors reject).
  *
  * On an accepted set the cached parameter value is updated optimistically.
- * `SLEEP` 2 (off) and 3 (plain standby) are refused before sending.
+ * `SLEEP` is refused before sending (see {@link READ_ONLY_RTLS_PARAMS}).
  */
 export const setRtlsDeviceParameter =
   (
@@ -69,10 +62,8 @@ export const setRtlsDeviceParameter =
     paramType?: RtlsParamType
   ): AppThunk<Promise<RtlsParameterSetResult>> =>
   async (dispatch) => {
-    const refusal =
-      name === 'SLEEP' ? REFUSED_SLEEP_WRITES[Number(value)] : undefined;
-    if (refusal !== undefined) {
-      throw new Error(refusal);
+    if (READ_ONLY_RTLS_PARAMS.has(name)) {
+      throw new Error(i18n.t('rtlsParams.sleepReadOnly'));
     }
 
     const result = await setRtlsParameter(

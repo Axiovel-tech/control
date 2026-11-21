@@ -9,7 +9,9 @@ import { Status } from '~/components/semantics';
 import { type I18nText } from './geometry-utils';
 import {
   classifyRole,
+  type InitiatorEvidence,
   isAnchorResting,
+  isRangingByTelemetry,
   isUwbStartRefused,
   RtlsRole,
   wasPoweringDown,
@@ -100,41 +102,47 @@ export function formatInitiatorDistance(peer: RtlsTwrPeer | undefined): string {
     : `${distance} ±${Math.round(peer.madM * 100)} cm`;
 }
 
-/** Whether a device has dropped off the network (or only its last stats remain). */
-export const isDeviceLost = (
+/** Whether a device has dropped off the network (the server's `online`). */
+export const isDeviceLost = (device: RtlsDevice): boolean => !device.online;
+
+/** The cell of an anchor, from the configured site table (`undefined`: none). */
+const cellOf = (
   device: RtlsDevice,
-  stats: RtlsDeviceStats | undefined
-): boolean => !device.online || stats?.stale === true;
+  siteAnchors: readonly RtlsAnchor[]
+): string | undefined =>
+  siteAnchors.find((anchor) => String(anchor.systemId) === String(device.id))
+    ?.cell;
 
 /**
- * What the responders say about the initiator's ranging: an initiator's own
- * rate only counts its ranging rounds, which run on with every responder
- * asleep. A responder's rate counts valid A0 measurements, so it is the
- * evidence that A0 ranges with someone:
- * - `hearing`: an online responder reports a non-zero rate;
- * - `unheard`: responders are online but none reports one;
- * - `alone`: no responder is online.
+ * Grades every initiator's ranging from the responders of its own cell (see
+ * {@link InitiatorEvidence}), keyed by the initiator's id. Cells come from
+ * the site table; anchors it does not place share the "no cell" group.
  */
-export type InitiatorEvidence = 'hearing' | 'unheard' | 'alone';
-
-/** Grades the initiator's ranging from its responders' rates. */
-export function getInitiatorEvidence(
+export function getInitiatorEvidenceById(
   anchors: readonly RtlsDevice[],
-  statsById: Record<string, RtlsDeviceStats | undefined>
-): InitiatorEvidence {
-  const responders = anchors.filter(
-    (anchor) =>
-      classifyRole(anchor.role) === RtlsRole.ANCHOR_RESPONDER &&
-      !isDeviceLost(anchor, statsById[anchor.id])
-  );
-  if (responders.length === 0) {
-    return 'alone';
+  statsById: Record<string, RtlsDeviceStats | undefined>,
+  siteAnchors: readonly RtlsAnchor[]
+): Record<string, InitiatorEvidence> {
+  const result: Record<string, InitiatorEvidence> = {};
+  for (const initiator of anchors) {
+    if (classifyRole(initiator.role) !== RtlsRole.ANCHOR_INITIATOR) {
+      continue;
+    }
+    const cell = cellOf(initiator, siteAnchors);
+    const responders = anchors.filter(
+      (anchor) =>
+        classifyRole(anchor.role) === RtlsRole.ANCHOR_RESPONDER &&
+        anchor.online &&
+        cellOf(anchor, siteAnchors) === cell
+    );
+    const hearing = responders.some((anchor) => {
+      const stats = statsById[anchor.id];
+      return !stats?.stale && (stats?.rangingRateHz ?? 0) > 0;
+    });
+    result[initiator.id] =
+      responders.length === 0 ? 'alone' : hearing ? 'hearing' : 'unheard';
   }
-  return responders.some(
-    (anchor) => (statsById[anchor.id]?.rangingRateHz ?? 0) > 0
-  )
-    ? 'hearing'
-    : 'unheard';
+  return result;
 }
 
 const stateText = (key: string): I18nText => ({
@@ -174,10 +182,15 @@ export function describeAnchorState(
     return { status: Status.WAITING, text: stateText('switching') };
   }
 
-  if (isDeviceLost(device, stats)) {
+  if (isDeviceLost(device)) {
     return wasPoweringDown(stats)
       ? { status: Status.OFF, text: stateText('off') }
       : { status: Status.ERROR, text: stateText('offline') };
+  }
+
+  if (stats?.stale) {
+    // heartbeats continue but the stats stopped: the cached state is old
+    return { status: Status.WARNING, text: stateText('noTelemetry') };
   }
 
   switch (stats?.powerState) {
@@ -196,7 +209,7 @@ export function describeAnchorState(
     case 'shutdown':
       return { status: Status.OFF, text: stateText('stopping') };
     case 'operating':
-      if (!isRanging(stats) || initiatorEvidence === 'alone') {
+      if (!isRangingByTelemetry(stats) || initiatorEvidence === 'alone') {
         return { status: Status.WARNING, text: stateText('notRanging') };
       }
       return initiatorEvidence === 'unheard'
@@ -210,19 +223,18 @@ export function describeAnchorState(
   }
 }
 
-/** Whether an operating anchor actually ranges. */
-const isRanging = (stats: RtlsDeviceStats): boolean =>
-  !isUwbStartRefused(stats) &&
-  stats.uwbStatus !== RtlsUwbStatus.PENDING &&
-  stats.rangingRateHz !== 0;
-
-/** Whether the ranging figures (rate, A0 distance) describe live ranging. */
+/**
+ * Whether the ranging figures (rate, A0 distance) describe live ranging:
+ * online, with fresh stats, and not resting.
+ */
 export function showsRangingFigures(
   device: RtlsDevice,
   stats: RtlsDeviceStats | undefined
 ): boolean {
   return (
-    !isDeviceLost(device, stats) && !isAnchorResting(stats, device.sleeping)
+    !isDeviceLost(device) &&
+    !stats?.stale &&
+    !isAnchorResting(stats, device.sleeping)
   );
 }
 

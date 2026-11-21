@@ -916,6 +916,7 @@
       "asleep": "Asleep",
       "booting": "Booting",
       "fault": "Fault",
+      "noTelemetry": "Telemetry unavailable",
       "notRanging": "Not ranging",
       "off": "Off",
       "offline": "Offline",
@@ -951,7 +952,26 @@
   },
   "rtlsDevice": {
     "action": {
-      "forget": "Forget this offline device (it is listed again if it comes back)"
+      "forget": "Forget this offline device (it is listed again if it comes back)",
+      "sleepAllTags": "Sleep all drones",
+      "wakeAllTags": "Wake all drones"
+    },
+    "bulk": {
+      "busy": {
+        "sleepAnchors": "RTLS sleep skipped: a sleep/wake transaction is already in flight for every anchor",
+        "sleepTags": "RTLS sleep skipped: a sleep/wake transaction is already in flight for every drone",
+        "wakeAnchors": "RTLS wake skipped: a sleep/wake transaction is already in flight for every anchor",
+        "wakeTags": "RTLS wake skipped: a sleep/wake transaction is already in flight for every drone"
+      },
+      "noAnchorsToSleep": "No awake RTLS anchors to put to sleep",
+      "noAnchorsToWake": "No resting RTLS anchors to wake"
+    },
+    "forget": {
+      "done_one": "RTLS device {{id}} forgotten",
+      "done_other": "{{count}} RTLS devices forgotten",
+      "failed": "RTLS forget failed: {{reason}}",
+      "noDetail": "refused",
+      "refused": "RTLS forget refused: {{detail}}"
     }
   },
   "rtlsFleetHealth": {
@@ -1084,6 +1104,7 @@
     }
   },
   "rtlsOta": {
+    "inspecting": "Checking the image with the server…",
     "species": {
       "anchor": "Anchor",
       "fromPath": "Suggested by the image path; the server checks the device's role",
@@ -1094,6 +1115,9 @@
       "mismatch": "This is a {{image}} image but the device is a {{device}}: the device would not rejoin WiFi",
       "tag": "Tag"
     }
+  },
+  "rtlsParams": {
+    "sleepReadOnly": "Use the Sleep and Wake buttons on the device row: they confirm, wait for the result and never switch an anchor off"
   },
   "rtlsTagDetails": {
     "collapseAll": "Collapse all",

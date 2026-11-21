@@ -25,11 +25,7 @@ import { useDispatch, useSelector } from 'react-redux';
 
 import { BackgroundHint, StatusPill, Tooltip } from '@skybrush/mui-components';
 
-import {
-  getAnchorSlot,
-  getInitiatorEvidence,
-  getInitiatorMacs,
-} from '~/features/rtls/anchor-utils';
+import { getAnchorSlot, getInitiatorMacs } from '~/features/rtls/anchor-utils';
 import {
   anchorNamesForCell,
   nameCellAnchors,
@@ -44,7 +40,6 @@ import {
   geometryPillFor,
 } from '~/features/rtls/geometry-utils';
 import OverallRtlsStatusLight from '~/features/rtls/OverallRtlsStatusLight';
-import { classifyRole, RtlsRole } from '~/features/rtls/stats-utils';
 import {
   getRtlsAnchorDevices,
   getRtlsAnchors,
@@ -53,6 +48,7 @@ import {
   getRtlsPairedUavStatuses,
   getRtlsSleepPendingMap,
   getRtlsStatsById,
+  getRtlsInitiatorEvidence,
   getRtlsStatsLastUpdatedAt,
   getRtlsTagDevices,
   isRtlsGeometryBusy,
@@ -77,6 +73,20 @@ import type { AppDispatch } from '~/store/reducers';
 
 import DeviceStatsRow, { type DeviceRowHandlers } from './DeviceStatsRow';
 import FleetHealthSummary from './FleetHealthSummary';
+
+/** The toolbar's Sleep all / Wake all pair, per panel. */
+const TAG_BULK_ACTIONS = {
+  sleep: sleepAllRtlsDevices,
+  wake: wakeAllRtlsDevices,
+  sleepLabel: 'rtlsDevice.action.sleepAllTags',
+  wakeLabel: 'rtlsDevice.action.wakeAllTags',
+};
+const ANCHOR_BULK_ACTIONS = {
+  sleep: sleepAllRtlsAnchors,
+  wake: wakeAllRtlsAnchors,
+  sleepLabel: 'rtlsAnchor.action.sleepAll',
+  wakeLabel: 'rtlsAnchor.action.wakeAll',
+};
 
 /** How often the tags panel silently re-runs the geometry check. */
 const GEOMETRY_RECHECK_MS = 10_000;
@@ -111,10 +121,8 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
     () => getInitiatorMacs(siteAnchors),
     [siteAnchors]
   );
-  const initiatorEvidence = useMemo(
-    () => (tags ? undefined : getInitiatorEvidence(devices, statsById)),
-    [tags, devices, statsById]
-  );
+  const initiatorEvidence = useSelector(getRtlsInitiatorEvidence);
+  const bulk = tags ? TAG_BULK_ACTIONS : ANCHOR_BULK_ACTIONS;
   // The tags fit the cell themselves at boot; the panel only asks the
   // server whether the fleet agrees. A cheap, read-only check, so it runs
   // whenever the slice voids a verdict (the tag set changed, a tag
@@ -281,48 +289,24 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
                 : 'no updates yet'}
             </Typography>
           )}
-          {tags && (
-            <>
-              <Tooltip content='Sleep all drones'>
-                <IconButton
-                  size='small'
-                  onClick={() => void dispatch(sleepAllRtlsDevices())}
-                >
-                  <Moon fontSize='small' />
-                </IconButton>
-              </Tooltip>
-              <Tooltip content='Wake all drones'>
-                <IconButton
-                  size='small'
-                  onClick={() => void dispatch(wakeAllRtlsDevices())}
-                >
-                  <Bolt fontSize='small' />
-                </IconButton>
-              </Tooltip>
-            </>
-          )}
-          {!tags && (
-            <>
-              <Tooltip content={t('rtlsAnchor.action.sleepAll')}>
-                <IconButton
-                  data-testid='rtls-anchors-panel.sleep-all'
-                  size='small'
-                  onClick={() => void dispatch(sleepAllRtlsAnchors())}
-                >
-                  <Moon fontSize='small' />
-                </IconButton>
-              </Tooltip>
-              <Tooltip content={t('rtlsAnchor.action.wakeAll')}>
-                <IconButton
-                  data-testid='rtls-anchors-panel.wake-all'
-                  size='small'
-                  onClick={() => void dispatch(wakeAllRtlsAnchors())}
-                >
-                  <Bolt fontSize='small' />
-                </IconButton>
-              </Tooltip>
-            </>
-          )}
+          <Tooltip content={t(bulk.sleepLabel)}>
+            <IconButton
+              data-testid={`rtls-${variant}-panel.sleep-all`}
+              size='small'
+              onClick={() => void dispatch(bulk.sleep())}
+            >
+              <Moon fontSize='small' />
+            </IconButton>
+          </Tooltip>
+          <Tooltip content={t(bulk.wakeLabel)}>
+            <IconButton
+              data-testid={`rtls-${variant}-panel.wake-all`}
+              size='small'
+              onClick={() => void dispatch(bulk.wake())}
+            >
+              <Bolt fontSize='small' />
+            </IconButton>
+          </Tooltip>
         </Box>
       </Box>
       <Divider />
@@ -359,11 +343,7 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
                     tags ? undefined : getAnchorSlot(device, siteAnchors)
                   }
                   initiatorMacs={tags ? undefined : initiatorMacs}
-                  initiatorEvidence={
-                    classifyRole(device.role) === RtlsRole.ANCHOR_INITIATOR
-                      ? initiatorEvidence
-                      : undefined
-                  }
+                  initiatorEvidence={initiatorEvidence[device.id]}
                   busy={Boolean(sleepPending?.[device.id])}
                   device={device}
                   expanded={expanded.has(device.id)}

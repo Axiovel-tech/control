@@ -9,11 +9,12 @@ import {
   findInitiatorPeer,
   formatInitiatorDistance,
   getAnchorSlot,
-  getInitiatorEvidence,
+  getInitiatorEvidenceById,
   getInitiatorMacs,
   showsRangingFigures,
 } from '~/features/rtls/anchor-utils';
 import {
+  canStartOta,
   getDeviceSpecies,
   inferImageSpecies,
   resolveImageSpecies,
@@ -167,8 +168,8 @@ describe('describeAnchorState', () => {
       'off',
     ]);
     expect(chip({}, { powerState: 'operating', stale: true })).toEqual([
-      Status.ERROR,
-      'offline',
+      Status.WARNING,
+      'noTelemetry',
     ]);
   });
 
@@ -307,15 +308,17 @@ describe('initiator ranging evidence', () => {
   const responder = (id: string, extra: Partial<RtlsDevice> = {}) =>
     device({ id, ...extra });
   const operating = stats({ powerState: 'operating', rangingRateHz: 50 });
+  const evidenceOf = (
+    anchors: RtlsDevice[],
+    statsById: Record<string, RtlsDeviceStats>,
+    site: RtlsAnchor[] = []
+  ) => getInitiatorEvidenceById(anchors, statsById, site)['101'];
 
   test('A0 ranges when an online responder hears it', () => {
-    const evidence = getInitiatorEvidence(
-      [a0, responder('102'), responder('103')],
-      {
-        '102': stats({ powerState: 'asleep', rangingRateHz: 0 }),
-        '103': stats({ powerState: 'operating', rangingRateHz: 9.8 }),
-      }
-    );
+    const evidence = evidenceOf([a0, responder('102'), responder('103')], {
+      '102': stats({ powerState: 'asleep', rangingRateHz: 0 }),
+      '103': stats({ powerState: 'operating', rangingRateHz: 9.8 }),
+    });
     expect(evidence).toBe('hearing');
     expect(describeAnchorState(a0, operating, false, evidence)).toEqual({
       status: Status.SUCCESS,
@@ -324,13 +327,10 @@ describe('initiator ranging evidence', () => {
   });
 
   test('every responder asleep: A0 is not heard, whatever its own rate', () => {
-    const evidence = getInitiatorEvidence(
-      [a0, responder('102'), responder('103')],
-      {
-        '102': stats({ powerState: 'asleep' }),
-        '103': stats({ powerState: 'asleep', rangingRateHz: 0 }),
-      }
-    );
+    const evidence = evidenceOf([a0, responder('102'), responder('103')], {
+      '102': stats({ powerState: 'asleep' }),
+      '103': stats({ powerState: 'asleep', rangingRateHz: 0 }),
+    });
     expect(evidence).toBe('unheard');
     expect(describeAnchorState(a0, operating, false, evidence)).toEqual({
       status: Status.WARNING,
@@ -339,12 +339,11 @@ describe('initiator ranging evidence', () => {
   });
 
   test('A0 alone (responders lost or absent) is not ranging', () => {
-    const evidence = getInitiatorEvidence(
-      [a0, responder('102', { online: false })],
-      { '102': stats({ powerState: 'operating', rangingRateHz: 9 }) }
-    );
+    const evidence = evidenceOf([a0, responder('102', { online: false })], {
+      '102': stats({ powerState: 'operating', rangingRateHz: 9 }),
+    });
     expect(evidence).toBe('alone');
-    expect(getInitiatorEvidence([a0], {})).toBe('alone');
+    expect(evidenceOf([a0], {})).toBe('alone');
     expect(describeAnchorState(a0, operating, false, evidence).text.key).toBe(
       'rtlsAnchor.state.notRanging'
     );
@@ -352,9 +351,87 @@ describe('initiator ranging evidence', () => {
 
   test('a stale responder snapshot is no evidence', () => {
     expect(
-      getInitiatorEvidence([a0, responder('102')], {
+      evidenceOf([a0, responder('102')], {
         '102': stats({ rangingRateHz: 9, stale: true }),
       })
-    ).toBe('alone');
+    ).toBe('unheard');
+  });
+
+  test("only responders of A0's own cell count", () => {
+    const otherA0 = device({ id: '201', role: 'anchor-initiator' });
+    const site: RtlsAnchor[] = [
+      { id: 'rtls::north::anchor_0', cell: 'north', index: 0, systemId: 101 },
+      { id: 'rtls::north::anchor_1', cell: 'north', index: 1, systemId: 102 },
+      { id: 'rtls::south::anchor_0', cell: 'south', index: 0, systemId: 201 },
+      { id: 'rtls::south::anchor_1', cell: 'south', index: 1, systemId: 202 },
+    ];
+    const verdicts = getInitiatorEvidenceById(
+      [a0, responder('102'), otherA0, responder('202')],
+      {
+        '102': stats({ rangingRateHz: 0 }),
+        '202': stats({ rangingRateHz: 9 }),
+      },
+      site
+    );
+    expect(verdicts).toEqual({ '101': 'unheard', '201': 'hearing' });
+  });
+
+  test('"Ranging" needs a positive measured rate', () => {
+    expect(
+      describeAnchorState(
+        a0,
+        stats({ powerState: 'operating', uwbStatus: 1 }),
+        false,
+        'hearing'
+      ).text.key
+    ).toBe('rtlsAnchor.state.notRanging');
+  });
+});
+
+describe('stale telemetry', () => {
+  test('an online anchor whose stats stopped reads "Telemetry unavailable", not "Offline"', () => {
+    expect(
+      describeAnchorState(
+        device(),
+        stats({ powerState: 'operating', rangingRateHz: 9, stale: true })
+      )
+    ).toEqual({
+      status: Status.WARNING,
+      text: { key: 'rtlsAnchor.state.noTelemetry' },
+    });
+    expect(
+      showsRangingFigures(
+        device(),
+        stats({ powerState: 'operating', stale: true })
+      )
+    ).toBe(false);
+  });
+});
+
+describe('OTA start', () => {
+  const base = {
+    image: 'fw/zephyr.signed.bin',
+    mismatch: false,
+    species: 'tag' as const,
+  };
+
+  test('needs a successful inspection of the current path', () => {
+    expect(canStartOta({ ...base, inspection: undefined })).toBe(false);
+    expect(
+      canStartOta({
+        ...base,
+        inspection: { image: base.image, error: 'No such image file' },
+      })
+    ).toBe(false);
+    // no receipt: the operator's species goes out as declared
+    expect(canStartOta({ ...base, inspection: { image: base.image } })).toBe(
+      true
+    );
+  });
+
+  test('needs a declared species that matches the device', () => {
+    const inspection = { image: base.image };
+    expect(canStartOta({ ...base, inspection, species: '' })).toBe(false);
+    expect(canStartOta({ ...base, inspection, mismatch: true })).toBe(false);
   });
 });

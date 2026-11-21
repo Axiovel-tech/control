@@ -7,6 +7,7 @@
 
 import { errorToString } from '~/error-handling';
 import { showError, showNotification } from '~/features/snackbar/actions';
+import i18n from '~/i18n';
 import messageHub from '~/message-hub';
 import { type AppThunk } from '~/store/reducers';
 
@@ -27,18 +28,26 @@ export const forgetRtlsDevices =
       );
       if (refused.length === 0) {
         showNotification(
-          deviceIds.length === 1
-            ? `RTLS device ${deviceIds[0]} forgotten`
-            : `${deviceIds.length} RTLS devices forgotten`
+          i18n.t('rtlsDevice.forget.done', {
+            count: deviceIds.length,
+            id: deviceIds[0],
+          })
         );
       } else {
         showError(
-          `RTLS forget refused — ${refused
-            .map(([id, entry]) => `${id}: ${entry.detail ?? 'refused'}`)
-            .join('; ')}`
+          i18n.t('rtlsDevice.forget.refused', {
+            detail: refused
+              .map(
+                ([id, entry]) =>
+                  `${id}: ${entry.detail ?? i18n.t('rtlsDevice.forget.noDetail')}`
+              )
+              .join('; '),
+          })
         );
       }
     } catch (error) {
-      showError(`RTLS forget failed: ${errorToString(error)}`);
+      showError(
+        i18n.t('rtlsDevice.forget.failed', { reason: errorToString(error) })
+      );
     }
   };
