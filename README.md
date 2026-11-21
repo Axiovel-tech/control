@@ -1,10 +1,9 @@
 # Axio Control
 
-> **Axiovel status:** this fork is the current production Control GUI App for
-> Axiovel indoor drone-light-show operations. It loads and assigns `.skyc`
-> shows and sends per-UAV `__show_upload` commands to the production Axio
-> Server. AV-Desktop is maintained separately as an experimental successor
-> candidate.
+> **Axiovel:** this fork is Axiovel's production ground control GUI for
+> indoor drone-light shows. It loads `.gdm` and `.skyc` shows and uploads them
+> per drone through Axio Server. Fork-specific notes for developers and agents
+> are in [AXIOVEL.md](AXIOVEL.md).
 
 Axio Control is Axiovel's production ground control station for drone light
 shows — the desktop and web frontend for the Axio Server.
