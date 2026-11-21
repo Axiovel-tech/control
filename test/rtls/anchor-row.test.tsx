@@ -125,7 +125,7 @@ describe('a lost anchor', () => {
   const lost: RtlsDevice = {
     ...responder,
     online: false,
-    lastSeenAgeS: 125,
+    age: 125,
   };
   const markup = render({ device: lost, stats: { ...ranging, stale: true } });
 
@@ -252,7 +252,7 @@ describe('a lost tag', () => {
         online: false,
         role: 'tag',
         sleeping: false,
-        lastSeenAgeS: 42,
+        age: 42,
       },
       stats: { id: '7', solveRateHz: 10 },
     });

@@ -102,21 +102,10 @@ describe('anchor health fields', () => {
 });
 
 describe('lost devices and TWR summaries in X-RTLS-INF', () => {
-  test('keeps a lost device with its last-seen age', () => {
-    const device = mapRtlsDeviceStatus('101', {
-      online: false,
-      lastSeenAgeS: 42.5,
-      age: 42.5,
-    });
+  test('keeps a lost device with its age since last heard', () => {
+    const device = mapRtlsDeviceStatus('101', { online: false, age: 42.5 });
     expect(device.online).toBe(false);
-    expect(device.lastSeenAgeS).toBe(42.5);
-  });
-
-  test('clears the last-seen age when the device comes back', () => {
-    expect(mapRtlsDeviceStatus('101', { online: true })).toHaveProperty(
-      'lastSeenAgeS',
-      undefined
-    );
+    expect(device.age).toBe(42.5);
   });
 
   test('maps the spread and count of a TWR summary', () => {

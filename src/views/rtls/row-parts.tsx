@@ -107,7 +107,7 @@ export const ShowMoreButton = ({
 /** When a lost device was last heard, beside its name. */
 export const LastSeen = ({ device }: { device: RtlsDevice }) => {
   const { t } = useTranslation();
-  const { key, values } = describeLastSeen(device.lastSeenAgeS ?? device.age);
+  const { key, values } = describeLastSeen(device.age);
   return (
     <Typography
       data-testid='rtls-device-last-seen'

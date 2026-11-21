@@ -19,6 +19,7 @@
 import { errorToString } from '~/error-handling';
 import { showConfirmationDialog } from '~/features/prompt/actions';
 import { showError, showNotification } from '~/features/snackbar/actions';
+import { MessageSemantics } from '~/features/snackbar/types';
 import i18n from '~/i18n';
 import messageHub from '~/message-hub';
 import { type AppDispatch, type AppThunk } from '~/store/reducers';
@@ -108,7 +109,21 @@ export const setRtlsDevicesSleeping =
       const failures = Object.entries(result).filter(
         ([, entry]) => !entry?.accepted
       );
-      if (failures.length === 0) {
+      // accepted but not verified (firmware without the power state): the
+      // server says why; that is not "ok"
+      const unverified = Object.entries(result).filter(
+        ([, entry]) => entry?.accepted && typeof entry.sleeping !== 'boolean'
+      );
+      if (failures.length === 0 && unverified.length > 0) {
+        showNotification({
+          message: i18n.t('rtlsDevice.bulk.unverified', {
+            detail: unverified
+              .map(([id, entry]) => `${id}: ${entry?.detail ?? '—'}`)
+              .join('; '),
+          }),
+          semantics: MessageSemantics.WARNING,
+        });
+      } else if (failures.length === 0) {
         showNotification(
           deviceIds.length === 1
             ? `RTLS device ${deviceIds[0]}: ${verb} ok`
@@ -130,8 +145,9 @@ export const setRtlsDevicesSleeping =
     // after acking the wake, so an immediate poll only returns the stale
     // pre-reboot STANDBY latch and would overwrite the authoritative
     // `sleeping: false` applied above; the periodic INF refresh catches up
-    // once the device is back on the network. An anchor reboots on both
-    // transitions, so it is never re-polled.
+    // once the device is back on the network. An anchor is never re-polled:
+    // waking reboots it, and the server pins the result it verified (a
+    // standby anchor goes to sleep in place, without a reboot).
     if (sleeping && refreshAfterSleep) {
       await refreshRtlsDevices(dispatch);
     }

@@ -7,8 +7,14 @@ import {
   getRtlsPairedUavStatuses,
   getRtlsTagHealth,
 } from '~/features/rtls/selectors';
+import {
+  setRtlsDevicesFromStatus,
+  updateRtlsStats,
+} from '~/features/rtls/slice';
 import { RtlsHealth } from '~/features/rtls/stats-utils';
 import { type RootState } from '~/store/reducers';
+
+import { createRtlsTestStore, rootStateOf } from './rtls-test-store';
 
 /**
  * Builds the minimal slice of the app state the pairing selectors read: the
@@ -138,43 +144,40 @@ describe('role-scoped RTLS health', () => {
 });
 
 describe('one initiator verdict for every light', () => {
-  const stateWith = (responderRate: number | undefined): RootState =>
-    ({
-      rtls: {
-        devices: {
-          byId: {
-            '10': { id: '10', role: 'anchor-initiator', online: true },
-            ...(responderRate === undefined
-              ? {}
-              : {
-                  '11': { id: '11', role: 'anchor-responder', online: true },
-                }),
+  const stateWith = (responderRate: number | undefined): RootState => {
+    const store = createRtlsTestStore();
+    store.dispatch(
+      setRtlsDevicesFromStatus({
+        '10': { online: true, role: 'anchor-initiator' },
+        ...(responderRate === undefined
+          ? {}
+          : { '11': { online: true, role: 'anchor-responder' } }),
+      })
+    );
+    store.dispatch(
+      updateRtlsStats({
+        byId: {
+          '10': {
+            id: '10',
+            powerState: 'operating',
+            uwbStatus: 1,
+            rangingRateHz: 50,
           },
-          order: responderRate === undefined ? ['10'] : ['10', '11'],
+          ...(responderRate === undefined
+            ? {}
+            : {
+                '11': {
+                  id: '11',
+                  powerState: 'operating',
+                  uwbStatus: 1,
+                  rangingRateHz: responderRate,
+                },
+              }),
         },
-        anchors: [],
-        stats: {
-          byId: {
-            '10': {
-              id: '10',
-              powerState: 'operating',
-              uwbStatus: 1,
-              rangingRateHz: 50,
-            },
-            ...(responderRate === undefined
-              ? {}
-              : {
-                  '11': {
-                    id: '11',
-                    powerState: 'operating',
-                    uwbStatus: 1,
-                    rangingRateHz: responderRate,
-                  },
-                }),
-          },
-        },
-      },
-    }) as unknown as RootState;
+      })
+    );
+    return rootStateOf(store);
+  };
 
   test('a lone A0 is not "Anchors ready", whatever its own round rate', () => {
     expect(getRtlsAnchorHealth(stateWith(undefined))).toBe(RtlsHealth.WARNING);

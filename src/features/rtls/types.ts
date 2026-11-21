@@ -84,12 +84,6 @@ export type RtlsDevice = {
   /** Seconds since the device was last heard from, if known. */
   age?: number;
 
-  /**
-   * Seconds since a lost device (`online: false`) was last heard from. The
-   * server keeps lost devices listed until the operator forgets them.
-   */
-  lastSeenAgeS?: number;
-
   /** Firmware version string reported by the device. */
   firmwareVersion?: string;
 

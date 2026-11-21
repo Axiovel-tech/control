@@ -964,7 +964,8 @@
         "wakeTags": "RTLS wake skipped: a sleep/wake transaction is already in flight for every drone"
       },
       "noAnchorsToSleep": "No awake RTLS anchors to put to sleep",
-      "noAnchorsToWake": "No resting RTLS anchors to wake"
+      "noAnchorsToWake": "No resting RTLS anchors to wake",
+      "unverified": "RTLS command accepted but not verified: {{detail}}"
     },
     "forget": {
       "done_one": "RTLS device {{id}} forgotten",
