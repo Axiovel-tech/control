@@ -222,11 +222,18 @@ const EXACT: Record<string, RtlsParamMetadata> = {
     description:
       'Sleep request/state. Tags: 1 sleeps (power rails down, management ' +
       'link up), 0 wakes. Anchors: 0 awake, 1 asleep (UWB off, network up, ' +
-      'wakes remotely), 2 off (button start only; never written from here). ' +
-      'Every anchor transition reboots it (8-15 s)',
-    enumLabels: { 0: 'awake', 1: 'asleep', 2: 'off (anchors)' },
+      'runs on its pack if unplugged, wakes remotely), 2 off (button start ' +
+      'only), 3 plain standby (external power, not ranging; unplugging ' +
+      'powers it off). Only 0 and 1 are written from here; the anchor ' +
+      "state shown on its row comes from the anchor's power state",
+    enumLabels: {
+      0: 'awake',
+      1: 'asleep',
+      2: 'off (anchors)',
+      3: 'standby (anchors)',
+    },
     min: 0,
-    max: 2,
+    max: 3,
     defaultValue: 0,
   },
 

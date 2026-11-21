@@ -75,7 +75,9 @@ describe('anchor parameter hints', () => {
       0: 'awake',
       1: 'asleep',
       2: 'off (anchors)',
+      3: 'standby (anchors)',
     });
+    expect(getRtlsParamMetadata('SLEEP')?.max).toBe(3);
     expect(getRtlsParamMetadata('BAT_PROFILE')?.enumLabels?.[0]).toBe('none');
     expect(getRtlsParamMetadata('BAT_NTC')?.max).toBe(1);
     expect(getRtlsParamMetadata('MOT_TILT_DEG')).toMatchObject({

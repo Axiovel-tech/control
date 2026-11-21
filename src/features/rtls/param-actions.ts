@@ -39,12 +39,27 @@ export const fetchRtlsDeviceParameters =
   };
 
 /**
+ * Anchor SLEEP states the UI never commands: off is left only with the
+ * button, and plain standby is where an anchor on external power rests, not
+ * something an operator puts it into. Sleep (1) and wake (0) are the remote
+ * commands.
+ */
+const REFUSED_SLEEP_WRITES: Record<number, string> = {
+  2:
+    'SLEEP 2 (off) is not a remote command: only the button starts an ' +
+    'anchor from off. Use 1 to sleep with remote wake.',
+  3:
+    'SLEEP 3 (standby) is not a remote command: an anchor on external ' +
+    'power rests there by itself. Use 1 to sleep or 0 to wake.',
+};
+
+/**
  * Thunk that sets a single parameter on a device. The returned promise resolves
  * to the server's set result, including the `accepted` flag (a rejected value
  * resolves normally with `accepted: false`; only transport errors reject).
  *
  * On an accepted set the cached parameter value is updated optimistically.
- * `SLEEP` 2 (an anchor off, button start only) is refused before sending.
+ * `SLEEP` 2 (off) and 3 (plain standby) are refused before sending.
  */
 export const setRtlsDeviceParameter =
   (
@@ -54,12 +69,10 @@ export const setRtlsDeviceParameter =
     paramType?: RtlsParamType
   ): AppThunk<Promise<RtlsParameterSetResult>> =>
   async (dispatch) => {
-    if (name === 'SLEEP' && Number(value) === 2) {
-      // off is not a remote command: only the button starts an anchor again
-      throw new Error(
-        'SLEEP 2 (off) is not a remote command: only the button starts ' +
-          'an anchor from off. Use 1 to sleep with remote wake.'
-      );
+    const refusal =
+      name === 'SLEEP' ? REFUSED_SLEEP_WRITES[Number(value)] : undefined;
+    if (refusal !== undefined) {
+      throw new Error(refusal);
     }
 
     const result = await setRtlsParameter(

@@ -278,4 +278,29 @@ describe('SLEEP from the parameter dialog', () => {
     ).rejects.toThrow(/not a remote command/);
     expect(sendMessage).not.toHaveBeenCalled();
   });
+
+  test('refuses SLEEP 3 (plain standby): not a command the UI offers', async () => {
+    const store = createStore();
+    await expect(
+      dispatchThunk(store, setRtlsDeviceParameter('101', 'SLEEP', 3, 'uint8'))
+    ).rejects.toThrow(/SLEEP 3 \(standby\)/);
+    expect(sendMessage).not.toHaveBeenCalled();
+  });
+
+  test('passes sleep and wake writes through', async () => {
+    const store = createStore();
+    sendMessage.mockResolvedValueOnce({
+      body: {
+        type: 'X-RTLS-PARAM-SET',
+        name: 'SLEEP',
+        value: 1,
+        accepted: true,
+      },
+    });
+    await dispatchThunk(
+      store,
+      setRtlsDeviceParameter('101', 'SLEEP', 1, 'uint8')
+    );
+    expect(sendMessage).toHaveBeenCalledTimes(1);
+  });
 });
