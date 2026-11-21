@@ -20,6 +20,7 @@ import { type RtlsDevice, type RtlsDeviceStats } from '~/features/rtls/types';
 import DeviceStatsRow, { getRowStatus } from '~/views/rtls/DeviceStatsRow';
 
 const handlers = {
+  onForget: jest.fn(),
   onShowOta: jest.fn(),
   onShowParameters: jest.fn(),
   onSleep: jest.fn(),
@@ -86,6 +87,7 @@ describe('anchor row header', () => {
   });
 
   test('offers sleep and wake on anchors too', () => {
+    expect(markup).not.toContain('data-testid="rtls-device-forget"');
     expect(markup).toContain('data-testid="rtls-device-sleep"');
     expect(markup).toContain('data-testid="rtls-device-wake"');
   });
@@ -135,6 +137,11 @@ describe('a lost anchor', () => {
   test('shows no live ranging figures', () => {
     expect(markup).not.toContain('9.8 Hz');
     expect(markup).not.toContain('14.10 m');
+  });
+
+  test('offers forget instead of sleep/wake', () => {
+    expect(markup).toContain('data-testid="rtls-device-forget"');
+    expect(markup).not.toContain('data-testid="rtls-device-sleep"');
   });
 
   test('is red', () => {

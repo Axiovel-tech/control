@@ -7,6 +7,7 @@
  * "health" view.
  */
 
+import DeleteOutline from '@mui/icons-material/DeleteOutline';
 import Moon from '@mui/icons-material/NightsStay';
 import SystemUpdate from '@mui/icons-material/SystemUpdate';
 import Tune from '@mui/icons-material/Tune';
@@ -287,6 +288,8 @@ const TAG_LEAD_WIDTH = 220;
 const ANCHOR_LEAD_WIDTH = 300;
 
 export type DeviceRowHandlers = {
+  /** Asks the server to forget an offline device. */
+  onForget?: (id: string) => void;
   onShowOta: (id: string) => void;
   onShowParameters: (id: string) => void;
   onSleep: (id: string) => void;
@@ -316,7 +319,21 @@ const RowActions = ({
        * list — deliberately NOT a toggle of the current `sleeping` flag, which
        * may have changed between paint and click and would then invert the
        * user's intent. */}
+      {!device.online && handlers.onForget && (
+        <Tooltip content={t('rtlsDevice.action.forget')}>
+          <IconButton
+            data-testid='rtls-device-forget'
+            size='small'
+            onClick={() => handlers.onForget?.(device.id)}
+          >
+            <DeleteOutline fontSize='small' />
+          </IconButton>
+        </Tooltip>
+      )}
+      {/* a lost anchor cannot be commanded; a tag keeps its buttons, since
+       * waking a drone that dropped off the list must stay possible */}
       {isSleepableRtlsDevice(device) &&
+        !(anchor && !device.online) &&
         (busy ? (
           <IconButton size='small' disabled>
             <CircularProgress size={18} color='inherit' />

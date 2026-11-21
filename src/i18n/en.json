@@ -935,6 +935,11 @@
       "wifi": "{{rssi}} · {{disconnects}} drops · {{txErrors}} TX errors"
     }
   },
+  "rtlsDevice": {
+    "action": {
+      "forget": "Forget this offline device (it is listed again if it comes back)"
+    }
+  },
   "rtlsFleetHealth": {
     "label": {
       "imuTemperature": "IMU temperature",

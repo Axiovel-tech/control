@@ -15,6 +15,7 @@ import {
   checkRtlsGeometryAgreement,
   getRtlsParameter,
   queryRtlsParameterList,
+  sendRtlsForget,
   sendRtlsSleep,
   setRtlsParameter,
   startRtlsOta,
@@ -279,5 +280,32 @@ describe('sendRtlsSleep', () => {
     await expect(sendRtlsSleep(hub, ['7'], false)).rejects.toThrow(
       /X-RTLS-SLEEP/
     );
+  });
+});
+
+describe('sendRtlsForget', () => {
+  test('sends numeric ids and reports each device', async () => {
+    const { hub, sent } = makeHub({
+      type: 'X-RTLS-FORGET',
+      result: {
+        '42': { forgotten: true },
+        '43': { forgotten: false, detail: 'Device 43 is online' },
+      },
+    });
+    const result = await sendRtlsForget(hub, ['42', '43', '44']);
+    expect(sent[0]).toEqual({ type: 'X-RTLS-FORGET', ids: [42, 43, 44] });
+    expect(result).toEqual({
+      '42': { forgotten: true, detail: undefined },
+      '43': { forgotten: false, detail: 'Device 43 is online' },
+      '44': {
+        forgotten: false,
+        detail: 'no response from server for this device',
+      },
+    });
+  });
+
+  test('a NAK (older server without forget) throws', async () => {
+    const { hub } = makeHub({ type: 'ACK-NAK', reason: 'no handler' });
+    await expect(sendRtlsForget(hub, ['42'])).rejects.toThrow(/no handler/);
   });
 });

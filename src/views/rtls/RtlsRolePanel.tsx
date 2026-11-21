@@ -30,6 +30,7 @@ import {
   anchorNamesForCell,
   nameCellAnchors,
 } from '~/features/rtls/fleet-health';
+import { forgetRtlsDevices } from '~/features/rtls/forget-actions';
 import {
   checkGeometryAgreement,
   recalibrateGeometry,
@@ -156,6 +157,7 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
   // stable identity so the memoized rows are not re-rendered by the parent
   const handlers: DeviceRowHandlers = useMemo(
     () => ({
+      onForget: (id) => void dispatch(forgetRtlsDevices([id])),
       onShowOta: (id) => dispatch(openRtlsOtaDialog(id)),
       onShowParameters: (id) => dispatch(openRtlsParamDialog(id)),
       onSleep: (id) =>
