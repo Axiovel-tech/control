@@ -175,16 +175,13 @@ export const wakeRtlsDevice = (deviceId: string): AppThunk<Promise<void>> =>
  * here. Shows a snackbar note (and returns an empty list) when every
  * candidate is busy.
  */
-type BusyNotice = 'sleepTags' | 'wakeTags' | 'sleepAnchors' | 'wakeAnchors';
-
 const withoutPendingDevices = (
   ids: string[],
-  pending: Record<string, boolean>,
-  notice: BusyNotice
+  pending: Record<string, boolean>
 ): string[] => {
   const result = ids.filter((id) => !pending[id]);
   if (result.length === 0 && ids.length > 0) {
-    showNotification(i18n.t(`rtlsDevice.bulk.busy.${notice}`));
+    showNotification(i18n.t('rtlsDevice.bulk.busy'));
   }
 
   return result;
@@ -209,8 +206,7 @@ export const sleepAllRtlsDevices =
       getRtlsDevicesInOrder(state)
         .filter((device) => isKnownTag(device) && device.online)
         .map((device) => device.id),
-      getRtlsSleepPendingMap(state),
-      'sleepTags'
+      getRtlsSleepPendingMap(state)
     );
     await dispatch(setRtlsDevicesSleeping(ids, true));
   };
@@ -230,8 +226,7 @@ export const wakeAllRtlsDevices =
             isTagOrUnknownRtlsDevice(device) && !lockedOut.has(device.id)
         )
         .map((device) => device.id),
-      getRtlsSleepPendingMap(state),
-      'wakeTags'
+      getRtlsSleepPendingMap(state)
     );
     await dispatch(setRtlsDevicesSleeping(ids, false));
   };
@@ -257,13 +252,7 @@ const confirmAnchorSleep = async (
             count: armedCount,
           })
         : i18n.t('rtlsAnchor.sleep.confirm.message'),
-      {
-        title: i18n.t(
-          armed
-            ? 'rtlsAnchor.sleep.confirm.armedTitle'
-            : 'rtlsAnchor.sleep.confirm.title'
-        ),
-      }
+      { title: i18n.t('rtlsAnchor.sleep.confirm.title') }
     )
   );
   return Boolean(response?.confirmed);
@@ -281,11 +270,7 @@ export const sleepRtlsAnchors =
     if (refuseWhileAnchorsLocked(state)) {
       return;
     }
-    const ids = withoutPendingDevices(
-      deviceIds,
-      getRtlsSleepPendingMap(state),
-      'sleepAnchors'
-    );
+    const ids = withoutPendingDevices(deviceIds, getRtlsSleepPendingMap(state));
     if (ids.length === 0) {
       return;
     }
@@ -309,8 +294,7 @@ export const wakeRtlsAnchors =
     }
     const ids = withoutPendingDevices(
       deviceIds,
-      getRtlsSleepPendingMap(getState()),
-      'wakeAnchors'
+      getRtlsSleepPendingMap(getState())
     );
     await dispatch(setRtlsDevicesSleeping(ids, false, ANCHOR_SLEEP_OPTIONS));
   };

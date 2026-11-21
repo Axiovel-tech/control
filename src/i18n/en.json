@@ -842,7 +842,7 @@
       "uwbRefused": "UWB start refused"
     },
     "badgeTooltip": {
-      "radioRestarts": "The firmware restarted the UWB radio after a fault or silence (count since boot)"
+      "radioRestarts": "Since boot, after a fault or silence"
     },
     "chargeBlock": {
       "charger": "charger not ready",
@@ -905,7 +905,6 @@
       "confirm": {
         "armedMessage_one": "{{count}} drone may be armed and will lose positioning. Sleep anyway?",
         "armedMessage_other": "{{count}} drones may be armed and will lose positioning. Sleep anyway?",
-        "armedTitle": "Drones may be armed",
         "message": "Drones lose positioning while anchors sleep.",
         "title": "Sleep anchors?"
       }
@@ -990,12 +989,7 @@
       "wakeAllTags": "Wake all drones"
     },
     "bulk": {
-      "busy": {
-        "sleepAnchors": "Already in progress for every anchor",
-        "sleepTags": "Already in progress for every drone",
-        "wakeAnchors": "Already in progress for every anchor",
-        "wakeTags": "Already in progress for every drone"
-      },
+      "busy": "Already in progress",
       "noAnchorsToSleep": "No awake anchors",
       "noAnchorsToWake": "No resting anchors",
       "unverified": "Accepted but not verified: {{- detail}}"
@@ -1143,7 +1137,7 @@
       "anchor": "Anchor",
       "fromPath": "From the image path",
       "fromReceipt": "From the build receipt",
-      "job": "{{- species}} image ({{- source}})",
+      "job": "{{- species}} image",
       "label": "Image built for",
       "mismatch": {
         "anchor": "Anchor image, but this device is a tag",
