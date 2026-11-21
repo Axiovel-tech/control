@@ -52,7 +52,7 @@ import reducer, {
 } from '~/features/rtls/slice';
 import { showConfirmationDialog } from '~/features/prompt/actions';
 import { showError } from '~/features/snackbar/actions';
-import UAVErrorCode from '~/flockwave/UAVErrorCode';
+import type UAVErrorCode from '~/flockwave/UAVErrorCode';
 import type MessageHub from '~/flockwave/messages';
 import messageHub from '~/message-hub';
 import { UAVAge } from '~/model/uav';
