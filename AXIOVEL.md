@@ -8,13 +8,14 @@ here.
 
 ## What the fork adds
 
-| Area                                                                            | Code                                    | Contract (AxioStack `contracts/`)                                      |
-| ------------------------------------------------------------------------------- | --------------------------------------- | ---------------------------------------------------------------------- |
-| RTLS tags and anchors panels, fleet health, anchor health and manual sleep/wake | `src/features/rtls/`, `src/views/rtls/` | `rtls-fleet-health.md`, `rtls-geometry-stats.md`, `rtls-client-api.md` |
-| `.gdm` shows: load, preview, upload gate                                        | `src/features/show/gdm/`                | `gdm-format.md`, `show-artifacts.md`                                   |
-| Show music on the server's player                                               | `src/features/show-audio/`              | `show-timing.md`                                                       |
-| ArduPilot flight-firmware update                                                | `src/features/firmware-update/`         | none; the server's `X-AP-OTA` handler is the other half                |
-| In-app E2E bridge                                                               | `src/e2e/` (see its README)             | `control-e2e-bridge.md`                                                |
+| Area                                                                                  | Code                                                                                                                  | Contract (AxioStack `contracts/`)                                      |
+| ------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| RTLS tags and anchors panels, fleet health, anchor health and manual sleep/wake       | `src/features/rtls/`, `src/views/rtls/`                                                                               | `rtls-fleet-health.md`, `rtls-geometry-stats.md`, `rtls-client-api.md` |
+| Anchor cell lock: lock/unlock, frozen anchor actions, broken-lock banner, show gating | `src/features/rtls/` (`anchor-lock.ts`, `lock-*.ts`, `slice-lock.ts`), `src/views/show-control/LockAnchorsButton.tsx` | `rtls-client-api.md` (`X-RTLS-LOCK`, `anchorLock`)                     |
+| `.gdm` shows: load, preview, upload gate                                              | `src/features/show/gdm/`                                                                                              | `gdm-format.md`, `show-artifacts.md`                                   |
+| Show music on the server's player                                                     | `src/features/show-audio/`                                                                                            | `show-timing.md`                                                       |
+| ArduPilot flight-firmware update                                                      | `src/features/firmware-update/`                                                                                       | none; the server's `X-AP-OTA` handler is the other half                |
+| In-app E2E bridge                                                                     | `src/e2e/` (see its README)                                                                                           | `control-e2e-bridge.md`                                                |
 
 ## Rules
 
@@ -28,6 +29,10 @@ here.
 - The ground only monitors devices and sends the operator's explicit commands;
   nothing in Control acts on a device by itself. Sleeping anchors always asks
   first, and `SLEEP` is never written from the parameter dialog.
+- The anchor lock lives in axio-server; Control shows it and sends the
+  operator's lock, unlock and re-seal. A broken lock raises the banner and the
+  bell; it never withholds or cancels a show. Whether a show start needs the
+  lock is the server's verdict (`anchorLock.showGate`).
 - Nothing in application code imports `src/e2e/`; the bridge is compiled in
   only with `AXIO_E2E=1`.
 
