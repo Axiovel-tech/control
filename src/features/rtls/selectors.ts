@@ -26,6 +26,7 @@ import {
   RtlsRole,
 } from './stats-utils';
 import { type RtlsAnchorLock, type RtlsShowGate } from './anchor-lock';
+import { type RtlsCellSettings } from './cell-settings';
 import {
   type RtlsAnchor,
   type RtlsDevice,
@@ -354,6 +355,15 @@ export const getPossiblyArmedUavIds: AppSelector<string[]> = createSelector(
 export const getRtlsAnchorLock: AppSelector<RtlsAnchorLock | undefined> = (
   state
 ) => state.rtls.anchorLock;
+
+/** Selector that returns the server's cell settings, if it reports them. */
+export const getRtlsCellSettings: AppSelector<RtlsCellSettings | undefined> = (
+  state
+) => state.rtls.cellSettings;
+
+/** Selector that returns whether the cell-settings dialog is open. */
+export const isRtlsCellDialogOpen: AppSelector<boolean> = (state) =>
+  state.rtls.cellDialogOpen;
 
 /** Selector that returns whether the lock dialog is open. */
 export const isRtlsLockDialogOpen: AppSelector<boolean> = (state) =>

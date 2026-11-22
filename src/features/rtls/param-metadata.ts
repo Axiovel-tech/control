@@ -55,7 +55,7 @@ const EXACT: Record<string, RtlsParamMetadata> = {
     unit: 'ms',
     min: 10,
     max: 1000,
-    defaultValue: 100,
+    defaultValue: 20,
   },
   UWB_SLOT_RSTU: {
     description: 'Ranging slot length',
@@ -68,7 +68,7 @@ const EXACT: Record<string, RtlsParamMetadata> = {
     description: 'Slots per ranging round',
     min: 3,
     max: 25,
-    defaultValue: 4,
+    defaultValue: 12,
   },
   UWB_ROUNDS: {
     description: 'Ranging rounds per block',

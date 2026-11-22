@@ -422,6 +422,17 @@
  * t("rtlsGeometry.summary.manualOnly")
  * t("rtlsGeometry.summary.consistent")
  *
+ * RTLS cell settings (features/rtls/CellSettingsIcon.tsx and
+ * RtlsCellSettingsDialog.tsx)
+ * t("rtlsCellSettings.state.differ")
+ * t("rtlsCellSettings.state.restart")
+ * t("rtlsCellSettings.state.tx")
+ * t("rtlsCellSettings.problem.differ")
+ * t("rtlsCellSettings.problem.offline")
+ * t("rtlsCellSettings.problem.restart")
+ * t("rtlsCellSettings.problem.tx")
+ * t("rtlsCellSettings.problem.unknown")
+ *
  * RTLS health lights
  * t("rtlsHealth.all.ok")
  * t("rtlsHealth.all.warning")

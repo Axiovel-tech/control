@@ -12,6 +12,7 @@ here.
 | ------------------------------------------------------------------------------- | ----------------------------------------------- | ---------------------------------------------------------------------- |
 | RTLS tags and anchors panels, fleet health, anchor health and manual sleep/wake | `src/features/rtls/`, `src/views/rtls/`         | `rtls-fleet-health.md`, `rtls-geometry-stats.md`, `rtls-client-api.md` |
 | Anchor lock: lock/unlock, frozen anchor actions, show step                      | `src/features/rtls/`, `src/views/show-control/` | `rtls-client-api.md` (`X-RTLS-LOCK`, `anchorLock`)                     |
+| Cell settings: ranging rate and anchor TX level for the whole cell              | `src/features/rtls/`                            | `rtls-client-api.md` (`X-RTLS-CELL`, `cellSettings`)                   |
 | `.gdm` shows: load, preview, upload gate                                        | `src/features/show/gdm/`                        | `gdm-format.md`, `show-artifacts.md`                                   |
 | Show music on the server's player                                               | `src/features/show-audio/`                      | `show-timing.md`                                                       |
 | ArduPilot flight-firmware update                                                | `src/features/firmware-update/`                 | none; the server's `X-AP-OTA` handler is the other half                |

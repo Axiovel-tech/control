@@ -976,6 +976,32 @@
       "message": "Unlock the anchors?"
     }
   },
+  "rtlsCellSettings": {
+    "applied": "Cell settings applied",
+    "apply": "Apply",
+    "custom": "Custom",
+    "dialog": {
+      "text": "Applies to every anchor and tag and restarts them."
+    },
+    "problem": {
+      "differ": "different settings",
+      "offline": "offline",
+      "restart": "restart needed",
+      "tx": "different TX level",
+      "unknown": "settings not reported"
+    },
+    "rate": "{{hz}} Hz",
+    "rateLabel": "Ranging rate",
+    "state": {
+      "differ": "Different cell settings",
+      "restart": "Restart needed",
+      "tx": "Different TX level"
+    },
+    "title": "Cell settings",
+    "txDefault": "{{level}} (default)",
+    "txLabel": "TX level",
+    "unlockFirst": "Unlock the anchors first"
+  },
   "rtlsDevice": {
     "action": {
       "forget": "Forget",
@@ -1132,6 +1158,7 @@
     }
   },
   "rtlsParams": {
+    "cellReadOnly": "Set in Cell settings",
     "lockReadOnly": "Use the panel's Lock and Unlock",
     "sleepReadOnly": "Use the row's Sleep and Wake buttons"
   },

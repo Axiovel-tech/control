@@ -12,8 +12,10 @@ import isNil from 'lodash-es/isNil';
 import { type AppDispatch } from '~/store/reducers';
 
 import { mapAnchorLock } from './anchor-lock';
+import { mapCellSettings, mapCellState } from './cell-settings';
 import {
   setRtlsAnchorLock,
+  setRtlsCellSettings,
   setRtlsAnchors,
   setRtlsDevicesFromStatus,
   setRtlsOtaJob,
@@ -166,6 +168,10 @@ export function mapRtlsDeviceStatus(
   // keep a pre-reboot measurement the server no longer reports.
   result.twr = mapTwrPeers(raw.twr);
 
+  // Always assigned: the server drops both while the device is offline
+  result.cellSettings = mapCellState(raw.cellSettings);
+  result.cellSettingsDetail = toString(raw.cellSettingsDetail);
+
   return result;
 }
 
@@ -231,6 +237,7 @@ type RtlsInformationAction = ReturnType<
   | typeof setRtlsDevicesFromStatus
   | typeof setRtlsAnchors
   | typeof setRtlsAnchorLock
+  | typeof setRtlsCellSettings
 >;
 
 /**
@@ -255,6 +262,10 @@ export function rtlsInformationActions(
   const lock = mapAnchorLock(body?.anchorLock);
   if (lock !== undefined) {
     actions.push(setRtlsAnchorLock(lock));
+  }
+  const cell = mapCellSettings(body?.cellSettings);
+  if (cell !== undefined) {
+    actions.push(setRtlsCellSettings(cell));
   }
   return actions;
 }
