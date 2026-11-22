@@ -999,14 +999,13 @@
     },
     "rate": "{{hz}} Hz",
     "rateLabel": "Ranging rate",
-    "showAuthorized": "A show is authorized",
     "state": {
       "differ": "Different cell settings",
       "restart": "Restart needed",
       "tx": "Different TX level"
     },
     "title": "Cell settings",
-    "txHelper": "0 = strongest; default {{level}}",
+    "txHelper": "0 = strongest",
     "txLabel": "TX level",
     "unlockFirst": "Unlock the anchors first"
   },

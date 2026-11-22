@@ -17,7 +17,6 @@ export const RTLS_RATE_PRESETS = [33, 50, 83] as const;
 /** The anchors' TX gain index range (the firmware's UWB_TX_GAIN). */
 export const RTLS_TX_GAIN_MIN = 0;
 export const RTLS_TX_GAIN_MAX = 127;
-export const RTLS_TX_GAIN_DEFAULT = 47;
 
 /** A device's state against A0's settings. */
 export type RtlsCellState = 'ok' | 'differ' | 'restart' | 'unknown';
@@ -88,8 +87,8 @@ export type RtlsCellResult = {
 
 const CELL_RESULTS = ['applied', 'incomplete', 'refused'] as const;
 
-/** Writes, a rollback and SMP resets: one silent device costs seconds. */
-const APPLY_TIMEOUT_S = 30;
+/** Reads, writes, a rollback and SMP resets: a silent device costs seconds. */
+const APPLY_TIMEOUT_S = 60;
 
 /** The devices whose entry carries a `detail`: a failed write or restart. */
 const mapFailures = (value: unknown): RtlsCellFailure[] =>
@@ -101,39 +100,38 @@ const mapFailures = (value: unknown): RtlsCellFailure[] =>
     : [];
 
 /**
- * The fields of the form that differ from the cell; a field left as the cell
- * has it (a custom rate, an unread TX level) is not sent, so the server keeps
- * A0's value for it.
+ * The fields the operator changed in the form since it opened; a field left
+ * as it opened (a custom rate, an unread TX level, a value another client
+ * changed meanwhile) is not sent, so the server keeps A0's value for it.
  */
 export const changedCellTarget = (
-  cell: RtlsCellSettings | undefined,
+  opened: RtlsCellTarget,
   form: RtlsCellTarget
 ): RtlsCellTarget => ({
-  ...(form.rateHz !== undefined && form.rateHz !== cell?.rateHz
+  ...(form.rateHz !== undefined && form.rateHz !== opened.rateHz
     ? { rateHz: form.rateHz }
     : {}),
-  ...(form.txGain !== undefined && form.txGain !== cell?.txGain
+  ...(form.txGain !== undefined && form.txGain !== opened.txGain
     ? { txGain: form.txGain }
     : {}),
 });
 
-/** The i18n key of why Apply is unavailable now; `undefined` when it is. */
+/**
+ * The i18n key of why Apply is unavailable now; `undefined` when it is. The
+ * server refuses the rest (an authorized show) with its own reason.
+ */
 export const cellApplyRefusalKey = ({
   lockedCount,
-  showAuthorized,
   anyOnline,
 }: {
   lockedCount: number;
-  showAuthorized: boolean;
   anyOnline: boolean;
 }): string | undefined =>
   lockedCount > 0
     ? 'rtlsCellSettings.unlockFirst'
-    : showAuthorized
-      ? 'rtlsCellSettings.showAuthorized'
-      : anyOnline
-        ? undefined
-        : 'rtlsCellSettings.noDevices';
+    : anyOnline
+      ? undefined
+      : 'rtlsCellSettings.noDevices';
 
 /**
  * Applies the cell settings (X-RTLS-CELL). Only a NAK (an invalid request, a
@@ -144,7 +142,7 @@ export async function sendRtlsCell(
   target: RtlsCellTarget
 ): Promise<RtlsCellResult> {
   const response: Message<MessageBody & AnyRecord> = await hub.sendMessage(
-    { type: 'X-RTLS-CELL', action: 'apply', ...target },
+    { type: 'X-RTLS-CELL', ...target },
     { timeout: APPLY_TIMEOUT_S }
   );
   const body = response.body;

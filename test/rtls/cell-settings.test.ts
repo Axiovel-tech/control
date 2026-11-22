@@ -20,7 +20,10 @@ jest.mock('~/features/prompt/actions', () => ({
 
 import { cellProblemOf } from '~/features/rtls/CellSettingsIcon';
 import { countCellDevicesNotOk } from '~/features/rtls/CellSettingsControl';
-import { listCellProblems } from '~/features/rtls/RtlsCellSettingsDialog';
+import {
+  customRateText,
+  listCellProblems,
+} from '~/features/rtls/RtlsCellSettingsDialog';
 import { applyRtlsCellSettings } from '~/features/rtls/cell-actions';
 import {
   cellApplyRefusalKey,
@@ -43,6 +46,7 @@ import {
 } from '~/features/rtls/slice';
 import { showConfirmationDialog } from '~/features/prompt/actions';
 import { showNotification } from '~/features/snackbar/actions';
+import i18n from '~/i18n';
 import messageHub from '~/message-hub';
 import { UAVAge } from '~/model/uav';
 
@@ -188,8 +192,8 @@ describe('X-RTLS-CELL', () => {
     );
     // a silent device costs the server seconds before it can answer
     expect(sendMessage.mock.calls[0]).toEqual([
-      { type: 'X-RTLS-CELL', action: 'apply', rateHz: 83, txGain: 47 },
-      { timeout: 30 },
+      { type: 'X-RTLS-CELL', rateHz: 83, txGain: 47 },
+      { timeout: 60 },
     ]);
     expect(result?.errors).toEqual([]);
     expect(showNotification).toHaveBeenCalled();
@@ -247,6 +251,23 @@ describe('X-RTLS-CELL', () => {
     expect(showNotification).not.toHaveBeenCalled();
   });
 
+  test('a server refusal is shown with its reason', async () => {
+    sendMessage.mockResolvedValueOnce(
+      reply({
+        type: 'X-RTLS-CELL',
+        result: 'refused',
+        reason: 'A show is authorized',
+        results: {},
+      })
+    );
+    const result = await dispatchThunk(
+      createRtlsTestStore(),
+      applyRtlsCellSettings({ rateHz: 83 })
+    );
+    expect(result?.result).toBe('refused');
+    expect(result?.errors).toEqual(['A show is authorized']);
+  });
+
   test('a NAK rejects with its reason', async () => {
     sendMessage.mockResolvedValueOnce(
       reply({ type: 'ACK-NAK', reason: 'Unknown ranging rate: 100' })
@@ -263,29 +284,44 @@ describe('X-RTLS-CELL', () => {
 describe('the dialog', () => {
   const cell = mapCellSettings(CELL)!;
 
-  test('sends only what the operator changed', () => {
-    expect(changedCellTarget(cell, { rateHz: 83, txGain: 47 })).toEqual({});
-    expect(changedCellTarget(cell, { rateHz: 83, txGain: 20 })).toEqual({
+  test('sends only what the operator changed in the form', () => {
+    const opened = { rateHz: 83, txGain: 47 };
+    expect(changedCellTarget(opened, { rateHz: 83, txGain: 47 })).toEqual({});
+    expect(changedCellTarget(opened, { rateHz: 83, txGain: 20 })).toEqual({
       txGain: 20,
     });
     // a custom rate and an unread TX level are never replaced by a default
-    const custom = { ...cell, rateHz: undefined, txGain: undefined };
-    expect(changedCellTarget(custom, { txGain: 20 })).toEqual({ txGain: 20 });
-    expect(changedCellTarget(custom, { rateHz: 50 })).toEqual({ rateHz: 50 });
+    expect(changedCellTarget({}, { txGain: 20 })).toEqual({ txGain: 20 });
+    expect(changedCellTarget({}, { rateHz: 50 })).toEqual({ rateHz: 50 });
+  });
+
+  test('a field left as it opened is not sent though the cell changed', () => {
+    // opened at 50 Hz; another client applied 83 Hz; only TX was edited
+    const opened = { rateHz: 50, txGain: 47 };
+    expect(changedCellTarget(opened, { rateHz: 50, txGain: 20 })).toEqual({
+      txGain: 20,
+    });
   });
 
   test('says why Apply is unavailable from the live state', () => {
-    const live = { lockedCount: 0, showAuthorized: false, anyOnline: true };
+    const live = { lockedCount: 0, anyOnline: true };
     expect(cellApplyRefusalKey(live)).toBe(undefined);
     expect(cellApplyRefusalKey({ ...live, lockedCount: 2 })).toBe(
       'rtlsCellSettings.unlockFirst'
     );
-    expect(cellApplyRefusalKey({ ...live, showAuthorized: true })).toBe(
-      'rtlsCellSettings.showAuthorized'
-    );
     expect(cellApplyRefusalKey({ ...live, anyOnline: false })).toBe(
       'rtlsCellSettings.noDevices'
     );
+  });
+
+  test('the rate placeholder reads "—" without A0, not "Custom"', () => {
+    const t = i18n.t.bind(i18n);
+    expect(customRateText(undefined, t)).toBe('—');
+    expect(customRateText({ ...cell, reference: undefined }, t)).toBe('—');
+    expect(customRateText({ ...cell, blockMs: undefined }, t)).toBe(
+      'rtlsCellSettings.custom'
+    );
+    expect(customRateText(cell, t)).toBe('rtlsCellSettings.customBlock');
   });
 });
 
