@@ -116,6 +116,17 @@ describe('anchor sleep and wake', () => {
     expect(store.getState().rtls.devices.byId['101'].sleeping).toBe(true);
   });
 
+  test('asks for a device whose role is unknown: it may be an anchor', async () => {
+    const store = createStore([]);
+    store.dispatch(setRtlsDevicesFromStatus({ '101': { online: true } }));
+    acceptAll(['101'], true);
+
+    await dispatchThunk(store, setRtlsSleeping(['101'], true));
+
+    expect(confirm).toHaveBeenCalledTimes(1);
+    expect(sendMessage).toHaveBeenCalledTimes(1);
+  });
+
   test('asks more strongly while a drone may be armed, and stops on a no', async () => {
     const store = createStore([{ id: 'd1', age: UAVAge.ACTIVE, errors: [] }]);
     seedAnchors(store, { '101': 'operating' });

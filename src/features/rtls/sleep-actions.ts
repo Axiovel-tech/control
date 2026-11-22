@@ -42,7 +42,7 @@ import {
   rtlsSleepTransactionEnded,
   rtlsSleepTransactionStarted,
 } from './slice';
-import { classifyRole, isAnchorRole, RtlsRole } from './stats-utils';
+import { classifyRole, RtlsRole } from './stats-utils';
 import { isTagOrUnknownRtlsDevice } from './utils';
 
 /**
@@ -135,7 +135,7 @@ const confirmAnchorSleep = async (
  *
  * Devices with a transaction in flight are skipped: overlapping
  * X-RTLS-SLEEP transactions could settle out of order and re-invert the
- * state. Sleeping an anchor always asks first. The outcome, including
+ * state. Sleeping an anchor, or a device of unknown role, always asks first. The outcome, including
  * per-device refusals from the firmware's arming gate, goes to the snackbar.
  */
 export const setRtlsSleeping =
@@ -168,8 +168,9 @@ export const setRtlsSleeping =
     }
 
     const devices = getRtlsDevicesAsCollection(state).byId;
-    const anchors = ids.some((id) =>
-      isAnchorRole(classifyRole(devices[id]?.role))
+    // a device whose role is unknown (or was just cleared) may be an anchor
+    const anchors = ids.some(
+      (id) => classifyRole(devices[id]?.role) !== RtlsRole.TAG
     );
     if (
       anchors &&
