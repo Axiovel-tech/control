@@ -15,7 +15,6 @@ import {
   checkRtlsGeometryAgreement,
   getRtlsParameter,
   queryRtlsParameterList,
-  inspectRtlsOtaImage,
   sendRtlsForget,
   sendRtlsSleep,
   setRtlsParameter,
@@ -182,22 +181,9 @@ describe('rtls messages', () => {
     });
     const job = await startRtlsOta(hub, '7', 'fw.bin');
     expect(job).toMatchObject({ id: 'job-1', status: 'pending' });
-    expect(sent[0]).toMatchObject({
-      type: 'X-RTLS-OTA',
-      id: '7',
-      image: 'fw.bin',
-    });
+    // the path only: the server reads the species from the build receipt
+    expect(sent[0]).toEqual({ type: 'X-RTLS-OTA', id: '7', image: 'fw.bin' });
   });
-});
-
-test('startRtlsOta declares the species the image is built for', async () => {
-  const { hub, sent } = makeHub({
-    type: 'X-RTLS-OTA',
-    id: '101',
-    job: { id: 'job-2', status: 'pending' },
-  });
-  await startRtlsOta(hub, '101', 'anchor.signed.bin', 'anchor');
-  expect(sent[0]).toMatchObject({ image: 'anchor.signed.bin', role: 'anchor' });
 });
 
 describe('sendRtlsSleep', () => {
@@ -308,43 +294,5 @@ describe('sendRtlsForget', () => {
   test('a NAK (older server without forget) throws', async () => {
     const { hub } = makeHub({ type: 'ACK-NAK', reason: 'no handler' });
     await expect(sendRtlsForget(hub, ['42'])).rejects.toThrow(/no handler/);
-  });
-});
-
-describe('inspectRtlsOtaImage', () => {
-  test('asks for the species the build receipt names', async () => {
-    const { hub, sent } = makeHub({
-      type: 'X-RTLS-OTA',
-      image: 'a.bin',
-      species: 'anchor',
-      speciesSource: 'receipt',
-      board: 'axio_anchor',
-    });
-    await expect(inspectRtlsOtaImage(hub, 'a.bin')).resolves.toBe('anchor');
-    expect(sent[0]).toEqual({
-      type: 'X-RTLS-OTA',
-      inspect: true,
-      image: 'a.bin',
-    });
-  });
-
-  test('an image without a receipt has no species', async () => {
-    const { hub } = makeHub({
-      type: 'X-RTLS-OTA',
-      image: 'a.bin',
-      species: null,
-      speciesSource: null,
-    });
-    await expect(inspectRtlsOtaImage(hub, 'a.bin')).resolves.toBe(undefined);
-  });
-
-  test("rejects with the server's reason (missing file, stale receipt)", async () => {
-    const { hub } = makeHub({
-      type: 'ACK-NAK',
-      reason: 'stale build receipt: the image digest differs',
-    });
-    await expect(inspectRtlsOtaImage(hub, 'a.bin')).rejects.toThrow(
-      'stale build receipt: the image digest differs'
-    );
   });
 });

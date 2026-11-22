@@ -9,7 +9,6 @@ import Button from '@mui/material/Button';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import LinearProgress from '@mui/material/LinearProgress';
-import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { useCallback, useEffect, useState } from 'react';
@@ -18,26 +17,12 @@ import { useDispatch, useSelector } from 'react-redux';
 
 import { DraggableDialog } from '@skybrush/mui-components';
 
-import { errorToString } from '~/error-handling';
 import { showError } from '~/features/snackbar/actions';
 import { type AppDispatch, type RootState } from '~/store/reducers';
 
-import {
-  inspectRtlsOtaImage,
-  queryRtlsOtaStatus,
-  type RtlsImageSpecies,
-  startRtlsOta,
-} from './messages';
+import { queryRtlsOtaStatus, startRtlsOta } from './messages';
 import messageHub from '~/message-hub';
 import {
-  canStartOta,
-  getDeviceSpecies,
-  type ImageInspection,
-  type ImageSpeciesSource,
-  resolveImageSpecies,
-} from './ota-species';
-import {
-  getRtlsDevicesAsCollection,
   getRtlsOtaDialogDeviceId,
   getRtlsOtaJobForDevice,
   isRtlsOtaDialogOpen,
@@ -60,42 +45,6 @@ const toPercent = (progress: number | undefined): number | undefined => {
 };
 
 const ACTIVE_STATUSES = new Set(['pending', 'inProgress']);
-
-/**
- * Asks the server about the image path once typing settles (X-RTLS-OTA
- * `inspect`). Returns the answer for the current path only: `undefined`
- * while it is pending.
- */
-const useImageInspection = (
-  open: boolean,
-  image: string
-): ImageInspection | undefined => {
-  const [inspection, setInspection] = useState<ImageInspection>();
-  useEffect(() => {
-    if (!open || image.length === 0) {
-      return undefined;
-    }
-    let cancelled = false;
-    const timer = setTimeout(() => {
-      void (async () => {
-        let result: Omit<ImageInspection, 'image'>;
-        try {
-          result = { species: await inspectRtlsOtaImage(messageHub, image) };
-        } catch (error) {
-          result = { error: errorToString(error) };
-        }
-        if (!cancelled) {
-          setInspection({ image, ...result });
-        }
-      })();
-    }, 400);
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [open, image]);
-  return inspection?.image === image ? inspection : undefined;
-};
 
 /** The current job: status, version, species, progress and error. */
 const OtaJobStatus = ({ job }: { job: RtlsOtaJob }) => {
@@ -134,88 +83,18 @@ const OtaJobStatus = ({ job }: { job: RtlsOtaJob }) => {
   );
 };
 
-/** Where a species came from, when that is worth saying. */
-const SPECIES_HINTS: Partial<Record<ImageSpeciesSource, string>> = {
-  receipt: 'rtlsOta.species.fromReceipt',
-  path: 'rtlsOta.species.fromPath',
-};
-
-/** The species selector: locked to a receipt's species, else the operator's. */
-const SpeciesSelect = ({
-  disabled,
-  mismatch,
-  onChange,
-  resolved,
-}: {
-  disabled: boolean;
-  mismatch: boolean;
-  onChange: (species: RtlsImageSpecies) => void;
-  resolved: ReturnType<typeof resolveImageSpecies>;
-}) => {
-  const { t } = useTranslation();
-  const { locked, source, species } = resolved;
-  return (
-    <TextField
-      select
-      fullWidth
-      data-testid='rtls-ota-species'
-      label={t('rtlsOta.species.label')}
-      value={species}
-      // a species the receipt names is not the operator's to flip
-      disabled={disabled || locked}
-      margin='normal'
-      error={mismatch}
-      helperText={
-        mismatch
-          ? t(`rtlsOta.species.mismatch.${species}`)
-          : SPECIES_HINTS[source] && t(SPECIES_HINTS[source])
-      }
-      onChange={(event) => onChange(event.target.value as RtlsImageSpecies)}
-    >
-      <MenuItem value='tag'>{t('rtlsOta.species.tag')}</MenuItem>
-      <MenuItem value='anchor'>{t('rtlsOta.species.anchor')}</MenuItem>
-    </TextField>
-  );
-};
-
 const RtlsOtaDialog = () => {
-  const { t } = useTranslation();
   const dispatch = useDispatch<AppDispatch>();
   const open = useSelector(isRtlsOtaDialogOpen);
   const deviceId = useSelector(getRtlsOtaDialogDeviceId);
   const job = useSelector((state: RootState) =>
     deviceId ? getRtlsOtaJobForDevice(state, deviceId) : undefined
   );
-  const deviceSpecies = getDeviceSpecies(
-    useSelector((state: RootState) =>
-      deviceId
-        ? getRtlsDevicesAsCollection(state).byId[deviceId]?.role
-        : undefined
-    )
-  );
-
   const [image, setImage] = useState('');
-  // The species the image is built for, always sent with the OTA: named by
-  // the image's build receipt, as the server reads it (the selector is then
-  // locked), else chosen by the operator, with the path's hint as default.
-  // A new path resets the choice: it belonged to the previous image.
-  const [chosenSpecies, setChosenSpecies] = useState<RtlsImageSpecies | ''>('');
   const [busy, setBusy] = useState(false);
   const trimmedImage = image.trim();
-  const inspection = useImageInspection(open, trimmedImage);
-  const resolved = resolveImageSpecies(
-    trimmedImage,
-    chosenSpecies,
-    inspection?.species
-  );
-  const { species } = resolved;
-  const mismatch =
-    species !== '' && deviceSpecies !== undefined && species !== deviceSpecies;
   const active = job?.status !== undefined && ACTIVE_STATUSES.has(job.status);
-  const startable =
-    !busy &&
-    !active &&
-    canStartOta({ image: trimmedImage, inspection, mismatch, species });
+  const startable = !busy && !active && trimmedImage.length > 0;
 
   // Query the current OTA job status when the dialog opens for a device.
   useEffect(() => {
@@ -232,25 +111,20 @@ const RtlsOtaDialog = () => {
   }, [open, deviceId, dispatch]);
 
   const handleStart = useCallback(async () => {
-    if (!deviceId || !startable || species === '') {
+    if (!deviceId || !startable) {
       return;
     }
 
     setBusy(true);
     try {
-      const started = await startRtlsOta(
-        messageHub,
-        deviceId,
-        trimmedImage,
-        species
-      );
+      const started = await startRtlsOta(messageHub, deviceId, trimmedImage);
       dispatch(setRtlsOtaJob({ id: deviceId, job: started }));
     } catch (error) {
       showError(`Failed to start OTA: ${String(error)}`);
     } finally {
       setBusy(false);
     }
-  }, [deviceId, dispatch, species, startable, trimmedImage]);
+  }, [deviceId, dispatch, startable, trimmedImage]);
 
   const handleClose = useCallback(() => {
     dispatch(closeRtlsOtaDialog());
@@ -272,23 +146,7 @@ const RtlsOtaDialog = () => {
           value={image}
           disabled={busy || active}
           margin='normal'
-          error={inspection?.error !== undefined}
-          helperText={
-            inspection?.error ??
-            (trimmedImage.length > 0 && inspection === undefined
-              ? t('rtlsOta.inspecting')
-              : undefined)
-          }
-          onChange={(event) => {
-            setImage(event.target.value);
-            setChosenSpecies('');
-          }}
-        />
-        <SpeciesSelect
-          disabled={busy || active}
-          mismatch={mismatch}
-          resolved={resolved}
-          onChange={setChosenSpecies}
+          onChange={(event) => setImage(event.target.value)}
         />
 
         {job?.status && <OtaJobStatus job={job} />}
