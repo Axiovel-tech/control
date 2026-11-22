@@ -25,7 +25,11 @@ import { useDispatch, useSelector } from 'react-redux';
 
 import { BackgroundHint, StatusPill, Tooltip } from '@skybrush/mui-components';
 
-import { getAnchorSlot, getInitiatorMacs } from '~/features/rtls/anchor-utils';
+import {
+  getAnchorSlot,
+  getInitiatorMacs,
+  isAnchorSwitching,
+} from '~/features/rtls/anchor-utils';
 import {
   anchorNamesForCell,
   nameCellAnchors,
@@ -43,6 +47,7 @@ import AnchorLockControl from '~/features/rtls/AnchorLockControl';
 import OverallRtlsStatusLight from '~/features/rtls/OverallRtlsStatusLight';
 import {
   getRtlsAnchorDevices,
+  getRtlsAnchorPowerRequests,
   getRtlsAnchors,
   getRtlsGeometryCheck,
   getRtlsGeometryInvalidations,
@@ -93,6 +98,7 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
   const statsById = useSelector(getRtlsStatsById);
   const uavStatuses = useSelector(getRtlsPairedUavStatuses);
   const sleepPending = useSelector(getRtlsSleepPendingMap);
+  const anchorPowerRequests = useSelector(getRtlsAnchorPowerRequests);
   const lockedOutIds = useSelector(getRtlsLockedOutDeviceIds);
   // a bulk action that would reach a locked anchor is frozen
   const bulkLockedOut = devices.some((device) => lockedOutIds.has(device.id));
@@ -332,7 +338,14 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
                   }
                   initiatorMacs={tags ? undefined : initiatorMacs}
                   initiatorEvidence={initiatorEvidence[device.id]}
-                  busy={Boolean(sleepPending?.[device.id])}
+                  busy={
+                    tags
+                      ? Boolean(sleepPending?.[device.id])
+                      : isAnchorSwitching(
+                          device,
+                          anchorPowerRequests[device.id]
+                        )
+                  }
                   device={device}
                   expanded={expanded.has(device.id)}
                   geometryLabel={

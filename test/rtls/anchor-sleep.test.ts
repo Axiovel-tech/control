@@ -20,13 +20,14 @@ jest.mock('~/features/prompt/actions', () => ({
 }));
 
 import { showConfirmationDialog } from '~/features/prompt/actions';
-import { showNotification } from '~/features/snackbar/actions';
+import { showError, showNotification } from '~/features/snackbar/actions';
 import UAVErrorCode from '~/flockwave/UAVErrorCode';
 import { setRtlsDeviceParameter } from '~/features/rtls/param-actions';
 import {
-  ANCHOR_SLEEP_TIMEOUT_S,
-  setRtlsSleeping,
-} from '~/features/rtls/sleep-actions';
+  ANCHOR_REBOOT_WINDOW_MS,
+  isAnchorSwitching,
+} from '~/features/rtls/anchor-utils';
+import { setRtlsSleeping } from '~/features/rtls/sleep-actions';
 import {
   setRtlsDevicesFromStatus,
   updateRtlsStats,
@@ -76,12 +77,16 @@ const seedAnchors = (
   );
 };
 
+// an anchor's answer is its ack: `sleeping` is null, powerState says the rest
 const acceptAll = (ids: string[], sleeping: boolean) =>
   sendMessage.mockResolvedValueOnce(
     reply({
       type: 'X-RTLS-SLEEP',
       result: Object.fromEntries(
-        ids.map((id) => [id, { accepted: true, sleeping }])
+        ids.map((id) => [
+          id,
+          { requested: sleeping, accepted: true, sleeping: null },
+        ])
       ),
     })
   );
@@ -110,10 +115,8 @@ describe('anchor sleep and wake', () => {
     expect(sendMessage).toHaveBeenCalledTimes(1);
     expect(sendMessage.mock.calls[0]).toEqual([
       { type: 'X-RTLS-SLEEP', ids: [101], sleeping: true },
-      { timeout: ANCHOR_SLEEP_TIMEOUT_S },
+      { timeout: 30 },
     ]);
-    // the anchor reboots: no immediate INF re-poll of the stale latch
-    expect(store.getState().rtls.devices.byId['101'].sleeping).toBe(true);
   });
 
   test('asks for a device whose role is unknown: it may be an anchor', async () => {
@@ -164,16 +167,62 @@ describe('anchor sleep and wake', () => {
     expect(confirm.mock.calls[0][0]).toBe('rtlsAnchor.sleep.confirm.message');
   });
 
-  test('a standby anchor sleeps in place: the answer needs no reboot', async () => {
+  test('an accepted anchor has no transaction; its powerState stays the state', async () => {
     const store = createStore();
-    seedAnchors(store, { '101': 'standby' });
+    seedAnchors(store, { '101': 'operating' });
     acceptAll(['101'], true);
 
+    const before = Date.now();
     await dispatchThunk(store, setRtlsSleeping(['101'], true));
 
-    expect(sendMessage).toHaveBeenCalledTimes(1);
-    expect(store.getState().rtls.devices.byId['101'].sleeping).toBe(true);
-    expect(store.getState().rtls.sleepPending).toEqual({});
+    const { rtls } = store.getState();
+    expect(sendMessage).toHaveBeenCalledTimes(1); // no INF re-poll
+    expect(rtls.sleepPending).toEqual({});
+    expect(rtls.devices.byId['101'].sleeping).not.toBe(true);
+    expect(rtls.anchorPowerRequests['101']).toBeGreaterThanOrEqual(before);
+    expect(showNotification).toHaveBeenCalledWith(
+      'RTLS device 101: sleep accepted'
+    );
+  });
+
+  test('a refusal is reported per anchor and records no request', async () => {
+    const store = createStore();
+    seedAnchors(store, { '101': 'operating', '102': 'operating' });
+    sendMessage.mockResolvedValueOnce(
+      reply({
+        type: 'X-RTLS-SLEEP',
+        result: {
+          '101': { requested: true, accepted: true, sleeping: null },
+          '102': {
+            requested: true,
+            accepted: false,
+            sleeping: null,
+            detail: 'RTLS anchor 102 is locked',
+          },
+        },
+      })
+    );
+
+    await dispatchThunk(store, setRtlsSleeping(['101', '102'], true));
+
+    expect(showError).toHaveBeenCalledWith(
+      'RTLS sleep refused — 102: RTLS anchor 102 is locked (accepted: 101)'
+    );
+    expect(Object.keys(store.getState().rtls.anchorPowerRequests)).toEqual([
+      '101',
+    ]);
+  });
+
+  test('a second request is sent while the first anchor is switching', async () => {
+    const store = createStore();
+    seedAnchors(store, { '101': 'asleep' });
+    acceptAll(['101'], false);
+    acceptAll(['101'], false);
+
+    await dispatchThunk(store, setRtlsSleeping(['101'], false));
+    await dispatchThunk(store, setRtlsSleeping(['101'], false));
+
+    expect(sendMessage).toHaveBeenCalledTimes(2);
   });
 
   test('sleep all asks too, and a no stops it', async () => {
@@ -246,6 +295,29 @@ describe('anchor sleep and wake', () => {
     expect(showNotification).toHaveBeenCalledWith(
       'rtlsDevice.bulk.noAnchorsToWake'
     );
+  });
+});
+
+describe('an anchor rebooting into an accepted state', () => {
+  const anchor = (online: boolean) => ({
+    id: '101',
+    online,
+    role: 'anchor-responder',
+  });
+
+  test('reads as switching while it is off the network', () => {
+    expect(isAnchorSwitching(anchor(false), 1000, 1000 + 15_000)).toBe(true);
+  });
+
+  test('reads as lost once the reboot window has passed', () => {
+    expect(
+      isAnchorSwitching(anchor(false), 1000, 1000 + ANCHOR_REBOOT_WINDOW_MS)
+    ).toBe(false);
+  });
+
+  test('reads its powerState while online, and lost without a request', () => {
+    expect(isAnchorSwitching(anchor(true), 1000, 2000)).toBe(false);
+    expect(isAnchorSwitching(anchor(false), undefined, 2000)).toBe(false);
   });
 });
 

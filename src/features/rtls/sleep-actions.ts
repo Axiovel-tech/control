@@ -9,11 +9,13 @@
  * armed; that refusal comes back as a normal per-device result and is
  * surfaced in the snackbar.
  *
- * An anchor sleeps with its UWB off and its network up; a transition may
- * reboot it (8-15 s), or happen in place (standby to asleep). Sleeping
- * anchors removes positioning for every drone, so it always asks for
- * confirmation, more strongly while any drone may be armed. Every command
- * is an explicit operator action; nothing here runs on its own.
+ * An anchor sleeps with its UWB off and its network up. It accepts or
+ * refuses in the SLEEP write's acknowledgement, which the server returns at
+ * once; its live powerState then shows the transition, which may reboot it
+ * (8-15 s) or happen in place (standby to asleep). Sleeping anchors removes
+ * positioning for every drone, so it always asks for confirmation, more
+ * strongly while any drone may be armed. Every command is an explicit
+ * operator action; nothing here runs on its own.
  */
 
 import { errorToString } from '~/error-handling';
@@ -40,18 +42,12 @@ import {
 } from './selectors';
 import {
   applyRtlsSleepResults,
+  rtlsAnchorPowerRequested,
   rtlsSleepTransactionEnded,
   rtlsSleepTransactionStarted,
 } from './slice';
-import { classifyRole, RtlsRole } from './stats-utils';
+import { classifyRole, isAnchorRole, RtlsRole } from './stats-utils';
 import { isTagOrUnknownRtlsDevice } from './utils';
-
-/**
- * How long Control waits for an anchor sleep/wake, in seconds: the server
- * waits for the anchor to report its new power state, and a transition may
- * reboot it (8-15 s).
- */
-export const ANCHOR_SLEEP_TIMEOUT_S = 60;
 
 /**
  * Re-queries X-RTLS-INF so the device list reflects the new sleep state
@@ -98,10 +94,7 @@ const getAllSleepTargets = (
       if (!device.online || powerState === 'off') {
         return false;
       }
-      return sleeping
-        ? powerState !== 'asleep' &&
-            !(powerState === undefined && device.sleeping === true)
-        : powerState !== 'operating';
+      return sleeping ? powerState !== 'asleep' : powerState !== 'operating';
     })
     .map((device) => device.id);
 };
@@ -134,10 +127,11 @@ const confirmAnchorSleep = async (
  * click and would then invert the operator's intent (observed live on
  * 2026-07-21: a "sleep" click fired a wake).
  *
- * Devices with a transaction in flight are skipped: overlapping
- * X-RTLS-SLEEP transactions could settle out of order and re-invert the
- * state. Sleeping an anchor, or a device of unknown role, always asks first. The outcome, including
- * per-device refusals from the firmware's arming gate, goes to the snackbar.
+ * Tags with a transaction in flight are skipped: overlapping X-RTLS-SLEEP
+ * transactions could settle out of order and re-invert the state. An anchor
+ * answers at once and has no transaction. Sleeping an anchor, or a device of
+ * unknown role, always asks first. The outcome, accepted or refused per
+ * device, goes to the snackbar.
  */
 export const setRtlsSleeping =
   (
@@ -172,11 +166,13 @@ export const setRtlsSleeping =
     }
 
     const devices = getRtlsDevicesAsCollection(state).byId;
+    const isAnchor = (id: string) =>
+      isAnchorRole(classifyRole(devices[id]?.role));
     // a device whose role is unknown (or was just cleared) may be an anchor
-    const anchors = ids.some(
+    const mayBeAnchor = ids.some(
       (id) => classifyRole(devices[id]?.role) !== RtlsRole.TAG
     );
-    if (anchors && sleeping) {
+    if (mayBeAnchor && sleeping) {
       const armed = getPossiblyArmedUavIds(state).length;
       if (!(await confirmAnchorSleep(dispatch, armed))) {
         return;
@@ -188,16 +184,15 @@ export const setRtlsSleeping =
     }
 
     const verb = sleeping ? 'sleep' : 'wake';
-    dispatch(rtlsSleepTransactionStarted(ids));
+    const tracked = ids.filter((id) => !isAnchor(id));
+    dispatch(rtlsSleepTransactionStarted(tracked));
     try {
-      const result = await sendRtlsSleep(messageHub, ids, sleeping, {
-        timeout: anchors ? ANCHOR_SLEEP_TIMEOUT_S : undefined,
-      });
+      const result = await sendRtlsSleep(messageHub, ids, sleeping);
 
-      // Each accepted per-device result carries the authoritative `sleeping`
-      // value verified by the server; apply it to the store as ground truth
-      // instead of relying on an INF re-poll (which may still read the stale
-      // pre-transition latch, see below).
+      // An accepted tag result carries the `sleeping` value the server
+      // verified; apply it as ground truth instead of relying on an INF
+      // re-poll (which may still read the stale pre-transition latch, see
+      // below). An anchor's is null: its powerState shows the transition.
       const accepted: Record<string, boolean> = {};
       for (const [id, entry] of Object.entries(result)) {
         if (entry?.accepted && typeof entry.sleeping === 'boolean') {
@@ -205,36 +200,49 @@ export const setRtlsSleeping =
         }
       }
       dispatch(applyRtlsSleepResults(accepted));
+      dispatch(
+        rtlsAnchorPowerRequested(
+          Object.keys(result).filter(
+            (id) => isAnchor(id) && result[id]?.accepted
+          )
+        )
+      );
 
       const failures = Object.entries(result).filter(
         ([, entry]) => !entry?.accepted
       );
+      // an anchor's acceptance is a request under way, not the new state
+      const outcome = mayBeAnchor ? 'accepted' : 'ok';
       if (failures.length === 0) {
         showNotification(
           ids.length === 1
-            ? `RTLS device ${ids[0]}: ${verb} ok`
-            : `${ids.length} RTLS devices: ${verb} ok`
+            ? `RTLS device ${ids[0]}: ${verb} ${outcome}`
+            : `${ids.length} RTLS devices: ${verb} ${outcome}`
         );
       } else {
         const detail = failures
           .map(([id, entry]) => `${id}: ${entry?.detail ?? 'failed'}`)
           .join('; ');
-        showError(`RTLS ${verb} refused — ${detail}`);
+        const acceptedIds = ids.filter((id) => result[id]?.accepted);
+        showError(
+          acceptedIds.length === 0
+            ? `RTLS ${verb} refused — ${detail}`
+            : `RTLS ${verb} refused — ${detail} (${outcome}: ${acceptedIds.join(', ')})`
+        );
       }
     } catch (error) {
       showError(`RTLS ${verb} failed: ${errorToString(error)}`);
     } finally {
-      dispatch(rtlsSleepTransactionEnded(ids));
+      dispatch(rtlsSleepTransactionEnded(tracked));
     }
 
-    // Only re-poll X-RTLS-INF after a sleep. A woken device reboots ~1.5 s
-    // after acking the wake, so an immediate poll only returns the stale
-    // pre-reboot STANDBY latch and would overwrite the authoritative
+    // Only re-poll X-RTLS-INF after a tag sleep. A woken device reboots
+    // ~1.5 s after acking the wake, so an immediate poll only returns the
+    // stale pre-reboot STANDBY latch and would overwrite the authoritative
     // `sleeping: false` applied above; the periodic INF refresh catches up
-    // once the device is back on the network. An anchor is never re-polled:
-    // waking reboots it, and the server pins the result it verified (a
-    // standby anchor goes to sleep in place, without a reboot).
-    if (sleeping && !anchors) {
+    // once the device is back on the network. An anchor's state arrives
+    // with its powerState.
+    if (sleeping && !mayBeAnchor) {
       await refreshRtlsDevices(dispatch);
     }
   };

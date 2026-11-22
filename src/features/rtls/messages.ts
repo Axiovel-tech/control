@@ -198,7 +198,8 @@ export async function setRtlsParameter(
 export type RtlsSleepResult = {
   requested?: boolean;
   accepted: boolean;
-  /** `null` when the server could not tell (refusals, timeouts) */
+  /** `null` when the server could not tell (refusals, timeouts) and for an
+   * anchor, whose powerState shows the transition */
   sleeping?: boolean | null;
   detail?: string;
 };
@@ -225,9 +226,9 @@ export async function sendRtlsSleep(
 
   let response: Message<AnyMessageBody>;
   try {
-    // The server verifies the sleep outcome on each device (including a
-    // settle delay for the firmware's arming gate, or an anchor's reboot),
-    // so allow a longer wait than the default message timeout.
+    // The server verifies a tag's sleep outcome (including a settle delay
+    // for the firmware's arming gate), so allow a longer wait than the
+    // default message timeout; an anchor answers with its ack.
     response = await hub.sendMessage(
       { type: 'X-RTLS-SLEEP', ids, sleeping },
       { timeout }
