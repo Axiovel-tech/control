@@ -14,12 +14,6 @@ import {
   showsRangingFigures,
 } from '~/features/rtls/anchor-utils';
 import {
-  canStartOta,
-  getDeviceSpecies,
-  inferImageSpecies,
-  resolveImageSpecies,
-} from '~/features/rtls/ota-species';
-import {
   type RtlsAnchor,
   type RtlsDevice,
   type RtlsDeviceStats,
@@ -256,53 +250,6 @@ describe('detail formatting', () => {
   });
 });
 
-describe('OTA image species', () => {
-  test('infers the species from the build path', () => {
-    expect(
-      inferImageSpecies('build/axio_anchor/anchor/anchor/zephyr/x.signed.bin')
-    ).toBe('anchor');
-    expect(
-      inferImageSpecies('build/axiolight-tag/tag/zephyr/zephyr.signed.bin')
-    ).toBe('tag');
-    expect(inferImageSpecies('/tmp/anchor.signed.bin')).toBe('anchor');
-  });
-
-  test('leaves it to the operator when the path names neither or both', () => {
-    expect(inferImageSpecies('fw/zephyr.signed.bin')).toBe(undefined);
-    expect(inferImageSpecies('tag/anchor.bin')).toBe(undefined);
-    expect(inferImageSpecies('build/stagger/zephyr.bin')).toBe(undefined);
-  });
-
-  test('the build receipt locks the species', () => {
-    expect(
-      resolveImageSpecies('build/x/anchor/zephyr.signed.bin', 'anchor', 'tag')
-    ).toEqual({ species: 'tag', locked: true, source: 'receipt' });
-  });
-
-  test('without a receipt the operator chooses, the path suggests', () => {
-    expect(resolveImageSpecies('build/sr250-anchor/anchor/z.bin', '')).toEqual({
-      species: 'anchor',
-      locked: false,
-      source: 'path',
-    });
-    expect(
-      resolveImageSpecies('build/sr250-anchor/anchor/z.bin', 'tag')
-    ).toEqual({ species: 'tag', locked: false, source: 'operator' });
-    expect(resolveImageSpecies('fw/zephyr.signed.bin', '')).toEqual({
-      species: '',
-      locked: false,
-      source: 'none',
-    });
-  });
-
-  test('derives the device species from its role', () => {
-    expect(getDeviceSpecies('anchor-initiator')).toBe('anchor');
-    expect(getDeviceSpecies('anchor-responder')).toBe('anchor');
-    expect(getDeviceSpecies('tag')).toBe('tag');
-    expect(getDeviceSpecies(undefined)).toBe(undefined);
-  });
-});
-
 describe('initiator ranging evidence', () => {
   const a0 = device({ id: '101', role: 'anchor-initiator' });
   const responder = (id: string, extra: Partial<RtlsDevice> = {}) =>
@@ -405,34 +352,6 @@ describe('stale telemetry', () => {
         stats({ powerState: 'operating', stale: true })
       )
     ).toBe(false);
-  });
-});
-
-describe('OTA start', () => {
-  const base = {
-    image: 'fw/zephyr.signed.bin',
-    mismatch: false,
-    species: 'tag' as const,
-  };
-
-  test('needs a successful inspection of the current path', () => {
-    expect(canStartOta({ ...base, inspection: undefined })).toBe(false);
-    expect(
-      canStartOta({
-        ...base,
-        inspection: { image: base.image, error: 'No such image file' },
-      })
-    ).toBe(false);
-    // no receipt: the operator's species goes out as declared
-    expect(canStartOta({ ...base, inspection: { image: base.image } })).toBe(
-      true
-    );
-  });
-
-  test('needs a declared species that matches the device', () => {
-    const inspection = { image: base.image };
-    expect(canStartOta({ ...base, inspection, species: '' })).toBe(false);
-    expect(canStartOta({ ...base, inspection, mismatch: true })).toBe(false);
   });
 });
 

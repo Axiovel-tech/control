@@ -35,11 +35,7 @@ import {
   getRtlsShowGateRefusal,
   isRtlsAnchorLockRequired,
 } from '~/features/rtls/selectors';
-import {
-  sleepAllRtlsAnchors,
-  sleepRtlsAnchors,
-  wakeRtlsAnchors,
-} from '~/features/rtls/sleep-actions';
+import { setRtlsSleeping } from '~/features/rtls/sleep-actions';
 import {
   clearRtlsDevices,
   openRtlsLockDialog,
@@ -298,9 +294,9 @@ describe('while the anchors are locked', () => {
     seedAnchorsAndTag(store);
     lockStore(store);
 
-    await dispatchThunk(store, sleepRtlsAnchors(['101']));
-    await dispatchThunk(store, wakeRtlsAnchors(['101']));
-    await dispatchThunk(store, sleepAllRtlsAnchors());
+    await dispatchThunk(store, setRtlsSleeping(['101'], true));
+    await dispatchThunk(store, setRtlsSleeping(['101'], false));
+    await dispatchThunk(store, setRtlsSleeping('anchors', true));
 
     expect(sendMessage).not.toHaveBeenCalled();
     expect(showError).toHaveBeenCalledWith('rtlsAnchorLock.locked');
@@ -376,7 +372,7 @@ describe('while the anchors are locked', () => {
       lockStore(store);
       return Promise.resolve({ confirmed: true });
     });
-    await dispatchThunk(store, sleepRtlsAnchors(['101']));
+    await dispatchThunk(store, setRtlsSleeping(['101'], true));
     expect(sendMessage).not.toHaveBeenCalled();
     expect(showError).toHaveBeenCalledWith('rtlsAnchorLock.locked');
   });

@@ -21,14 +21,11 @@ jest.mock('~/features/prompt/actions', () => ({
 
 import { showConfirmationDialog } from '~/features/prompt/actions';
 import { showNotification } from '~/features/snackbar/actions';
-import { MessageSemantics } from '~/features/snackbar/types';
 import UAVErrorCode from '~/flockwave/UAVErrorCode';
 import { setRtlsDeviceParameter } from '~/features/rtls/param-actions';
 import {
   ANCHOR_SLEEP_TIMEOUT_S,
-  sleepAllRtlsAnchors,
-  sleepRtlsAnchors,
-  wakeAllRtlsAnchors,
+  setRtlsSleeping,
 } from '~/features/rtls/sleep-actions';
 import {
   setRtlsDevicesFromStatus,
@@ -103,7 +100,7 @@ describe('anchor sleep and wake', () => {
     seedAnchors(store, { '101': 'operating' });
     acceptAll(['101'], true);
 
-    await dispatchThunk(store, sleepRtlsAnchors(['101']));
+    await dispatchThunk(store, setRtlsSleeping(['101'], true));
 
     expect(confirm).toHaveBeenCalledTimes(1);
     expect(confirm.mock.calls[0]).toEqual([
@@ -124,7 +121,7 @@ describe('anchor sleep and wake', () => {
     seedAnchors(store, { '101': 'operating' });
     confirm.mockReturnValueOnce(answer(false));
 
-    await dispatchThunk(store, sleepRtlsAnchors(['101']));
+    await dispatchThunk(store, setRtlsSleeping(['101'], true));
 
     expect(confirm).toHaveBeenCalledTimes(1);
     expect(confirm.mock.calls[0]).toEqual([
@@ -139,7 +136,7 @@ describe('anchor sleep and wake', () => {
     seedAnchors(store, { '101': 'operating' });
     acceptAll(['101'], true);
 
-    await dispatchThunk(store, sleepRtlsAnchors(['101']));
+    await dispatchThunk(store, setRtlsSleeping(['101'], true));
 
     expect(sendMessage).toHaveBeenCalledTimes(1);
   });
@@ -151,7 +148,7 @@ describe('anchor sleep and wake', () => {
     seedAnchors(store, { '101': 'operating' });
     acceptAll(['101'], true);
 
-    await dispatchThunk(store, sleepRtlsAnchors(['101']));
+    await dispatchThunk(store, setRtlsSleeping(['101'], true));
 
     expect(confirm.mock.calls[0][0]).toBe('rtlsAnchor.sleep.confirm.message');
   });
@@ -161,35 +158,11 @@ describe('anchor sleep and wake', () => {
     seedAnchors(store, { '101': 'standby' });
     acceptAll(['101'], true);
 
-    await dispatchThunk(store, sleepRtlsAnchors(['101']));
+    await dispatchThunk(store, setRtlsSleeping(['101'], true));
 
     expect(sendMessage).toHaveBeenCalledTimes(1);
     expect(store.getState().rtls.devices.byId['101'].sleeping).toBe(true);
     expect(store.getState().rtls.sleepPending).toEqual({});
-  });
-
-  test('an accepted but unverified sleep is a warning, not "ok"', async () => {
-    const store = createStore();
-    seedAnchors(store, { '101': 'operating' });
-    sendMessage.mockResolvedValueOnce(
-      reply({
-        type: 'X-RTLS-SLEEP',
-        result: {
-          '101': {
-            accepted: true,
-            sleeping: null,
-            detail: 'sleep accepted but unverified',
-          },
-        },
-      })
-    );
-
-    await dispatchThunk(store, sleepRtlsAnchors(['101']));
-
-    expect(showNotification).toHaveBeenCalledWith({
-      message: 'rtlsDevice.bulk.unverified',
-      semantics: MessageSemantics.WARNING,
-    });
   });
 
   test('sleep all asks too, and a no stops it', async () => {
@@ -197,7 +170,7 @@ describe('anchor sleep and wake', () => {
     seedAnchors(store, { '101': 'operating' });
     confirm.mockReturnValueOnce(answer(false));
 
-    await dispatchThunk(store, sleepAllRtlsAnchors());
+    await dispatchThunk(store, setRtlsSleeping('anchors', true));
 
     expect(confirm).toHaveBeenCalledTimes(1);
     expect(sendMessage).not.toHaveBeenCalled();
@@ -224,7 +197,7 @@ describe('anchor sleep and wake', () => {
     );
     acceptAll(['101', '104'], true);
 
-    await dispatchThunk(store, sleepAllRtlsAnchors());
+    await dispatchThunk(store, setRtlsSleeping('anchors', true));
 
     expect(sendMessage.mock.calls[0][0]).toEqual({
       type: 'X-RTLS-SLEEP',
@@ -243,7 +216,7 @@ describe('anchor sleep and wake', () => {
     });
     acceptAll(['102', '104'], false);
 
-    await dispatchThunk(store, wakeAllRtlsAnchors());
+    await dispatchThunk(store, setRtlsSleeping('anchors', false));
 
     expect(sendMessage.mock.calls[0][0]).toEqual({
       type: 'X-RTLS-SLEEP',
@@ -256,7 +229,7 @@ describe('anchor sleep and wake', () => {
     const store = createStore();
     seedAnchors(store, { '101': 'operating' });
 
-    await dispatchThunk(store, wakeAllRtlsAnchors());
+    await dispatchThunk(store, setRtlsSleeping('anchors', false));
 
     expect(sendMessage).not.toHaveBeenCalled();
     expect(showNotification).toHaveBeenCalledWith(

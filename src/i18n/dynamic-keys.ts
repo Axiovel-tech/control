@@ -317,8 +317,6 @@
  * t("rtlsAnchor.badge.ethernetDrops")
  * t("rtlsAnchor.badge.lowBattery")
  * t("rtlsAnchor.badge.batteryWarning")
- * t("rtlsOta.species.mismatch.anchor")
- * t("rtlsOta.species.mismatch.tag")
  * t("rtlsAnchor.badge.moved")
  * t("rtlsAnchor.badge.radioRestarts")
  * t("rtlsAnchor.badge.uwbHardware")
@@ -369,8 +367,6 @@
  * t("rtlsHealth.all.idle")
  * t("rtlsHealth.anchors.idle")
  * t("rtlsHealth.tags.idle")
- * t("rtlsOta.species.anchor")
- * t("rtlsOta.species.tag")
  *
  * RTLS read-only parameter hints (keys chosen by features/rtls/param-actions.ts)
  * t("rtlsParams.sleepReadOnly")

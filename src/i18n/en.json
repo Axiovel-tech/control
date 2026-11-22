@@ -987,8 +987,7 @@
     "bulk": {
       "busy": "Already in progress",
       "noAnchorsToSleep": "No awake anchors",
-      "noAnchorsToWake": "No resting anchors",
-      "unverified": "Accepted but not verified: {{- detail}}"
+      "noAnchorsToWake": "No resting anchors"
     },
     "forget": {
       "done_one": "RTLS device {{id}} forgotten",
@@ -1128,18 +1127,8 @@
     }
   },
   "rtlsOta": {
-    "inspecting": "Checking image…",
     "species": {
-      "anchor": "Anchor",
-      "fromPath": "From the image path",
-      "fromReceipt": "From the build receipt",
-      "job": "{{- species}} image",
-      "label": "Image built for",
-      "mismatch": {
-        "anchor": "Anchor image, but this device is a tag",
-        "tag": "Tag image, but this device is an anchor"
-      },
-      "tag": "Tag"
+      "job": "{{- species}} image"
     }
   },
   "rtlsParams": {

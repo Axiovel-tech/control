@@ -55,16 +55,7 @@ import {
   getRtlsTagDevices,
   isRtlsGeometryBusy,
 } from '~/features/rtls/selectors';
-import {
-  sleepAllRtlsAnchors,
-  sleepAllRtlsDevices,
-  sleepRtlsAnchors,
-  sleepRtlsDevice,
-  wakeAllRtlsAnchors,
-  wakeAllRtlsDevices,
-  wakeRtlsAnchors,
-  wakeRtlsDevice,
-} from '~/features/rtls/sleep-actions';
+import { setRtlsSleeping } from '~/features/rtls/sleep-actions';
 import {
   openRtlsOtaDialog,
   openRtlsParamDialog,
@@ -77,18 +68,14 @@ import DeviceStatsRow, { type DeviceRowHandlers } from './DeviceStatsRow';
 import { ActionButton } from './row-parts';
 import FleetHealthSummary from './FleetHealthSummary';
 
-/** The toolbar's Sleep all / Wake all pair, per panel. */
-const TAG_BULK_ACTIONS = {
-  sleep: sleepAllRtlsDevices,
-  wake: wakeAllRtlsDevices,
-  sleepLabel: 'rtlsDevice.action.sleepAllTags',
-  wakeLabel: 'rtlsDevice.action.wakeAllTags',
+/** The toolbar's Sleep all / Wake all labels, per panel. */
+const TAG_BULK_LABELS = {
+  sleep: 'rtlsDevice.action.sleepAllTags',
+  wake: 'rtlsDevice.action.wakeAllTags',
 };
-const ANCHOR_BULK_ACTIONS = {
-  sleep: sleepAllRtlsAnchors,
-  wake: wakeAllRtlsAnchors,
-  sleepLabel: 'rtlsAnchor.action.sleepAll',
-  wakeLabel: 'rtlsAnchor.action.wakeAll',
+const ANCHOR_BULK_LABELS = {
+  sleep: 'rtlsAnchor.action.sleepAll',
+  wake: 'rtlsAnchor.action.wakeAll',
 };
 
 /** How often the tags panel silently re-runs the geometry check. */
@@ -128,7 +115,7 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
     [siteAnchors]
   );
   const initiatorEvidence = useSelector(getRtlsInitiatorEvidence);
-  const bulk = tags ? TAG_BULK_ACTIONS : ANCHOR_BULK_ACTIONS;
+  const bulkLabels = tags ? TAG_BULK_LABELS : ANCHOR_BULK_LABELS;
   // The tags fit the cell themselves at boot; the panel only asks the
   // server whether the fleet agrees. A cheap, read-only check, so it runs
   // whenever the slice voids a verdict (the tag set changed, a tag
@@ -183,12 +170,10 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
       onForget: (id) => void dispatch(forgetRtlsDevices([id])),
       onShowOta: (id) => dispatch(openRtlsOtaDialog(id)),
       onShowParameters: (id) => dispatch(openRtlsParamDialog(id)),
-      onSleep: (id) =>
-        dispatch(tags ? sleepRtlsDevice(id) : sleepRtlsAnchors([id])),
-      onWake: (id) =>
-        dispatch(tags ? wakeRtlsDevice(id) : wakeRtlsAnchors([id])),
+      onSleep: (id) => void dispatch(setRtlsSleeping([id], true)),
+      onWake: (id) => void dispatch(setRtlsSleeping([id], false)),
     }),
-    [dispatch, tags]
+    [dispatch]
   );
   const expandAllButton = (
     <Tooltip
@@ -300,15 +285,15 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
             icon={<Moon fontSize='small' />}
             lockedOut={bulkLockedOut}
             testId={`rtls-${variant}-panel.sleep-all`}
-            tooltip={t(bulk.sleepLabel)}
-            onClick={() => void dispatch(bulk.sleep())}
+            tooltip={t(bulkLabels.sleep)}
+            onClick={() => void dispatch(setRtlsSleeping(variant, true))}
           />
           <ActionButton
             icon={<Bolt fontSize='small' />}
             lockedOut={bulkLockedOut}
             testId={`rtls-${variant}-panel.wake-all`}
-            tooltip={t(bulk.wakeLabel)}
-            onClick={() => void dispatch(bulk.wake())}
+            tooltip={t(bulkLabels.wake)}
+            onClick={() => void dispatch(setRtlsSleeping(variant, false))}
           />
         </Box>
       </Box>
