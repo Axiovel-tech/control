@@ -4,17 +4,23 @@
  * states converge through X-RTLS-INF as the devices come back.
  */
 
+import { showConfirmationDialog } from '~/features/prompt/actions';
 import { showNotification } from '~/features/snackbar/actions';
 import i18n from '~/i18n';
 import messageHub from '~/message-hub';
-import { type AppThunk, type RootState } from '~/store/reducers';
+import {
+  type AppDispatch,
+  type AppThunk,
+  type RootState,
+} from '~/store/reducers';
 
 import {
   type RtlsCellFailure,
   type RtlsCellResult,
+  type RtlsCellTarget,
   sendRtlsCell,
 } from './cell-settings';
-import { getRtlsDeviceDisplayName } from './selectors';
+import { getPossiblyArmedUavIds, getRtlsDeviceDisplayName } from './selectors';
 import { setRtlsCellSettings } from './slice';
 
 /** "RTLS tag 222: RTLS tag 222 refused UWB_BLOCK_MS=12" stays one name. */
@@ -28,29 +34,41 @@ const describeFailure = (
 };
 
 /**
- * Asks the server for the cell settings and why it would refuse an apply now
- * (locked anchors, an authorized show); resolves to that reason.
+ * Asks the operator to confirm, worded for the drones that may be armed:
+ * every running anchor and tag restarts. Resolves to whether to proceed.
  */
-export const queryRtlsCellSettings =
-  (): AppThunk<Promise<string | undefined>> => async (dispatch) => {
-    const result = await sendRtlsCell(messageHub, 'status');
-    if (result.settings !== undefined) {
-      dispatch(setRtlsCellSettings(result.settings));
-    }
-    return result.reason;
-  };
+const confirmWhileArmed = async (
+  dispatch: AppDispatch,
+  armedCount: number
+): Promise<boolean> => {
+  if (armedCount === 0) {
+    return true;
+  }
+  const response = await dispatch(
+    showConfirmationDialog(
+      i18n.t('rtlsCellSettings.confirm.armedMessage', { count: armedCount }),
+      { title: i18n.t('rtlsCellSettings.confirm.title') }
+    )
+  );
+  return Boolean(response?.confirmed);
+};
 
 /**
- * Applies a ranging rate and the anchors' TX level. Resolves to the result
- * and, unless it was applied, the lines that say what went wrong.
+ * Applies what the operator changed of the ranging rate and the anchors' TX
+ * level, after a confirmation while any drone may be armed. Resolves to the
+ * result and, unless it was applied, the lines that say what went wrong;
+ * `undefined` when the operator cancelled.
  */
 export const applyRtlsCellSettings =
-  (target: {
-    rateHz: number;
-    txGain?: number;
-  }): AppThunk<Promise<RtlsCellResult & { errors: string[] }>> =>
+  (
+    target: RtlsCellTarget
+  ): AppThunk<Promise<(RtlsCellResult & { errors: string[] }) | undefined>> =>
   async (dispatch, getState) => {
-    const result = await sendRtlsCell(messageHub, 'apply', target);
+    const armed = getPossiblyArmedUavIds(getState()).length;
+    if (!(await confirmWhileArmed(dispatch, armed))) {
+      return undefined;
+    }
+    const result = await sendRtlsCell(messageHub, target);
     if (result.settings !== undefined) {
       dispatch(setRtlsCellSettings(result.settings));
     }

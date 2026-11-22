@@ -979,10 +979,17 @@
   "rtlsCellSettings": {
     "applied": "Cell settings applied",
     "apply": "Apply",
+    "confirm": {
+      "armedMessage_one": "{{count}} drone may be armed and will lose positioning while the cell restarts. Apply anyway?",
+      "armedMessage_other": "{{count}} drones may be armed and will lose positioning while the cell restarts. Apply anyway?",
+      "title": "Apply cell settings?"
+    },
     "custom": "Custom",
+    "customBlock": "Custom ({{ms}} ms)",
     "dialog": {
       "text": "Applies to every anchor and tag and restarts them."
     },
+    "noDevices": "No online devices",
     "problem": {
       "differ": "different settings",
       "offline": "offline",
@@ -992,13 +999,14 @@
     },
     "rate": "{{hz}} Hz",
     "rateLabel": "Ranging rate",
+    "showAuthorized": "A show is authorized",
     "state": {
       "differ": "Different cell settings",
       "restart": "Restart needed",
       "tx": "Different TX level"
     },
     "title": "Cell settings",
-    "txDefault": "{{level}} (default)",
+    "txHelper": "0 = strongest; default {{level}}",
     "txLabel": "TX level",
     "unlockFirst": "Unlock the anchors first"
   },
@@ -1158,6 +1166,7 @@
     }
   },
   "rtlsParams": {
+    "cellCliOnly": "Cell-wide: set it on every device with the CLI",
     "cellReadOnly": "Set in Cell settings",
     "lockReadOnly": "Use the panel's Lock and Unlock",
     "sleepReadOnly": "Use the row's Sleep and Wake buttons"

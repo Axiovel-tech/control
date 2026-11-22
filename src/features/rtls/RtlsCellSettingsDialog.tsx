@@ -1,7 +1,8 @@
 /**
  * @file The cell-settings dialog: the ranging rate and the anchors' TX level,
  * one line on what Apply does, the devices that do not run the cell's
- * settings, and why Apply is unavailable (locked anchors, an authorized show).
+ * settings, and why Apply is unavailable (locked anchors, an authorized show,
+ * no online device), read live from the store.
  */
 
 import Alert from '@mui/material/Alert';
@@ -18,11 +19,14 @@ import { useDispatch, useSelector } from 'react-redux';
 import { DraggableDialog } from '@skybrush/mui-components';
 
 import { errorToString } from '~/error-handling';
+import { isShowAuthorizedToStart } from '~/features/show/selectors';
 import { type AppDispatch, type RootState } from '~/store/reducers';
 import { type Collection } from '~/utils/collections';
 
-import { applyRtlsCellSettings, queryRtlsCellSettings } from './cell-actions';
+import { applyRtlsCellSettings } from './cell-actions';
 import {
+  cellApplyRefusalKey,
+  changedCellTarget,
   RTLS_RATE_PRESETS,
   RTLS_TX_GAIN_DEFAULT,
   RTLS_TX_GAIN_MAX,
@@ -39,11 +43,6 @@ import {
 import { closeRtlsCellDialog } from './slice';
 import { classifyRole, isAnchorRole } from './stats-utils';
 import { type RtlsDevice } from './types';
-
-const TX_LEVELS = Array.from(
-  { length: RTLS_TX_GAIN_MAX - RTLS_TX_GAIN_MIN + 1 },
-  (_, index) => RTLS_TX_GAIN_MIN + index
-);
 
 const PROBLEM_TEXTS: Record<RtlsCellProblem | 'offline' | 'unknown', string> = {
   differ: 'rtlsCellSettings.problem.differ',
@@ -73,12 +72,24 @@ export const listCellProblems = (
       : [{ id, name, key: PROBLEM_TEXTS[problem] }];
   });
 
+/** The TX field's value, when it is a gain index the firmware accepts. */
+const parseTxGain = (text: string): number | undefined => {
+  const value = Number(text);
+  return text.trim() !== '' &&
+    Number.isInteger(value) &&
+    value >= RTLS_TX_GAIN_MIN &&
+    value <= RTLS_TX_GAIN_MAX
+    ? value
+    : undefined;
+};
+
 const RtlsCellSettingsDialog = () => {
   const { t } = useTranslation();
   const dispatch: AppDispatch = useDispatch();
   const open = useSelector(isRtlsCellDialogOpen);
   const cell = useSelector(getRtlsCellSettings);
   const lockedCount = useSelector(getRtlsAnchorLock)?.lockedCount ?? 0;
+  const showAuthorized = useSelector(isShowAuthorizedToStart);
   const devices = useSelector((state: RootState) => state.rtls.devices);
   const problems = useMemo(
     () => listCellProblems(devices, cell),
@@ -87,10 +98,10 @@ const RtlsCellSettingsDialog = () => {
   const hasAnchors = devices.order.some((id) =>
     isAnchorRole(classifyRole(devices.byId[id]?.role))
   );
+  const anyOnline = devices.order.some((id) => devices.byId[id]?.online);
 
-  const [rateHz, setRateHz] = useState<number>(50);
-  const [txGain, setTxGain] = useState<number>(RTLS_TX_GAIN_DEFAULT);
-  const [serverReason, setServerReason] = useState<string>();
+  const [rateHz, setRateHz] = useState<number>();
+  const [txText, setTxText] = useState('');
   const [busy, setBusy] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
 
@@ -98,37 +109,39 @@ const RtlsCellSettingsDialog = () => {
     if (!open) {
       return;
     }
-    setRateHz(cell?.rateHz ?? 50);
-    setTxGain(cell?.txGain ?? RTLS_TX_GAIN_DEFAULT);
+    setRateHz(cell?.rateHz);
+    setTxText(cell?.txGain === undefined ? '' : String(cell.txGain));
     setErrors([]);
-    setServerReason(undefined);
-    dispatch(queryRtlsCellSettings()).then(setServerReason, (error) =>
-      setErrors([errorToString(error)])
-    );
     // the form starts from the cell as the dialog opens, not as it changes
-  }, [dispatch, open]);
+  }, [open]);
 
   const close = useCallback(() => dispatch(closeRtlsCellDialog()), [dispatch]);
 
-  const refusal =
-    lockedCount > 0 ? t('rtlsCellSettings.unlockFirst') : serverReason;
-  const changed = rateHz !== cell?.rateHz || txGain !== cell?.txGain;
+  const txGain = parseTxGain(txText);
+  const txInvalid = hasAnchors && txText !== '' && txGain === undefined;
+  const target = changedCellTarget(cell, {
+    rateHz,
+    txGain: hasAnchors ? txGain : undefined,
+  });
+  const refusalKey = cellApplyRefusalKey({
+    lockedCount,
+    showAuthorized,
+    anyOnline,
+  });
   const canApply =
-    !busy && refusal === undefined && (changed || problems.length > 0);
+    !busy &&
+    !txInvalid &&
+    refusalKey === undefined &&
+    (Object.keys(target).length > 0 || problems.length > 0);
 
   const handleApply = useCallback(async () => {
     setBusy(true);
     setErrors([]);
     try {
-      const result = await dispatch(
-        applyRtlsCellSettings({
-          rateHz,
-          ...(hasAnchors ? { txGain } : {}),
-        })
-      );
-      if (result.result === 'applied') {
+      const result = await dispatch(applyRtlsCellSettings(target));
+      if (result?.result === 'applied') {
         close();
-      } else {
+      } else if (result !== undefined) {
         setErrors(result.errors);
       }
     } catch (applyError) {
@@ -136,7 +149,7 @@ const RtlsCellSettingsDialog = () => {
     } finally {
       setBusy(false);
     }
-  }, [close, dispatch, hasAnchors, rateHz, txGain]);
+  }, [close, dispatch, target]);
 
   return (
     <DraggableDialog
@@ -153,11 +166,18 @@ const RtlsCellSettingsDialog = () => {
           margin='dense'
           size='small'
           label={t('rtlsCellSettings.rateLabel')}
-          value={rateHz}
+          value={rateHz ?? ''}
           disabled={busy}
           slotProps={{ htmlInput: { 'data-testid': 'rtls-cell-rate' } }}
           onChange={(event) => setRateHz(Number(event.target.value))}
         >
+          {rateHz === undefined && (
+            <MenuItem disabled value=''>
+              {cell?.blockMs === undefined
+                ? t('rtlsCellSettings.custom')
+                : t('rtlsCellSettings.customBlock', { ms: cell.blockMs })}
+            </MenuItem>
+          )}
           {RTLS_RATE_PRESETS.map((hz) => (
             <MenuItem key={hz} value={hz}>
               {t('rtlsCellSettings.rate', { hz })}
@@ -166,24 +186,27 @@ const RtlsCellSettingsDialog = () => {
         </TextField>
         {hasAnchors && (
           <TextField
-            select
             fullWidth
             margin='dense'
             size='small'
+            type='number'
             label={t('rtlsCellSettings.txLabel')}
-            value={txGain}
+            value={txText}
             disabled={busy}
-            slotProps={{ htmlInput: { 'data-testid': 'rtls-cell-tx' } }}
-            onChange={(event) => setTxGain(Number(event.target.value))}
-          >
-            {TX_LEVELS.map((level) => (
-              <MenuItem key={level} value={level}>
-                {level === RTLS_TX_GAIN_DEFAULT
-                  ? t('rtlsCellSettings.txDefault', { level })
-                  : level}
-              </MenuItem>
-            ))}
-          </TextField>
+            error={txInvalid}
+            placeholder={String(RTLS_TX_GAIN_DEFAULT)}
+            helperText={t('rtlsCellSettings.txHelper', {
+              level: RTLS_TX_GAIN_DEFAULT,
+            })}
+            slotProps={{
+              htmlInput: {
+                'data-testid': 'rtls-cell-tx',
+                min: RTLS_TX_GAIN_MIN,
+                max: RTLS_TX_GAIN_MAX,
+              },
+            }}
+            onChange={(event) => setTxText(event.target.value)}
+          />
         )}
         <Typography variant='body2' sx={{ mt: 1 }}>
           {t('rtlsCellSettings.dialog.text')}
@@ -200,9 +223,9 @@ const RtlsCellSettingsDialog = () => {
             ))}
           </ul>
         )}
-        {refusal !== undefined && (
+        {refusalKey !== undefined && (
           <Typography variant='body2' color='warning.main' sx={{ mt: 1 }}>
-            {refusal}
+            {t(refusalKey)}
           </Typography>
         )}
         {errors.length > 0 && (

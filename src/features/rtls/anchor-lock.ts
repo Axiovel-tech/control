@@ -8,6 +8,8 @@
 import type MessageHub from '~/flockwave/messages';
 import { type Message, type MessageBody } from '~/flockwave/types';
 
+import { type AnyRecord, isRecord, toText } from './wire-values';
+
 /**
  * The server's verdict on scheduling or authorizing a show now (the same
  * check SHOW-SETCFG applies): whether locked anchors are required, whether
@@ -29,14 +31,6 @@ export type RtlsAnchorLock = {
   unlocked: string[];
   showGate?: RtlsShowGate;
 };
-
-type AnyRecord = Record<string, unknown>;
-
-const isRecord = (value: unknown): value is AnyRecord =>
-  typeof value === 'object' && value !== null && !Array.isArray(value);
-
-const toText = (value: unknown): string | undefined =>
-  typeof value === 'string' ? value : undefined;
 
 const toCount = (value: unknown): number =>
   typeof value === 'number' && Number.isFinite(value) ? value : 0;

@@ -46,18 +46,19 @@ export const fetchRtlsDeviceParameters =
  * (which confirm, wait for the verified result and never send off or plain
  * standby), `LOCK` through the panel's Lock/Unlock (which check the anchors
  * and list the server's warnings), and the cell settings, which every device
- * of the cell must share, through the anchors panel's cell settings (which
- * write them to every device and restart it).
+ * of the cell must share: the rate and TX level through the anchors panel's
+ * cell settings (which write them to every device and restart it), channel
+ * and session id only with the CLI.
  */
 export const READ_ONLY_RTLS_PARAMS: Readonly<Record<string, string>> = {
   SLEEP: 'rtlsParams.sleepReadOnly',
   LOCK: 'rtlsParams.lockReadOnly',
   UWB_BLOCK_MS: 'rtlsParams.cellReadOnly',
-  UWB_CHANNEL: 'rtlsParams.cellReadOnly',
-  UWB_SESSION_ID: 'rtlsParams.cellReadOnly',
   UWB_SLOT_RSTU: 'rtlsParams.cellReadOnly',
   UWB_SLOTS_RR: 'rtlsParams.cellReadOnly',
   UWB_TX_GAIN: 'rtlsParams.cellReadOnly',
+  UWB_CHANNEL: 'rtlsParams.cellCliOnly',
+  UWB_SESSION_ID: 'rtlsParams.cellCliOnly',
 };
 
 /**

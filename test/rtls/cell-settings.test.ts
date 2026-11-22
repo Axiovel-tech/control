@@ -13,33 +13,49 @@ jest.mock('~/features/snackbar/actions', () => ({
 jest.mock('~/error-handling', () => ({
   errorToString: (error: unknown): string => String(error),
 }));
+jest.mock('~/features/prompt/actions', () => ({
+  __esModule: true,
+  showConfirmationDialog: jest.fn(),
+}));
 
 import { cellProblemOf } from '~/features/rtls/CellSettingsIcon';
 import { countCellDevicesNotOk } from '~/features/rtls/CellSettingsControl';
 import { listCellProblems } from '~/features/rtls/RtlsCellSettingsDialog';
+import { applyRtlsCellSettings } from '~/features/rtls/cell-actions';
 import {
-  applyRtlsCellSettings,
-  queryRtlsCellSettings,
-} from '~/features/rtls/cell-actions';
-import { mapCellSettings } from '~/features/rtls/cell-settings';
+  cellApplyRefusalKey,
+  changedCellTarget,
+  mapCellSettings,
+} from '~/features/rtls/cell-settings';
 import {
   buildRtlsDeviceStatusMap,
   rtlsInformationActions,
 } from '~/features/rtls/handlers';
-import { setRtlsDeviceParameter } from '~/features/rtls/param-actions';
+import {
+  READ_ONLY_RTLS_PARAMS,
+  setRtlsDeviceParameter,
+} from '~/features/rtls/param-actions';
 import {
   clearRtlsDevices,
   openRtlsCellDialog,
   setRtlsCellSettings,
   setRtlsDevicesFromStatus,
 } from '~/features/rtls/slice';
+import { showConfirmationDialog } from '~/features/prompt/actions';
 import { showNotification } from '~/features/snackbar/actions';
 import messageHub from '~/message-hub';
+import { UAVAge } from '~/model/uav';
 
-import { createRtlsTestStore, dispatchThunk, reply } from './rtls-test-store';
+import {
+  answer,
+  createRtlsTestStore,
+  dispatchThunk,
+  reply,
+} from './rtls-test-store';
 
 // eslint-disable-next-line @typescript-eslint/unbound-method -- a jest mock, never called through `this`
 const sendMessage = jest.mocked(messageHub.sendMessage);
+const confirm = jest.mocked(showConfirmationDialog);
 
 /** A0 (201) on 83 Hz; 202 still runs the old settings, the tag has not reported. */
 const CELL = {
@@ -156,26 +172,6 @@ describe('what the panel shows', () => {
 });
 
 describe('X-RTLS-CELL', () => {
-  test('status stores the settings and returns the refusal', async () => {
-    const store = createRtlsTestStore();
-    sendMessage.mockResolvedValueOnce(
-      reply({
-        type: 'X-RTLS-CELL',
-        result: 'status',
-        reason: 'A show is authorized',
-        results: {},
-        cellSettings: CELL,
-      })
-    );
-    const reason = await dispatchThunk(store, queryRtlsCellSettings());
-    expect(sendMessage.mock.calls[0][0]).toEqual({
-      type: 'X-RTLS-CELL',
-      action: 'status',
-    });
-    expect(reason).toBe('A show is authorized');
-    expect(store.getState().rtls.cellSettings?.rateHz).toBe(83);
-  });
-
   test('apply sends the target and notifies when applied', async () => {
     const store = createRtlsTestStore();
     sendMessage.mockResolvedValueOnce(
@@ -190,14 +186,31 @@ describe('X-RTLS-CELL', () => {
       store,
       applyRtlsCellSettings({ rateHz: 83, txGain: 47 })
     );
-    expect(sendMessage.mock.calls[0][0]).toEqual({
-      type: 'X-RTLS-CELL',
-      action: 'apply',
-      rateHz: 83,
-      txGain: 47,
-    });
-    expect(result.errors).toEqual([]);
+    // a silent device costs the server seconds before it can answer
+    expect(sendMessage.mock.calls[0]).toEqual([
+      { type: 'X-RTLS-CELL', action: 'apply', rateHz: 83, txGain: 47 },
+      { timeout: 30 },
+    ]);
+    expect(result?.errors).toEqual([]);
     expect(showNotification).toHaveBeenCalled();
+    expect(confirm).not.toHaveBeenCalled();
+  });
+
+  test('apply asks first while a drone may be armed; no sends nothing', async () => {
+    const store = createRtlsTestStore([
+      { id: 'd1', age: UAVAge.ACTIVE, errors: [] },
+    ]);
+    confirm.mockReturnValueOnce(answer(false));
+    const result = await dispatchThunk(
+      store,
+      applyRtlsCellSettings({ txGain: 20 })
+    );
+    expect(confirm.mock.calls[0]).toEqual([
+      'rtlsCellSettings.confirm.armedMessage',
+      { title: 'rtlsCellSettings.confirm.title' },
+    ]);
+    expect(result).toBe(undefined);
+    expect(sendMessage).not.toHaveBeenCalled();
   });
 
   test('an incomplete apply names the devices with the server detail', async () => {
@@ -226,7 +239,7 @@ describe('X-RTLS-CELL', () => {
       store,
       applyRtlsCellSettings({ rateHz: 83 })
     );
-    expect(result.errors).toEqual([
+    expect(result?.errors).toEqual([
       'Not every device took the change; nothing was restarted',
       'RTLS tag 42 refused UWB_BLOCK_MS=12',
       'RTLS anchor A1: rollback failed: no answer',
@@ -247,7 +260,42 @@ describe('X-RTLS-CELL', () => {
   });
 });
 
+describe('the dialog', () => {
+  const cell = mapCellSettings(CELL)!;
+
+  test('sends only what the operator changed', () => {
+    expect(changedCellTarget(cell, { rateHz: 83, txGain: 47 })).toEqual({});
+    expect(changedCellTarget(cell, { rateHz: 83, txGain: 20 })).toEqual({
+      txGain: 20,
+    });
+    // a custom rate and an unread TX level are never replaced by a default
+    const custom = { ...cell, rateHz: undefined, txGain: undefined };
+    expect(changedCellTarget(custom, { txGain: 20 })).toEqual({ txGain: 20 });
+    expect(changedCellTarget(custom, { rateHz: 50 })).toEqual({ rateHz: 50 });
+  });
+
+  test('says why Apply is unavailable from the live state', () => {
+    const live = { lockedCount: 0, showAuthorized: false, anyOnline: true };
+    expect(cellApplyRefusalKey(live)).toBe(undefined);
+    expect(cellApplyRefusalKey({ ...live, lockedCount: 2 })).toBe(
+      'rtlsCellSettings.unlockFirst'
+    );
+    expect(cellApplyRefusalKey({ ...live, showAuthorized: true })).toBe(
+      'rtlsCellSettings.showAuthorized'
+    );
+    expect(cellApplyRefusalKey({ ...live, anyOnline: false })).toBe(
+      'rtlsCellSettings.noDevices'
+    );
+  });
+});
+
 describe('cell parameters in the parameter dialog', () => {
+  test('channel and session id are set with the CLI, the rest in Cell settings', () => {
+    expect(READ_ONLY_RTLS_PARAMS.UWB_CHANNEL).toBe('rtlsParams.cellCliOnly');
+    expect(READ_ONLY_RTLS_PARAMS.UWB_SESSION_ID).toBe('rtlsParams.cellCliOnly');
+    expect(READ_ONLY_RTLS_PARAMS.UWB_TX_GAIN).toBe('rtlsParams.cellReadOnly');
+  });
+
   test.each([
     'UWB_BLOCK_MS',
     'UWB_SLOTS_RR',

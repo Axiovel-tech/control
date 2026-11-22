@@ -9,10 +9,12 @@
 import type MessageHub from '~/flockwave/messages';
 import { type Message, type MessageBody } from '~/flockwave/types';
 
+import { type AnyRecord, isRecord, toNumber, toText } from './wire-values';
+
 /** The ranging-rate presets the server applies (Hz). */
 export const RTLS_RATE_PRESETS = [33, 50, 83] as const;
 
-/** The anchors' TX gain index range: 0 is the strongest level. */
+/** The anchors' TX gain index range (the firmware's UWB_TX_GAIN). */
 export const RTLS_TX_GAIN_MIN = 0;
 export const RTLS_TX_GAIN_MAX = 127;
 export const RTLS_TX_GAIN_DEFAULT = 47;
@@ -32,17 +34,6 @@ export type RtlsCellSettings = {
   restart: string[];
   unknown: string[];
 };
-
-type AnyRecord = Record<string, unknown>;
-
-const isRecord = (value: unknown): value is AnyRecord =>
-  typeof value === 'object' && value !== null && !Array.isArray(value);
-
-const toText = (value: unknown): string | undefined =>
-  typeof value === 'string' ? value : undefined;
-
-const toNumber = (value: unknown): number | undefined =>
-  typeof value === 'number' && Number.isFinite(value) ? value : undefined;
 
 const toIds = (value: unknown): string[] =>
   Array.isArray(value)
@@ -83,16 +74,22 @@ export function mapCellSettings(value: unknown): RtlsCellSettings | undefined {
 /** A device the apply did not write or restart. */
 export type RtlsCellFailure = { id: string; detail: string };
 
-/** Outcome of an X-RTLS-CELL request. */
+/** What Apply sends: only what the operator changed. */
+export type RtlsCellTarget = { rateHz?: number; txGain?: number };
+
+/** Outcome of an apply. */
 export type RtlsCellResult = {
-  result: 'status' | 'applied' | 'incomplete' | 'refused' | 'unknown';
-  /** Why the server refuses (or would refuse) an apply. */
+  result: 'applied' | 'incomplete' | 'refused' | 'unknown';
+  /** Why the server refused, or why not every device took the change. */
   reason?: string;
   settings?: RtlsCellSettings;
   failures: RtlsCellFailure[];
 };
 
-const CELL_RESULTS = ['status', 'applied', 'incomplete', 'refused'] as const;
+const CELL_RESULTS = ['applied', 'incomplete', 'refused'] as const;
+
+/** Writes, a rollback and SMP resets: one silent device costs seconds. */
+const APPLY_TIMEOUT_S = 30;
 
 /** The devices whose entry carries a `detail`: a failed write or restart. */
 const mapFailures = (value: unknown): RtlsCellFailure[] =>
@@ -104,19 +101,52 @@ const mapFailures = (value: unknown): RtlsCellFailure[] =>
     : [];
 
 /**
- * Queries or applies the cell settings (X-RTLS-CELL). Only a NAK (an invalid
- * request, a server without the feature) rejects, with its reason.
+ * The fields of the form that differ from the cell; a field left as the cell
+ * has it (a custom rate, an unread TX level) is not sent, so the server keeps
+ * A0's value for it.
+ */
+export const changedCellTarget = (
+  cell: RtlsCellSettings | undefined,
+  form: RtlsCellTarget
+): RtlsCellTarget => ({
+  ...(form.rateHz !== undefined && form.rateHz !== cell?.rateHz
+    ? { rateHz: form.rateHz }
+    : {}),
+  ...(form.txGain !== undefined && form.txGain !== cell?.txGain
+    ? { txGain: form.txGain }
+    : {}),
+});
+
+/** The i18n key of why Apply is unavailable now; `undefined` when it is. */
+export const cellApplyRefusalKey = ({
+  lockedCount,
+  showAuthorized,
+  anyOnline,
+}: {
+  lockedCount: number;
+  showAuthorized: boolean;
+  anyOnline: boolean;
+}): string | undefined =>
+  lockedCount > 0
+    ? 'rtlsCellSettings.unlockFirst'
+    : showAuthorized
+      ? 'rtlsCellSettings.showAuthorized'
+      : anyOnline
+        ? undefined
+        : 'rtlsCellSettings.noDevices';
+
+/**
+ * Applies the cell settings (X-RTLS-CELL). Only a NAK (an invalid request, a
+ * server without the feature) rejects, with its reason.
  */
 export async function sendRtlsCell(
   hub: MessageHub,
-  action: 'status' | 'apply',
-  target: { rateHz?: number; txGain?: number } = {}
+  target: RtlsCellTarget
 ): Promise<RtlsCellResult> {
-  const response: Message<MessageBody & AnyRecord> = await hub.sendMessage({
-    type: 'X-RTLS-CELL',
-    action,
-    ...target,
-  });
+  const response: Message<MessageBody & AnyRecord> = await hub.sendMessage(
+    { type: 'X-RTLS-CELL', action: 'apply', ...target },
+    { timeout: APPLY_TIMEOUT_S }
+  );
   const body = response.body;
   if (body?.type !== 'X-RTLS-CELL') {
     throw new Error(

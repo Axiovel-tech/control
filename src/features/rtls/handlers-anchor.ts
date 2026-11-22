@@ -11,11 +11,7 @@ import {
   type RtlsPowerInput,
   type RtlsPowerState,
 } from './types';
-
-type AnyRecord = Record<string, unknown>;
-
-const toNumber = (value: unknown): number | undefined =>
-  typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+import { type AnyRecord, toNumber } from './wire-values';
 
 /** A flag: a boolean, or a 0/1 code as the firmware sends it. */
 const toBoolean = (value: unknown): boolean | undefined =>
