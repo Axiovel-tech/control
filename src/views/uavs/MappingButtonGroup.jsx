@@ -42,6 +42,7 @@ const MappingButtonGroup = ({
     {showMissionIds && (
       <Tooltip content={t('mappingButtonGroup.editMapping')}>
         <IconButton
+          data-testid='uavs.edit-mapping'
           disabled={mappingEditable || !showMissionIds}
           size='large'
           onClick={startMappingEditorSession}
