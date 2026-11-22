@@ -321,6 +321,35 @@ describe('an anchor rebooting into an accepted state', () => {
   });
 });
 
+describe('the switching hint', () => {
+  test('ends at the first new powerState, not at stopping', async () => {
+    const store = createStore();
+    seedAnchors(store, { '101': 'operating', '102': 'standby' });
+    acceptAll(['101', '102'], true);
+
+    await dispatchThunk(store, setRtlsSleeping(['101', '102'], true));
+    store.dispatch(
+      updateRtlsStats({
+        byId: {
+          '101': { id: '101', powerState: 'stopping' },
+          '102': { id: '102', powerState: 'asleep' },
+        },
+      })
+    );
+
+    // 101 reboots next; 102 fell asleep in place, so a later disconnect is
+    // a real one
+    expect(Object.keys(store.getState().rtls.anchorPowerRequests)).toEqual([
+      '101',
+    ]);
+
+    store.dispatch(
+      updateRtlsStats({ byId: { '101': { id: '101', powerState: 'asleep' } } })
+    );
+    expect(store.getState().rtls.anchorPowerRequests).toEqual({});
+  });
+});
+
 describe('SLEEP from the parameter dialog', () => {
   test('is never written: sleep and wake go through the row buttons', async () => {
     const store = createStore();

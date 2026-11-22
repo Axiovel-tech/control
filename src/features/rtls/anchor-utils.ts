@@ -106,8 +106,9 @@ export function formatInitiatorDistance(peer: RtlsTwrPeer | undefined): string {
 export const isDeviceLost = (device: RtlsDevice): boolean => !device.online;
 
 /**
- * How long after an accepted sleep or wake a lost anchor reads as switching:
- * the transition may reboot it (8-15 s off the network).
+ * How long after an accepted sleep or wake a lost anchor reads as switching
+ * at most: the transition may reboot it (8-15 s off the network). The first
+ * new powerState it reports ends the hint sooner (`anchorPowerRequests`).
  */
 export const ANCHOR_REBOOT_WINDOW_MS = 30 * 1000;
 

@@ -22,18 +22,16 @@ export const ANCHOR_PARAM_METADATA: Record<string, RtlsParamMetadata> = {
     description:
       'Sleep request/state. Tags: 1 sleeps (power rails down, management ' +
       'link up), 0 wakes. Anchors: 0 awake, 1 asleep (UWB off, network up, ' +
-      'runs on its pack if unplugged, wakes remotely), 2 off (button start ' +
-      'only), 3 plain standby (external power, not ranging; unplugging ' +
-      'powers it off). Only 0 and 1 are written from here; the anchor ' +
-      "state shown on its row comes from the anchor's power state",
+      'runs on its pack if unplugged, wakes remotely), 2 standby and not ' +
+      "asleep (read-only). The row's Sleep and Wake write 0 and 1; the " +
+      "anchor state shown on its row comes from the anchor's power state",
     enumLabels: {
       0: 'awake',
       1: 'asleep',
-      2: 'off (anchors)',
-      3: 'standby (anchors)',
+      2: 'standby (read-only)',
     },
     min: 0,
-    max: 3,
+    max: 2,
     defaultValue: 0,
   },
 

@@ -104,8 +104,9 @@ export type RtlsSliceState = RtlsLockSliceState & {
 
   /**
    * When each anchor last accepted a sleep or wake (`Date.now()`), keyed by
-   * system id: an anchor that then drops off the network is rebooting into
-   * the new state, not lost (`isAnchorSwitching`).
+   * system id, until it reports a new powerState: an anchor that drops off
+   * the network meanwhile is rebooting into the new state, not lost
+   * (`isAnchorSwitching`).
    */
   anchorPowerRequests: Record<string, number>;
 
@@ -502,6 +503,15 @@ const { actions, reducer } = createSlice({
       if (refitted) {
         state.geometry.lastCheck = undefined;
         state.geometry.invalidations += 1;
+      }
+      // An anchor that reports a new powerState after its accepted sleep or
+      // wake is no longer switching; `stopping` only announces the reboot.
+      for (const [id, stats] of Object.entries(payload.byId)) {
+        const before = state.stats.byId[id]?.powerState;
+        const after = stats.powerState;
+        if (after !== undefined && after !== before && after !== 'stopping') {
+          delete state.anchorPowerRequests[id];
+        }
       }
       Object.assign(state.stats.byId, payload.byId);
       // The Tags panel's "updated" clock: only tag stats move it (a device
