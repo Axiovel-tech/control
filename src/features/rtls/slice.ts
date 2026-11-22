@@ -56,95 +56,94 @@ export type RtlsDeviceParamsState = {
   lastFetchedAt?: number;
 };
 
-export type RtlsSliceState = RtlsLockSliceState &
-  RtlsCellSliceState & {
-    /** Registry of known RTLS devices keyed by system id (numeric string). */
-    devices: Collection<RtlsDevice>;
+/** The parts of the slice kept in their own files. */
+type RtlsPartSliceState = RtlsLockSliceState & RtlsCellSliceState;
 
-    /**
-     * Live statistics keyed by system id. The server broadcasts statistics one
-     * device per message, so updates are merged per id; stale devices are pruned
-     * from the X-RTLS-INF device snapshot rather than from the stats path.
-     */
-    stats: {
-      byId: Record<string, RtlsDeviceStats>;
-      /** When a tag's stats last arrived (the Tags panel's "updated" clock). */
-      lastUpdatedAt?: number;
-    };
+export type RtlsSliceState = RtlsPartSliceState & {
+  /** Registry of known RTLS devices keyed by system id (numeric string). */
+  devices: Collection<RtlsDevice>;
 
-    /**
-     * Live position-estimate debug stream (X-RTLS-POS) keyed by system id.
-     * Present only while a tag's `POS_DBG_HZ` parameter is nonzero; merged per
-     * id like the stats and pruned with the device from the X-RTLS-INF snapshot.
-     */
-    positions: {
-      byId: Record<string, RtlsPosEstimate>;
-    };
-
-    /** Site-level anchor list from X-RTLS-INF (configured cell geometry). */
-    anchors: RtlsAnchor[];
-
-    /** Last known OTA job per device, keyed by system id. */
-    otaJobs: Record<string, RtlsOtaJob>;
-
-    /**
-     * Devices with a sleep/wake transaction currently in flight (X-RTLS-SLEEP
-     * round trip; can take up to ~30 s), keyed by system id. Used to render a
-     * busy state on the device rows. Cleared deterministically when the
-     * transaction settles, so it is not pruned with the X-RTLS-INF snapshot (a
-     * waking device may drop out of the snapshot while it reboots).
-     */
-    sleepPending: Record<string, boolean>;
-
-    /**
-     * Authoritative per-device `sleeping` values recently applied from accepted
-     * X-RTLS-SLEEP transaction results, with the time they were applied. While
-     * an entry is fresh (`SLEEP_RESULT_GUARD_MS`), an X-RTLS-INF snapshot value
-     * that contradicts it must not overwrite it: pushes/polls already in flight
-     * — and older servers without the post-transaction sleep-state pin — may
-     * still carry the stale pre-transition latch. A confirming snapshot value
-     * (or expiry) clears the entry. Deliberately not pruned when a device drops
-     * out of a snapshot: a waking device disappears while it reboots, and the
-     * guard must still apply when it comes back.
-     */
-    recentSleepResults: Record<
-      string,
-      { sleeping: boolean; appliedAt: number }
-    >;
-
-    /** Cached read-only parameter lists keyed by device id. */
-    paramsByDevice: Record<string, RtlsDeviceParamsState>;
-
-    /** State of the per-device parameter viewer/editor dialog. */
-    paramDialog: {
-      open: boolean;
-      deviceId?: string;
-    };
-
-    /** State of the per-device OTA dialog. */
-    otaDialog: {
-      open: boolean;
-      deviceId?: string;
-    };
-
-    /** Fleet geometry-agreement state (X-RTLS-GEOM check). The tags fit
-     * the cell themselves; the client only verifies they agree. */
-    geometry: {
-      checking: boolean;
-      lastCheck?: RtlsGeometryAgreement;
-      /** Counts every time the slice voided a verdict (tag set changed, a
-       * tag rebooted): the tags panel re-checks whenever it moves. */
-      invalidations: number;
-    };
-
-    /** Fleet pre-flight verification state (X-RTLS-VERIFY). */
-    verify: {
-      running: boolean;
-      lastResult?: RtlsVerifyResult;
-      /** Whether the verification dialog is open. */
-      dialogOpen: boolean;
-    };
+  /**
+   * Live statistics keyed by system id. The server broadcasts statistics one
+   * device per message, so updates are merged per id; stale devices are pruned
+   * from the X-RTLS-INF device snapshot rather than from the stats path.
+   */
+  stats: {
+    byId: Record<string, RtlsDeviceStats>;
+    /** When a tag's stats last arrived (the Tags panel's "updated" clock). */
+    lastUpdatedAt?: number;
   };
+
+  /**
+   * Live position-estimate debug stream (X-RTLS-POS) keyed by system id.
+   * Present only while a tag's `POS_DBG_HZ` parameter is nonzero; merged per
+   * id like the stats and pruned with the device from the X-RTLS-INF snapshot.
+   */
+  positions: {
+    byId: Record<string, RtlsPosEstimate>;
+  };
+
+  /** Site-level anchor list from X-RTLS-INF (configured cell geometry). */
+  anchors: RtlsAnchor[];
+
+  /** Last known OTA job per device, keyed by system id. */
+  otaJobs: Record<string, RtlsOtaJob>;
+
+  /**
+   * Devices with a sleep/wake transaction currently in flight (X-RTLS-SLEEP
+   * round trip; can take up to ~30 s), keyed by system id. Used to render a
+   * busy state on the device rows. Cleared deterministically when the
+   * transaction settles, so it is not pruned with the X-RTLS-INF snapshot (a
+   * waking device may drop out of the snapshot while it reboots).
+   */
+  sleepPending: Record<string, boolean>;
+
+  /**
+   * Authoritative per-device `sleeping` values recently applied from accepted
+   * X-RTLS-SLEEP transaction results, with the time they were applied. While
+   * an entry is fresh (`SLEEP_RESULT_GUARD_MS`), an X-RTLS-INF snapshot value
+   * that contradicts it must not overwrite it: pushes/polls already in flight
+   * — and older servers without the post-transaction sleep-state pin — may
+   * still carry the stale pre-transition latch. A confirming snapshot value
+   * (or expiry) clears the entry. Deliberately not pruned when a device drops
+   * out of a snapshot: a waking device disappears while it reboots, and the
+   * guard must still apply when it comes back.
+   */
+  recentSleepResults: Record<string, { sleeping: boolean; appliedAt: number }>;
+
+  /** Cached read-only parameter lists keyed by device id. */
+  paramsByDevice: Record<string, RtlsDeviceParamsState>;
+
+  /** State of the per-device parameter viewer/editor dialog. */
+  paramDialog: {
+    open: boolean;
+    deviceId?: string;
+  };
+
+  /** State of the per-device OTA dialog. */
+  otaDialog: {
+    open: boolean;
+    deviceId?: string;
+  };
+
+  /** Fleet geometry-agreement state (X-RTLS-GEOM check). The tags fit
+   * the cell themselves; the client only verifies they agree. */
+  geometry: {
+    checking: boolean;
+    lastCheck?: RtlsGeometryAgreement;
+    /** Counts every time the slice voided a verdict (tag set changed, a
+     * tag rebooted): the tags panel re-checks whenever it moves. */
+    invalidations: number;
+  };
+
+  /** Fleet pre-flight verification state (X-RTLS-VERIFY). */
+  verify: {
+    running: boolean;
+    lastResult?: RtlsVerifyResult;
+    /** Whether the verification dialog is open. */
+    dialogOpen: boolean;
+  };
+};
 
 const initialState: RtlsSliceState = {
   devices: EMPTY_COLLECTION,
