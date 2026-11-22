@@ -198,7 +198,8 @@ export async function setRtlsParameter(
 export type RtlsSleepResult = {
   requested?: boolean;
   accepted: boolean;
-  sleeping?: boolean;
+  /** `null` when the server could not tell (refusals, timeouts) */
+  sleeping?: boolean | null;
   detail?: string;
 };
 

@@ -11,8 +11,8 @@ export const isTagOrUnknownRtlsDevice = (device: RtlsDevice): boolean =>
 
 /**
  * Whether a device offers sleep/wake: a known tag or an anchor. A device
- * whose role has not arrived yet offers neither: it may be an anchor, which
- * sleeps only through the anchor actions and their confirmation.
+ * whose role has not arrived yet offers neither: it may be an anchor, whose
+ * sleep always asks for confirmation.
  */
 export const isSleepableRtlsDevice = (device: RtlsDevice): boolean => {
   const role = classifyRole(device.role);
