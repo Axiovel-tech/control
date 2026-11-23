@@ -11,17 +11,13 @@ import i18n from '~/i18n';
 import messageHub from '~/message-hub';
 import { type AppThunk } from '~/store/reducers';
 
-import { refuseLockedDevices } from './lock-actions';
 import { sendRtlsForget } from './messages';
 
 /** Thunk that forgets the given offline devices, reporting the outcome. */
 export const forgetRtlsDevices =
   (deviceIds: string[]): AppThunk<Promise<void>> =>
-  async (_dispatch, getState) => {
+  async () => {
     if (deviceIds.length === 0) {
-      return;
-    }
-    if (refuseLockedDevices(getState(), deviceIds)) {
       return;
     }
 

@@ -479,3 +479,25 @@ export type RtlsVerifyResult = {
   rules: RtlsVerifyRule[];
   receivedAt: number;
 };
+
+/**
+ * The server's verdict on scheduling or authorizing a show now (the same
+ * check SHOW-SETCFG applies): whether locked anchors are required, and
+ * whether it refuses now.
+ */
+export type RtlsShowGate = {
+  required: boolean;
+  refused: boolean;
+};
+
+/**
+ * The anchor lock (X-RTLS-INF `anchorLock`), derived by the server from the
+ * anchors' own lock.
+ */
+export type RtlsAnchorLock = {
+  /** At least one anchor is known and every online anchor is locked. */
+  locked: boolean;
+  lockedCount: number;
+  anchorCount: number;
+  showGate?: RtlsShowGate;
+};

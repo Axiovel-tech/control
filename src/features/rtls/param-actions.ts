@@ -19,7 +19,6 @@ import {
   rtlsParamsFetchSucceeded,
   rtlsParamValueUpdated,
 } from './slice';
-import { isRtlsDeviceLockedOut } from './selectors';
 import { type RtlsParamType, type RtlsParamValue } from './types';
 
 /**
@@ -77,10 +76,7 @@ export const setRtlsDeviceParameter =
     value: RtlsParamValue,
     paramType?: RtlsParamType
   ): AppThunk<Promise<RtlsParameterSetResult>> =>
-  async (dispatch, getState) => {
-    if (isRtlsDeviceLockedOut(getState(), deviceId)) {
-      throw new Error(i18n.t('rtlsAnchorLock.locked'));
-    }
+  async (dispatch) => {
     const readOnlyHint = READ_ONLY_RTLS_PARAMS[name];
     if (readOnlyHint !== undefined) {
       throw new Error(i18n.t(readOnlyHint));

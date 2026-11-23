@@ -14,6 +14,7 @@ import {
 
 import {
   type RtlsAnchor,
+  type RtlsAnchorLock,
   type RtlsDevice,
   type RtlsDeviceStats,
   type RtlsGeometryAgreement,
@@ -24,18 +25,7 @@ import {
 } from './types';
 import { classifyRole, isAnchorRole } from './stats-utils';
 import { updateStateOfRtlsDevice } from './utils';
-import {
-  cellReducers,
-  clearCellState,
-  initialCellState,
-  type RtlsCellSliceState,
-} from './slice-cell';
-import {
-  clearLockState,
-  initialLockState,
-  lockReducers,
-  type RtlsLockSliceState,
-} from './slice-lock';
+import { type RtlsCellSettings } from './cell-settings';
 
 /**
  * How long an applied sleep/wake transaction result guards the device's
@@ -56,10 +46,7 @@ export type RtlsDeviceParamsState = {
   lastFetchedAt?: number;
 };
 
-/** The parts of the slice kept in their own files. */
-type RtlsPartSliceState = RtlsLockSliceState & RtlsCellSliceState;
-
-export type RtlsSliceState = RtlsPartSliceState & {
+export type RtlsSliceState = {
   /** Registry of known RTLS devices keyed by system id (numeric string). */
   devices: Collection<RtlsDevice>;
 
@@ -136,6 +123,21 @@ export type RtlsSliceState = RtlsPartSliceState & {
     invalidations: number;
   };
 
+  /**
+   * The server's anchor lock, from X-RTLS-INF only; `undefined` while the
+   * server has not reported one (a server without the lock feature).
+   */
+  anchorLock?: RtlsAnchorLock;
+
+  /** Whether the lock dialog is open. */
+  lockDialogOpen: boolean;
+
+  /** The server's `cellSettings`; `undefined` while it has reported none. */
+  cellSettings?: RtlsCellSettings;
+
+  /** Whether the cell-settings dialog is open. */
+  cellDialogOpen: boolean;
+
   /** Fleet pre-flight verification state (X-RTLS-VERIFY). */
   verify: {
     running: boolean;
@@ -172,8 +174,10 @@ const initialState: RtlsSliceState = {
     lastCheck: undefined,
     invalidations: 0,
   },
-  ...initialLockState,
-  ...initialCellState,
+  anchorLock: undefined,
+  lockDialogOpen: false,
+  cellSettings: undefined,
+  cellDialogOpen: false,
   verify: {
     running: false,
     lastResult: undefined,
@@ -185,13 +189,13 @@ const { actions, reducer } = createSlice({
   name: 'rtls',
   initialState,
   reducers: {
-    ...lockReducers,
-    ...cellReducers,
-
     /** Clears the entire RTLS device registry, stats and OTA jobs. */
     clearRtlsDevices(state) {
-      clearLockState(state);
-      clearCellState(state);
+      // the next server reports its own lock; a dialog about this one closes
+      state.anchorLock = undefined;
+      state.lockDialogOpen = false;
+      state.cellSettings = undefined;
+      state.cellDialogOpen = false;
       clearOrderedCollection<RtlsDevice>(state.devices);
       state.stats = { byId: {}, lastUpdatedAt: undefined };
       state.positions = { byId: {} };
@@ -224,6 +228,31 @@ const { actions, reducer } = createSlice({
     rtlsVerifySucceeded(state, { payload }: PayloadAction<RtlsVerifyResult>) {
       state.verify.running = false;
       state.verify.lastResult = payload;
+    },
+
+    /** Replaces the anchor lock with the server's latest report. */
+    setRtlsAnchorLock(state, { payload }: PayloadAction<RtlsAnchorLock>) {
+      state.anchorLock = payload;
+    },
+
+    openRtlsLockDialog(state) {
+      state.lockDialogOpen = true;
+    },
+
+    closeRtlsLockDialog(state) {
+      state.lockDialogOpen = false;
+    },
+
+    setRtlsCellSettings(state, { payload }: PayloadAction<RtlsCellSettings>) {
+      state.cellSettings = payload;
+    },
+
+    openRtlsCellDialog(state) {
+      state.cellDialogOpen = true;
+    },
+
+    closeRtlsCellDialog(state) {
+      state.cellDialogOpen = false;
     },
 
     /** Opens the fleet-verification dialog. */

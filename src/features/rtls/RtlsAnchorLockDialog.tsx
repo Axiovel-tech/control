@@ -11,7 +11,7 @@ import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import Typography from '@mui/material/Typography';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDispatch, useSelector } from 'react-redux';
 
@@ -20,7 +20,7 @@ import { DraggableDialog } from '@skybrush/mui-components';
 import { errorToString } from '~/error-handling';
 import { type AppDispatch } from '~/store/reducers';
 
-import { lockRtlsAnchors } from './lock-actions';
+import { type RtlsLockOutcome, sendRtlsLockCommand } from './anchor-lock';
 import { isRtlsLockDialogOpen } from './selectors';
 import { closeRtlsLockDialog } from './slice';
 
@@ -34,9 +34,13 @@ const RtlsAnchorLockDialog = () => {
   const [acknowledged, setAcknowledged] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
+  // moves on every open and close: a reply to an earlier attempt is dropped
+  const attempt = useRef(0);
 
   useEffect(() => {
+    attempt.current += 1;
     if (open) {
+      setBusy(false);
       setWarnings([]);
       setAcknowledged(false);
       setError(undefined);
@@ -46,24 +50,29 @@ const RtlsAnchorLockDialog = () => {
   const close = useCallback(() => dispatch(closeRtlsLockDialog()), [dispatch]);
 
   const handleLock = useCallback(async () => {
+    const sent = attempt.current;
     setBusy(true);
     setError(undefined);
+    let result: RtlsLockOutcome | undefined;
+    let failure: string | undefined;
     try {
-      const result = await dispatch(
-        lockRtlsAnchors(warnings.length > 0 && acknowledged)
+      result = await dispatch(
+        sendRtlsLockCommand('lock', warnings.length > 0 && acknowledged)
       );
-      if (result.result === 'locked') {
-        close();
-      } else if (result.result === 'warnings') {
-        setWarnings(result.warnings);
-        setAcknowledged(false);
-      } else {
-        setError(result.error);
-      }
     } catch (lockError) {
-      setError(errorToString(lockError));
-    } finally {
-      setBusy(false);
+      failure = errorToString(lockError);
+    }
+    if (sent !== attempt.current) {
+      return;
+    }
+    setBusy(false);
+    if (result?.result === 'locked') {
+      close();
+    } else if (result?.result === 'warnings') {
+      setWarnings(result.warnings);
+      setAcknowledged(false);
+    } else {
+      setError(result?.error ?? failure);
     }
   }, [acknowledged, close, dispatch, warnings.length]);
 

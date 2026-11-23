@@ -11,7 +11,6 @@ import isNil from 'lodash-es/isNil';
 
 import { type AppDispatch } from '~/store/reducers';
 
-import { mapAnchorLock } from './anchor-lock';
 import { mapCellSettings, mapCellState } from './cell-settings';
 import {
   setRtlsAnchorLock,
@@ -25,6 +24,7 @@ import {
 import { mapRtlsAnchorStats } from './handlers-anchor';
 import {
   type RtlsAnchor,
+  type RtlsAnchorLock,
   type RtlsDevice,
   type RtlsDeviceStats,
   type RtlsFlightController,
@@ -32,7 +32,7 @@ import {
   type RtlsPosEstimate,
   type RtlsTwrPeer,
 } from './types';
-import { type AnyRecord, toNumber, toText } from './wire-values';
+import { type AnyRecord, isRecord, toNumber, toText } from './wire-values';
 
 /**
  * Maps the server's inter-anchor TWR list (X-RTLS-INF `twr`) into the device
@@ -224,6 +224,29 @@ export function mapRtlsAnchors(value: unknown): RtlsAnchor[] {
   }
 
   return result;
+}
+
+/**
+ * Maps the server's `anchorLock`, the only source of the aggregate lock.
+ * `undefined` when the value carries no `locked` flag: a server without the
+ * lock, whose clients show no lock UI.
+ */
+export function mapAnchorLock(value: unknown): RtlsAnchorLock | undefined {
+  if (!isRecord(value) || typeof value.locked !== 'boolean') {
+    return undefined;
+  }
+  const gate = value.showGate;
+  return {
+    locked: value.locked,
+    lockedCount: toNumber(value.lockedCount) ?? 0,
+    anchorCount: toNumber(value.anchorCount) ?? 0,
+    showGate:
+      isRecord(gate) &&
+      typeof gate.required === 'boolean' &&
+      typeof gate.refused === 'boolean'
+        ? { required: gate.required, refused: gate.refused }
+        : undefined,
+  };
 }
 
 type RtlsInformationAction = ReturnType<
