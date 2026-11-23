@@ -15,7 +15,7 @@ import { Tooltip } from '@skybrush/mui-components';
 
 import { type AppDispatch } from '~/store/reducers';
 
-import { unlockRtlsAnchors } from './lock-actions';
+import { unlockRtlsAnchors } from './anchor-lock';
 import { getRtlsAnchorLock } from './selectors';
 import { openRtlsLockDialog } from './slice';
 
