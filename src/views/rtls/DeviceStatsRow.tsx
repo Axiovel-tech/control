@@ -266,12 +266,14 @@ const NO_MACS: ReadonlySet<number> = new Set();
 const RoleContent = ({
   device,
   initiatorMacs,
+  locked = false,
   role,
   stats,
   where,
 }: {
   device: RtlsDevice;
   initiatorMacs: ReadonlySet<number>;
+  locked?: boolean;
   role: RtlsRole;
   stats: RtlsDeviceStats | undefined;
   where: 'figures' | 'cluster';
@@ -291,7 +293,7 @@ const RoleContent = ({
       stats={stats}
     />
   ) : (
-    <AnchorStatusCluster stats={stats} />
+    <AnchorStatusCluster locked={locked} stats={stats} />
   );
 };
 
@@ -379,6 +381,7 @@ const DeviceStatsRow = ({
         <RoleContent
           device={device}
           initiatorMacs={initiatorMacs}
+          locked={locked}
           role={role}
           stats={stats}
           where='cluster'

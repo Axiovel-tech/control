@@ -25,9 +25,9 @@ import {
   type RtlsHealth,
   RtlsRole,
 } from './stats-utils';
-import { type RtlsAnchorLock, type RtlsShowGate } from './anchor-lock';
 import {
   type RtlsAnchor,
+  type RtlsAnchorLock,
   type RtlsDevice,
   type RtlsDeviceStats,
   type RtlsGeometryAgreement,
@@ -390,12 +390,8 @@ export const isRtlsAnchorLockRequired: AppSelector<boolean> = (state) =>
   getRtlsAnchorLock(state)?.showGate?.required ?? false;
 
 /**
- * Selector that returns the server's show-gate verdict while it refuses a
- * new authorization or a changed authorized start, else `undefined`.
+ * Selector that returns whether the server's show gate refuses a new
+ * authorization or a changed authorized start now.
  */
-export const getRtlsShowGateRefusal: AppSelector<RtlsShowGate | undefined> = (
-  state
-) => {
-  const gate = getRtlsAnchorLock(state)?.showGate;
-  return gate?.refused ? gate : undefined;
-};
+export const isRtlsShowGateRefused: AppSelector<boolean> = (state) =>
+  getRtlsAnchorLock(state)?.showGate?.refused ?? false;

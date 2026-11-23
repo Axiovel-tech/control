@@ -17,8 +17,8 @@ import {
   hasManualPreflightChecks,
 } from '~/features/preflight/selectors';
 import {
-  getRtlsShowGateRefusal,
   isRtlsAnchorLockRequired,
+  isRtlsShowGateRefused,
 } from '~/features/rtls/selectors';
 import { isConnected as isConnectedToServer } from '~/features/servers/selectors';
 import {
@@ -183,9 +183,9 @@ const stages: Record<Stage, StageSpecification> = {
     evaluate: (state) =>
       !isRtlsAnchorLockRequired(state)
         ? Status.SKIPPED
-        : getRtlsShowGateRefusal(state) === undefined
-          ? Status.SUCCESS
-          : Status.OFF,
+        : isRtlsShowGateRefused(state)
+          ? Status.OFF
+          : Status.SUCCESS,
     requires: ['selectShowFile'],
   },
 

@@ -28,7 +28,6 @@ import {
 } from '~/store/reducers';
 
 import { handleRtlsInformationMessage } from './handlers';
-import { refuseLockedDevices } from './lock-actions';
 import { sendRtlsSleep } from './messages';
 import {
   getPossiblyArmedUavIds,
@@ -37,6 +36,7 @@ import {
   getRtlsDevicesInOrder,
   getRtlsSleepPendingMap,
   getRtlsStatsById,
+  isRtlsDeviceLockedOut,
 } from './selectors';
 import {
   applyRtlsSleepResults,
@@ -158,9 +158,6 @@ export const setRtlsSleeping =
       );
       return;
     }
-    if (refuseLockedDevices(state, candidates)) {
-      return;
-    }
 
     const pending = getRtlsSleepPendingMap(state);
     const ids = candidates.filter((id) => !pending[id]);
@@ -176,15 +173,20 @@ export const setRtlsSleeping =
     const anchors = ids.some(
       (id) => classifyRole(devices[id]?.role) !== RtlsRole.TAG
     );
-    if (anchors && sleeping) {
-      const armed = getPossiblyArmedUavIds(state).length;
-      if (!(await confirmAnchorSleep(dispatch, armed))) {
-        return;
-      }
-      // another client may have locked an anchor while the prompt was open
-      if (refuseLockedDevices(getState(), ids)) {
-        return;
-      }
+    if (
+      anchors &&
+      sleeping &&
+      !(await confirmAnchorSleep(
+        dispatch,
+        getPossiblyArmedUavIds(state).length
+      ))
+    ) {
+      return;
+    }
+    // checked after the prompt: another client may have locked an anchor
+    if (ids.some((id) => isRtlsDeviceLockedOut(getState(), id))) {
+      showError(i18n.t('rtlsAnchorLock.locked'));
+      return;
     }
 
     const verb = sleeping ? 'sleep' : 'wake';

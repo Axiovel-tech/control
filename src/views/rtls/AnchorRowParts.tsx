@@ -210,10 +210,12 @@ export const AnchorRangingFigures = ({
   );
 };
 
-/** The warning badges, the input source and the battery. */
+/** The warning badges, the lock icon, the input source and the battery. */
 export const AnchorStatusCluster = ({
+  locked,
   stats,
 }: {
+  locked: boolean;
   stats: RtlsDeviceStats | undefined;
 }) => {
   const { t } = useTranslation();
@@ -233,7 +235,7 @@ export const AnchorStatusCluster = ({
           tooltip={tooltip && t(tooltip.key, tooltip.values)}
         />
       ))}
-      {stats?.locked && !stats.stale && (
+      {locked && (
         <Tooltip content={t('rtlsAnchorLock.control.locked')}>
           <Box
             component='span'

@@ -4,7 +4,6 @@
  * image, and reflects live progress from pushed X-RTLS-OTA notifications.
  */
 
-import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import DialogActions from '@mui/material/DialogActions';
@@ -26,7 +25,6 @@ import messageHub from '~/message-hub';
 import {
   getRtlsOtaDialogDeviceId,
   getRtlsOtaJobForDevice,
-  isRtlsDeviceLockedOut,
   isRtlsOtaDialogOpen,
 } from './selectors';
 import { closeRtlsOtaDialog, setRtlsOtaJob } from './slice';
@@ -86,23 +84,17 @@ const OtaJobStatus = ({ job }: { job: RtlsOtaJob }) => {
 };
 
 const RtlsOtaDialog = () => {
-  const { t } = useTranslation();
   const dispatch = useDispatch<AppDispatch>();
   const open = useSelector(isRtlsOtaDialogOpen);
   const deviceId = useSelector(getRtlsOtaDialogDeviceId);
   const job = useSelector((state: RootState) =>
     deviceId ? getRtlsOtaJobForDevice(state, deviceId) : undefined
   );
-  // a locked anchor takes no upload
-  const lockedOut = useSelector(
-    (state: RootState) =>
-      deviceId !== undefined && isRtlsDeviceLockedOut(state, deviceId)
-  );
   const [image, setImage] = useState('');
   const [busy, setBusy] = useState(false);
   const trimmedImage = image.trim();
   const active = job?.status !== undefined && ACTIVE_STATUSES.has(job.status);
-  const startable = !busy && !active && !lockedOut && trimmedImage.length > 0;
+  const startable = !busy && !active && trimmedImage.length > 0;
 
   // Query the current OTA job status when the dialog opens for a device.
   useEffect(() => {
@@ -147,15 +139,6 @@ const RtlsOtaDialog = () => {
       onClose={handleClose}
     >
       <DialogContent>
-        {lockedOut && (
-          <Alert
-            data-testid='rtls-ota-dialog.locked'
-            severity='info'
-            sx={{ mb: 1 }}
-          >
-            {t('rtlsAnchorLock.locked')}
-          </Alert>
-        )}
         <TextField
           fullWidth
           label='Firmware image'
