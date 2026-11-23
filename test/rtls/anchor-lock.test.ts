@@ -156,16 +156,30 @@ describe('the lock command', () => {
       store,
       sendRtlsLockCommand('lock', true)
     );
-    expect(sendMessage.mock.calls[0][0]).toEqual({
-      type: 'X-RTLS-LOCK',
-      action: 'lock',
-      acknowledgeWarnings: true,
-    });
+    expect(sendMessage.mock.calls[0]).toEqual([
+      {
+        type: 'X-RTLS-LOCK',
+        action: 'lock',
+        acknowledgeWarnings: true,
+      },
+      // longer than the server's 5 s per anchor + 1 s grace
+      { timeout: 15 },
+    ]);
     expect(result).toMatchObject({ result: 'locked', error: undefined });
     expect(showNotification).toHaveBeenCalledWith(
       'rtlsAnchorLock.notification.locked'
     );
     expect(state(store).rtls.anchorLock).toBe(undefined);
+  });
+
+  test('a lock from an attempt no longer on screen is not announced', async () => {
+    answerLock({ result: 'locked' });
+    const result = await dispatchThunk(
+      createStore(),
+      sendRtlsLockCommand('lock', true, () => false)
+    );
+    expect(result.result).toBe('locked');
+    expect(showNotification).not.toHaveBeenCalled();
   });
 
   test('warnings come back as sent, with nothing announced', async () => {

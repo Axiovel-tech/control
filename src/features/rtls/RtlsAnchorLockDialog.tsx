@@ -57,7 +57,11 @@ const RtlsAnchorLockDialog = () => {
     let failure: string | undefined;
     try {
       result = await dispatch(
-        sendRtlsLockCommand('lock', warnings.length > 0 && acknowledged)
+        sendRtlsLockCommand(
+          'lock',
+          warnings.length > 0 && acknowledged,
+          () => sent === attempt.current
+        )
       );
     } catch (lockError) {
       failure = errorToString(lockError);
