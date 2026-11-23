@@ -1,9 +1,8 @@
 /**
  * @file The cell settings as Control sees them: the server's `cellSettings`
- * (derived from every device's stored parameters and the `cellcfg` code it
- * runs) and the X-RTLS-CELL request. What must match across a cell, and why
- * a change needs a reboot, is the firmware's: see rtls-link-zephyr
- * `docs/reference/uwb-ranging.md`, "Cell settings".
+ * (derived from the `cellcfg` code every device reports running) and the
+ * X-RTLS-CELL request. What must match across a cell is the firmware's: see
+ * rtls-link-zephyr `docs/reference/uwb-ranging.md`, "Cell settings".
  */
 
 import type MessageHub from '~/flockwave/messages';
@@ -19,9 +18,9 @@ export const RTLS_TX_GAIN_MIN = 0;
 export const RTLS_TX_GAIN_MAX = 127;
 
 /** A device's state against A0's settings. */
-export type RtlsCellState = 'ok' | 'differ' | 'restart' | 'unknown';
+export type RtlsCellState = 'ok' | 'differ' | 'unknown';
 
-/** The cell's settings, as A0 stores them, and who does not run them. */
+/** The cell's settings, as A0 runs them, and who does not run them. */
 export type RtlsCellSettings = {
   /** The preset of A0's block; `undefined` for any other block. */
   rateHz?: number;
@@ -30,7 +29,6 @@ export type RtlsCellSettings = {
   /** A0's system id; `undefined` while no initiator is online. */
   reference?: string;
   differ: string[];
-  restart: string[];
   unknown: string[];
 };
 
@@ -39,12 +37,7 @@ const toIds = (value: unknown): string[] =>
     ? value.filter((id) => toNumber(id) !== undefined).map(String)
     : [];
 
-const CELL_STATES: readonly RtlsCellState[] = [
-  'ok',
-  'differ',
-  'restart',
-  'unknown',
-];
+const CELL_STATES: readonly RtlsCellState[] = ['ok', 'differ', 'unknown'];
 
 /** A device entry's `cellSettings`; `undefined` when absent or unknown. */
 export const mapCellState = (value: unknown): RtlsCellState | undefined =>
@@ -65,12 +58,11 @@ export function mapCellSettings(value: unknown): RtlsCellSettings | undefined {
     txGain: toNumber(value.txGain),
     reference: reference === undefined ? undefined : String(reference),
     differ: toIds(value.differ),
-    restart: toIds(value.restart),
     unknown: toIds(value.unknown),
   };
 }
 
-/** A device the apply did not write or restart. */
+/** A device that refused the write or did not answer. */
 export type RtlsCellFailure = { id: string; detail: string };
 
 /** What Apply sends: only what the operator changed. */
@@ -87,10 +79,10 @@ export type RtlsCellResult = {
 
 const CELL_RESULTS = ['applied', 'incomplete', 'refused'] as const;
 
-/** Reads, writes, a rollback and SMP resets: a silent device costs seconds. */
-const APPLY_TIMEOUT_S = 60;
+/** The tags' writes, then an anchor's two: the server waits 5 s per write. */
+const APPLY_TIMEOUT_S = 20;
 
-/** The devices whose entry carries a `detail`: a failed write or restart. */
+/** The devices whose entry carries a `detail`: a failed write. */
 const mapFailures = (value: unknown): RtlsCellFailure[] =>
   isRecord(value)
     ? Object.entries(value).flatMap(([id, entry]) => {

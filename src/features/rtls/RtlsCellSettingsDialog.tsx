@@ -47,7 +47,6 @@ import { type RtlsDevice } from './types';
 const PROBLEM_TEXTS: Record<RtlsCellProblem | 'offline' | 'unknown', string> = {
   differ: 'rtlsCellSettings.problem.differ',
   tx: 'rtlsCellSettings.problem.tx',
-  restart: 'rtlsCellSettings.problem.restart',
   offline: 'rtlsCellSettings.problem.offline',
   unknown: 'rtlsCellSettings.problem.unknown',
 };

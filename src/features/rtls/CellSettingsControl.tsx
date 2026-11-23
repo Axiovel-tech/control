@@ -18,7 +18,7 @@ import { openRtlsCellDialog } from './slice';
 
 /** The devices that do not run the cell's settings. */
 export const countCellDevicesNotOk = (cell: RtlsCellSettings): number =>
-  cell.differ.length + cell.restart.length + cell.unknown.length;
+  cell.differ.length + cell.unknown.length;
 
 const CellSettingsControl = () => {
   const { t } = useTranslation();

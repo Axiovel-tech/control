@@ -67,8 +67,7 @@ const CELL = {
   blockMs: 12,
   txGain: 47,
   reference: 201,
-  differ: [],
-  restart: [202],
+  differ: [202],
   unknown: [42],
 };
 
@@ -82,7 +81,7 @@ const seedCell = () => {
           online: true,
           role: 'anchor-responder',
           name: 'RTLS anchor A1',
-          cellSettings: 'restart',
+          cellSettings: 'differ',
         },
         '203': {
           online: true,
@@ -105,7 +104,7 @@ describe('cell settings mapping', () => {
     expect(mapCellSettings(CELL)).toEqual({
       ...CELL,
       reference: '201',
-      restart: ['202'],
+      differ: ['202'],
       unknown: ['42'],
     });
   });
@@ -150,17 +149,17 @@ describe('what the panel shows', () => {
     expect(countCellDevicesNotOk(mapCellSettings(CELL)!)).toBe(2);
   });
 
-  test('row warnings tell a restart from different settings and TX', () => {
+  test('row warnings tell different settings from a different TX level', () => {
     const { byId } = seedCell().getState().rtls.devices;
     expect(cellProblemOf(byId['201'])).toBe(undefined);
-    expect(cellProblemOf(byId['202'])).toBe('restart');
+    expect(cellProblemOf(byId['202'])).toBe('differ');
     expect(cellProblemOf(byId['203'])).toBe('tx');
-    expect(
-      cellProblemOf({ ...byId['203'], cellSettingsDetail: undefined })
-    ).toBe('differ');
+    expect(cellProblemOf({ ...byId['202'], cellSettings: 'unknown' })).toBe(
+      undefined
+    );
   });
 
-  test('the dialog lists restart, TX, unreported and offline devices', () => {
+  test('the dialog lists differing, TX, unreported and offline devices', () => {
     const { rtls } = seedCell().getState();
     expect(
       listCellProblems(rtls.devices, rtls.cellSettings).map(
@@ -169,7 +168,7 @@ describe('what the panel shows', () => {
     ).toEqual([
       'RTLS tag 42: rtlsCellSettings.problem.unknown',
       'RTLS tag 43: rtlsCellSettings.problem.offline',
-      'RTLS anchor A1: rtlsCellSettings.problem.restart',
+      'RTLS anchor A1: rtlsCellSettings.problem.differ',
       'RTLS anchor A2: rtlsCellSettings.problem.tx',
     ]);
   });
@@ -182,7 +181,7 @@ describe('X-RTLS-CELL', () => {
       reply({
         type: 'X-RTLS-CELL',
         result: 'applied',
-        results: { '201': { written: 'changed', restarted: true } },
+        results: { '201': { written: 'changed' } },
         cellSettings: CELL,
       })
     );
@@ -190,10 +189,10 @@ describe('X-RTLS-CELL', () => {
       store,
       applyRtlsCellSettings({ rateHz: 83, txGain: 47 })
     );
-    // a silent device costs the server seconds before it can answer
+    // the tags' writes, then the anchors': a silent device costs 5 s each
     expect(sendMessage.mock.calls[0]).toEqual([
       { type: 'X-RTLS-CELL', rateHz: 83, txGain: 47 },
-      { timeout: 60 },
+      { timeout: 20 },
     ]);
     expect(result?.errors).toEqual([]);
     expect(showNotification).toHaveBeenCalled();
@@ -223,19 +222,14 @@ describe('X-RTLS-CELL', () => {
       reply({
         type: 'X-RTLS-CELL',
         result: 'incomplete',
-        reason: 'Not every device took the change; nothing was restarted',
+        reason: 'Not every anchor took the change',
         results: {
-          '42': {
-            written: 'failed',
-            restarted: false,
-            detail: 'RTLS tag 42 refused UWB_BLOCK_MS=12',
-          },
+          '42': { written: 'changed' },
           '202': {
-            written: 'unchanged',
-            restarted: false,
-            detail: 'rollback failed: no answer',
+            written: 'failed',
+            detail: 'RTLS anchor A1: no answer to UWB_BLOCK_MS=12',
           },
-          '201': { written: 'unchanged', restarted: false },
+          '201': { written: 'changed' },
         },
       })
     );
@@ -244,9 +238,8 @@ describe('X-RTLS-CELL', () => {
       applyRtlsCellSettings({ rateHz: 83 })
     );
     expect(result?.errors).toEqual([
-      'Not every device took the change; nothing was restarted',
-      'RTLS tag 42 refused UWB_BLOCK_MS=12',
-      'RTLS anchor A1: rollback failed: no answer',
+      'Not every anchor took the change',
+      'RTLS anchor A1: no answer to UWB_BLOCK_MS=12',
     ]);
     expect(showNotification).not.toHaveBeenCalled();
   });

@@ -11,24 +11,20 @@ import { Tooltip } from '@skybrush/mui-components';
 import { type RtlsDevice } from './types';
 
 /** What is wrong with a device's cell settings, as the server reports it. */
-export type RtlsCellProblem = 'differ' | 'tx' | 'restart';
+export type RtlsCellProblem = 'differ' | 'tx';
 
 export const cellProblemOf = (
   device: RtlsDevice
-): RtlsCellProblem | undefined => {
-  if (device.cellSettings === 'restart') {
-    return 'restart';
-  }
-  if (device.cellSettings === 'differ') {
-    return device.cellSettingsDetail === undefined ? 'differ' : 'tx';
-  }
-  return undefined;
-};
+): RtlsCellProblem | undefined =>
+  device.cellSettings !== 'differ'
+    ? undefined
+    : device.cellSettingsDetail === undefined
+      ? 'differ'
+      : 'tx';
 
 const TOOLTIPS: Record<RtlsCellProblem, string> = {
   differ: 'rtlsCellSettings.state.differ',
   tx: 'rtlsCellSettings.state.tx',
-  restart: 'rtlsCellSettings.state.restart',
 };
 
 const CellSettingsIcon = ({ device }: { device: RtlsDevice }) => {

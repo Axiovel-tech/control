@@ -1,7 +1,7 @@
 /**
  * @file Thunks behind the cell settings (X-RTLS-CELL). The server writes the
- * settings to every online anchor and tag and reboots the running ones; the
- * states converge through X-RTLS-INF as the devices come back.
+ * settings to every online tag, then anchor, and each applies them at once
+ * (its ranging restarts for a moment); the states follow through X-RTLS-INF.
  */
 
 import { showConfirmationDialog } from '~/features/prompt/actions';
@@ -35,7 +35,7 @@ const describeFailure = (
 
 /**
  * Asks the operator to confirm, worded for the drones that may be armed:
- * every running anchor and tag restarts. Resolves to whether to proceed.
+ * every anchor's and tag's ranging restarts. Resolves to whether to proceed.
  */
 const confirmWhileArmed = async (
   dispatch: AppDispatch,

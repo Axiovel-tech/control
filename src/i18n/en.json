@@ -980,20 +980,19 @@
     "applied": "Cell settings applied",
     "apply": "Apply",
     "confirm": {
-      "armedMessage_one": "{{count}} drone may be armed and will lose positioning while the cell restarts. Apply anyway?",
-      "armedMessage_other": "{{count}} drones may be armed and will lose positioning while the cell restarts. Apply anyway?",
+      "armedMessage_one": "{{count}} drone may be armed and will lose positioning while the cell's ranging restarts. Apply anyway?",
+      "armedMessage_other": "{{count}} drones may be armed and will lose positioning while the cell's ranging restarts. Apply anyway?",
       "title": "Apply cell settings?"
     },
     "custom": "Custom",
     "customBlock": "Custom ({{ms}} ms)",
     "dialog": {
-      "text": "Applies to every anchor and tag and restarts them."
+      "text": "Applies to every anchor and tag."
     },
     "noDevices": "No online devices",
     "problem": {
       "differ": "different settings",
       "offline": "offline",
-      "restart": "restart needed",
       "tx": "different TX level",
       "unknown": "settings not reported"
     },
@@ -1001,7 +1000,6 @@
     "rateLabel": "Ranging rate",
     "state": {
       "differ": "Different cell settings",
-      "restart": "Restart needed",
       "tx": "Different TX level"
     },
     "title": "Cell settings",
