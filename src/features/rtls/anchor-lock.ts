@@ -45,6 +45,12 @@ const LOCK_RESULTS = [
 ] as const;
 
 /**
+ * How long a lock waits: longer than the server's per-anchor write timeout
+ * and its late-ack grace (5 + 1 s), so a silent anchor comes back named.
+ */
+const LOCK_TIMEOUT_SECONDS = 15;
+
+/**
  * Locks or unlocks the anchors (X-RTLS-LOCK). Every answer is a normal
  * response with a `result`; only a NAK (e.g. a server without the RTLS
  * extension) rejects, with its reason. The aggregate lock in the reply is
@@ -55,11 +61,14 @@ async function sendRtlsLock(
   acknowledgeWarnings?: boolean
 ): Promise<RtlsLockResult> {
   const response: Message<MessageBody & AnyRecord> =
-    await messageHub.sendMessage({
-      type: 'X-RTLS-LOCK',
-      action,
-      ...(acknowledgeWarnings === undefined ? {} : { acknowledgeWarnings }),
-    });
+    await messageHub.sendMessage(
+      {
+        type: 'X-RTLS-LOCK',
+        action,
+        ...(acknowledgeWarnings === undefined ? {} : { acknowledgeWarnings }),
+      },
+      { timeout: LOCK_TIMEOUT_SECONDS }
+    );
   const body = response.body;
   if (body?.type !== 'X-RTLS-LOCK') {
     throw new Error(
@@ -119,13 +128,15 @@ const describeLockOutcome = (
 /**
  * Thunk that sends a lock or unlock. Without `acknowledgeWarnings` the
  * server answers a lock with `warnings` instead of locking, for the dialog
- * to list. Announces a success. Only the command's feedback comes from here:
- * the header and the show step wait for the reported lock.
+ * to list. Announces a success while `isCurrent` (the caller's attempt is
+ * still the one on screen). Only the command's feedback comes from here: the
+ * header and the show step wait for the reported lock.
  */
 export const sendRtlsLockCommand =
   (
     action: 'lock' | 'unlock',
-    acknowledgeWarnings?: boolean
+    acknowledgeWarnings?: boolean,
+    isCurrent: () => boolean = () => true
   ): AppThunk<Promise<RtlsLockOutcome>> =>
   async (_dispatch, getState) => {
     const result = await sendRtlsLock(action, acknowledgeWarnings);
@@ -133,7 +144,7 @@ export const sendRtlsLockCommand =
       return result;
     }
     const error = describeLockOutcome(getState(), result);
-    if (error === undefined) {
+    if (error === undefined && isCurrent()) {
       showNotification(
         result.result === 'locked'
           ? i18n.t('rtlsAnchorLock.notification.locked')
