@@ -44,22 +44,14 @@ import {
   setRtlsCellSettings,
   setRtlsDevicesFromStatus,
 } from '~/features/rtls/slice';
-import { showConfirmationDialog } from '~/features/prompt/actions';
 import { showNotification } from '~/features/snackbar/actions';
 import i18n from '~/i18n';
 import messageHub from '~/message-hub';
-import { UAVAge } from '~/model/uav';
 
-import {
-  answer,
-  createRtlsTestStore,
-  dispatchThunk,
-  reply,
-} from './rtls-test-store';
+import { createRtlsTestStore, dispatchThunk, reply } from './rtls-test-store';
 
 // eslint-disable-next-line @typescript-eslint/unbound-method -- a jest mock, never called through `this`
 const sendMessage = jest.mocked(messageHub.sendMessage);
-const confirm = jest.mocked(showConfirmationDialog);
 
 /** A0 (201) on 83 Hz; 202 still runs the old settings, the tag has not reported. */
 const CELL = {
@@ -189,31 +181,37 @@ describe('X-RTLS-CELL', () => {
       store,
       applyRtlsCellSettings({ rateHz: 83, txGain: 47 })
     );
-    // the tags' writes, then the anchors': a silent device costs 5 s each
+    // a role read, the tags' write, then an anchor's two: 2 + 3 * (5 + 1) s
     expect(sendMessage.mock.calls[0]).toEqual([
       { type: 'X-RTLS-CELL', rateHz: 83, txGain: 47 },
-      { timeout: 20 },
+      { timeout: 30 },
     ]);
     expect(result?.errors).toEqual([]);
     expect(showNotification).toHaveBeenCalled();
-    expect(confirm).not.toHaveBeenCalled();
+    // the reply's settings are not stored: X-RTLS-INF is their only source
+    expect(store.getState().rtls.cellSettings).toBe(undefined);
   });
 
-  test('apply asks first while a drone may be armed; no sends nothing', async () => {
-    const store = createRtlsTestStore([
-      { id: 'd1', age: UAVAge.ACTIVE, errors: [] },
-    ]);
-    confirm.mockReturnValueOnce(answer(false));
-    const result = await dispatchThunk(
-      store,
-      applyRtlsCellSettings({ txGain: 20 })
+  test('a reply to an attempt no longer on screen is dropped', async () => {
+    const stale = () => false;
+    sendMessage.mockResolvedValueOnce(
+      reply({ type: 'X-RTLS-CELL', result: 'applied', results: {} })
     );
-    expect(confirm.mock.calls[0]).toEqual([
-      'rtlsCellSettings.confirm.armedMessage',
-      { title: 'rtlsCellSettings.confirm.title' },
-    ]);
-    expect(result).toBe(undefined);
-    expect(sendMessage).not.toHaveBeenCalled();
+    await expect(
+      dispatchThunk(
+        createRtlsTestStore(),
+        applyRtlsCellSettings({ rateHz: 83 }, stale)
+      )
+    ).resolves.toBe(undefined);
+    expect(showNotification).not.toHaveBeenCalled();
+
+    sendMessage.mockRejectedValueOnce(new Error('timeout'));
+    await expect(
+      dispatchThunk(
+        createRtlsTestStore(),
+        applyRtlsCellSettings({ rateHz: 83 }, stale)
+      )
+    ).resolves.toBe(undefined);
   });
 
   test('an incomplete apply names the devices with the server detail', async () => {
@@ -297,10 +295,14 @@ describe('the dialog', () => {
   });
 
   test('says why Apply is unavailable from the live state', () => {
-    const live = { lockedCount: 0, anyOnline: true };
+    const live = { lockedCount: 0, armedCount: 0, anyOnline: true };
     expect(cellApplyRefusalKey(live)).toBe(undefined);
     expect(cellApplyRefusalKey({ ...live, lockedCount: 2 })).toBe(
       'rtlsCellSettings.unlockFirst'
+    );
+    // an armed tag refuses and then no anchor is written
+    expect(cellApplyRefusalKey({ ...live, armedCount: 1 })).toBe(
+      'rtlsCellSettings.disarmFirst'
     );
     expect(cellApplyRefusalKey({ ...live, anyOnline: false })).toBe(
       'rtlsCellSettings.noDevices'

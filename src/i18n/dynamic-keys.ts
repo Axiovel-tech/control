@@ -433,6 +433,7 @@
  * t("rtlsCellSettings.problem.tx")
  * t("rtlsCellSettings.problem.unknown")
  * t("rtlsCellSettings.unlockFirst")
+ * t("rtlsCellSettings.disarmFirst")
  * t("rtlsCellSettings.noDevices")
  *
  * RTLS health lights

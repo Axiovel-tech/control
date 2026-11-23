@@ -1,8 +1,8 @@
 /**
  * @file The cell-settings dialog: the ranging rate and the anchors' TX level,
  * one line on what Apply does, the devices that do not run the cell's
- * settings, and why Apply is unavailable (locked anchors, no online device),
- * read live from the store.
+ * settings, and why Apply is unavailable (locked anchors, a drone that may be
+ * armed, no online device), read live from the store.
  */
 
 import Alert from '@mui/material/Alert';
@@ -13,7 +13,7 @@ import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import type { TFunction } from 'i18next';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDispatch, useSelector } from 'react-redux';
 
@@ -35,6 +35,7 @@ import {
 } from './cell-settings';
 import { cellProblemOf, type RtlsCellProblem } from './CellSettingsIcon';
 import {
+  getPossiblyArmedUavIds,
   getRtlsAnchorLock,
   getRtlsCellSettings,
   getRtlsDeviceDisplayName,
@@ -99,6 +100,7 @@ const RtlsCellSettingsDialog = () => {
   const open = useSelector(isRtlsCellDialogOpen);
   const cell = useSelector(getRtlsCellSettings);
   const lockedCount = useSelector(getRtlsAnchorLock)?.lockedCount ?? 0;
+  const armedCount = useSelector(getPossiblyArmedUavIds).length;
   const devices = useSelector((state: RootState) => state.rtls.devices);
   const problems = useMemo(
     () => listCellProblems(devices, cell),
@@ -114,11 +116,15 @@ const RtlsCellSettingsDialog = () => {
   const [txText, setTxText] = useState('');
   const [busy, setBusy] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
+  // moves on every open and close: a reply to an earlier attempt is dropped
+  const attempt = useRef(0);
 
   useEffect(() => {
+    attempt.current += 1;
     if (!open) {
       return;
     }
+    setBusy(false);
     setOpened({ rateHz: cell?.rateHz, txGain: cell?.txGain });
     setRateHz(cell?.rateHz);
     setTxText(cell?.txGain === undefined ? '' : String(cell.txGain));
@@ -134,7 +140,11 @@ const RtlsCellSettingsDialog = () => {
     rateHz,
     txGain: hasAnchors ? txGain : undefined,
   });
-  const refusalKey = cellApplyRefusalKey({ lockedCount, anyOnline });
+  const refusalKey = cellApplyRefusalKey({
+    lockedCount,
+    armedCount,
+    anyOnline,
+  });
   const canApply =
     !busy &&
     !txInvalid &&
@@ -142,19 +152,25 @@ const RtlsCellSettingsDialog = () => {
     (Object.keys(target).length > 0 || problems.length > 0);
 
   const handleApply = useCallback(async () => {
+    const sent = attempt.current;
     setBusy(true);
     setErrors([]);
     try {
-      const result = await dispatch(applyRtlsCellSettings(target));
-      if (result?.result === 'applied') {
+      const result = await dispatch(
+        applyRtlsCellSettings(target, () => sent === attempt.current)
+      );
+      if (result === undefined) {
+        return; // an earlier attempt's reply
+      }
+      setBusy(false);
+      if (result.result === 'applied') {
         close();
-      } else if (result !== undefined) {
+      } else {
         setErrors(result.errors);
       }
     } catch (applyError) {
-      setErrors([errorToString(applyError)]);
-    } finally {
       setBusy(false);
+      setErrors([errorToString(applyError)]);
     }
   }, [close, dispatch, target]);
 

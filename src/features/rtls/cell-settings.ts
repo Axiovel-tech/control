@@ -73,14 +73,16 @@ export type RtlsCellResult = {
   result: 'applied' | 'incomplete' | 'refused' | 'unknown';
   /** Why the server refused, or why not every device took the change. */
   reason?: string;
-  settings?: RtlsCellSettings;
   failures: RtlsCellFailure[];
 };
 
 const CELL_RESULTS = ['applied', 'incomplete', 'refused'] as const;
 
-/** The tags' writes, then an anchor's two: the server waits 5 s per write. */
-const APPLY_TIMEOUT_S = 20;
+/**
+ * The server's worst case: a 2 s role read, then the tags' write, then an
+ * anchor's two, each up to 5 s plus a 1 s late-ack grace.
+ */
+const APPLY_TIMEOUT_S = 30;
 
 /** The devices whose entry carries a `detail`: a failed write. */
 const mapFailures = (value: unknown): RtlsCellFailure[] =>
@@ -114,16 +116,21 @@ export const changedCellTarget = (
  */
 export const cellApplyRefusalKey = ({
   lockedCount,
+  armedCount,
   anyOnline,
 }: {
   lockedCount: number;
+  /** An armed tag refuses, and then no anchor is written. */
+  armedCount: number;
   anyOnline: boolean;
 }): string | undefined =>
   lockedCount > 0
     ? 'rtlsCellSettings.unlockFirst'
-    : anyOnline
-      ? undefined
-      : 'rtlsCellSettings.noDevices';
+    : armedCount > 0
+      ? 'rtlsCellSettings.disarmFirst'
+      : anyOnline
+        ? undefined
+        : 'rtlsCellSettings.noDevices';
 
 /**
  * Applies the cell settings (X-RTLS-CELL). Only a NAK (an invalid request, a
@@ -147,7 +154,6 @@ export async function sendRtlsCell(
   return {
     result: CELL_RESULTS.find((value) => value === body.result) ?? 'unknown',
     reason: toText(body.reason),
-    settings: mapCellSettings(body.cellSettings),
     failures: mapFailures(body.results),
   };
 }

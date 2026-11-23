@@ -979,16 +979,12 @@
   "rtlsCellSettings": {
     "applied": "Cell settings applied",
     "apply": "Apply",
-    "confirm": {
-      "armedMessage_one": "{{count}} drone may be armed and will lose positioning while the cell's ranging restarts. Apply anyway?",
-      "armedMessage_other": "{{count}} drones may be armed and will lose positioning while the cell's ranging restarts. Apply anyway?",
-      "title": "Apply cell settings?"
-    },
     "custom": "Custom",
     "customBlock": "Custom ({{ms}} ms)",
     "dialog": {
       "text": "Applies to every anchor and tag."
     },
+    "disarmFirst": "Disarm the drones first",
     "noDevices": "No online devices",
     "problem": {
       "differ": "different settings",
