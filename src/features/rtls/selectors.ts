@@ -333,9 +333,13 @@ export const isRtlsVerifyDialogOpen: AppSelector<boolean> = (state) =>
 
 /**
  * Selector that returns the ids of the UAVs that may be armed: every UAV
- * still heard (not gone) that reports neither DISARMED nor SLEEPING. A UAV
- * that has not reported its errors yet counts as armed — the selector only
- * guards a confirmation, so it errs on the side of asking.
+ * still heard (not gone) that is not known disarmed. A UAV is known
+ * disarmed while it reports SLEEPING or DISARMED, or ON_GROUND with fresh
+ * telemetry. On ArduPilot, DISARMED is the hardware safety switch and stays
+ * off on a drone without one; ON_GROUND is the heartbeat's armed flag
+ * clear while landed. A UAV that has not reported its errors yet, or whose
+ * telemetry is stale, counts as armed: the selector guards changes the tag
+ * firmware refuses anyway, so it errs on the side of asking.
  */
 export const getPossiblyArmedUavIds: AppSelector<string[]> = createSelector(
   getUAVIdToStateMapping,
@@ -346,7 +350,11 @@ export const getPossiblyArmedUavIds: AppSelector<string[]> = createSelector(
           uav.age !== UAVAge.GONE &&
           uav.age !== UAVAge.FORGOTTEN &&
           !uav.errors.includes(UAVErrorCode.DISARMED) &&
-          !uav.errors.includes(UAVErrorCode.SLEEPING)
+          !uav.errors.includes(UAVErrorCode.SLEEPING) &&
+          !(
+            uav.age === UAVAge.ACTIVE &&
+            uav.errors.includes(UAVErrorCode.ON_GROUND)
+          )
       )
       .map((uav) => uav.id)
 );

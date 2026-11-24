@@ -1,7 +1,9 @@
 import { describe, expect, test } from '@jest/globals';
 
 import { Status } from '~/components/semantics';
+import { cellApplyRefusalKey } from '~/features/rtls/cell-settings';
 import {
+  getPossiblyArmedUavIds,
   getRtlsDevicePairedToUav,
   getRtlsAnchorHealth,
   getRtlsPairedUavStatuses,
@@ -12,9 +14,15 @@ import {
   updateRtlsStats,
 } from '~/features/rtls/slice';
 import { RtlsHealth } from '~/features/rtls/stats-utils';
+import UAVErrorCode from '~/flockwave/UAVErrorCode';
+import { UAVAge } from '~/model/uav';
 import { type RootState } from '~/store/reducers';
 
-import { createRtlsTestStore, rootStateOf } from './rtls-test-store';
+import {
+  createRtlsTestStore,
+  type FakeUav,
+  rootStateOf,
+} from './rtls-test-store';
 
 /**
  * Builds the minimal slice of the app state the pairing selectors read: the
@@ -185,5 +193,67 @@ describe('one initiator verdict for every light', () => {
 
   test('A0 is ready once a responder hears it', () => {
     expect(getRtlsAnchorHealth(stateWith(9.8))).toBe(RtlsHealth.OK);
+  });
+});
+
+describe('getPossiblyArmedUavIds', () => {
+  const armedIds = (...uavs: FakeUav[]) =>
+    getPossiblyArmedUavIds(rootStateOf(createRtlsTestStore(uavs)));
+  const applyRefusal = (uav: FakeUav) =>
+    cellApplyRefusalKey({
+      lockedCount: 0,
+      armedCount: armedIds(uav).length,
+      anyOnline: true,
+    });
+
+  // D17, 2026-11-24: a disarmed heartbeat in Stabilize with MOTOR_OUTPUTS
+  // present, healthy and enabled; the server reports ON_GROUND, no DISARMED
+  const disarmed: FakeUav = {
+    id: '17',
+    age: UAVAge.ACTIVE,
+    errors: [UAVErrorCode.ON_GROUND, UAVErrorCode.PREARM_CHECK_IN_PROGRESS],
+  };
+
+  test('a disarmed heartbeat without a safety switch allows Apply; arming blocks it', () => {
+    expect(armedIds(disarmed)).toEqual([]);
+    expect(applyRefusal(disarmed)).toBe(undefined);
+
+    const armedOnGround = {
+      ...disarmed,
+      errors: [UAVErrorCode.MOTORS_RUNNING_WHILE_ON_GROUND],
+    };
+    expect(armedIds(armedOnGround)).toEqual(['17']);
+    expect(applyRefusal(armedOnGround)).toBe('rtlsCellSettings.disarmFirst');
+
+    const flying = { ...disarmed, errors: [] };
+    expect(applyRefusal(flying)).toBe('rtlsCellSettings.disarmFirst');
+  });
+
+  test('the safety switch still counts as disarmed', () => {
+    expect(
+      armedIds(
+        { id: 'a', age: UAVAge.ACTIVE, errors: [UAVErrorCode.DISARMED] },
+        { id: 'b', age: UAVAge.INACTIVE, errors: [UAVErrorCode.DISARMED] }
+      )
+    ).toEqual([]);
+  });
+
+  test('on the ground counts only with fresh telemetry', () => {
+    expect(
+      armedIds(
+        { ...disarmed, id: 'stale', age: UAVAge.INACTIVE },
+        { ...disarmed, id: 'unknown', age: undefined }
+      )
+    ).toEqual(['stale', 'unknown']);
+  });
+
+  test('a drone without errors reported yet counts; asleep or gone does not', () => {
+    expect(
+      armedIds(
+        { id: 'new', errors: [] },
+        { id: 'asleep', age: UAVAge.INACTIVE, errors: [UAVErrorCode.SLEEPING] },
+        { id: 'gone', age: UAVAge.GONE, errors: [] }
+      )
+    ).toEqual(['new']);
   });
 });
