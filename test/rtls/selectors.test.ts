@@ -199,61 +199,81 @@ describe('one initiator verdict for every light', () => {
 describe('getPossiblyArmedUavIds', () => {
   const armedIds = (...uavs: FakeUav[]) =>
     getPossiblyArmedUavIds(rootStateOf(createRtlsTestStore(uavs)));
-  const applyRefusal = (uav: FakeUav) =>
+  const applyRefusal = (...uavs: FakeUav[]) =>
     cellApplyRefusalKey({
       lockedCount: 0,
-      armedCount: armedIds(uav).length,
+      armedCount: armedIds(...uavs).length,
       anyOnline: true,
     });
 
   // D17, 2026-11-24: a disarmed heartbeat in Stabilize with MOTOR_OUTPUTS
-  // present, healthy and enabled; the server reports ON_GROUND, no DISARMED
-  const disarmed: FakeUav = {
+  // enabled (no safety switch): the server reports ON_GROUND, no DISARMED
+  const d17: FakeUav = {
     id: '17',
     age: UAVAge.ACTIVE,
+    armed: false,
     errors: [UAVErrorCode.ON_GROUND, UAVErrorCode.PREARM_CHECK_IN_PROGRESS],
   };
 
-  test('a disarmed heartbeat without a safety switch allows Apply; arming blocks it', () => {
-    expect(armedIds(disarmed)).toEqual([]);
-    expect(applyRefusal(disarmed)).toBe(undefined);
+  test('armed decides when the safety switch disagrees', () => {
+    // disarmed, safety switch off: no DISARMED, Apply allowed
+    expect(armedIds(d17)).toEqual([]);
+    expect(applyRefusal(d17)).toBe(undefined);
 
-    const armedOnGround = {
-      ...disarmed,
-      errors: [UAVErrorCode.MOTORS_RUNNING_WHILE_ON_GROUND],
+    // armed with the safety switch engaged: DISARMED, still armed
+    const armedOnSafety = {
+      ...d17,
+      armed: true,
+      errors: [UAVErrorCode.DISARMED, UAVErrorCode.ON_GROUND],
     };
-    expect(armedIds(armedOnGround)).toEqual(['17']);
-    expect(applyRefusal(armedOnGround)).toBe('rtlsCellSettings.disarmFirst');
-
-    const flying = { ...disarmed, errors: [] };
-    expect(applyRefusal(flying)).toBe('rtlsCellSettings.disarmFirst');
+    expect(armedIds(armedOnSafety)).toEqual(['17']);
+    expect(applyRefusal(armedOnSafety)).toBe('rtlsCellSettings.disarmFirst');
   });
 
-  test('the safety switch still counts as disarmed', () => {
+  test('disarmed -> armed -> disarmed', () => {
+    const states = [false, true, false].map((armed) =>
+      applyRefusal({ ...d17, armed })
+    );
+    expect(states).toEqual([
+      undefined,
+      'rtlsCellSettings.disarmFirst',
+      undefined,
+    ]);
+  });
+
+  test('no operator error code proves a drone disarmed', () => {
+    const unknown = { id: '17', age: UAVAge.ACTIVE };
     expect(
       armedIds(
-        { id: 'a', age: UAVAge.ACTIVE, errors: [UAVErrorCode.DISARMED] },
-        { id: 'b', age: UAVAge.INACTIVE, errors: [UAVErrorCode.DISARMED] }
+        { ...unknown, id: 'safety', errors: [UAVErrorCode.DISARMED] },
+        { ...unknown, id: 'ground', errors: [UAVErrorCode.ON_GROUND] },
+        { ...unknown, id: 'none', errors: [] }
+      )
+    ).toEqual(['safety', 'ground', 'none']);
+  });
+
+  test('armed: false counts only in a current status', () => {
+    expect(
+      armedIds(
+        { ...d17, id: 'stale', age: UAVAge.INACTIVE },
+        { ...d17, id: 'no-age', age: undefined }
+      )
+    ).toEqual(['stale', 'no-age']);
+  });
+
+  test('a server without armed blocks Apply (an older server)', () => {
+    const { armed: _, ...olderServer } = d17;
+    expect(armedIds(olderServer)).toEqual(['17']);
+    expect(applyRefusal(olderServer)).toBe('rtlsCellSettings.disarmFirst');
+  });
+
+  test('asleep or gone does not count', () => {
+    expect(
+      armedIds(
+        { id: 'asleep', age: UAVAge.INACTIVE, errors: [UAVErrorCode.SLEEPING] },
+        { id: 'gone', age: UAVAge.GONE, armed: true, errors: [] },
+        { id: 'forgotten', age: UAVAge.FORGOTTEN, errors: [] }
       )
     ).toEqual([]);
-  });
-
-  test('on the ground counts only with fresh telemetry', () => {
-    expect(
-      armedIds(
-        { ...disarmed, id: 'stale', age: UAVAge.INACTIVE },
-        { ...disarmed, id: 'unknown', age: undefined }
-      )
-    ).toEqual(['stale', 'unknown']);
-  });
-
-  test('a drone without errors reported yet counts; asleep or gone does not', () => {
-    expect(
-      armedIds(
-        { id: 'new', errors: [] },
-        { id: 'asleep', age: UAVAge.INACTIVE, errors: [UAVErrorCode.SLEEPING] },
-        { id: 'gone', age: UAVAge.GONE, errors: [] }
-      )
-    ).toEqual(['new']);
   });
 });

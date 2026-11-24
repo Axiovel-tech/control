@@ -94,7 +94,7 @@ describe('anchor sleep and wake', () => {
 
   test('always asks, plainly while every drone is disarmed', async () => {
     const store = createStore([
-      { id: 'd1', age: UAVAge.ACTIVE, errors: [UAVErrorCode.DISARMED] },
+      { id: 'd1', age: UAVAge.ACTIVE, armed: false, errors: [] },
       { id: 'd2', age: UAVAge.GONE, errors: [] },
     ]);
     seedAnchors(store, { '101': 'operating' });
@@ -150,6 +150,25 @@ describe('anchor sleep and wake', () => {
     await dispatchThunk(store, setRtlsSleeping(['101'], true));
 
     expect(sendMessage).toHaveBeenCalledTimes(1);
+  });
+
+  test('the safety switch (DISARMED) is not a disarmed drone', async () => {
+    const store = createStore([
+      {
+        id: 'd1',
+        age: UAVAge.ACTIVE,
+        armed: true,
+        errors: [UAVErrorCode.DISARMED],
+      },
+    ]);
+    seedAnchors(store, { '101': 'operating' });
+    confirm.mockReturnValueOnce(answer(false));
+
+    await dispatchThunk(store, setRtlsSleeping(['101'], true));
+
+    expect(confirm.mock.calls[0][0]).toBe(
+      'rtlsAnchor.sleep.confirm.armedMessage'
+    );
   });
 
   test('a sleeping drone does not count as armed', async () => {

@@ -37,6 +37,13 @@ export type UAVBattery = {
 };
 
 /**
+ * `UAV-INF` status with Axiovel's `armed`: the autopilot's own arming state.
+ * The server leaves it out while it does not know (no or stale heartbeat, a
+ * sleeping flight controller, an older server).
+ */
+type AxiovelUAVStatusInfo = UAVStatusInfo & { armed?: unknown };
+
+/**
  * Representation of a single UAV.
  */
 export default class UAV {
@@ -50,6 +57,7 @@ export default class UAV {
   _mostSevereError: UAVErrorCode;
   _position?: GPSPosition;
   age?: UAVAge;
+  armed?: boolean;
   battery: UAVBattery;
   gpsFix: GPSFix;
   heading?: number;
@@ -82,6 +90,7 @@ export default class UAV {
     this._mostSevereError = 0;
     this._position = undefined;
 
+    this.armed = undefined;
     this.battery = {
       voltage: undefined,
       percentage: undefined,
@@ -244,8 +253,9 @@ export default class UAV {
    * @returns Whether the status information has been updated
    */
 
-  handleUAVStatusInfo = (status: UAVStatusInfo): boolean => {
+  handleUAVStatusInfo = (status: AxiovelUAVStatusInfo): boolean => {
     const {
+      armed,
       timestamp,
       position,
       positionXYZ,
@@ -308,6 +318,13 @@ export default class UAV {
         velocityXYZ[1] / 1e3,
         velocityXYZ[2] / 1e3,
       ];
+      updated = true;
+    }
+
+    // every status carries the whole state, so a missing `armed` is unknown
+    const armedState = typeof armed === 'boolean' ? armed : undefined;
+    if (this.armed !== armedState) {
+      this.armed = armedState;
       updated = true;
     }
 
@@ -389,6 +406,7 @@ export default class UAV {
     return {
       id: this._id,
       age: this.age,
+      armed: this.armed,
       battery: { ...this.battery },
       debugString: this.debugString,
       errors: [...this._errors],
