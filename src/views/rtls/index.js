@@ -4,3 +4,4 @@ export {
   default as RtlsRolePanel,
 } from './RtlsRolePanel';
 export { default as RtlsPositionsPanel } from './RtlsPositionsPanel';
+export { default as RtlsSurveyPanel } from './RtlsSurveyPanel';

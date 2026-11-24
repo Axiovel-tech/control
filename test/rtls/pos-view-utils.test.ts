@@ -3,6 +3,7 @@ import { describe, expect, test } from '@jest/globals';
 import {
   appendToTrail,
   boundsContain,
+  boundsOfPoints,
   computeSceneBounds,
   getGridLines,
   getGridStep,
@@ -12,6 +13,7 @@ import {
   POS_GONE_AGE_MS,
   POS_STALE_AGE_MS,
   PosStaleness,
+  scenePointFromClient,
   type TrailPoint,
 } from '~/features/rtls/pos-view-utils';
 
@@ -141,6 +143,52 @@ describe('rtls pos-view-utils', () => {
       expect(trail).toHaveLength(MAX_TRAIL_LENGTH);
       expect(trail.at(-1)).toMatchObject({ north: MAX_TRAIL_LENGTH + 9 });
       expect(trail[0]).toMatchObject({ north: 10 });
+    });
+  });
+  describe('dragging on the plot', () => {
+    const bounds = { minNorth: -2, maxNorth: 6, minEast: -4, maxEast: 12 };
+
+    test('boundsOfPoints pads to the margin and the minimum span', () => {
+      expect(boundsOfPoints([])).toBeUndefined();
+      expect(
+        boundsOfPoints([{ north: 1, east: 1 }], { margin: 0.5, minSpan: 6 })
+      ).toEqual({ minNorth: -2, maxNorth: 4, minEast: -2, maxEast: 4 });
+    });
+
+    test('a pointer maps to the scene point under it', () => {
+      // the 16 m by 8 m scene fills a 800 by 400 px element at 50 px/m
+      const box = { left: 100, top: 20, width: 800, height: 400 };
+      expect(scenePointFromClient({ x: 100, y: 20 }, box, bounds)).toEqual({
+        north: 6,
+        east: -4,
+      });
+      expect(scenePointFromClient({ x: 500, y: 320 }, box, bounds)).toEqual({
+        north: 0,
+        east: 4,
+      });
+    });
+
+    test('a scene letterboxed in a taller element stays centred', () => {
+      // 800 px wide gives 50 px/m; the 400 px scene sits 200 px down
+      const box = { left: 0, top: 0, width: 800, height: 800 };
+      expect(scenePointFromClient({ x: 400, y: 400 }, box, bounds)).toEqual({
+        north: 2,
+        east: 4,
+      });
+      expect(scenePointFromClient({ x: 0, y: 200 }, box, bounds)).toEqual({
+        north: 6,
+        east: -4,
+      });
+    });
+
+    test('an element without a size maps nothing', () => {
+      expect(
+        scenePointFromClient(
+          { x: 1, y: 1 },
+          { left: 0, top: 0, width: 0, height: 0 },
+          bounds
+        )
+      ).toBeUndefined();
     });
   });
 });

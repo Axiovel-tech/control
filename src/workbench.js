@@ -167,6 +167,12 @@ export const componentRegistry = {
     detachable: true,
     feature: 'rtls',
   },
+  'rtls-survey': {
+    component: views.RtlsSurveyPanel,
+    label: 'RTLS Survey',
+    detachable: true,
+    feature: 'rtls',
+  },
   rtls: {
     // deprecated, kept for compatibility with persisted layouts that still
     // reference the old merged "RTLS Link" panel; renders the Tags panel

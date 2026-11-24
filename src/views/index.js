@@ -19,6 +19,7 @@ import MissionOverviewPanel from './mission-editor';
 import {
   RtlsAnchorsPanel,
   RtlsPositionsPanel,
+  RtlsSurveyPanel,
   RtlsTagsPanel,
 } from './rtls';
 import ShowControlPanel from './show-control';
@@ -43,6 +44,7 @@ const views = {
   MissionOverviewPanel,
   RtlsAnchorsPanel,
   RtlsPositionsPanel,
+  RtlsSurveyPanel,
   RtlsTagsPanel,
   SavedLocationList,
   ShowControlPanel,

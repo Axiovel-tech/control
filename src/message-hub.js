@@ -26,6 +26,7 @@ import {
   handleRtlsPositionMessage,
   handleRtlsStatsMessage,
 } from './features/rtls/handlers';
+import { handleRtlsSurveyMessage } from './features/rtls/survey';
 import { parseShowAudioStatus } from './features/show-audio/messages';
 import { setShowAudioServerStatus } from './features/show-audio/slice';
 
@@ -106,6 +107,7 @@ messageHub.registerNotificationHandlers({
   'X-RTLS-OTA': (message) => handleRtlsOtaMessage(message.body, dispatch),
   'X-RTLS-POS': (message) => handleRtlsPositionMessage(message.body, dispatch),
   'X-RTLS-STATS': (message) => handleRtlsStatsMessage(message.body, dispatch),
+  'X-RTLS-SURVEY': (message) => handleRtlsSurveyMessage(message.body, dispatch),
   'X-SHOW-AUDIO-INF': (message) =>
     dispatch(setShowAudioServerStatus(parseShowAudioStatus(message.body))),
 });
