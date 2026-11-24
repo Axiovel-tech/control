@@ -1,19 +1,24 @@
 import { describe, expect, test } from '@jest/globals';
 
 import {
-  EMPTY_SKETCH,
+  type FrameTransform,
   frameTransform,
   fromFrame,
-  planMarkers,
-  type RtlsSurveyAnchor,
-  type RtlsSurveySketch,
+  PLAN_AS_FRAME,
   sketchHintKeys,
   sketchProblemKey,
+  surveyTarget,
+  toFrame,
+} from '~/features/rtls/survey-frame';
+import {
+  EMPTY_SKETCH,
+  planMarkers,
+  resolveSketch,
+  type RtlsSurveyAnchor,
+  type RtlsSurveySketch,
   standardCellSketch,
   surveyCells,
   surveyGroup,
-  surveyTarget,
-  toFrame,
   withAnchorGroup,
   withAnchorIncluded,
   withAnchorMoved,
@@ -136,11 +141,72 @@ describe('the standard cell', () => {
   });
 });
 
+describe('a standard cell and an anchor that comes online later', () => {
+  const stored = standardCellSketch(anchorsAt(0, 1, 2, 3));
+
+  test('the late anchor takes the group and place of its slot', () => {
+    const now = anchorsAt(0, 1, 2, 3, 4, 6);
+    const shown = resolveSketch(stored, now);
+    // what "Standard cell" stored knows nothing of A4 and A6
+    expect(stored.groupOf).not.toHaveProperty('104');
+    expect(shown.groupOf).toMatchObject({ '103': 0, '104': 1, '106': 1 });
+    expect(shown.positions['106']).toEqual({ north: 0.6, east: 5.6 });
+    // the anchors placed by "Standard cell" stay where they are
+    expect(shown.positions['101']).toBe(stored.positions['101']);
+  });
+
+  test('what the rows show is what the preset makes of them', () => {
+    const now = anchorsAt(0, 1, 2, 3, 4);
+    const shown = resolveSketch(stored, now);
+    expect(surveyTarget(shown, now)?.frame).toEqual({ preset: 'two-tiers' });
+    // the same frame spelled out from the rows, once one is touched
+    const touched = withAnchorGroup(shown, '104', 1);
+    expect(surveyTarget(touched, now)?.frame).toMatchObject({
+      heightGroups: [[100, 101, 102, 103], [104]],
+      upper: [104],
+    });
+  });
+
+  test('A0 or A1 coming online late becomes the origin or +x', () => {
+    const early = standardCellSketch(anchorsAt(2, 3));
+    expect(early.origin).toBeUndefined();
+    expect(resolveSketch(early, anchorsAt(0, 1, 2, 3))).toMatchObject({
+      origin: '100',
+      xAxis: '101',
+    });
+  });
+
+  test('the sides stay as drawn, whatever the anchors range now', () => {
+    const ranged = anchorsAt(0, 1, 2, 3, 7).map((anchor) => ({
+      ...anchor,
+      initiatorDistanceM: 9,
+    }));
+    expect(resolveSketch(stored, ranged).positions['107']).toEqual({
+      north: 5.6,
+      east: 5.6,
+    });
+  });
+
+  test('a sketch edited by hand is left as it is', () => {
+    const edited = withAnchorGroup(stored, '103', 1);
+    expect(resolveSketch(edited, anchorsAt(0, 1, 2, 3, 4))).toBe(edited);
+  });
+});
+
 describe('a sketch by hand', () => {
   const FOUR = anchorsAt(0, 1, 2, 3);
 
+  /** The transform of a sketch whose frame anchors are drawn apart. */
+  const transformOf = (sketch: RtlsSurveySketch): FrameTransform => {
+    const transform = frameTransform(sketch, FOUR);
+    if (transform === undefined) {
+      throw new Error('the sketch gives the frame no direction');
+    }
+    return transform;
+  };
+
   test('is turned and shifted into the declared frame, never mirrored', () => {
-    const transform = frameTransform(TURNED, FOUR);
+    const transform = transformOf(TURNED);
     expect(toFrame(transform, TURNED.positions['100'])).toEqual({ x: 0, y: 0 });
     const xAxis = toFrame(transform, TURNED.positions['101']);
     expect(xAxis.x).toBeCloseTo(4);
@@ -152,14 +218,14 @@ describe('a sketch by hand', () => {
   });
 
   test('a fitted position lands back on the drawing', () => {
-    const transform = frameTransform(TURNED, FOUR);
-    const back = fromFrame(transform, { x: 4, y: 3 });
+    const back = fromFrame(transformOf(TURNED), { x: 4, y: 3 });
     expect(back.north).toBeCloseTo(-1);
     expect(back.east).toBeCloseTo(5);
-    // without both frame anchors drawn the plan is the frame: north is +x
-    expect(
-      fromFrame(frameTransform(EMPTY_SKETCH, FOUR), { x: 4, y: 3 })
-    ).toEqual({ north: 4, east: 3 });
+    // the plan read as the frame: north is +x
+    expect(fromFrame(PLAN_AS_FRAME, { x: 4, y: 3 })).toEqual({
+      north: 4,
+      east: 3,
+    });
   });
 
   test('sends x and y of every anchor, the +y side, and no height', () => {

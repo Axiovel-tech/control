@@ -5,6 +5,11 @@
  * malformed member reads as absent.
  */
 
+import {
+  type FramePoint,
+  type RtlsSurveyFitBasis,
+  type RtlsSurveyFrame,
+} from './survey-frame';
 import { isRecord, toNumber, toText } from './wire-values';
 
 const SURVEY_PHASES = [
@@ -101,6 +106,8 @@ export type RtlsSurvey = {
   fit?: RtlsSurveyFit;
   gate: RtlsSurveyGate;
   commit?: RtlsSurveyCommit;
+  /** The frame and placement the held fit was made with, when echoed. */
+  basis?: RtlsSurveyFitBasis;
 };
 
 export type RtlsSurveyAction = 'status' | 'start' | 'cancel' | 'fit' | 'commit';
@@ -262,6 +269,59 @@ const mapCommit = (value: unknown): RtlsSurveyCommit | undefined => {
   };
 };
 
+const toNumbers = (value: unknown): number[] =>
+  Array.isArray(value) ? value.flatMap((entry) => toNumber(entry) ?? []) : [];
+
+/** A frame spelled out wins over the preset it may still be tagged with. */
+const mapFrame = (value: unknown): RtlsSurveyFrame | undefined => {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+  const origin = toNumber(value.origin);
+  const xAxis = toNumber(value.xAxis);
+  if (origin === undefined || xAxis === undefined) {
+    return value.preset === 'two-tiers' ? { preset: 'two-tiers' } : undefined;
+  }
+  const yPositive = toNumber(value.yPositive);
+  return {
+    origin,
+    xAxis,
+    heightGroups: Array.isArray(value.heightGroups)
+      ? value.heightGroups.map(toNumbers)
+      : [],
+    upper: toNumbers(value.upper),
+    ...(yPositive === undefined ? {} : { yPositive }),
+  };
+};
+
+const mapPlacement = (
+  value: unknown
+): Record<string, FramePoint> | undefined => {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+  const placement: Record<string, FramePoint> = {};
+  for (const [id, raw] of Object.entries(value)) {
+    const x = isRecord(raw) ? toNumber(raw.x) : undefined;
+    const y = isRecord(raw) ? toNumber(raw.y) : undefined;
+    if (x !== undefined && y !== undefined) {
+      placement[id] = { x, y };
+    }
+  }
+  return placement;
+};
+
+/** The state object's `frame` and `placement`: what the held fit used. */
+const mapBasis = (
+  frame: unknown,
+  placement: unknown
+): RtlsSurveyFitBasis | undefined => {
+  const mapped = mapFrame(frame);
+  return mapped === undefined
+    ? undefined
+    : { frame: mapped, placement: mapPlacement(placement) };
+};
+
 /**
  * Maps the survey state object; `undefined` for anything without a known
  * `state`, which then replaces nothing.
@@ -289,6 +349,7 @@ export function mapRtlsSurvey(value: unknown): RtlsSurvey | undefined {
       warnings: mapGateEntries(gate.warnings),
     },
     commit: mapCommit(value.commit),
+    basis: mapBasis(value.frame, value.placement),
   };
 }
 

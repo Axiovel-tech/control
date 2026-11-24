@@ -29,7 +29,8 @@ const state = (members: Record<string, unknown>): Record<string, unknown> => ({
   ...members,
 });
 
-const answer = (
+/** The answer to a request, carrying a state object. */
+export const answer = (
   action: 'status' | 'start' | 'cancel' | 'fit' | 'commit',
   result: string,
   survey: Record<string, unknown>,
@@ -39,7 +40,8 @@ const answer = (
   body: { type: 'X-RTLS-SURVEY', action, result, reason, survey },
 });
 
-const push = (survey: Record<string, unknown>): RecordedMessage => ({
+/** A pushed state object. */
+export const push = (survey: Record<string, unknown>): RecordedMessage => ({
   pushed: true,
   body: { type: 'X-RTLS-SURVEY', survey },
 });
@@ -117,7 +119,8 @@ const LOW_SHARE = {
   detail: 'valid share 0.84 of the ranges 102 measured while 103 initiated',
 };
 
-const READY = state({
+/** The state object of the fit with one warning. */
+export const READY = state({
   state: 'ready',
   step: 4,
   steps: 4,
@@ -206,7 +209,7 @@ export const RUN_FAILED: RecordedMessage[] = [
   ),
 ];
 
-/** A cancel during the run: it returns, then ends as the server says. */
+/** A cancel during the run: it returns, then is idle and says why. */
 export const RUN_CANCELLED: RecordedMessage[] = [
   answer('start', 'started', measuring(1)),
   answer(
@@ -214,8 +217,19 @@ export const RUN_CANCELLED: RecordedMessage[] = [
     'cancelled',
     state({ state: 'returning', step: 1, steps: 4 })
   ),
-  push(state({ state: 'failed', reason: 'Cancelled' })),
+  push(state({ state: 'idle', anchors: [], reason: 'cancelled' })),
 ];
+
+/** A commit every anchor took, one of which never reports the new ID. */
+export const COMMIT_UNCONFIRMED = answer(
+  'commit',
+  'incomplete',
+  {
+    ...READY,
+    commit: { surveyId: 12, results: written(), running: [101, 102, 103] },
+  },
+  'Not every anchor took the survey'
+);
 
 const BLOCKED = state({
   state: 'ready',

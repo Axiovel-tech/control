@@ -5,8 +5,9 @@
  * fitted positions drawn over the sketch.
  *
  * North is up and east right, in metres, like the positions view. The fit
- * arrives in the declared frame and is drawn through the sketch's own turn
- * and shift, so it lands on the drawing the operator made.
+ * arrives in the declared frame and is drawn with the turn and shift it was
+ * calculated under, so it lands on the drawing it was made from and stays
+ * there while the operator edits the sketch.
  */
 
 import { useTheme } from '@mui/material/styles';
@@ -22,10 +23,9 @@ import {
   scenePointFromClient,
   type SceneBounds,
 } from '~/features/rtls/pos-view-utils';
+import { type FrameTransform, fromFrame } from '~/features/rtls/survey-frame';
 import { type RtlsSurvey } from '~/features/rtls/survey-messages';
 import {
-  frameTransform,
-  fromFrame,
   planMarkers,
   roundCm,
   type RtlsSurveyAnchor,
@@ -40,6 +40,8 @@ type SurveyPlanProps = {
   sketch: RtlsSurveySketch;
   survey?: RtlsSurvey;
   nameOf: AnchorNamer;
+  /** How the held fit is drawn on the given sketch (`heldFitTransform`). */
+  fitTransformOf: (sketch: RtlsSurveySketch) => FrameTransform;
   onMove: (id: string, point: NePoint) => void;
 };
 
@@ -51,6 +53,7 @@ const SurveyPlan = ({
   sketch,
   survey,
   nameOf,
+  fitTransformOf,
   onMove,
 }: SurveyPlanProps) => {
   const { t } = useTranslation();
@@ -67,7 +70,7 @@ const SurveyPlan = ({
   const drawn =
     drag === undefined ? sketch : withAnchorMoved(sketch, drag.id, drag.point);
   const markers = planMarkers(drawn, anchors);
-  const transform = frameTransform(drawn, anchors);
+  const transform = fitTransformOf(drawn);
   const fit = survey?.fit;
   const fitted = Object.fromEntries(
     Object.entries(fit?.anchors ?? {}).map(([id, anchor]) => [

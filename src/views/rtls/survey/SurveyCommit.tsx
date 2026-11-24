@@ -21,6 +21,8 @@ import { type AnchorNamer } from './labels';
 type SurveyCommitProps = {
   survey: RtlsSurvey;
   controls: RtlsSurveyControls;
+  /** The anchors of the survey that are offline now. */
+  offline: string[];
   /** Every online anchor reports its lock. */
   locked: boolean;
   nameOf: AnchorNamer;
@@ -79,6 +81,7 @@ const CommitResults = ({
 const SurveyCommit = ({
   survey,
   controls,
+  offline,
   locked,
   nameOf,
   onCommit,
@@ -115,7 +118,14 @@ const SurveyCommit = ({
           )}
         </Box>
       )}
-      {leftBehind.length > 0 && survey.state === 'ready' && (
+      {offline.length > 0 && controls.commitOffered && (
+        <Alert severity='warning' data-testid='rtls-survey-offline'>
+          {t('rtlsSurvey.commit.offline', {
+            anchors: offline.map(nameOf).join(', '),
+          })}
+        </Alert>
+      )}
+      {leftBehind.length > 0 && (
         <Alert severity='error' data-testid='rtls-survey-incomplete'>
           {t('rtlsSurvey.commit.incomplete', {
             anchors: leftBehind.map(nameOf).join(', '),

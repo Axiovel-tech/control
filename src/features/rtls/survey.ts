@@ -20,6 +20,7 @@ import {
   type RtlsSurveyPhase,
   surveyOfBody,
 } from './survey-messages';
+import { type RtlsSurveyRememberedFit } from './survey-frame';
 import { type RtlsSurveySketch } from './survey-sketch';
 
 /** How a residual reads against the server's commit warnings. */
@@ -93,11 +94,21 @@ const RUNNING_PHASES: readonly RtlsSurveyPhase[] = [
   'committing',
 ];
 
-/** The anchors the last commit did not reach. */
-export const anchorsLeftBehind = (survey: RtlsSurvey | undefined): string[] =>
-  Object.entries(survey?.commit?.results ?? {})
-    .filter(([, { written }]) => written === 'failed')
-    .map(([id]) => id);
+/**
+ * The anchors a commit that ended left behind: those whose write failed and
+ * those that took it but do not report the new survey ID. None while no
+ * commit was tried, and none while one still runs.
+ */
+export function anchorsLeftBehind(survey: RtlsSurvey | undefined): string[] {
+  const commit = survey?.commit;
+  if (survey?.state !== 'ready' || commit === undefined) {
+    return [];
+  }
+  return survey.anchors.filter(
+    (id) =>
+      commit.results[id]?.written === 'failed' || !commit.running.includes(id)
+  );
+}
 
 /** The i18n key of why the gate keeps a fit from being committed. */
 const gateBlockKey = (
@@ -111,9 +122,12 @@ const gateBlockKey = (
       : undefined;
 
 /**
- * What the page offers, from the survey as the server last reported it.
- * `refusalKey` is `surveyRefusalKey`; `startProblemKey` and `refitProblemKey`
- * say what the sketch lacks for the anchors a start or a refit would name.
+ * What the page offers for one cell, from the survey as the server last
+ * reported it. `refusalKey` is `surveyRefusalKey`; `startProblemKey` and
+ * `refitProblemKey` say what the sketch lacks for the anchors a start or a
+ * refit would name. A survey held for another cell (`elsewhere`) can be
+ * replaced from here, never cancelled, refitted or committed. With an anchor
+ * of the measured group offline the server commits nothing.
  */
 export function surveyControls({
   survey,
@@ -123,16 +137,20 @@ export function surveyControls({
   refusalKey,
   startProblemKey,
   refitProblemKey,
+  elsewhere = false,
+  groupOffline = false,
 }: Pick<RtlsSurveySliceState, 'survey' | 'pending' | 'available'> & {
   /** The warnings now shown are acknowledged. */
   acknowledged: boolean;
   refusalKey?: string;
   startProblemKey?: string;
   refitProblemKey?: string;
+  elsewhere?: boolean;
+  groupOffline?: boolean;
 }): RtlsSurveyControls {
   const phase = survey?.state;
   const idle = pending === undefined;
-  const ready = phase === 'ready';
+  const ready = phase === 'ready' && !elsewhere;
   const running = phase !== undefined && RUNNING_PHASES.includes(phase);
 
   const startBlockedKey =
@@ -141,15 +159,19 @@ export function surveyControls({
       : (refusalKey ??
         (running ? 'rtlsSurvey.refusal.running' : startProblemKey));
 
-  const commitOffered = survey?.state === 'ready' && survey.fit !== undefined;
+  const commitOffered =
+    !elsewhere && survey?.state === 'ready' && survey.fit !== undefined;
   const commitBlockedKey = commitOffered
-    ? (refusalKey ?? gateBlockKey(survey.gate, acknowledged))
+    ? (refusalKey ??
+      (groupOffline
+        ? 'rtlsSurvey.commit.surveyAgain'
+        : gateBlockKey(survey.gate, acknowledged)))
     : undefined;
 
   return {
     canStart: idle && startBlockedKey === undefined,
     startBlockedKey,
-    canCancel: idle && phase === 'measuring',
+    canCancel: idle && phase === 'measuring' && !elsewhere,
     canRefit: idle && ready && refitProblemKey === undefined,
     commitOffered,
     canCommit: idle && commitOffered && commitBlockedKey === undefined,
@@ -167,18 +189,39 @@ export type RtlsSurveySliceState = {
   outcome?: RtlsSurveyOutcome;
   /** `false` once the server answered that it has no survey. */
   available?: boolean;
+  /** Status requests that got no answer at all: each asks for another try. */
+  statusFailures?: number;
   /** The warnings (`warningsSignature`) the operator acknowledged. */
   acknowledged?: string;
   /**
-   * The frame and placement the server last took with a start or a refit,
-   * as the thunk serialized them: the page says when the sketch moved on.
+   * The frame and placement the server last took from this client with a
+   * start or a refit, and how the plan drew that frame then. The server's
+   * echo of them, when it sends one, says whether the held fit is that one.
    */
-  fittedRequest?: string;
+  fittedRequest?: RtlsSurveyRememberedFit;
   /** The operator's sketch per cell; the only part kept across reloads. */
   sketches: Record<string, RtlsSurveySketch>;
 };
 
 const initialState: RtlsSurveySliceState = { sketches: {} };
+
+/** How long the page waits before it asks again after an unanswered status. */
+const STATUS_RETRY_MS = 5000;
+
+/** When the page asks for the survey: at once, or after a failed try. */
+export const statusQueryDelayMs = (failures: number | undefined): number =>
+  failures === undefined ? 0 : STATUS_RETRY_MS;
+
+/**
+ * Takes the server's state object. An acknowledgement is for one fit: any
+ * other fit, and none at all while a new measurement runs, voids it.
+ */
+const holdSurvey = (state: RtlsSurveySliceState, survey: RtlsSurvey): void => {
+  if (JSON.stringify(state.survey?.fit) !== JSON.stringify(survey.fit)) {
+    state.acknowledged = undefined;
+  }
+  state.survey = survey;
+};
 
 const { actions, reducer } = createSlice({
   name: 'rtlsSurvey',
@@ -191,6 +234,10 @@ const { actions, reducer } = createSlice({
     ) {
       state.pending = payload;
       state.outcome = undefined;
+      // what comes back is another measurement or another fit
+      if (payload === 'start' || payload === 'fit') {
+        state.acknowledged = undefined;
+      }
     },
 
     /** The answer to this client's request; `request` as sent with it. */
@@ -198,12 +245,15 @@ const { actions, reducer } = createSlice({
       state,
       {
         payload: { answer, request },
-      }: PayloadAction<{ answer: RtlsSurveyAnswer; request?: string }>
+      }: PayloadAction<{
+        answer: RtlsSurveyAnswer;
+        request?: RtlsSurveyRememberedFit;
+      }>
     ) {
       const { survey, ...outcome } = answer;
       state.available = true;
       if (survey !== undefined) {
-        state.survey = survey;
+        holdSurvey(state, survey);
       }
       if (outcome.action === 'status') {
         return;
@@ -218,18 +268,29 @@ const { actions, reducer } = createSlice({
       }
     },
 
-    /** No answer came: a timeout, or a server without the survey. */
+    /**
+     * The request did not go through. `answered`: the server answered, but
+     * not with the survey (it has none); otherwise nothing came back at all
+     * (a timeout, a connection that dropped), which says nothing about the
+     * server and leaves a status request to be tried again.
+     */
     rtlsSurveyRequestFailed(
       state,
       {
-        payload: { action, reason },
-      }: PayloadAction<{ action: RtlsSurveyAction; reason: string }>
+        payload: { action, reason, answered },
+      }: PayloadAction<{
+        action: RtlsSurveyAction;
+        reason: string;
+        answered: boolean;
+      }>
     ) {
-      if (action === 'status') {
-        state.available = false;
-      } else {
+      if (action !== 'status') {
         state.pending = undefined;
         state.outcome = { action, result: 'error', reason };
+      } else if (answered) {
+        state.available = false;
+      } else {
+        state.statusFailures = (state.statusFailures ?? 0) + 1;
       }
     },
 
@@ -240,7 +301,7 @@ const { actions, reducer } = createSlice({
         state.outcome = undefined;
       }
       state.available = true;
-      state.survey = payload;
+      holdSurvey(state, payload);
     },
 
     /** Ticks or clears the acknowledgement of the warnings now shown. */

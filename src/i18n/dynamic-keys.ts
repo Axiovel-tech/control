@@ -446,6 +446,7 @@
  * t("rtlsSurvey.problem.pickOrigin")
  * t("rtlsSurvey.problem.pickXAxis")
  * t("rtlsSurvey.problem.sameAnchor")
+ * t("rtlsSurvey.problem.drawApart")
  * t("rtlsSurvey.hint.originNotLowest")
  * t("rtlsSurvey.hint.partialSketch")
  * t("rtlsSurvey.run.returning")
@@ -458,6 +459,7 @@
  * t("rtlsSurvey.outcome.warnings")
  * t("rtlsSurvey.commit.blocked")
  * t("rtlsSurvey.commit.acknowledgeFirst")
+ * t("rtlsSurvey.commit.surveyAgain")
  * t("rtlsSurvey.commit.written.changed")
  * t("rtlsSurvey.commit.written.failed")
  *

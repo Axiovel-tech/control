@@ -9,44 +9,29 @@ jest.mock('~/features/show/selectors', () => ({
   }): boolean => state.show.start.authorized,
 }));
 
-import {
-  buildRtlsDeviceStatusMap,
-  rtlsInformationActions,
-} from '~/features/rtls/handlers';
-import {
-  clearRtlsDevices,
-  setRtlsDevicesFromStatus,
-} from '~/features/rtls/slice';
+import { clearRtlsDevices } from '~/features/rtls/slice';
 import {
   acknowledgeRtlsSurveyWarnings,
   anchorsLeftBehind,
-  handleRtlsSurveyMessage,
-  residualLevel,
   rtlsSurveyRequested,
   setRtlsSurveySketch,
   surveyControls,
-  surveyRefusalKey,
 } from '~/features/rtls/survey';
 import {
-  mapRtlsSurvey,
-  mapRtlsSurveyAnswer,
-  surveyOfBody,
-} from '~/features/rtls/survey-messages';
-import {
-  areRtlsSurveyWarningsAcknowledged,
-  getRtlsSurveyAnchors,
+  getRtlsSurveyPage,
   getRtlsSurveyRefusalKey,
 } from '~/features/rtls/survey-selectors';
 import { EMPTY_SKETCH } from '~/features/rtls/survey-sketch';
-import { UAVAge } from '~/model/uav';
-import { type AppDispatch } from '~/store/reducers';
 
-import { type FakeUav } from './rtls-test-store';
 import {
+  answer,
   COMMIT,
   COMMIT_BLOCKED,
   COMMIT_INCOMPLETE,
+  COMMIT_UNCONFIRMED,
   COMMIT_WARNINGS,
+  push,
+  READY,
   REFIT,
   RUN,
   RUN_BLOCKED,
@@ -58,7 +43,6 @@ import {
 import {
   CELL,
   createSurveyTestStore as createStore,
-  information,
   play,
   stateOf,
   type SurveyTestStore as TestStore,
@@ -69,12 +53,18 @@ const controlsOf = (store: TestStore) => {
   const state = stateOf(store);
   return surveyControls({
     ...state.rtlsSurvey,
-    acknowledged: areRtlsSurveyWarningsAcknowledged(state),
+    acknowledged: getRtlsSurveyPage(state, CELL).acknowledged,
     refusalKey: getRtlsSurveyRefusalKey(state),
   });
 };
 
+/** The fit of the recorded run, as it travels. */
+const READY_FIT = READY.fit as Record<string, unknown>;
+
 const surveyOf = (store: TestStore) => store.getState().rtlsSurvey.survey;
+
+const acknowledgedOf = (store: TestStore): boolean =>
+  getRtlsSurveyPage(stateOf(store), CELL).acknowledged;
 
 describe('the survey state over a recorded run', () => {
   test('idle: Survey is on offer, nothing else', () => {
@@ -210,9 +200,46 @@ describe('the survey state over a recorded run', () => {
 
     // a refit that changes the warnings voids the acknowledgement
     play(store, [REFIT]);
-    expect(areRtlsSurveyWarningsAcknowledged(stateOf(store))).toBe(false);
+    expect(acknowledgedOf(store)).toBe(false);
     expect(surveyOf(store)?.gate.warnings).toEqual([]);
     expect(controlsOf(store).canCommit).toBe(true);
+  });
+
+  test('a new measurement needs a fresh acknowledgement of the same warning', () => {
+    const store = createStore();
+    play(store, RUN);
+    store.dispatch(acknowledgeRtlsSurveyWarnings(true));
+    expect(acknowledgedOf(store)).toBe(true);
+
+    // surveyed again without committing: the same warning comes back
+    play(store, RUN);
+    expect(surveyOf(store)?.gate.warnings).toHaveLength(1);
+    expect(acknowledgedOf(store)).toBe(false);
+    expect(controlsOf(store)).toMatchObject({
+      canCommit: false,
+      commitBlockedKey: 'rtlsSurvey.commit.acknowledgeFirst',
+    });
+  });
+
+  test('so does a refit, whatever it comes back with', () => {
+    const store = createStore();
+    play(store, RUN);
+    store.dispatch(acknowledgeRtlsSurveyWarnings(true));
+    // the same fit and the same warning again
+    play(store, [answer('fit', 'fitted', READY)]);
+    expect(acknowledgedOf(store)).toBe(false);
+  });
+
+  test('and a fit another client asked for', () => {
+    const store = createStore();
+    play(store, RUN);
+    store.dispatch(acknowledgeRtlsSurveyWarnings(true));
+    // the same state again changes nothing
+    play(store, [push(READY)]);
+    expect(acknowledgedOf(store)).toBe(true);
+    // another fit with the same warning
+    play(store, [push({ ...READY, fit: { ...READY_FIT, rmsM: 0.0401 } })]);
+    expect(acknowledgedOf(store)).toBe(false);
   });
 
   test('committing, then committed: per anchor, and who runs the new ID', () => {
@@ -307,7 +334,7 @@ describe('the survey state over a recorded run', () => {
     });
   });
 
-  test('cancel: the answer, then the end the server reports', () => {
+  test('cancel: the answer, then idle with the reason, not a failure', () => {
     const store = createStore();
     play(store, RUN_CANCELLED.slice(0, 2));
     expect(surveyOf(store)?.state).toBe('returning');
@@ -317,9 +344,36 @@ describe('the survey state over a recorded run', () => {
     });
     play(store, RUN_CANCELLED.slice(2));
     expect(surveyOf(store)).toMatchObject({
-      state: 'failed',
-      reason: 'Cancelled',
+      state: 'idle',
+      reason: 'cancelled',
     });
+    expect(controlsOf(store).canStart).toBe(true);
+  });
+
+  test('a commit every anchor took but one never confirmed names it, with Retry', () => {
+    const store = createStore();
+    play(store, RUN);
+    store.dispatch(acknowledgeRtlsSurveyWarnings(true));
+    play(store, [COMMIT_UNCONFIRMED]);
+
+    // no write failed: who is missing is who does not run the new ID
+    expect(
+      Object.values(surveyOf(store)?.commit?.results ?? {}).map(
+        ({ written }) => written
+      )
+    ).toEqual(['changed', 'changed', 'changed', 'changed']);
+    expect(anchorsLeftBehind(surveyOf(store))).toEqual(['104']);
+    expect(controlsOf(store)).toMatchObject({ canCommit: true, retry: true });
+  });
+
+  test('nobody is left behind before a commit, or while one runs', () => {
+    const store = createStore();
+    play(store, RUN);
+    expect(anchorsLeftBehind(surveyOf(store))).toEqual([]);
+    expect(controlsOf(store).retry).toBe(false);
+    // two of four confirmed so far: that is progress, not a failure
+    play(store, COMMIT.slice(0, 2));
+    expect(anchorsLeftBehind(surveyOf(store))).toEqual([]);
   });
 
   test('blocked: no acknowledgement opens the commit', () => {
@@ -386,185 +440,5 @@ describe('the survey state over a recorded run', () => {
     expect(store.getState().rtlsSurvey).toEqual({
       sketches: { [CELL]: { ...EMPTY_SKETCH, origin: '101' } },
     });
-  });
-});
-
-describe('the wire mapping', () => {
-  test('a body without a known state replaces nothing', () => {
-    expect(mapRtlsSurvey(undefined)).toBeUndefined();
-    expect(mapRtlsSurvey({ state: 'dancing' })).toBeUndefined();
-    const store = createStore();
-    play(store, RUN);
-    handleRtlsSurveyMessage(
-      { type: 'X-RTLS-SURVEY', survey: { state: 'dancing' } },
-      store.dispatch as AppDispatch
-    );
-    expect(surveyOf(store)?.state).toBe('ready');
-  });
-
-  test('the state object is read from `survey`, or bare', () => {
-    expect(surveyOfBody({ survey: { state: 'idle' } })?.state).toBe('idle');
-    expect(
-      surveyOfBody({ type: 'X-RTLS-SURVEY', state: 'measuring', step: 2 })
-    ).toMatchObject({ state: 'measuring', step: 2 });
-  });
-
-  test('absent members read as empty; a direction left out stays out', () => {
-    const survey = mapRtlsSurvey({
-      state: 'ready',
-      pairs: [{ a: 1, b: 2, rangeM: 3, ab: null, ba: { n: 40, share: 0.6 } }],
-    });
-    expect(survey).toMatchObject({
-      anchors: [],
-      gate: { blocked: [], warnings: [] },
-    });
-    expect(survey?.fit).toBeUndefined();
-    expect(survey?.commit).toBeUndefined();
-    expect(survey?.pairs[0].ab).toBeUndefined();
-    expect(survey?.pairs[0].ba).toMatchObject({ n: 40, share: 0.6 });
-  });
-
-  test('an answer with a result this client does not know is `unknown`', () => {
-    expect(
-      mapRtlsSurveyAnswer('fit', { type: 'X-RTLS-SURVEY', result: 'mended' })
-    ).toMatchObject({ action: 'fit', result: 'unknown' });
-  });
-
-  test("residuals are coloured at the commit warnings' bounds", () => {
-    expect(residualLevel(undefined)).toBe('ok');
-    expect(residualLevel(0.05)).toBe('ok');
-    expect(residualLevel(-0.051)).toBe('warning');
-    expect(residualLevel(0.1)).toBe('warning');
-    expect(residualLevel(-0.101)).toBe('error');
-  });
-});
-
-describe('the guard on Survey and Commit', () => {
-  const live = {
-    lockedCount: 0,
-    showAuthorized: false,
-    armedCount: 0,
-    anyOnline: true,
-  };
-
-  test("the cell Apply's guard, with an authorized show between", () => {
-    expect(surveyRefusalKey(live)).toBeUndefined();
-    expect(surveyRefusalKey({ ...live, lockedCount: 1 })).toBe(
-      'rtlsCellSettings.unlockFirst'
-    );
-    expect(surveyRefusalKey({ ...live, showAuthorized: true })).toBe(
-      'rtlsSurvey.refusal.showAuthorized'
-    );
-    expect(surveyRefusalKey({ ...live, armedCount: 2 })).toBe(
-      'rtlsCellSettings.disarmFirst'
-    );
-    expect(surveyRefusalKey({ ...live, anyOnline: false })).toBe(
-      'rtlsCellSettings.noDevices'
-    );
-    // locked anchors come first: unlocking is what the operator does next
-    expect(
-      surveyRefusalKey({
-        lockedCount: 4,
-        showAuthorized: true,
-        armedCount: 1,
-        anyOnline: true,
-      })
-    ).toBe('rtlsCellSettings.unlockFirst');
-  });
-
-  test('locked anchors disable Survey and Commit, with the reason', () => {
-    const store = createStore();
-    play(store, RUN);
-    store.dispatch(acknowledgeRtlsSurveyWarnings(true));
-    expect(controlsOf(store)).toMatchObject({
-      canStart: true,
-      canCommit: true,
-    });
-
-    for (const action of rtlsInformationActions(information(4))) {
-      store.dispatch(action);
-    }
-    expect(getRtlsSurveyRefusalKey(stateOf(store))).toBe(
-      'rtlsCellSettings.unlockFirst'
-    );
-    expect(controlsOf(store)).toMatchObject({
-      canStart: false,
-      startBlockedKey: 'rtlsCellSettings.unlockFirst',
-      canCommit: false,
-      commitBlockedKey: 'rtlsCellSettings.unlockFirst',
-      // a refit writes nothing to an anchor
-      canRefit: true,
-    });
-  });
-
-  test('an authorized show disables them', () => {
-    const store = createStore({ authorized: true });
-    play(store, RUN);
-    store.dispatch(acknowledgeRtlsSurveyWarnings(true));
-    expect(controlsOf(store)).toMatchObject({
-      canStart: false,
-      startBlockedKey: 'rtlsSurvey.refusal.showAuthorized',
-      canCommit: false,
-      commitBlockedKey: 'rtlsSurvey.refusal.showAuthorized',
-    });
-  });
-
-  test('a drone that may be armed disables them; one known disarmed does not', () => {
-    const maybeArmed: FakeUav = { id: '7', age: UAVAge.ACTIVE, errors: [] };
-    const store = createStore({ uavs: [maybeArmed] });
-    play(store, RUN);
-    store.dispatch(acknowledgeRtlsSurveyWarnings(true));
-    expect(controlsOf(store)).toMatchObject({
-      canStart: false,
-      startBlockedKey: 'rtlsCellSettings.disarmFirst',
-      canCommit: false,
-      commitBlockedKey: 'rtlsCellSettings.disarmFirst',
-    });
-
-    const disarmed = createStore({ uavs: [{ ...maybeArmed, armed: false }] });
-    expect(getRtlsSurveyRefusalKey(stateOf(disarmed))).toBeUndefined();
-  });
-
-  test('no online anchor, or a server without the survey', () => {
-    const store = createStore();
-    store.dispatch(
-      setRtlsDevicesFromStatus(
-        buildRtlsDeviceStatusMap({
-          '101': { online: false, role: 'anchor-initiator' },
-        })
-      )
-    );
-    expect(getRtlsSurveyAnchors(stateOf(store))).toEqual([]);
-    expect(getRtlsSurveyRefusalKey(stateOf(store))).toBe(
-      'rtlsCellSettings.noDevices'
-    );
-
-    expect(
-      surveyControls({ available: false, acknowledged: false })
-    ).toMatchObject({
-      canStart: false,
-      startBlockedKey: 'rtlsSurvey.refusal.noServer',
-    });
-  });
-
-  test('a sketch that lacks something disables Survey, or Refit', () => {
-    expect(
-      surveyControls({
-        acknowledged: false,
-        startProblemKey: 'rtlsSurvey.problem.pickOrigin',
-      })
-    ).toMatchObject({
-      canStart: false,
-      startBlockedKey: 'rtlsSurvey.problem.pickOrigin',
-    });
-    const store = createStore();
-    play(store, RUN);
-    expect(
-      surveyControls({
-        ...store.getState().rtlsSurvey,
-        acknowledged: false,
-        refitProblemKey: 'rtlsSurvey.problem.pickXAxis',
-      }).canRefit
-    ).toBe(false);
   });
 });

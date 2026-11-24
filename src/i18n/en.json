@@ -1176,9 +1176,11 @@
       "committed": "Every anchor runs the new survey. Lock the anchors now.",
       "detail": "({{- detail}})",
       "incomplete": "Not every anchor took the survey: {{anchors}}",
+      "offline": "{{anchors}} offline since this survey. Refit still works; a commit needs a new survey.",
       "result": "{{anchor}}: {{written}}",
       "retry": "Retry",
       "running": "· running",
+      "surveyAgain": "Survey again to commit",
       "surveyId": "Survey {{id}}",
       "written": {
         "changed": "written",
@@ -1197,6 +1199,7 @@
       "name": "Height group",
       "upper": "Upper"
     },
+    "heldElsewhere": "The server holds a survey of another cell. A survey here replaces it.",
     "hint": {
       "originNotLowest": "Pick the origin among the lowest anchors: nothing else tells the fit which anchors are below it.",
       "partialSketch": "Place every anchor: a sketch with anchors missing is not used."
@@ -1230,6 +1233,7 @@
       "xAxis": "+x"
     },
     "problem": {
+      "drawApart": "Draw the origin and the +x anchor apart",
       "pickOrigin": "Pick the origin anchor",
       "pickXAxis": "Pick the +x anchor",
       "sameAnchor": "The origin and the +x anchor must be two anchors",
@@ -1261,6 +1265,7 @@
       "z": "z (m)"
     },
     "run": {
+      "cancelled": "Survey cancelled",
       "committing": "Writing the positions to the anchors…",
       "failed": "The survey failed",
       "measuring": "Ranging…",

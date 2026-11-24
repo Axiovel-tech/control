@@ -6,6 +6,7 @@
  * (X-RTLS-SURVEY); Control keeps only the sketch, per cell.
  */
 
+import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Divider from '@mui/material/Divider';
 import MenuItem from '@mui/material/MenuItem';
@@ -22,7 +23,7 @@ import { openRtlsLockDialog } from '~/features/rtls/slice';
 import {
   acknowledgeRtlsSurveyWarnings,
   setRtlsSurveySketch,
-  surveyControls,
+  statusQueryDelayMs,
 } from '~/features/rtls/survey';
 import {
   cancelRtlsSurvey,
@@ -30,22 +31,15 @@ import {
   queryRtlsSurvey,
   refitRtlsSurvey,
   startRtlsSurvey,
-  targetSignature,
 } from '~/features/rtls/survey-actions';
+import { heldFitTransform } from '~/features/rtls/survey-frame';
 import {
-  areRtlsSurveyWarningsAcknowledged,
   getRtlsSurveyCells,
-  getRtlsSurveyRefitGroup,
-  getRtlsSurveyRefusalKey,
-  getRtlsSurveySketch,
+  getRtlsSurveyPage,
   getRtlsSurveyState,
 } from '~/features/rtls/survey-selectors';
 import {
   type RtlsSurveySketch,
-  sketchHintKeys,
-  sketchProblemKey,
-  surveyGroup,
-  surveyTarget,
   withAnchorMoved,
 } from '~/features/rtls/survey-sketch';
 import { isConnected } from '~/features/servers/selectors';
@@ -64,11 +58,8 @@ const RtlsSurveyPanel = () => {
   const dispatch: AppDispatch = useDispatch();
   const connected = useSelector(isConnected);
   const cells = useSelector(getRtlsSurveyCells);
-  const { survey, pending, outcome, available, fittedRequest } =
+  const { fittedRequest, outcome, pending, statusFailures } =
     useSelector(getRtlsSurveyState);
-  const acknowledged = useSelector(areRtlsSurveyWarningsAcknowledged);
-  const refusalKey = useSelector(getRtlsSurveyRefusalKey);
-  const refitGroup = useSelector(getRtlsSurveyRefitGroup);
   const locked = useSelector(getRtlsAnchorLock)?.locked ?? false;
 
   const cellKeys = Object.keys(cells).sort();
@@ -77,34 +68,30 @@ const RtlsSurveyPanel = () => {
     chosenCell !== undefined && cellKeys.includes(chosenCell)
       ? chosenCell
       : (cellKeys[0] ?? '');
-  const anchors = useMemo(() => cells[cell] ?? [], [cells, cell]);
-  const sketch = useSelector((state: RootState) =>
-    getRtlsSurveySketch(state, cell)
+  const page = useSelector((state: RootState) =>
+    getRtlsSurveyPage(state, cell)
   );
+  const { anchors, controls, measured, sketch, survey } = page;
 
-  // the survey the server holds, as the page opens and after a reconnect
+  // the survey the server holds: as the page opens, after a reconnect, and
+  // again after a status request that got no answer
   useEffect(() => {
-    if (connected) {
-      void dispatch(queryRtlsSurvey());
+    if (!connected) {
+      return undefined;
     }
-  }, [connected, dispatch]);
+    const timer = setTimeout(
+      () => void dispatch(queryRtlsSurvey()),
+      statusQueryDelayMs(statusFailures)
+    );
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [connected, dispatch, statusFailures]);
 
-  const nameOf = useMemo(() => anchorNamer(anchors, t), [anchors, t]);
-  const group = surveyGroup(sketch, anchors);
-  const refitTarget = surveyTarget(sketch, refitGroup);
-  const controls = surveyControls({
-    survey,
-    pending,
-    available,
-    acknowledged,
-    refusalKey,
-    startProblemKey: sketchProblemKey(sketch, group),
-    refitProblemKey: sketchProblemKey(sketch, refitGroup),
-  });
-  const sketchChanged =
-    fittedRequest !== undefined &&
-    refitTarget !== undefined &&
-    targetSignature(refitTarget) !== fittedRequest;
+  const nameOf = useMemo(
+    () => anchorNamer([...anchors, ...measured], t),
+    [anchors, measured, t]
+  );
 
   const setSketch = (next: RtlsSurveySketch) =>
     dispatch(setRtlsSurveySketch({ cell, sketch: next }));
@@ -148,6 +135,14 @@ const RtlsSurveyPanel = () => {
             sketch={sketch}
             survey={survey}
             nameOf={nameOf}
+            fitTransformOf={(drawn) =>
+              heldFitTransform({
+                sketch: drawn,
+                group: measured,
+                echo: survey?.basis,
+                remembered: fittedRequest,
+              })
+            }
             onMove={(id, point) =>
               setSketch(withAnchorMoved(sketch, id, point))
             }
@@ -191,15 +186,20 @@ const RtlsSurveyPanel = () => {
           onChange={setSketch}
         />
         <Divider />
+        {page.heldElsewhere && (
+          <Alert severity='info' data-testid='rtls-survey-elsewhere'>
+            {t('rtlsSurvey.heldElsewhere')}
+          </Alert>
+        )}
         <SurveyRun
           survey={survey}
           controls={controls}
           outcome={outcome}
-          hintKeys={sketchHintKeys(sketch, group)}
-          sketchChanged={sketchChanged}
+          hintKeys={page.hintKeys}
+          sketchChanged={page.sketchChanged}
           nameOf={nameOf}
           onStart={() => void dispatch(startRtlsSurvey(cell))}
-          onCancel={() => void dispatch(cancelRtlsSurvey())}
+          onCancel={() => void dispatch(cancelRtlsSurvey(cell))}
           onRefit={() => void dispatch(refitRtlsSurvey(cell))}
         />
         {survey !== undefined && (
@@ -208,7 +208,7 @@ const RtlsSurveyPanel = () => {
             <SurveyGate
               gate={survey.gate}
               nameOf={nameOf}
-              acknowledged={acknowledged}
+              acknowledged={page.acknowledged}
               disabled={pending !== undefined}
               onAcknowledge={(value) =>
                 dispatch(acknowledgeRtlsSurveyWarnings(value))
@@ -217,9 +217,10 @@ const RtlsSurveyPanel = () => {
             <SurveyCommit
               survey={survey}
               controls={controls}
+              offline={page.offline}
               locked={locked}
               nameOf={nameOf}
-              onCommit={() => void dispatch(commitRtlsSurvey())}
+              onCommit={() => void dispatch(commitRtlsSurvey(cell))}
               onLock={() => dispatch(openRtlsLockDialog())}
             />
           </>

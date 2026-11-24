@@ -25,33 +25,54 @@ import { type RecordedMessage } from './survey-recording';
 
 export const CELL = 'bench';
 
-/** The X-RTLS-INF of the cell, with `lockedCount` of its anchors locked. */
-export const information = (lockedCount: number) => ({
+/** An anchor of a test cell; online and without a stored position unless said. */
+export type TestAnchor = {
+  id: number;
+  slot: number;
+  cell?: string;
+  online?: boolean;
+  stored?: { north: number; east: number };
+};
+
+/** The X-RTLS-INF of the given anchors, with `lockedCount` of them locked. */
+export const informationOf = (anchors: TestAnchor[], lockedCount = 0) => ({
   status: Object.fromEntries(
-    [101, 102, 103, 104].map((id, slot) => [
+    anchors.map(({ id, online = true, slot }) => [
       String(id),
       {
-        online: true,
+        online,
         role: slot === 0 ? 'anchor-initiator' : 'anchor-responder',
         name: `RTLS anchor A${slot}`,
       },
     ])
   ),
-  anchors: [101, 102, 103, 104].map((systemId, index) => ({
-    id: `rtls::${CELL}::anchor_${index}`,
-    cell: CELL,
-    index,
-    mac: 0x10 + index,
-    systemId,
-    active: true,
-    // only the first three store a position
-    ned:
-      index < 3
-        ? { north: index === 1 ? 4 : 0, east: index === 2 ? 3 : 0 }
-        : null,
+  anchors: anchors.map(({ cell = CELL, id, online = true, slot, stored }) => ({
+    id: `rtls::${cell}::anchor_${slot}`,
+    cell,
+    index: slot,
+    mac: id,
+    systemId: id,
+    active: online,
+    ned: stored ?? null,
   })),
-  anchorLock: { locked: lockedCount === 4, lockedCount, anchorCount: 4 },
+  anchorLock: {
+    locked: lockedCount === anchors.length,
+    lockedCount,
+    anchorCount: anchors.length,
+  },
 });
+
+/** Anchors 101..104 of the cell; only the first three store a position. */
+export const FOUR_ANCHORS: TestAnchor[] = [
+  { id: 101, slot: 0, stored: { north: 0, east: 0 } },
+  { id: 102, slot: 1, stored: { north: 4, east: 0 } },
+  { id: 103, slot: 2, stored: { north: 0, east: 3 } },
+  { id: 104, slot: 3 },
+];
+
+/** The X-RTLS-INF of the four anchors, with `lockedCount` of them locked. */
+export const information = (lockedCount: number) =>
+  informationOf(FOUR_ANCHORS, lockedCount);
 
 /** Four online anchors of one cell, unlocked, with no drone and no show. */
 export const createSurveyTestStore = ({
@@ -86,6 +107,19 @@ export const createSurveyTestStore = ({
 };
 
 export type SurveyTestStore = ReturnType<typeof createSurveyTestStore>;
+
+/** Replaces the anchors the server reports. */
+export const reportAnchors = (
+  store: SurveyTestStore,
+  anchors: TestAnchor[],
+  lockedCount = 0
+): void => {
+  for (const action of rtlsInformationActions(
+    informationOf(anchors, lockedCount)
+  )) {
+    store.dispatch(action);
+  }
+};
 
 /** The test store's state as the app's: it has every slice this code reads. */
 export const stateOf = (store: SurveyTestStore): RootState =>

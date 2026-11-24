@@ -23,6 +23,7 @@ import {
   mapRtlsSurvey,
   type RtlsSurvey,
 } from '~/features/rtls/survey-messages';
+import { PLAN_AS_FRAME } from '~/features/rtls/survey-frame';
 import {
   EMPTY_SKETCH,
   type RtlsSurveyAnchor,
@@ -37,10 +38,13 @@ import SurveyRun from '~/views/rtls/survey/SurveyRun';
 import {
   COMMIT,
   COMMIT_INCOMPLETE,
+  COMMIT_UNCONFIRMED,
   type RecordedMessage,
   RUN,
   RUN_BLOCKED,
+  RUN_CANCELLED,
   RUN_FAILED,
+  STATUS_IDLE,
 } from './survey-recording';
 
 /** The state object of a recorded message, mapped as the app maps it. */
@@ -299,6 +303,18 @@ describe('the run', () => {
     ).toContain('rtlsSurvey.outcome.blocked');
   });
 
+  test('a cancelled run is a neutral notice, not a failure', () => {
+    const markup = render(surveyIn(RUN_CANCELLED[2]));
+    expect(markup).toContain('data-testid="rtls-survey-ended"');
+    expect(markup).toContain('MuiAlert-colorInfo');
+    expect(markup).toContain('rtlsSurvey.run.cancelled');
+    expect(markup).not.toContain('rtls-survey-failed');
+    expect(markup).not.toContain('MuiAlert-colorError');
+    expect(button(markup, 'rtls-survey-start')).not.toContain('disabled');
+    // a fresh server's idle says nothing
+    expect(render(surveyIn(STATUS_IDLE))).not.toContain('rtls-survey-ended');
+  });
+
   test('hints about the sketch are listed', () => {
     expect(
       render(undefined, { hintKeys: ['rtlsSurvey.hint.partialSketch'] })
@@ -313,6 +329,7 @@ describe('the commit', () => {
       acknowledged?: boolean;
       refusalKey?: string;
       locked?: boolean;
+      offline?: string[];
     } = {}
   ): string =>
     renderToStaticMarkup(
@@ -322,7 +339,9 @@ describe('the commit', () => {
           survey,
           acknowledged: options.acknowledged ?? false,
           refusalKey: options.refusalKey,
+          groupOffline: (options.offline ?? []).length > 0,
         })}
+        offline={options.offline ?? []}
         locked={options.locked ?? false}
         nameOf={nameOf}
         onCommit={noop}
@@ -376,6 +395,25 @@ describe('the commit', () => {
     expect(count(markup, 'data-written="failed"')).toBe(1);
   });
 
+  test('incomplete with every write taken: the anchor that never confirmed, and Retry', () => {
+    const markup = render(surveyIn(COMMIT_UNCONFIRMED), { acknowledged: true });
+    expect(markup).toContain('rtlsSurvey.commit.incomplete(anchors=A3)');
+    expect(commitButton(markup)).toContain('rtlsSurvey.commit.retry');
+    expect(commitButton(markup)).not.toContain('disabled');
+    expect(count(markup, 'data-written="failed"')).toBe(0);
+  });
+
+  test('an anchor of the survey offline: no commit, and the way out', () => {
+    const markup = render(READY, { acknowledged: true, offline: ['103'] });
+    expect(commitButton(markup)).toContain('disabled');
+    expect(markup).toContain('rtlsSurvey.commit.surveyAgain');
+    expect(markup).toContain('data-testid="rtls-survey-offline"');
+    expect(markup).toContain('rtlsSurvey.commit.offline(anchors=A2)');
+    expect(render(READY, { acknowledged: true })).not.toContain(
+      'rtls-survey-offline'
+    );
+  });
+
   test('committing: no button, the anchors that already run the new ID', () => {
     const markup = render(surveyIn(COMMIT[1]));
     expect(markup).not.toContain('data-testid="rtls-survey-commit"');
@@ -403,6 +441,7 @@ describe('the plan', () => {
         anchors={ANCHORS}
         sketch={standardCellSketch(ANCHORS)}
         nameOf={nameOf}
+        fitTransformOf={() => PLAN_AS_FRAME}
         onMove={noop}
         {...props}
       />

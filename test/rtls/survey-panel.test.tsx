@@ -51,18 +51,21 @@ import { getRtlsSurveyAnchors } from '~/features/rtls/survey-selectors';
 import {
   standardCellSketch,
   withAnchorMoved,
+  withXAxis,
 } from '~/features/rtls/survey-sketch';
 import messageHub from '~/message-hub';
 import RtlsSurveyPanel from '~/views/rtls/RtlsSurveyPanel';
 
 import { reply } from './rtls-test-store';
 
-import { RUN, RUN_BLOCKED, STATUS_IDLE } from './survey-recording';
+import { push, READY, RUN, RUN_BLOCKED, STATUS_IDLE } from './survey-recording';
 import {
   CELL,
   createSurveyTestStore,
+  FOUR_ANCHORS,
   information,
   play,
+  reportAnchors,
   run,
   stateOf,
   type SurveyTestStore,
@@ -141,7 +144,11 @@ describe('the survey panel', () => {
     const store = withStandardCell();
     store.dispatch({
       type: 'rtlsSurvey/rtlsSurveyRequestFailed',
-      payload: { action: 'status', reason: 'Unknown message type' },
+      payload: {
+        action: 'status',
+        reason: 'Unknown message type',
+        answered: true,
+      },
     });
     expect(render(store)).toContain('rtlsSurvey.refusal.noServer');
   });
@@ -181,6 +188,58 @@ describe('the survey panel', () => {
       })
     );
     expect(render(store)).toContain('rtlsSurvey.run.sketchChanged');
+  });
+
+  test('the held fit stays where it is while the sketch is edited', async () => {
+    const store = withStandardCell();
+    sendMessage.mockResolvedValueOnce(reply(RUN[0].body));
+    await run(store, startRtlsSurvey(CELL));
+    play(store, RUN.slice(1));
+
+    /** The fitted markers as drawn. */
+    const fittedOf = (markup: string): string[] =>
+      [
+        ...markup.matchAll(
+          /data-testid="rtls-survey-fitted-\d+">.*?<rect[^>]*>/g
+        ),
+      ].map(([marker]) => marker.slice(marker.indexOf('<rect')));
+
+    const before = fittedOf(render(store));
+    expect(before).toHaveLength(4);
+    // +x moved to the anchor a quarter turn away, and the origin marker dragged
+    const sketch = store.getState().rtlsSurvey.sketches[CELL];
+    store.dispatch(
+      setRtlsSurveySketch({
+        cell: CELL,
+        sketch: withAnchorMoved(withXAxis(sketch, '103'), '101', {
+          north: 0.5,
+          east: 0.5,
+        }),
+      })
+    );
+    expect(fittedOf(render(store))).toEqual(before);
+  });
+
+  test("another cell's survey is named, not shown", () => {
+    const store = withStandardCell();
+    play(store, RUN);
+    reportAnchors(store, [
+      ...FOUR_ANCHORS,
+      ...[201, 202, 203].map((id, slot) => ({ id, slot, cell: 'stage' })),
+    ]);
+    // the first cell in order is the one on screen: the bench, which owns it
+    expect(render(store)).not.toContain('rtls-survey-elsewhere');
+    expect(render(store)).toContain('rtls-survey-commit');
+
+    // the survey is now of anchors that are in the other cell
+    play(store, [push({ ...READY, anchors: [201, 202, 203] })]);
+    const markup = render(store);
+    expect(markup).toContain('data-testid="rtls-survey-elsewhere"');
+    expect(markup).not.toContain('rtls-survey-fitted');
+    expect(markup).not.toContain('rtls-survey-result');
+    expect(markup).not.toContain('rtls-survey-warnings');
+    expect(markup).not.toContain('rtls-survey-commit');
+    expect(tagOf(markup, 'rtls-survey-panel')).not.toContain('data-state');
   });
 
   test('locked anchors disable Survey and Commit, with the reason shown', () => {

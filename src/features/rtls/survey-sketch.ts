@@ -1,18 +1,14 @@
 /**
- * @file The operator's sketch of a cell for the anchor survey, and what the
- * page sends from it: the `frame` and the rough `placement` of X-RTLS-SURVEY.
- *
- * The sketch is a top-down drawing in metres, north up and east right like
- * the positions view, in whatever orientation the operator drew the venue.
- * The declared frame has the origin anchor at x = y = 0 and the +x anchor on
- * +x; the drawing is turned and shifted into it, never mirrored, so the side
- * an anchor was drawn on is the side it is sent on. Heights are never asked
+ * @file The operator's sketch of a cell for the anchor survey: a top-down
+ * drawing in metres, north up and east right like the positions view, in
+ * whatever orientation the operator drew the venue. Heights are never asked
  * in metres: the height groups, lowest first, say which anchors share one.
+ * What the page sends from a sketch is in `survey-frame.ts`.
  */
 
 import { type NePoint } from './pos-view-utils';
 
-/** An online anchor as the survey page lists it. */
+/** An anchor as the survey page lists it. */
 export type RtlsSurveyAnchor = {
   /** System id. */
   id: string;
@@ -49,30 +45,8 @@ export const EMPTY_SKETCH: RtlsSurveySketch = {
   excluded: [],
 };
 
-/** A point in the declared frame, metres. */
-export type FramePoint = { x: number; y: number };
-
-/** The `frame` member of a start or a refit. */
-export type RtlsSurveyFrame =
-  | { preset: 'two-tiers' }
-  | {
-      origin: number;
-      xAxis: number;
-      heightGroups: number[][];
-      upper: number[];
-      yPositive?: number;
-    };
-
-/** The members of a start (and, without `anchors`, of a refit). */
-export type RtlsSurveyTarget = {
-  /** The group in slot order. */
-  anchors: number[];
-  frame: RtlsSurveyFrame;
-  placement?: Record<string, FramePoint>;
-};
-
-const MIN_ANCHORS = 3;
-const MAX_ANCHORS = 8;
+/** The slots of a cell: A0..A7. */
+const SLOTS = 8;
 
 /** Side of the standard cell drawn when A1 or A2 reports no range to A0. */
 const STANDARD_SIDE_M = 5;
@@ -80,16 +54,21 @@ const STANDARD_SIDE_M = 5;
 /** How far the upper tier is drawn from the lower one it stands above. */
 const UPPER_TIER_OFFSET_M = 0.6;
 
-const idOf = ({ id }: RtlsSurveyAnchor): number => Number(id);
-
 const bySlot = (a: RtlsSurveyAnchor, b: RtlsSurveyAnchor): number =>
   (a.slot ?? Number.POSITIVE_INFINITY) - (b.slot ?? Number.POSITIVE_INFINITY) ||
   Number(a.id) - Number(b.id);
 
 /** The anchors in slot order; an anchor without a slot comes last. */
-export const inSlotOrder = (
-  anchors: readonly RtlsSurveyAnchor[]
-): RtlsSurveyAnchor[] => [...anchors].sort(bySlot);
+export const inSlotOrder = <Anchor extends RtlsSurveyAnchor>(
+  anchors: readonly Anchor[]
+): Anchor[] => [...anchors].sort(bySlot);
+
+/** The anchor in the given slot. */
+export const withSlot = (
+  anchors: readonly RtlsSurveyAnchor[],
+  slot: number
+): RtlsSurveyAnchor | undefined =>
+  anchors.find((anchor) => anchor.slot === slot);
 
 /** The key the sketch of an anchor's cell is kept under. */
 const DEFAULT_CELL = 'default';
@@ -155,222 +134,20 @@ export function planMarkers(
   return markers;
 }
 
-/**
- * How the drawing maps onto the declared frame: `origin` is the plan point of
- * the origin anchor and (`cos`, `sin`) the direction of +x on the plan.
- */
-export type FrameTransform = { origin: NePoint; cos: number; sin: number };
-
-const IDENTITY: FrameTransform = {
-  origin: { north: 0, east: 0 },
-  cos: 1,
-  sin: 0,
-};
-
-/**
- * The turn and shift that put the sketch's origin anchor at 0 and its +x
- * anchor on +x. While either is not drawn (or both are on one spot) the
- * drawing is taken as it is: north is +x, east is +y.
- */
-export function frameTransform(
-  sketch: RtlsSurveySketch,
-  anchors: readonly RtlsSurveyAnchor[]
-): FrameTransform {
-  const pointOf = (id: string | undefined): NePoint | undefined =>
-    id === undefined
-      ? undefined
-      : (sketch.positions[id] ??
-        anchors.find((anchor) => anchor.id === id)?.stored);
-  const origin = pointOf(sketch.origin);
-  const xAxis = pointOf(sketch.xAxis);
-  if (origin === undefined || xAxis === undefined) {
-    return IDENTITY;
-  }
-  const north = xAxis.north - origin.north;
-  const east = xAxis.east - origin.east;
-  const length = Math.hypot(north, east);
-  return length < 1e-6
-    ? IDENTITY
-    : { origin, cos: north / length, sin: east / length };
-}
-
-/** A plan point in the declared frame. */
-export const toFrame = (
-  { origin, cos, sin }: FrameTransform,
-  point: NePoint
-): FramePoint => {
-  const north = point.north - origin.north;
-  const east = point.east - origin.east;
-  return { x: cos * north + sin * east, y: cos * east - sin * north };
-};
-
-/** A point of the declared frame (a fitted position) on the plan. */
-export const fromFrame = (
-  { origin, cos, sin }: FrameTransform,
-  { x, y }: FramePoint
-): NePoint => ({
-  north: origin.north + cos * x - sin * y,
-  east: origin.east + sin * x + cos * y,
-});
-
-const levelOf = (sketch: RtlsSurveySketch, id: string): number =>
-  sketch.groupOf[id] ?? 0;
-
-/** Whether the group's slots are 0..n-1: what the server's preset assumes. */
-const hasContiguousSlots = (group: readonly RtlsSurveyAnchor[]): boolean =>
-  inSlotOrder(group).every((anchor, index) => anchor.slot === index);
-
-/**
- * The i18n key of why the sketch cannot be surveyed or refitted as it is;
- * `undefined` when it can.
- */
-export function sketchProblemKey(
-  sketch: RtlsSurveySketch,
-  group: readonly RtlsSurveyAnchor[]
-): string | undefined {
-  if (group.length < MIN_ANCHORS) {
-    return 'rtlsSurvey.problem.tooFew';
-  }
-  if (group.length > MAX_ANCHORS) {
-    return 'rtlsSurvey.problem.tooMany';
-  }
-  const ids = new Set(group.map(({ id }) => id));
-  if (sketch.origin === undefined || !ids.has(sketch.origin)) {
-    return 'rtlsSurvey.problem.pickOrigin';
-  }
-  if (sketch.xAxis === undefined || !ids.has(sketch.xAxis)) {
-    return 'rtlsSurvey.problem.pickXAxis';
-  }
-  return sketch.origin === sketch.xAxis
-    ? 'rtlsSurvey.problem.sameAnchor'
-    : undefined;
-}
-
-/**
- * The i18n keys of what the operator should know about a sketch that can be
- * sent: nothing the server refuses, but a fit it may not be able to settle.
- */
-export function sketchHintKeys(
-  sketch: RtlsSurveySketch,
-  group: readonly RtlsSurveyAnchor[]
-): string[] {
-  const hints: string[] = [];
-  const originLevel =
-    sketch.origin === undefined ? 0 : levelOf(sketch, sketch.origin);
-  // the frame can only say "above the origin": nothing settles what is below
-  if (group.some(({ id }) => levelOf(sketch, id) < originLevel)) {
-    hints.push('rtlsSurvey.hint.originNotLowest');
-  }
-  const drawn = group.filter(
-    ({ id, stored }) =>
-      sketch.positions[id] !== undefined || stored !== undefined
-  ).length;
-  if (!sketch.standard && drawn > 0 && drawn < group.length) {
-    hints.push('rtlsSurvey.hint.partialSketch');
-  }
-  return hints;
-}
-
 /** To the centimetre; `+ 0` turns a rounded -0 into 0. */
 export const roundCm = (value: number): number =>
   Math.round(value * 100) / 100 + 0;
 
-/**
- * What a start or a refit of `group` sends. A standard cell with every slot
- * from A0 on goes as the server's `two-tiers` preset and needs no placement.
- * Otherwise the frame is spelled out: the origin and +x anchors, the height
- * groups, the anchors above the origin's group, and one anchor on the +y
- * side (A2 of a standard cell, else the one drawn farthest to that side).
- * The placement is sent once the operator placed an anchor: every anchor
- * drawn, in frame coordinates. `undefined` while `sketchProblemKey` finds a
- * problem.
- */
-export function surveyTarget(
-  sketch: RtlsSurveySketch,
-  group: readonly RtlsSurveyAnchor[]
-): RtlsSurveyTarget | undefined {
-  const { origin, xAxis } = sketch;
-  if (
-    origin === undefined ||
-    xAxis === undefined ||
-    sketchProblemKey(sketch, group) !== undefined
-  ) {
-    return undefined;
-  }
-  const ordered = inSlotOrder(group);
-  const anchors = ordered.map(({ id }) => Number(id));
-  if (sketch.standard && hasContiguousSlots(ordered)) {
-    return { anchors, frame: { preset: 'two-tiers' } };
-  }
-
-  const transform = frameTransform(sketch, ordered);
-  const framed: Record<string, FramePoint> = {};
-  for (const { id, stored } of ordered) {
-    const point = sketch.positions[id] ?? stored;
-    if (point !== undefined) {
-      framed[id] = toFrame(transform, point);
-    }
-  }
-
-  const originLevel = levelOf(sketch, origin);
-  const levels = [...new Set(ordered.map(({ id }) => levelOf(sketch, id)))];
-  const members = (level: number): number[] =>
-    ordered.filter(({ id }) => levelOf(sketch, id) === level).map(idOf);
-
-  const farthest = ordered
-    .filter(({ id }) => id !== origin && id !== xAxis && id in framed)
-    .sort((a, b) => framed[b.id].y - framed[a.id].y)
-    .at(0);
-  const yPositive =
-    (sketch.standard ? ordered.find(({ slot }) => slot === 2) : undefined) ??
-    (farthest !== undefined && framed[farthest.id].y > 0
-      ? farthest
-      : undefined);
-
-  const placed =
-    !sketch.standard && ordered.some(({ id }) => id in sketch.positions);
-  return {
-    anchors,
-    frame: {
-      origin: Number(origin),
-      xAxis: Number(xAxis),
-      heightGroups: levels.sort((a, b) => a - b).map(members),
-      upper: ordered
-        .filter(({ id }) => levelOf(sketch, id) > originLevel)
-        .map(idOf),
-      ...(yPositive === undefined ? {} : { yPositive: Number(yPositive.id) }),
-    },
-    ...(placed
-      ? {
-          placement: Object.fromEntries(
-            Object.entries(framed).map(([id, { x, y }]) => [
-              id,
-              { x: roundCm(x), y: roundCm(y) },
-            ])
-          ),
-        }
-      : {}),
-  };
-}
-
-/**
- * Today's standard cell from the anchors' slots: A0 at the origin, A1 on +x,
- * A2 on +y, A3 across, and A4..A7 above them. The sides are A1's and A2's
- * ranges to A0 when they report them. Keeps who is left out.
- */
-export function standardCellSketch(
+/** What the standard cell says of each anchor that has a slot. */
+function standardLayout(
   anchors: readonly RtlsSurveyAnchor[],
-  previous: RtlsSurveySketch = EMPTY_SKETCH
-): RtlsSurveySketch {
-  const withSlot = (slot: number): RtlsSurveyAnchor | undefined =>
-    anchors.find((anchor) => anchor.slot === slot);
-  const north = withSlot(1)?.initiatorDistanceM ?? STANDARD_SIDE_M;
-  const east = withSlot(2)?.initiatorDistanceM ?? STANDARD_SIDE_M;
-
+  north: number,
+  east: number
+): Pick<RtlsSurveySketch, 'positions' | 'groupOf' | 'origin' | 'xAxis'> {
   const positions: Record<string, NePoint> = {};
   const groupOf: Record<string, number> = {};
   for (const { id, slot } of anchors) {
-    if (slot === undefined || slot >= MAX_ANCHORS) {
+    if (slot === undefined || slot >= SLOTS) {
       continue;
     }
     const corner = slot % 4;
@@ -383,12 +160,58 @@ export function standardCellSketch(
   }
   return {
     positions,
-    groups: previous.groups,
     groupOf,
+    origin: withSlot(anchors, 0)?.id,
+    xAxis: withSlot(anchors, 1)?.id,
+  };
+}
+
+/**
+ * Today's standard cell from the anchors' slots: A0 at the origin, A1 on +x,
+ * A2 on +y, A3 across, and A4..A7 above them. The sides are A1's and A2's
+ * ranges to A0 when they report them. Keeps who is left out.
+ */
+export function standardCellSketch(
+  anchors: readonly RtlsSurveyAnchor[],
+  previous: RtlsSurveySketch = EMPTY_SKETCH
+): RtlsSurveySketch {
+  return {
+    ...standardLayout(
+      anchors,
+      withSlot(anchors, 1)?.initiatorDistanceM ?? STANDARD_SIDE_M,
+      withSlot(anchors, 2)?.initiatorDistanceM ?? STANDARD_SIDE_M
+    ),
+    groups: previous.groups,
     excluded: previous.excluded,
-    origin: withSlot(0)?.id,
-    xAxis: withSlot(1)?.id,
     standard: true,
+  };
+}
+
+/**
+ * The sketch as the page shows and sends it. An untouched standard cell
+ * follows the anchors: one that came online after "Standard cell" takes the
+ * place and the height group of its slot, so the rows always say what the
+ * `two-tiers` preset will make of them. A sketch edited by hand is as it is.
+ */
+export function resolveSketch(
+  sketch: RtlsSurveySketch,
+  anchors: readonly RtlsSurveyAnchor[]
+): RtlsSurveySketch {
+  if (!sketch.standard) {
+    return sketch;
+  }
+  // the sides as drawn: A1 and A2 keep the place "Standard cell" gave them
+  const drawn = (slot: number): NePoint | undefined =>
+    sketch.positions[withSlot(anchors, slot)?.id ?? ''];
+  const layout = standardLayout(
+    anchors,
+    drawn(1)?.north ?? STANDARD_SIDE_M,
+    drawn(2)?.east ?? STANDARD_SIDE_M
+  );
+  return {
+    ...sketch,
+    ...layout,
+    positions: { ...layout.positions, ...sketch.positions },
   };
 }
 

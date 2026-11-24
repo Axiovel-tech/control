@@ -146,6 +146,13 @@ const SurveyRun = ({
         </Typography>
       )}
       {survey !== undefined && <Progress survey={survey} nameOf={nameOf} />}
+      {survey?.state === 'idle' && survey.reason !== undefined && (
+        <Alert severity='info' data-testid='rtls-survey-ended'>
+          {survey.reason === 'cancelled'
+            ? t('rtlsSurvey.run.cancelled')
+            : survey.reason}
+        </Alert>
+      )}
       {survey?.state === 'failed' && (
         <Alert severity='error' data-testid='rtls-survey-failed'>
           {survey.reason ?? t('rtlsSurvey.run.failed')}

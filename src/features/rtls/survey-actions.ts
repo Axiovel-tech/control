@@ -18,22 +18,16 @@ import {
   rtlsSurveyRequestFailed,
 } from './survey';
 import {
+  frameTransform,
+  PLAN_AS_FRAME,
+  type RtlsSurveyRememberedFit,
+} from './survey-frame';
+import {
   mapRtlsSurveyAnswer,
   type RtlsSurveyAction,
   type RtlsSurveyAnswer,
 } from './survey-messages';
-import {
-  areRtlsSurveyWarningsAcknowledged,
-  getRtlsSurveyCells,
-  getRtlsSurveyRefitGroup,
-  getRtlsSurveyRefusalKey,
-  getRtlsSurveySketch,
-} from './survey-selectors';
-import {
-  type RtlsSurveyTarget,
-  surveyGroup,
-  surveyTarget,
-} from './survey-sketch';
+import { getRtlsSurveyPage } from './survey-selectors';
 import { type AnyRecord, toText } from './wire-values';
 
 /**
@@ -49,15 +43,14 @@ const TIMEOUT_S: Record<RtlsSurveyAction, number> = {
   commit: 30,
 };
 
-/** The frame and placement of a target, as the slice remembers them. */
-export const targetSignature = ({
-  frame,
-  placement,
-}: RtlsSurveyTarget): string => JSON.stringify({ frame, placement });
+/** The server answered, but not with the survey: it has none. */
+class NoSurveyAnswer extends Error {}
 
 /**
  * Sends one X-RTLS-SURVEY request. Every answer is a normal response with a
- * `result`; only a NAK (a server without the survey) or a timeout rejects.
+ * `result`. An answer of another type (a NAK from a server without the
+ * survey) rejects with `NoSurveyAnswer`; a timeout or a dropped connection
+ * rejects with the hub's own error.
  */
 async function sendRtlsSurvey(
   action: RtlsSurveyAction,
@@ -70,7 +63,7 @@ async function sendRtlsSurvey(
     );
   const body = response.body;
   if (body?.type !== 'X-RTLS-SURVEY') {
-    throw new Error(
+    throw new NoSurveyAnswer(
       toText(body?.reason) ??
         `Unexpected response to X-RTLS-SURVEY (${String(body?.type)})`
     );
@@ -83,7 +76,7 @@ const request =
   (
     action: RtlsSurveyAction,
     members: AnyRecord = {},
-    target?: RtlsSurveyTarget
+    remembered?: RtlsSurveyRememberedFit
   ): AppThunk<Promise<RtlsSurveyAnswer | undefined>> =>
   async (dispatch) => {
     if (action !== 'status') {
@@ -91,22 +84,24 @@ const request =
     }
     try {
       const answer = await sendRtlsSurvey(action, members);
-      dispatch(
-        rtlsSurveyAnswered({
-          answer,
-          request: target === undefined ? undefined : targetSignature(target),
-        })
-      );
+      dispatch(rtlsSurveyAnswered({ answer, request: remembered }));
       return answer;
     } catch (error) {
       dispatch(
-        rtlsSurveyRequestFailed({ action, reason: errorToString(error) })
+        rtlsSurveyRequestFailed({
+          action,
+          reason: errorToString(error),
+          answered: error instanceof NoSurveyAnswer,
+        })
       );
       return undefined;
     }
   };
 
-/** Reads the survey the server holds (the page asks as it opens). */
+/**
+ * Reads the survey the server holds: the page asks as it opens, and again
+ * after a request that got no answer.
+ */
 export const queryRtlsSurvey =
   (): AppThunk<Promise<void>> => async (dispatch) => {
     await dispatch(request('status'));
@@ -114,70 +109,82 @@ export const queryRtlsSurvey =
 
 /**
  * Starts a survey of the cell's anchors the sketch does not leave out, with
- * the frame and placement of the sketch. Sends nothing while the guard
- * refuses or the sketch lacks something: the page says which.
+ * the frame and placement of the sketch. Sends nothing unless the page offers
+ * it at this moment: the guard, the sketch and a request still in flight are
+ * checked here again, since the click may be older than the store.
  */
 export const startRtlsSurvey =
   (cell: string): AppThunk<Promise<void>> =>
   async (dispatch, getState) => {
-    const state = getState();
-    const sketch = getRtlsSurveySketch(state, cell);
-    const target = surveyTarget(
-      sketch,
-      surveyGroup(sketch, getRtlsSurveyCells(state)[cell] ?? [])
+    const { anchors, controls, sketch, startTarget } = getRtlsSurveyPage(
+      getState(),
+      cell
     );
-    if (getRtlsSurveyRefusalKey(state) !== undefined || target === undefined) {
+    if (!controls.canStart || startTarget === undefined) {
       return;
     }
-    await dispatch(request('start', target, target));
+    await dispatch(
+      request('start', startTarget, {
+        frame: startTarget.frame,
+        placement: startTarget.placement,
+        transform: frameTransform(sketch, anchors) ?? PLAN_AS_FRAME,
+      })
+    );
   };
 
-/** Stops the running survey; the anchors return to their own session. */
+/** Stops the cell's running survey; the anchors return to their own session. */
 export const cancelRtlsSurvey =
-  (): AppThunk<Promise<void>> => async (dispatch) => {
-    await dispatch(request('cancel'));
+  (cell: string): AppThunk<Promise<void>> =>
+  async (dispatch, getState) => {
+    if (getRtlsSurveyPage(getState(), cell).controls.canCancel) {
+      await dispatch(request('cancel'));
+    }
   };
 
-/** Fits the held measurement again with the sketch as it is now. */
+/**
+ * Fits the cell's held measurement again with the sketch as it is now, for
+ * the anchors that were measured.
+ */
 export const refitRtlsSurvey =
   (cell: string): AppThunk<Promise<void>> =>
   async (dispatch, getState) => {
-    const state = getState();
-    const target = surveyTarget(
-      getRtlsSurveySketch(state, cell),
-      getRtlsSurveyRefitGroup(state)
+    const { controls, measured, refitTarget, sketch } = getRtlsSurveyPage(
+      getState(),
+      cell
     );
-    if (target === undefined) {
+    if (!controls.canRefit || refitTarget === undefined) {
       return;
     }
-    const { frame, placement } = target;
+    const { frame, placement } = refitTarget;
     await dispatch(
       request(
         'fit',
         { frame, ...(placement === undefined ? {} : { placement }) },
-        target
+        {
+          frame,
+          placement,
+          transform: frameTransform(sketch, measured) ?? PLAN_AS_FRAME,
+        }
       )
     );
   };
 
 /**
- * Commits the held fit, with the acknowledgement when the operator gave it
- * for the warnings now shown, and opens the lock dialog once every anchor
- * took it. Sends nothing while the guard refuses.
+ * Commits the cell's held fit, with the acknowledgement of the warnings now
+ * shown, and opens the lock dialog once every anchor took it. Sends nothing
+ * unless the page offers the commit at this moment: a block, a warning not
+ * acknowledged, another cell's survey or a request still in flight may have
+ * reached the store after the click.
  */
 export const commitRtlsSurvey =
-  (): AppThunk<Promise<void>> => async (dispatch, getState) => {
-    const state = getState();
-    if (getRtlsSurveyRefusalKey(state) !== undefined) {
+  (cell: string): AppThunk<Promise<void>> =>
+  async (dispatch, getState) => {
+    const { acknowledged, controls } = getRtlsSurveyPage(getState(), cell);
+    if (!controls.canCommit) {
       return;
     }
     const answer = await dispatch(
-      request(
-        'commit',
-        areRtlsSurveyWarningsAcknowledged(state)
-          ? { acknowledgeWarnings: true }
-          : {}
-      )
+      request('commit', acknowledged ? { acknowledgeWarnings: true } : {})
     );
     if (answer?.result === 'committed') {
       showNotification(i18n.t('rtlsSurvey.notification.committed'));
