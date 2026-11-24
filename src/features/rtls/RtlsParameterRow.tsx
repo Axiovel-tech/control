@@ -12,13 +12,14 @@ import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { memo, useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useDispatch } from 'react-redux';
 
 import { TooltipWithContainerFromContext as Tooltip } from '~/containerContext';
 import { showError, showNotification } from '~/features/snackbar/actions';
 import { type AppDispatch } from '~/store/reducers';
 
-import { setRtlsDeviceParameter } from './param-actions';
+import { READ_ONLY_RTLS_PARAMS, setRtlsDeviceParameter } from './param-actions';
 import { coerceParamValue, formatParamValue } from './param-formatting';
 import { getRtlsParamMetadata, type RtlsParamMetadata } from './param-metadata';
 import { type RtlsParam } from './types';
@@ -79,6 +80,7 @@ type RtlsParameterRowProps = {
 };
 
 const RtlsParameterRow = ({ deviceId, param }: RtlsParameterRowProps) => {
+  const { t } = useTranslation();
   const dispatch = useDispatch<AppDispatch>();
   const [draft, setDraft] = useState<string>(
     formatParamValue(param.value, param.type)
@@ -93,6 +95,7 @@ const RtlsParameterRow = ({ deviceId, param }: RtlsParameterRowProps) => {
   const dirty = draft !== formatParamValue(param.value, param.type);
   const metadata = getRtlsParamMetadata(param.name);
   const enumLabel = enumLabelFor(metadata, draft);
+  const readOnly = READ_ONLY_RTLS_PARAMS.has(param.name);
 
   const handleCommit = useCallback(async () => {
     if (!dirty || busy) {
@@ -165,7 +168,7 @@ const RtlsParameterRow = ({ deviceId, param }: RtlsParameterRowProps) => {
           variant='standard'
           size='small'
           value={draft}
-          disabled={busy}
+          disabled={busy || readOnly}
           slotProps={{
             input: {
               endAdornment: metadata?.unit ? (
@@ -185,11 +188,21 @@ const RtlsParameterRow = ({ deviceId, param }: RtlsParameterRowProps) => {
             = {enumLabel}
           </Typography>
         )}
+        {readOnly && (
+          <Typography
+            variant='caption'
+            color='text.secondary'
+            component='div'
+            data-testid='rtls-param-read-only'
+          >
+            {t('rtlsParams.sleepReadOnly')}
+          </Typography>
+        )}
       </TableCell>
       <TableCell align='right'>
         <Button
           size='small'
-          disabled={!dirty || busy}
+          disabled={!dirty || busy || readOnly}
           onClick={() => void handleCommit()}
         >
           Set

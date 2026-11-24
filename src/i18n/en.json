@@ -825,6 +825,149 @@
       "unknown": "Unknown status"
     }
   },
+  "rtlsAnchor": {
+    "action": {
+      "sleepAll": "Sleep all anchors",
+      "wakeAll": "Wake all anchors"
+    },
+    "badge": {
+      "batteryWarning": "battery low",
+      "ethernetDrops_one": "{{count}} Ethernet drop",
+      "ethernetDrops_other": "{{count}} Ethernet drops",
+      "lowBattery": "battery critical",
+      "moved": "moved",
+      "radioRestarts_one": "{{count}} radio restart",
+      "radioRestarts_other": "{{count}} radio restarts",
+      "uwbHardware": "UWB hardware failure",
+      "uwbRefused": "UWB start refused"
+    },
+    "badgeTooltip": {
+      "radioRestarts": "Since boot, after a fault or silence"
+    },
+    "chargeBlock": {
+      "charger": "charger not ready",
+      "chargerFault": "charger fault",
+      "gauge": "no fresh gauge reading",
+      "gaugeInhibit": "gauge inhibits charging",
+      "noInput": "no external input",
+      "noProfile": "no battery profile",
+      "none": "none",
+      "overcurrent": "overcurrent",
+      "packVoltage": "pack voltage out of range",
+      "stopping": "anchor stopping",
+      "temperature": "pack temperature out of range",
+      "unknown": "unknown reason"
+    },
+    "charging": {
+      "cc": "charging (CC)",
+      "cv": "charging (CV)",
+      "idle": "full or idle",
+      "off": "charging off",
+      "topoff": "topping off",
+      "unknown": "unknown"
+    },
+    "detail": {
+      "battery": "Battery",
+      "boots": "Boots",
+      "charging": "Charging",
+      "ethernet": "Ethernet",
+      "input": "Power input",
+      "motion": "Motion",
+      "peer": "TWR peer {{mac}}",
+      "uwb": "UWB",
+      "wifi": "Wi-Fi"
+    },
+    "header": {
+      "initiator": "A0",
+      "rate": "Ranging"
+    },
+    "input": {
+      "battery": "Battery",
+      "poe": "PoE",
+      "unknown": "Input unknown",
+      "usb": "USB",
+      "usb15a": "USB 1.5 A",
+      "usb3a": "USB 3 A"
+    },
+    "lastSeen": {
+      "hours": "last seen {{count}} h ago",
+      "minutes": "last seen {{count}} min ago",
+      "seconds": "last seen {{count}} s ago",
+      "unknown": "last seen: unknown"
+    },
+    "role": {
+      "initiator": "Initiator",
+      "responder": "Responder",
+      "slot": "A{{slot}}",
+      "unknownSlot": "A?"
+    },
+    "sleep": {
+      "confirm": {
+        "armedMessage_one": "{{count}} drone may be armed and will lose positioning. Sleep anyway?",
+        "armedMessage_other": "{{count}} drones may be armed and will lose positioning. Sleep anyway?",
+        "message": "Drones lose positioning while anchors sleep.",
+        "title": "Sleep anchors?"
+      }
+    },
+    "state": {
+      "asleep": "Asleep",
+      "booting": "Booting",
+      "fault": "Fault",
+      "noTelemetry": "Telemetry unavailable",
+      "notRanging": "Not ranging",
+      "off": "Off",
+      "offline": "Offline",
+      "online": "Online",
+      "ranging": "Ranging",
+      "standby": "Standby",
+      "stopping": "Stopping",
+      "switching": "Switching…",
+      "unheard": "No responders hear A0"
+    },
+    "stateTooltip": {
+      "asleep": "Stays on battery if unplugged; wakes remotely",
+      "standby": "Powers off if unplugged; wakes remotely"
+    },
+    "uwb": {
+      "disabled": "disabled",
+      "hardwareFailure": "hardware failure",
+      "invalidConfig": "configuration refused",
+      "pending": "starting",
+      "running": "running",
+      "unknown": "unknown"
+    },
+    "value": {
+      "boots": "{{boots}} · reset cause: {{- cause}}",
+      "ethernetDown": "link down · {{drops}} drops",
+      "ethernetUp": "link up · {{drops}} drops",
+      "motion": "tilt {{tilt}} · {{knocks}} knocks",
+      "restarts": "{{- status}} · {{restarts}} radio restarts",
+      "samples_one": "{{count}} sample",
+      "samples_other": "{{count}} samples",
+      "wifi": "{{rssi}} · {{disconnects}} drops · {{txErrors}} TX errors"
+    }
+  },
+  "rtlsDevice": {
+    "action": {
+      "forget": "Forget",
+      "sleep": "Sleep",
+      "sleepAllTags": "Sleep all drones",
+      "wake": "Wake",
+      "wakeAllTags": "Wake all drones"
+    },
+    "bulk": {
+      "busy": "Already in progress",
+      "noAnchorsToSleep": "No awake anchors",
+      "noAnchorsToWake": "No resting anchors"
+    },
+    "forget": {
+      "done_one": "RTLS device {{id}} forgotten",
+      "done_other": "{{count}} RTLS devices forgotten",
+      "failed": "RTLS forget failed: {{- reason}}",
+      "noDetail": "refused",
+      "refused": "RTLS forget refused: {{- detail}}"
+    }
+  },
   "rtlsFleetHealth": {
     "label": {
       "imuTemperature": "IMU temperature",
@@ -934,22 +1077,33 @@
   "rtlsHealth": {
     "all": {
       "error": "RTLS attention required",
+      "idle": "RTLS resting",
       "ok": "RTLS healthy",
       "unknown": "No RTLS data",
       "warning": "RTLS degraded"
     },
     "anchors": {
       "error": "Anchor attention required",
+      "idle": "Anchors resting",
       "ok": "Anchors ready",
       "unknown": "No anchor data",
       "warning": "Anchors degraded"
     },
     "tags": {
       "error": "Tag RTLS fix lost",
+      "idle": "Tags resting",
       "ok": "Tag fixes healthy",
       "unknown": "No tag RTLS data",
       "warning": "Tag fixes degraded"
     }
+  },
+  "rtlsOta": {
+    "species": {
+      "job": "{{- species}} image"
+    }
+  },
+  "rtlsParams": {
+    "sleepReadOnly": "Use the row's Sleep and Wake buttons"
   },
   "rtlsTagDetails": {
     "collapseAll": "Collapse all",

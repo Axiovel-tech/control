@@ -10,6 +10,8 @@
  * parameters simply have no metadata and must render fine without it.
  */
 
+import { ANCHOR_PARAM_METADATA } from './param-metadata-anchor';
+
 export type RtlsParamMetadata = {
   /** One-line human description, mirrored from the firmware sources. */
   description: string;
@@ -216,6 +218,8 @@ const EXACT: Record<string, RtlsParamMetadata> = {
   FW_VERSION: {
     description: 'Running firmware image version (read-only by convention)',
   },
+
+  ...ANCHOR_PARAM_METADATA,
 
   /* --- Simulation: shared UWB medium (backends/sim/sim_common.cpp) --- */
   SIM_UWB_RATE_HZ: {

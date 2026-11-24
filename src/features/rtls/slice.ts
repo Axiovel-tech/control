@@ -55,6 +55,7 @@ export type RtlsSliceState = {
    */
   stats: {
     byId: Record<string, RtlsDeviceStats>;
+    /** When a tag's stats last arrived (the Tags panel's "updated" clock). */
     lastUpdatedAt?: number;
   };
 
@@ -476,7 +477,14 @@ const { actions, reducer } = createSlice({
         state.geometry.invalidations += 1;
       }
       Object.assign(state.stats.byId, payload.byId);
-      state.stats.lastUpdatedAt = payload.lastUpdatedAt ?? Date.now();
+      // The Tags panel's "updated" clock: only tag stats move it (a device
+      // whose role is not known yet counts as a tag, like on that panel)
+      const tagUpdated = Object.keys(payload.byId).some(
+        (id) => !isAnchorRole(classifyRole(state.devices.byId[id]?.role))
+      );
+      if (tagUpdated) {
+        state.stats.lastUpdatedAt = payload.lastUpdatedAt ?? Date.now();
+      }
     },
 
     /**

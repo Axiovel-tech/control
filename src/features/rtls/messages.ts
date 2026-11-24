@@ -195,6 +195,7 @@ export async function setRtlsParameter(
 export type RtlsSleepResult = {
   requested?: boolean;
   accepted: boolean;
+  /** `null` when the server could not tell (refusals, timeouts) */
   sleeping?: boolean | null;
   detail?: string;
 };
@@ -206,7 +207,8 @@ export type RtlsSleepResult = {
 export async function sendRtlsSleep(
   hub: MessageHub,
   deviceIds: Iterable<string>,
-  sleeping: boolean
+  sleeping: boolean,
+  { timeout = 30 }: { timeout?: number } = {}
 ): Promise<Record<string, RtlsSleepResult>> {
   // Strict digits-only parsing: Number('') is 0 and Number('0x10') is 16,
   // either of which would silently command the wrong device.
@@ -221,11 +223,11 @@ export async function sendRtlsSleep(
   let response: Message<AnyMessageBody>;
   try {
     // The server verifies the sleep outcome on each device (including a
-    // settle delay for the firmware's arming gate), so allow a longer wait
-    // than the default message timeout.
+    // settle delay for the firmware's arming gate, or an anchor's reboot),
+    // so allow a longer wait than the default message timeout.
     response = await hub.sendMessage(
       { type: 'X-RTLS-SLEEP', ids, sleeping },
-      { timeout: 30 }
+      { timeout }
     );
   } catch (error) {
     throw new Error(
@@ -256,6 +258,49 @@ export async function sendRtlsSleep(
     }
   }
 
+  return result;
+}
+
+/** Per-device outcome of an X-RTLS-FORGET request. */
+export type RtlsForgetResult = { forgotten: boolean; detail?: string };
+
+/**
+ * Asks the server to drop offline devices (their X-RTLS-INF entry and stale
+ * stats). A live device is not forgotten. Returns the per-device result map
+ * keyed by the device id as a string; a device the server did not answer
+ * for counts as not forgotten.
+ */
+export async function sendRtlsForget(
+  hub: MessageHub,
+  deviceIds: string[]
+): Promise<Record<string, RtlsForgetResult>> {
+  const ids = deviceIds.filter((id) => /^\d+$/.test(id)).map(Number);
+  if (ids.length === 0) {
+    throw new Error('No valid RTLS device ids to forget');
+  }
+
+  const response: Message<AnyMessageBody> = await hub.sendMessage({
+    type: 'X-RTLS-FORGET',
+    ids,
+  });
+  const body = ensureResponseType(response.body, 'X-RTLS-FORGET');
+  const raw = (
+    body.result && typeof body.result === 'object' ? body.result : {}
+  ) as Record<string, Partial<RtlsForgetResult> | undefined>;
+
+  const result: Record<string, RtlsForgetResult> = {};
+  for (const id of deviceIds) {
+    const entry = raw[id];
+    result[id] = {
+      forgotten: entry?.forgotten === true,
+      detail:
+        typeof entry?.detail === 'string'
+          ? entry.detail
+          : entry === undefined
+            ? 'no response from server for this device'
+            : undefined,
+    };
+  }
   return result;
 }
 

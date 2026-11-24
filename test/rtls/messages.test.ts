@@ -15,6 +15,7 @@ import {
   checkRtlsGeometryAgreement,
   getRtlsParameter,
   queryRtlsParameterList,
+  sendRtlsForget,
   sendRtlsSleep,
   setRtlsParameter,
   startRtlsOta,
@@ -180,15 +181,24 @@ describe('rtls messages', () => {
     });
     const job = await startRtlsOta(hub, '7', 'fw.bin');
     expect(job).toMatchObject({ id: 'job-1', status: 'pending' });
-    expect(sent[0]).toMatchObject({
-      type: 'X-RTLS-OTA',
-      id: '7',
-      image: 'fw.bin',
-    });
+    // the path only: the server reads the species from the build receipt
+    expect(sent[0]).toEqual({ type: 'X-RTLS-OTA', id: '7', image: 'fw.bin' });
   });
 });
 
 describe('sendRtlsSleep', () => {
+  test('waits as long as asked (an anchor reboots on every transition)', async () => {
+    const { hub, sendMessage } = makeHub({
+      type: 'X-RTLS-SLEEP',
+      result: { '101': { accepted: true, sleeping: true } },
+    });
+    await sendRtlsSleep(hub, ['101'], true, { timeout: 60 });
+    // the mock is typed with the request only; the options ride along
+    expect((sendMessage.mock.calls[0] as unknown[])[1]).toEqual({
+      timeout: 60,
+    });
+  });
+
   test('sends numeric ids and returns the per-device result map', async () => {
     const { hub, sendMessage, sent } = makeHub({
       type: 'X-RTLS-SLEEP',
@@ -257,5 +267,32 @@ describe('sendRtlsSleep', () => {
     await expect(sendRtlsSleep(hub, ['7'], false)).rejects.toThrow(
       /X-RTLS-SLEEP/
     );
+  });
+});
+
+describe('sendRtlsForget', () => {
+  test('sends numeric ids and reports each device', async () => {
+    const { hub, sent } = makeHub({
+      type: 'X-RTLS-FORGET',
+      result: {
+        '42': { forgotten: true },
+        '43': { forgotten: false, detail: 'Device 43 is online' },
+      },
+    });
+    const result = await sendRtlsForget(hub, ['42', '43', '44']);
+    expect(sent[0]).toEqual({ type: 'X-RTLS-FORGET', ids: [42, 43, 44] });
+    expect(result).toEqual({
+      '42': { forgotten: true, detail: undefined },
+      '43': { forgotten: false, detail: 'Device 43 is online' },
+      '44': {
+        forgotten: false,
+        detail: 'no response from server for this device',
+      },
+    });
+  });
+
+  test('a NAK (older server without forget) throws', async () => {
+    const { hub } = makeHub({ type: 'ACK-NAK', reason: 'no handler' });
+    await expect(sendRtlsForget(hub, ['42'])).rejects.toThrow(/no handler/);
   });
 });

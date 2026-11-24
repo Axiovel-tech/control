@@ -18,11 +18,7 @@ jest.mock('~/error-handling', () => ({
 }));
 
 import { showError, showNotification } from '~/features/snackbar/actions';
-import {
-  setRtlsDevicesSleeping,
-  sleepAllRtlsDevices,
-  wakeAllRtlsDevices,
-} from '~/features/rtls/sleep-actions';
+import { setRtlsSleeping } from '~/features/rtls/sleep-actions';
 import reducer, {
   rtlsSleepTransactionStarted,
   setRtlsDevicesFromStatus,
@@ -46,13 +42,13 @@ const dispatchThunk = async (store: Store, thunk: unknown): Promise<void> =>
 const seedDevices = (store: Store, sleeping: boolean | undefined) => {
   store.dispatch(
     setRtlsDevicesFromStatus({
-      '1': { online: true, sleeping },
-      '2': { online: true, sleeping },
+      '1': { online: true, role: 'tag', sleeping },
+      '2': { online: true, role: 'tag', sleeping },
     })
   );
 };
 
-describe('setRtlsDevicesSleeping', () => {
+describe('setRtlsSleeping', () => {
   test('applies the authoritative result of an accepted wake to the store and skips the INF re-poll', async () => {
     const store = createStore();
     seedDevices(store, true);
@@ -67,7 +63,7 @@ describe('setRtlsDevicesSleeping', () => {
       },
     });
 
-    await dispatchThunk(store, setRtlsDevicesSleeping(['1', '2'], false));
+    await dispatchThunk(store, setRtlsSleeping(['1', '2'], false));
 
     const { devices } = store.getState().rtls;
     // Accepted result is ground truth...
@@ -108,7 +104,7 @@ describe('setRtlsDevicesSleeping', () => {
         },
       });
 
-    await dispatchThunk(store, setRtlsDevicesSleeping(['1', '2'], true));
+    await dispatchThunk(store, setRtlsSleeping(['1', '2'], true));
 
     expect(sendMessage).toHaveBeenCalledTimes(2);
     expect((sendMessage.mock.calls[1][0] as { type: string }).type).toBe(
@@ -128,7 +124,7 @@ describe('setRtlsDevicesSleeping', () => {
       })
     );
 
-    const promise = dispatchThunk(store, setRtlsDevicesSleeping(['1'], false));
+    const promise = dispatchThunk(store, setRtlsSleeping(['1'], false));
 
     // Pending is set synchronously when the transaction starts...
     expect(store.getState().rtls.sleepPending).toEqual({ '1': true });
@@ -151,7 +147,7 @@ describe('setRtlsDevicesSleeping', () => {
 
     sendMessage.mockRejectedValueOnce(new Error('boom'));
 
-    await dispatchThunk(store, setRtlsDevicesSleeping(['1', '2'], false));
+    await dispatchThunk(store, setRtlsSleeping(['1', '2'], false));
 
     expect(store.getState().rtls.sleepPending).toEqual({});
     expect(showError).toHaveBeenCalled();
@@ -183,7 +179,7 @@ describe('bulk sleep/wake', () => {
         },
       });
 
-    await dispatchThunk(store, sleepAllRtlsDevices());
+    await dispatchThunk(store, setRtlsSleeping('tags', true));
 
     // Device 1 is busy and must not be targeted by the bulk command.
     expect(sendMessage.mock.calls[0][0]).toEqual({
@@ -193,16 +189,43 @@ describe('bulk sleep/wake', () => {
     });
   });
 
+  test('sleep all leaves out devices whose role is not known yet', async () => {
+    // such a device may be an anchor, which sleeps only through the anchor
+    // actions and their armed-drone confirmation
+    const store = createStore();
+    store.dispatch(
+      setRtlsDevicesFromStatus({
+        '1': { online: true, role: 'tag', sleeping: false },
+        '2': { online: true, sleeping: false },
+        '3': { online: true, role: 'anchor-responder' },
+      })
+    );
+    sendMessage
+      .mockResolvedValueOnce({
+        body: {
+          type: 'X-RTLS-SLEEP',
+          result: { '1': { accepted: true, sleeping: true } },
+        },
+      })
+      .mockResolvedValueOnce({ body: { type: 'X-RTLS-INF', status: {} } });
+
+    await dispatchThunk(store, setRtlsSleeping('tags', true));
+
+    expect(sendMessage.mock.calls[0][0]).toEqual({
+      type: 'X-RTLS-SLEEP',
+      ids: [1],
+      sleeping: true,
+    });
+  });
+
   test('is a no-op with a note when every device is busy', async () => {
     const store = createStore();
     seedDevices(store, true);
     store.dispatch(rtlsSleepTransactionStarted(['1', '2']));
 
-    await dispatchThunk(store, wakeAllRtlsDevices());
+    await dispatchThunk(store, setRtlsSleeping('tags', false));
 
     expect(sendMessage).not.toHaveBeenCalled();
-    expect(showNotification).toHaveBeenCalledWith(
-      expect.stringContaining('already in flight')
-    );
+    expect(showNotification).toHaveBeenCalledWith('rtlsDevice.bulk.busy');
   });
 });

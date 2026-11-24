@@ -497,3 +497,25 @@ describe('rtls slice', () => {
     }
   });
 });
+
+describe('the Tags panel clock', () => {
+  test('only tag stats move it', () => {
+    let state = reducer(
+      undefined,
+      setRtlsDevicesFromStatus({
+        '1': { online: true, role: 'anchor-initiator' },
+        '7': { online: true, role: 'tag' },
+      })
+    );
+    state = reducer(
+      state,
+      updateRtlsStats({ byId: { '1': { id: '1' } }, lastUpdatedAt: 100 })
+    );
+    expect(state.stats.lastUpdatedAt).toBe(undefined);
+    state = reducer(
+      state,
+      updateRtlsStats({ byId: { '7': { id: '7' } }, lastUpdatedAt: 200 })
+    );
+    expect(state.stats.lastUpdatedAt).toBe(200);
+  });
+});

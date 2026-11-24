@@ -29,7 +29,7 @@ import { type RtlsDevice } from '~/features/rtls/types';
 import {
   describeDeviceWithPairedUav,
   describeDronePill,
-} from '~/views/rtls/DeviceStatsRow';
+} from '~/views/rtls/TagRowParts';
 
 const render = (node: React.ReactNode): string =>
   renderToStaticMarkup(<>{node}</>);

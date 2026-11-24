@@ -12,6 +12,7 @@ import LinearProgress from '@mui/material/LinearProgress';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useDispatch, useSelector } from 'react-redux';
 
 import { DraggableDialog } from '@skybrush/mui-components';
@@ -27,6 +28,7 @@ import {
   isRtlsOtaDialogOpen,
 } from './selectors';
 import { closeRtlsOtaDialog, setRtlsOtaJob } from './slice';
+import { type RtlsOtaJob } from './types';
 
 /**
  * Normalises an OTA progress value to an integer percentage. The X-RTLS-OTA
@@ -44,6 +46,43 @@ const toPercent = (progress: number | undefined): number | undefined => {
 
 const ACTIVE_STATUSES = new Set(['pending', 'inProgress']);
 
+/** The current job: status, version, species, progress and error. */
+const OtaJobStatus = ({ job }: { job: RtlsOtaJob }) => {
+  const { t } = useTranslation();
+  const active = job.status !== undefined && ACTIVE_STATUSES.has(job.status);
+  const percent = toPercent(job.progress);
+  return (
+    <Box sx={{ mt: 2 }}>
+      <Typography variant='body2' color='textSecondary'>
+        {`Status: ${job.status}`}
+        {job.version ? ` · version ${job.version}` : ''}
+        {job.species
+          ? ` · ${t('rtlsOta.species.job', { species: job.species })}`
+          : ''}
+      </Typography>
+      {percent !== undefined ? (
+        <>
+          <LinearProgress
+            variant='determinate'
+            value={percent}
+            sx={{ mt: 1 }}
+          />
+          <Typography variant='caption' color='textSecondary'>
+            {`${percent}%`}
+          </Typography>
+        </>
+      ) : (
+        active && <LinearProgress sx={{ mt: 1 }} />
+      )}
+      {job.error && (
+        <Typography variant='body2' color='error' sx={{ mt: 1 }}>
+          {job.error}
+        </Typography>
+      )}
+    </Box>
+  );
+};
+
 const RtlsOtaDialog = () => {
   const dispatch = useDispatch<AppDispatch>();
   const open = useSelector(isRtlsOtaDialogOpen);
@@ -51,9 +90,11 @@ const RtlsOtaDialog = () => {
   const job = useSelector((state: RootState) =>
     deviceId ? getRtlsOtaJobForDevice(state, deviceId) : undefined
   );
-
   const [image, setImage] = useState('');
   const [busy, setBusy] = useState(false);
+  const trimmedImage = image.trim();
+  const active = job?.status !== undefined && ACTIVE_STATUSES.has(job.status);
+  const startable = !busy && !active && trimmedImage.length > 0;
 
   // Query the current OTA job status when the dialog opens for a device.
   useEffect(() => {
@@ -70,28 +111,24 @@ const RtlsOtaDialog = () => {
   }, [open, deviceId, dispatch]);
 
   const handleStart = useCallback(async () => {
-    if (!deviceId || busy || image.trim().length === 0) {
+    if (!deviceId || !startable) {
       return;
     }
 
     setBusy(true);
     try {
-      const started = await startRtlsOta(messageHub, deviceId, image.trim());
+      const started = await startRtlsOta(messageHub, deviceId, trimmedImage);
       dispatch(setRtlsOtaJob({ id: deviceId, job: started }));
     } catch (error) {
       showError(`Failed to start OTA: ${String(error)}`);
     } finally {
       setBusy(false);
     }
-  }, [busy, deviceId, dispatch, image]);
+  }, [deviceId, dispatch, startable, trimmedImage]);
 
   const handleClose = useCallback(() => {
     dispatch(closeRtlsOtaDialog());
   }, [dispatch]);
-
-  const status = job?.status;
-  const active = status !== undefined && ACTIVE_STATUSES.has(status);
-  const percent = toPercent(job?.progress);
 
   return (
     <DraggableDialog
@@ -112,40 +149,14 @@ const RtlsOtaDialog = () => {
           onChange={(event) => setImage(event.target.value)}
         />
 
-        {job && status ? (
-          <Box sx={{ mt: 2 }}>
-            <Typography variant='body2' color='textSecondary'>
-              {`Status: ${status}`}
-              {job.version ? ` · version ${job.version}` : ''}
-            </Typography>
-            {percent !== undefined ? (
-              <LinearProgress
-                variant='determinate'
-                value={percent}
-                sx={{ mt: 1 }}
-              />
-            ) : active ? (
-              <LinearProgress sx={{ mt: 1 }} />
-            ) : null}
-            {percent !== undefined ? (
-              <Typography variant='caption' color='textSecondary'>
-                {`${percent}%`}
-              </Typography>
-            ) : null}
-            {job.error ? (
-              <Typography variant='body2' color='error' sx={{ mt: 1 }}>
-                {job.error}
-              </Typography>
-            ) : null}
-          </Box>
-        ) : null}
+        {job?.status && <OtaJobStatus job={job} />}
 
         <DialogActions>
           <Button onClick={handleClose}>Close</Button>
           <Button
             color='primary'
             variant='contained'
-            disabled={busy || active || image.trim().length === 0}
+            disabled={!startable}
             onClick={() => void handleStart()}
           >
             Start update

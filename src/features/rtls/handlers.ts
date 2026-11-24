@@ -18,6 +18,7 @@ import {
   updateRtlsPositions,
   updateRtlsStats,
 } from './slice';
+import { mapRtlsAnchorStats } from './handlers-anchor';
 import {
   type RtlsAnchor,
   type RtlsDevice,
@@ -51,6 +52,8 @@ const mapTwrPeers = (value: unknown): RtlsTwrPeer[] | undefined => {
       peerMac: toNumber(row.peerMac),
       distanceM: toNumber(row.distanceM),
       ageMs: toNumber(row.ageMs),
+      madM: toNumber(row.madM),
+      count: toNumber(row.count),
     };
   });
 };
@@ -157,10 +160,9 @@ export function mapRtlsDeviceStatus(
   result.uav = toString(raw.uav);
   result.flightController = mapFlightController(raw.flightController);
 
-  const twr = mapTwrPeers(raw.twr);
-  if (twr !== undefined) {
-    result.twr = twr;
-  }
+  // Always assigned: a device that rebooted (or was rediscovered) must not
+  // keep a pre-reboot measurement the server no longer reports.
+  result.twr = mapTwrPeers(raw.twr);
 
   return result;
 }
@@ -270,6 +272,7 @@ export function mapRtlsDeviceStats(
     imuTemperaturesC: Array.isArray(raw.imuTemperaturesC)
       ? raw.imuTemperaturesC.map((value: unknown) => toNumber(value) ?? null)
       : undefined,
+    ...mapRtlsAnchorStats(raw),
   };
 }
 
@@ -380,6 +383,8 @@ export function mapRtlsOtaJob(raw: AnyRecord | undefined): RtlsOtaJob {
     progress: toNumber(raw.progress),
     version: toString(raw.version),
     error: toString(raw.error),
+    species: toString(raw.species),
+    speciesSource: toString(raw.speciesSource),
   };
 }
 

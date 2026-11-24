@@ -20,6 +20,7 @@ const HEALTH_KEYS: Record<RtlsHealth, string> = {
   [RtlsHealth.WARNING]: 'warning',
   [RtlsHealth.ERROR]: 'error',
   [RtlsHealth.UNKNOWN]: 'unknown',
+  [RtlsHealth.IDLE]: 'idle',
 };
 
 type Props = Omit<LabeledStatusLightProps, 'children' | 'status'> & {
