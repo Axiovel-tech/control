@@ -13,6 +13,7 @@ import Clear from '@mui/icons-material/Clear';
 import ExpandMore from '@mui/icons-material/ExpandMore';
 import Refresh from '@mui/icons-material/Refresh';
 import Search from '@mui/icons-material/Search';
+import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import ButtonBase from '@mui/material/ButtonBase';
@@ -27,6 +28,7 @@ import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useDispatch, useSelector } from 'react-redux';
 
 import { BackgroundHint, DraggableDialog } from '@skybrush/mui-components';
@@ -43,6 +45,7 @@ import RtlsParameterRow from './RtlsParameterRow';
 import {
   getRtlsParamDialogDeviceId,
   getRtlsParamsStateForDevice,
+  isRtlsDeviceLockedOut,
   isRtlsParamDialogOpen,
 } from './selectors';
 import { closeRtlsParamDialog } from './slice';
@@ -100,6 +103,7 @@ const GroupHeaderRow = ({
 );
 
 const RtlsParameterDialog = () => {
+  const { t } = useTranslation();
   const dispatch = useDispatch<AppDispatch>();
   const open = useSelector(isRtlsParamDialogOpen);
   const deviceId = useSelector(getRtlsParamDialogDeviceId);
@@ -151,6 +155,11 @@ const RtlsParameterDialog = () => {
   }, []);
 
   const status = paramsState?.status ?? 'idle';
+  // a locked anchor's parameters stay viewable but cannot be changed
+  const readOnly = useSelector(
+    (state: RootState) =>
+      deviceId !== undefined && isRtlsDeviceLockedOut(state, deviceId)
+  );
   const params = paramsState?.params ?? [];
 
   // `hasText` gates the editor chrome (clear adornment, Escape-clears);
@@ -194,6 +203,15 @@ const RtlsParameterDialog = () => {
       }
     >
       <DialogContent>
+        {readOnly && (
+          <Alert
+            data-testid='rtls-param-dialog.locked'
+            severity='info'
+            sx={{ mb: 1 }}
+          >
+            {t('rtlsAnchorLock.locked')}
+          </Alert>
+        )}
         {status === 'error' && params.length === 0 ? (
           // A failed refresh keeps the previously fetched list in the cache
           // (see rtlsParamsFetchFailed) — only a failure with nothing cached
@@ -290,6 +308,7 @@ const RtlsParameterDialog = () => {
                                 // device.
                                 deviceId={deviceId!}
                                 param={param}
+                                readOnly={readOnly}
                               />
                             ))
                           : []),

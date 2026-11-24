@@ -6,9 +6,12 @@
 import ExpandMore from '@mui/icons-material/ExpandMore';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
+import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+
+import { Tooltip } from '@skybrush/mui-components';
 
 import { describeLastSeen } from '~/features/rtls/anchor-utils';
 import { type RtlsDevice } from '~/features/rtls/types';
@@ -117,5 +120,41 @@ export const LastSeen = ({ device }: { device: RtlsDevice }) => {
     >
       {t(key, values)}
     </Typography>
+  );
+};
+
+/**
+ * An action button. While a device it acts on is locked (`lockedOut`) it
+ * stays visible but disabled, and says why.
+ */
+export const ActionButton = ({
+  icon,
+  lockedOut = false,
+  onClick,
+  testId,
+  tooltip,
+}: {
+  icon: React.ReactNode;
+  lockedOut?: boolean;
+  onClick: () => void;
+  testId: string;
+  tooltip: string;
+}) => {
+  const { t } = useTranslation();
+  return (
+    <Tooltip content={lockedOut ? t('rtlsAnchorLock.locked') : tooltip}>
+      {/* a disabled button gets no pointer events: the span keeps the
+       * tooltip */}
+      <Box component='span'>
+        <IconButton
+          data-testid={testId}
+          size='small'
+          disabled={lockedOut}
+          onClick={onClick}
+        >
+          {icon}
+        </IconButton>
+      </Box>
+    </Tooltip>
   );
 };

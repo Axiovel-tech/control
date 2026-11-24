@@ -85,6 +85,10 @@ these is a breaking change for the harness.
 
 ### `data-testid`
 
+A locked anchor's changing controls below (row sleep, wake, firmware update and
+forget, and the panel's Sleep all / Wake all when they would reach it) stay
+visible but disabled, with the tooltip "Anchors are locked".
+
 | Test id                                       | Element                                                                                                                                                                                           |
 | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `show-control.load-show`                      | Show Control → load show from file (the file input is nested inside it)                                                                                                                           |
@@ -123,7 +127,7 @@ these is a breaking change for the harness.
 | `rtls-device-<id>`                            | Device row for the RTLS device with system id `<id>` (`DeviceStatsRow`), on either panel                                                                                                          |
 | `rtls-device-sleep`                           | Device row → sleep this device (known tags and anchors, not a device whose role has not arrived; hidden on a lost anchor and while a sleep/wake transaction is in flight; anchors always confirm) |
 | `rtls-device-wake`                            | Device row → wake this device (same rendering rules as sleep)                                                                                                                                     |
-| `rtls-device-parameters`                      | Device row → open the parameter viewer/editor dialog                                                                                                                                              |
+| `rtls-device-parameters`                      | Device row → open the parameter viewer/editor dialog (read-only for a locked anchor: `rtls-param-dialog.locked`; `SLEEP` is always read-only: `rtls-param-read-only`)                             |
 | `rtls-device-firmware`                        | Device row → open the OTA firmware update dialog                                                                                                                                                  |
 | `rtls-device-show-more`                       | Device row → show or hide the telemetry below the header line                                                                                                                                     |
 | `rtls-device-forget`                          | Device row of an offline device → ask the server to forget it (X-RTLS-FORGET)                                                                                                                     |
@@ -147,8 +151,16 @@ these is a breaking change for the harness.
 | `rtls-tags-panel.health-drone-<id>`           | Fleet-health popup → the drone of tag `<id>`: closes the popup, expands its row and scrolls to it                                                                                                 |
 | `rtls-tags-panel.expand-all`                  | Tags panel toolbar → expand every tag row, or collapse them all while any is expanded                                                                                                             |
 | `rtls-anchors-panel.expand-all`               | Anchors panel toolbar → expand every anchor row, or collapse them all while any is expanded                                                                                                       |
-| `rtls-<variant>-panel.sleep-all`              | Panel toolbar → sleep every awake drone (`tags`) or anchor (`anchors`); the anchor one always asks first, with stronger wording while any drone may be armed                                      |
-| `rtls-<variant>-panel.wake-all`               | Panel toolbar → wake every drone (`tags`) or every resting anchor (`anchors`; not those off: button start only)                                                                                   |
+| `rtls-anchors-panel.lock`                     | Anchors panel toolbar → the lock control: "Locked" (unlocks after a confirmation) or "Not locked" / "Not locked (n/m)" (opens the lock dialog); hidden when the server has no lock                |
+| `rtls-anchors-panel.unlock`                   | Anchors panel toolbar → Unlock beside the lock control while some anchors are locked                                                                                                              |
+| `rtls-lock-dialog`                            | Lock dialog (`RtlsAnchorLockDialog`): one line, then the server's warnings, its refusal, or the anchors that did not take the lock                                                                |
+| `rtls-lock-acknowledge`                       | Lock dialog → "Lock anyway" (shown only with warnings)                                                                                                                                            |
+| `rtls-lock-confirm`                           | Lock dialog → Lock                                                                                                                                                                                |
+| `rtls-ota-dialog.locked`                      | OTA dialog → "Anchors are locked" notice for a locked anchor (Start disabled)                                                                                                                     |
+| `show-control.lock-anchors`                   | Show setup → the "Lock anchors" step; its light is the server's `anchorLock.showGate` verdict; opens the lock dialog; hidden when no lock is required                                             |
+| `rtls-anchor-locked`                          | Anchor row → lock icon while the anchor's firmware lock is on                                                                                                                                     |
+| `rtls-<variant>-panel.sleep-all`              | Panel toolbar → sleep every awake drone (`tags`) or anchor (`anchors`); the anchor one always asks first, with stronger wording while any drone may be armed.                                     |
+| `rtls-<variant>-panel.wake-all`               | Panel toolbar → wake every drone (`tags`) or every resting anchor (`anchors`; not those off: button start only).                                                                                  |
 | `rtls-tags-panel.check-geometry`              | Tags panel toolbar → run an X-RTLS-GEOM agreement check (disabled while one is in flight; the panel also runs one silently when the tag set changes and every 10 s)                               |
 | `rtls-tags-panel.verify`                      | Tags panel toolbar → open the fleet pre-flight verification dialog                                                                                                                                |
 

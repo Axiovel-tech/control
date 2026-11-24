@@ -12,6 +12,7 @@ import isNil from 'lodash-es/isNil';
 import { type AppDispatch } from '~/store/reducers';
 
 import {
+  setRtlsAnchorLock,
   setRtlsAnchors,
   setRtlsDevicesFromStatus,
   setRtlsOtaJob,
@@ -21,6 +22,7 @@ import {
 import { mapRtlsAnchorStats } from './handlers-anchor';
 import {
   type RtlsAnchor,
+  type RtlsAnchorLock,
   type RtlsDevice,
   type RtlsDeviceStats,
   type RtlsFlightController,
@@ -225,17 +227,70 @@ export function mapRtlsAnchors(value: unknown): RtlsAnchor[] {
   return result;
 }
 
-export function handleRtlsInformationMessage(
-  body: AnyRecord,
-  dispatch: AppDispatch
-): void {
+const isRecord = (value: unknown): value is AnyRecord =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+/**
+ * Maps the server's `anchorLock`, the only source of the aggregate lock.
+ * `undefined` when the value carries no `locked` flag: a server without the
+ * lock, whose clients show no lock UI.
+ */
+export function mapAnchorLock(value: unknown): RtlsAnchorLock | undefined {
+  if (!isRecord(value) || typeof value.locked !== 'boolean') {
+    return undefined;
+  }
+  const gate = value.showGate;
+  return {
+    locked: value.locked,
+    lockedCount: toNumber(value.lockedCount) ?? 0,
+    anchorCount: toNumber(value.anchorCount) ?? 0,
+    showGate:
+      isRecord(gate) &&
+      typeof gate.required === 'boolean' &&
+      typeof gate.refused === 'boolean'
+        ? { required: gate.required, refused: gate.refused }
+        : undefined,
+  };
+}
+
+type RtlsInformationAction = ReturnType<
+  | typeof setRtlsDevicesFromStatus
+  | typeof setRtlsAnchors
+  | typeof setRtlsAnchorLock
+>;
+
+/**
+ * The actions an X-RTLS-INF body (pushed, answered, or polled by the saga)
+ * applies: the device registry wholesale, then the site anchor list and the
+ * anchor lock when the body carries them.
+ */
+export function rtlsInformationActions(
+  body: AnyRecord
+): RtlsInformationAction[] {
   const status = body?.status as Record<string, AnyRecord> | undefined;
-  dispatch(setRtlsDevicesFromStatus(buildRtlsDeviceStatusMap(status)));
+  const actions: RtlsInformationAction[] = [
+    setRtlsDevicesFromStatus(buildRtlsDeviceStatusMap(status)),
+  ];
   // Only an explicit anchor list may replace the stored one: an X-RTLS-INF
   // from a server that predates the anchors field must not wipe the
   // configured cell geometry off the debug position view.
   if (Array.isArray(body?.anchors)) {
-    dispatch(setRtlsAnchors(mapRtlsAnchors(body.anchors)));
+    actions.push(setRtlsAnchors(mapRtlsAnchors(body.anchors)));
+  }
+  // Likewise only an explicit lock state replaces the stored one
+  const lock = mapAnchorLock(body?.anchorLock);
+  if (lock !== undefined) {
+    actions.push(setRtlsAnchorLock(lock));
+  }
+  return actions;
+}
+
+export function handleRtlsInformationMessage(
+  body: AnyRecord,
+  dispatch: AppDispatch
+): void {
+  for (const action of rtlsInformationActions(body)) {
+    dispatch(action);
   }
 }
 

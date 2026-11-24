@@ -947,6 +947,35 @@
       "wifi": "{{rssi}} · {{disconnects}} drops · {{txErrors}} TX errors"
     }
   },
+  "rtlsAnchorLock": {
+    "control": {
+      "locked": "Locked",
+      "partly": "Not locked ({{locked}}/{{total}})",
+      "unlock": "Unlock",
+      "unlocked": "Not locked"
+    },
+    "dialog": {
+      "acknowledge": "Lock anyway",
+      "text": "Lock the anchors to prevent unwanted changes during the show."
+    },
+    "lock": "Lock",
+    "locked": "Anchors are locked",
+    "notDone": "Not every anchor took it",
+    "notification": {
+      "locked": "Anchors locked",
+      "unlocked": "Anchors unlocked"
+    },
+    "step": {
+      "description": "Lock the anchors to prevent unwanted changes.",
+      "lockFirst": "Lock the anchors first"
+    },
+    "title": "Lock anchors",
+    "unlock": {
+      "armedMessage_one": "{{count}} drone may be armed. Unlock the anchors?",
+      "armedMessage_other": "{{count}} drones may be armed. Unlock the anchors?",
+      "message": "Unlock the anchors?"
+    }
+  },
   "rtlsDevice": {
     "action": {
       "forget": "Forget",
@@ -1103,6 +1132,7 @@
     }
   },
   "rtlsParams": {
+    "lockReadOnly": "Use the panel's Lock and Unlock",
     "sleepReadOnly": "Use the row's Sleep and Wake buttons"
   },
   "rtlsTagDetails": {

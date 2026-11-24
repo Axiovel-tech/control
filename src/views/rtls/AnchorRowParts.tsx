@@ -5,6 +5,7 @@
  */
 
 import BatteryStd from '@mui/icons-material/BatteryStd';
+import Lock from '@mui/icons-material/Lock';
 import SettingsEthernet from '@mui/icons-material/SettingsEthernet';
 import Usb from '@mui/icons-material/Usb';
 import Box from '@mui/material/Box';
@@ -209,10 +210,12 @@ export const AnchorRangingFigures = ({
   );
 };
 
-/** The warning badges, the input source and the battery. */
+/** The warning badges, the lock icon, the input source and the battery. */
 export const AnchorStatusCluster = ({
+  locked,
   stats,
 }: {
+  locked: boolean;
   stats: RtlsDeviceStats | undefined;
 }) => {
   const { t } = useTranslation();
@@ -232,6 +235,17 @@ export const AnchorStatusCluster = ({
           tooltip={tooltip && t(tooltip.key, tooltip.values)}
         />
       ))}
+      {locked && (
+        <Tooltip content={t('rtlsAnchorLock.control.locked')}>
+          <Box
+            component='span'
+            data-testid='rtls-anchor-locked'
+            sx={{ display: 'flex', color: 'text.secondary' }}
+          >
+            <Lock fontSize='small' />
+          </Box>
+        </Tooltip>
+      )}
       {input !== undefined && inputIcon && (
         <Tooltip content={t(describePowerInput(input).key)}>
           <Box

@@ -39,6 +39,7 @@ import {
   describeGeometryAgreement,
   geometryPillFor,
 } from '~/features/rtls/geometry-utils';
+import AnchorLockControl from '~/features/rtls/AnchorLockControl';
 import OverallRtlsStatusLight from '~/features/rtls/OverallRtlsStatusLight';
 import {
   getRtlsAnchorDevices,
@@ -49,6 +50,7 @@ import {
   getRtlsSleepPendingMap,
   getRtlsStatsById,
   getRtlsInitiatorEvidence,
+  getRtlsLockedOutDeviceIds,
   getRtlsStatsLastUpdatedAt,
   getRtlsTagDevices,
   isRtlsGeometryBusy,
@@ -63,6 +65,7 @@ import Bolt from '~/icons/Bolt';
 import type { AppDispatch } from '~/store/reducers';
 
 import DeviceStatsRow, { type DeviceRowHandlers } from './DeviceStatsRow';
+import { ActionButton } from './row-parts';
 import FleetHealthSummary from './FleetHealthSummary';
 
 /** The toolbar's Sleep all / Wake all labels, per panel. */
@@ -90,6 +93,9 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
   const statsById = useSelector(getRtlsStatsById);
   const uavStatuses = useSelector(getRtlsPairedUavStatuses);
   const sleepPending = useSelector(getRtlsSleepPendingMap);
+  const lockedOutIds = useSelector(getRtlsLockedOutDeviceIds);
+  // a bulk action that would reach a locked anchor is frozen
+  const bulkLockedOut = devices.some((device) => lockedOutIds.has(device.id));
   const lastUpdatedAt = useSelector(getRtlsStatsLastUpdatedAt);
   const geometryCheck = useSelector(getRtlsGeometryCheck);
   const geometryBusy = useSelector(isRtlsGeometryBusy);
@@ -262,6 +268,7 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
             </>
           )}
           {!tags && expandAllButton}
+          {!tags && <AnchorLockControl />}
         </Box>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
           {/* TWR freshness is per-row (each peer carries its age); a global
@@ -274,24 +281,20 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
                 : 'no updates yet'}
             </Typography>
           )}
-          <Tooltip content={t(bulkLabels.sleep)}>
-            <IconButton
-              data-testid={`rtls-${variant}-panel.sleep-all`}
-              size='small'
-              onClick={() => void dispatch(setRtlsSleeping(variant, true))}
-            >
-              <Moon fontSize='small' />
-            </IconButton>
-          </Tooltip>
-          <Tooltip content={t(bulkLabels.wake)}>
-            <IconButton
-              data-testid={`rtls-${variant}-panel.wake-all`}
-              size='small'
-              onClick={() => void dispatch(setRtlsSleeping(variant, false))}
-            >
-              <Bolt fontSize='small' />
-            </IconButton>
-          </Tooltip>
+          <ActionButton
+            icon={<Moon fontSize='small' />}
+            lockedOut={bulkLockedOut}
+            testId={`rtls-${variant}-panel.sleep-all`}
+            tooltip={t(bulkLabels.sleep)}
+            onClick={() => void dispatch(setRtlsSleeping(variant, true))}
+          />
+          <ActionButton
+            icon={<Bolt fontSize='small' />}
+            lockedOut={bulkLockedOut}
+            testId={`rtls-${variant}-panel.wake-all`}
+            tooltip={t(bulkLabels.wake)}
+            onClick={() => void dispatch(setRtlsSleeping(variant, false))}
+          />
         </Box>
       </Box>
       <Divider />
@@ -339,6 +342,7 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
                   }
                   geometryStatus={geometry.status}
                   handlers={handlers}
+                  locked={lockedOutIds.has(device.id)}
                   stats={statsById[device.id]}
                   onToggleExpanded={toggleExpanded}
                   uavStatus={

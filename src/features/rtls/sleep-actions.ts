@@ -36,6 +36,7 @@ import {
   getRtlsDevicesInOrder,
   getRtlsSleepPendingMap,
   getRtlsStatsById,
+  isRtlsDeviceLockedOut,
 } from './selectors';
 import {
   applyRtlsSleepResults,
@@ -180,6 +181,11 @@ export const setRtlsSleeping =
         getPossiblyArmedUavIds(state).length
       ))
     ) {
+      return;
+    }
+    // checked after the prompt: another client may have locked an anchor
+    if (ids.some((id) => isRtlsDeviceLockedOut(getState(), id))) {
+      showError(i18n.t('rtlsAnchorLock.locked'));
       return;
     }
 

@@ -10,6 +10,10 @@ import { StatusLight } from '@skybrush/mui-components';
 
 import { Status } from '~/components/semantics';
 import { setCommandsAreBroadcast } from '~/features/mission/slice';
+import { isRtlsShowGateRefused } from '~/features/rtls/selectors';
+import { showNotification } from '~/features/snackbar/actions';
+import { MessageSemantics } from '~/features/snackbar/types';
+import i18n from '~/i18n';
 import {
   countUAVsTakingOffAutomatically,
   isShowAuthorizedToStartLocally,
@@ -100,6 +104,14 @@ export default connect(
     onClick: () => (dispatch: AppDispatch, getState: () => RootState) => {
       const state = getState();
       const newAuthorizationState = !isShowAuthorizedToStartLocally(state);
+      if (newAuthorizationState && isRtlsShowGateRefused(state)) {
+        // the server refuses a new authorization until the anchors are locked
+        showNotification({
+          message: i18n.t('rtlsAnchorLock.step.lockFirst'),
+          semantics: MessageSemantics.WARNING,
+        });
+        return;
+      }
       dispatch(setShowAuthorization(newAuthorizationState));
       dispatch(synchronizeShowSettings('toServer'));
       if (newAuthorizationState) {

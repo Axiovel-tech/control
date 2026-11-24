@@ -88,6 +88,7 @@ export const mapRtlsAnchorStats = (
   batteryTemperatureC: toNumber(raw.batteryTemperatureC),
   lowBattery: toBoolean(raw.lowBattery),
   batteryWarning: toBoolean(raw.batteryWarning),
+  locked: toBoolean(raw.locked),
   powerState: toEnum(raw.powerState, POWER_STATES),
   powerInput: toEnum(raw.powerInput, POWER_INPUTS),
   charging: toEnum(raw.charging, CHARGING_STATES),

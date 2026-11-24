@@ -269,3 +269,43 @@ describe('a responder that measures nothing', () => {
     expect(markup).not.toContain('14.10 m');
   });
 });
+
+describe('a locked anchor row', () => {
+  const disabled = (markup: string, testId: string): boolean =>
+    new RegExp(`<button[^>]*disabled=""[^>]*data-testid="${testId}"`).test(
+      markup
+    ) ||
+    new RegExp(`<button[^>]*data-testid="${testId}"[^>]*disabled=""`).test(
+      markup
+    );
+
+  test('disables sleep, wake and firmware update, but not the parameters', () => {
+    const markup = render({ locked: true });
+    expect(disabled(markup, 'rtls-device-sleep')).toBe(true);
+    expect(disabled(markup, 'rtls-device-wake')).toBe(true);
+    expect(disabled(markup, 'rtls-device-firmware')).toBe(true);
+    expect(disabled(markup, 'rtls-device-parameters')).toBe(false);
+  });
+
+  test('disables forget on a lost anchor', () => {
+    const markup = render({
+      locked: true,
+      device: { ...responder, online: false },
+    });
+    expect(disabled(markup, 'rtls-device-forget')).toBe(true);
+  });
+
+  test('an unlocked anchor row keeps its actions', () => {
+    const markup = render();
+    expect(disabled(markup, 'rtls-device-sleep')).toBe(false);
+  });
+});
+
+describe('a locked anchor', () => {
+  test('shows a lock icon', () => {
+    expect(render({ locked: true })).toContain(
+      'data-testid="rtls-anchor-locked"'
+    );
+    expect(render()).not.toContain('data-testid="rtls-anchor-locked"');
+  });
+});

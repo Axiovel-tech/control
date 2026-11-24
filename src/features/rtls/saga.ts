@@ -17,9 +17,8 @@ import { isConnected } from '~/features/servers/selectors';
 import { setCurrentServerConnectionState } from '~/features/servers/slice';
 import messageHub from '~/message-hub';
 
-import { buildRtlsDeviceStatusMap } from './handlers';
+import { rtlsInformationActions } from './handlers';
 import { queryRtlsInformation } from './messages';
-import { setRtlsDevicesFromStatus } from './slice';
 
 /**
  * How often to re-query the X-RTLS-INF device snapshot, in milliseconds.
@@ -41,12 +40,14 @@ export function* pollRtlsInformation(): Generator {
     try {
       // `call` waits for the response before the next `delay`, so a slow
       // query postpones the next poll instead of piling up requests.
-      const body = (yield call(queryRtlsInformation, messageHub)) as {
-        status?: Record<string, Record<string, unknown>>;
-      };
-      yield put(
-        setRtlsDevicesFromStatus(buildRtlsDeviceStatusMap(body.status))
-      );
+      const body = (yield call(queryRtlsInformation, messageHub)) as Record<
+        string,
+        unknown
+      >;
+      // the same actions as a pushed or connect-time X-RTLS-INF
+      for (const action of rtlsInformationActions(body)) {
+        yield put(action);
+      }
     } catch {
       /* RTLS extension not loaded on this server (or a transient failure);
        * try again on the next tick */

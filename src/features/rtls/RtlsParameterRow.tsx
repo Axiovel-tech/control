@@ -77,9 +77,15 @@ const MetadataTooltipContent = ({
 type RtlsParameterRowProps = {
   deviceId: string;
   param: RtlsParam;
+  /** Shows the value without letting it be changed (a locked anchor). */
+  readOnly?: boolean;
 };
 
-const RtlsParameterRow = ({ deviceId, param }: RtlsParameterRowProps) => {
+const RtlsParameterRow = ({
+  deviceId,
+  param,
+  readOnly: lockedReadOnly = false,
+}: RtlsParameterRowProps) => {
   const { t } = useTranslation();
   const dispatch = useDispatch<AppDispatch>();
   const [draft, setDraft] = useState<string>(
@@ -95,7 +101,9 @@ const RtlsParameterRow = ({ deviceId, param }: RtlsParameterRowProps) => {
   const dirty = draft !== formatParamValue(param.value, param.type);
   const metadata = getRtlsParamMetadata(param.name);
   const enumLabel = enumLabelFor(metadata, draft);
-  const readOnly = READ_ONLY_RTLS_PARAMS.has(param.name);
+  // SLEEP and LOCK change elsewhere; a locked anchor takes no write
+  const readOnlyHint = READ_ONLY_RTLS_PARAMS[param.name];
+  const readOnly = readOnlyHint !== undefined || lockedReadOnly;
 
   const handleCommit = useCallback(async () => {
     if (!dirty || busy) {
@@ -118,11 +126,8 @@ const RtlsParameterRow = ({ deviceId, param }: RtlsParameterRowProps) => {
       if (result.accepted) {
         showNotification(`${param.name} updated`);
       } else {
-        showError(
-          `${param.name} rejected by device${
-            result.result ? `: ${result.result}` : ''
-          }`
-        );
+        const why = result.detail ?? result.result;
+        showError(`${param.name} rejected by device${why ? `: ${why}` : ''}`);
         // Revert the editor to the last known good value.
         setDraft(formatParamValue(param.value, param.type));
       }
@@ -188,14 +193,14 @@ const RtlsParameterRow = ({ deviceId, param }: RtlsParameterRowProps) => {
             = {enumLabel}
           </Typography>
         )}
-        {readOnly && (
+        {readOnlyHint !== undefined && (
           <Typography
             variant='caption'
             color='text.secondary'
             component='div'
             data-testid='rtls-param-read-only'
           >
-            {t('rtlsParams.sleepReadOnly')}
+            {t(readOnlyHint)}
           </Typography>
         )}
       </TableCell>

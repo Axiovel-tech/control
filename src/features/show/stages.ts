@@ -16,6 +16,10 @@ import {
   areAllPreflightChecksTicked,
   hasManualPreflightChecks,
 } from '~/features/preflight/selectors';
+import {
+  isRtlsAnchorLockRequired,
+  isRtlsShowGateRefused,
+} from '~/features/rtls/selectors';
 import { isConnected as isConnectedToServer } from '~/features/servers/selectors';
 import {
   areAllUAVsInMissionWithoutErrors,
@@ -55,6 +59,7 @@ type Stage =
   | 'uploadShow'
   | 'waitForOnboardPreflightChecks'
   | 'performManualPreflightChecks'
+  | 'lockAnchors'
   | 'setupStartTime'
   | 'authorization';
 
@@ -172,6 +177,18 @@ const stages: Record<Stage, StageSpecification> = {
     requires: ['uploadShow'],
   },
 
+  // The server refuses a new authorization or a changed authorized start
+  // unless the anchors are locked (its verdict, `anchorLock.showGate`)
+  lockAnchors: {
+    evaluate: (state) =>
+      !isRtlsAnchorLockRequired(state)
+        ? Status.SKIPPED
+        : isRtlsShowGateRefused(state)
+          ? Status.OFF
+          : Status.SUCCESS,
+    requires: ['selectShowFile'],
+  },
+
   setupStartTime: {
     evaluate: (state) =>
       didStartConditionSyncFail(state)
@@ -184,7 +201,11 @@ const stages: Record<Stage, StageSpecification> = {
             ? Status.WAITING
             : Status.OFF,
     requires: ['selectShowFile'],
-    suggests: ['waitForOnboardPreflightChecks', 'performManualPreflightChecks'],
+    suggests: [
+      'waitForOnboardPreflightChecks',
+      'performManualPreflightChecks',
+      'lockAnchors',
+    ],
   },
 
   authorization: {
@@ -196,7 +217,10 @@ const stages: Record<Stage, StageSpecification> = {
           : isShowAuthorizedToStartLocally(state)
             ? Status.WAITING
             : Status.OFF,
+    // not a hard dependency: an unlock after authorization must not turn
+    // the authorization light off
     requires: ['waitForOnboardPreflightChecks', 'performManualPreflightChecks'],
+    suggests: ['lockAnchors'],
   },
 };
 
@@ -214,6 +238,7 @@ const stageOrder: Stage[] = [
   'uploadShow',
   'waitForOnboardPreflightChecks',
   'performManualPreflightChecks',
+  'lockAnchors',
   'setupStartTime',
   'authorization',
 ];

@@ -27,6 +27,7 @@ import {
 } from './stats-utils';
 import {
   type RtlsAnchor,
+  type RtlsAnchorLock,
   type RtlsDevice,
   type RtlsDeviceStats,
   type RtlsGeometryAgreement,
@@ -348,3 +349,49 @@ export const getPossiblyArmedUavIds: AppSelector<string[]> = createSelector(
       )
       .map((uav) => uav.id)
 );
+
+/** Selector that returns the server's anchor lock, if it reports one. */
+export const getRtlsAnchorLock: AppSelector<RtlsAnchorLock | undefined> = (
+  state
+) => state.rtls.anchorLock;
+
+/** Selector that returns whether the lock dialog is open. */
+export const isRtlsLockDialogOpen: AppSelector<boolean> = (state) =>
+  state.rtls.lockDialogOpen;
+
+/**
+ * Selector that returns the ids of the devices whose firmware lock is on,
+ * from fresh stats only: a stale snapshot of a lost anchor says nothing
+ * about its lock now.
+ */
+export const getRtlsLockedOutDeviceIds: AppSelector<ReadonlySet<string>> =
+  createSelector(
+    getRtlsStatsById,
+    (statsById) =>
+      new Set(
+        Object.values(statsById)
+          .filter((stats) => stats.locked === true && !stats.stale)
+          .map((stats) => String(stats.id))
+      )
+  );
+
+/** Selector that returns whether the anchor lock freezes the given device. */
+export const isRtlsDeviceLockedOut: AppSelector<boolean, [Identifier]> = (
+  state,
+  id
+) => getRtlsLockedOutDeviceIds(state).has(id);
+
+/**
+ * Selector that returns whether a show start needs the anchors locked: the
+ * server's own verdict (`anchorLock.showGate`, the check SHOW-SETCFG
+ * applies). A server without the lock requires nothing.
+ */
+export const isRtlsAnchorLockRequired: AppSelector<boolean> = (state) =>
+  getRtlsAnchorLock(state)?.showGate?.required ?? false;
+
+/**
+ * Selector that returns whether the server's show gate refuses a new
+ * authorization or a changed authorized start now.
+ */
+export const isRtlsShowGateRefused: AppSelector<boolean> = (state) =>
+  getRtlsAnchorLock(state)?.showGate?.refused ?? false;

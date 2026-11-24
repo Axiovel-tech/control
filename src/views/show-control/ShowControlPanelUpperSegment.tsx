@@ -14,6 +14,7 @@ import EnvironmentButton from './EnvironmentButton';
 import GeofenceButton from './GeofenceButton';
 import LargeControlButtonGroup from './LargeControlButtonGroup';
 import LoadShowFromFileButton from './LoadShowFromFileButton';
+import LockAnchorsButton from './LockAnchorsButton';
 import ManualPreflightChecksButton from './ManualPreflightChecksButton';
 import OnboardPreflightChecksButton from './OnboardPreflightChecksButton';
 import ShowUploadDialogButton from './ShowUploadDialogButton';
@@ -50,6 +51,7 @@ const ShowControlPanelUpperSegment = ({
 
         <OnboardPreflightChecksButton />
         <ManualPreflightChecksButton />
+        <LockAnchorsButton />
 
         <Divider />
 

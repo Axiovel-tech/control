@@ -144,6 +144,8 @@ export type RtlsParameterSetResult = {
   value: RtlsParamValue;
   paramType?: RtlsParamType;
   result?: string;
+  /** The server's explanation of a refusal, e.g. "RTLS anchor A3 is locked". */
+  detail?: string;
   accepted: boolean;
 };
 
@@ -181,6 +183,7 @@ export async function setRtlsParameter(
     value: (body.value as RtlsParamValue) ?? value,
     paramType: body.paramType as RtlsParamType | undefined,
     result: typeof body.result === 'string' ? body.result : undefined,
+    detail: typeof body.detail === 'string' ? body.detail : undefined,
     accepted: Boolean(body.accepted),
   };
 }

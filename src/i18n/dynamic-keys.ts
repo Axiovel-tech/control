@@ -368,6 +368,10 @@
  * t("rtlsHealth.anchors.idle")
  * t("rtlsHealth.tags.idle")
  *
+ * RTLS read-only parameter hints (keys chosen by features/rtls/param-actions.ts)
+ * t("rtlsParams.sleepReadOnly")
+ * t("rtlsParams.lockReadOnly")
+ *
  * RTLS tag details toggles (keys chosen by views/rtls/DeviceStatsRow.tsx and
  * views/rtls/RtlsRolePanel.tsx)
  * t("rtlsTagDetails.showMore")
