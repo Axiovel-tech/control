@@ -23,7 +23,12 @@ function MappingToggleButton({ selected, onChange }: MappingToggleButtonProps) {
 
   return (
     <Tooltip content={t('mappingToggleButton.sortByMissionID')}>
-      <ToggleButton value='missionIds' selected={selected} onChange={onChange}>
+      <ToggleButton
+        data-testid='uavs.show-mission-ids'
+        value='missionIds'
+        selected={selected}
+        onChange={onChange}
+      >
         <Mapping />
       </ToggleButton>
     </Tooltip>
