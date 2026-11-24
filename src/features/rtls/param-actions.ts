@@ -42,12 +42,12 @@ export const fetchRtlsDeviceParameters =
 /**
  * Parameters the dialog shows but never writes, with the hint that says
  * where they are changed: `SLEEP` through the row's Sleep/Wake buttons
- * (which confirm, wait for the verified result and never send off or plain
- * standby), `LOCK` through the panel's Lock/Unlock (which check the anchors
- * and list the server's warnings), and the cell settings, which every device
- * of the cell must share: the rate and TX level through the anchors panel's
- * cell settings (which write them to every device and restart it), channel
- * and session id only with the CLI.
+ * (which confirm and report each device's answer), `LOCK` through the
+ * panel's Lock/Unlock (which check the anchors and list the server's
+ * warnings), and the cell settings, which every device of the cell must
+ * share: the rate and TX level through the anchors panel's cell settings
+ * (which write them to every device and restart it), channel and session id
+ * only with the CLI.
  */
 export const READ_ONLY_RTLS_PARAMS: Readonly<Record<string, string>> = {
   SLEEP: 'rtlsParams.sleepReadOnly',

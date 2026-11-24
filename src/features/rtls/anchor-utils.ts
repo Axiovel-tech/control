@@ -105,6 +105,26 @@ export function formatInitiatorDistance(peer: RtlsTwrPeer | undefined): string {
 /** Whether a device has dropped off the network (the server's `online`). */
 export const isDeviceLost = (device: RtlsDevice): boolean => !device.online;
 
+/**
+ * How long after an accepted sleep or wake a lost anchor reads as switching
+ * at most: the transition may reboot it (8-15 s off the network). The first
+ * new powerState it reports ends the hint sooner (`anchorPowerRequests`).
+ */
+export const ANCHOR_REBOOT_WINDOW_MS = 30 * 1000;
+
+/**
+ * Whether an anchor is off the network because it is rebooting into the
+ * state it accepted at `requestedAt` (`Date.now()`), not lost.
+ */
+export const isAnchorSwitching = (
+  device: RtlsDevice,
+  requestedAt: number | undefined,
+  now: number = Date.now()
+): boolean =>
+  requestedAt !== undefined &&
+  isDeviceLost(device) &&
+  now - requestedAt < ANCHOR_REBOOT_WINDOW_MS;
+
 /** The cell of an anchor, from the configured site table (`undefined`: none). */
 const cellOf = (
   device: RtlsDevice,
@@ -167,8 +187,8 @@ const ASLEEP: StatusText = {
 /**
  * The state chip of an anchor: power state first, then whether it ranges.
  * A lost anchor reads "Off" when it was last seen powering down, else
- * "Offline"; `busy` (a sleep/wake in flight, which reboots the anchor)
- * overrides both, since the anchor drops off the network while it reboots.
+ * "Offline"; `busy` (`isAnchorSwitching`: rebooting into an accepted sleep
+ * or wake) overrides both.
  * An operating initiator reads "Ranging" only when a responder hears it
  * (`initiatorEvidence`, given for initiators only).
  */

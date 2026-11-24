@@ -37,6 +37,11 @@ import {
   type RtlsPosEstimate,
 } from './types';
 
+/** When each anchor last accepted a sleep or wake, keyed by system id. */
+export const getRtlsAnchorPowerRequests: AppSelector<Record<string, number>> = (
+  state
+) => state.rtls.anchorPowerRequests;
+
 /**
  * Selector that returns the mapping of device ids whose sleep/wake
  * transaction is currently in flight.
