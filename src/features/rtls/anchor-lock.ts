@@ -14,14 +14,7 @@ import messageHub from '~/message-hub';
 import { type AppThunk, type RootState } from '~/store/reducers';
 
 import { getPossiblyArmedUavIds, getRtlsDeviceDisplayName } from './selectors';
-
-type AnyRecord = Record<string, unknown>;
-
-const isRecord = (value: unknown): value is AnyRecord =>
-  typeof value === 'object' && value !== null && !Array.isArray(value);
-
-const toText = (value: unknown): string | undefined =>
-  typeof value === 'string' ? value : undefined;
+import { type AnyRecord, isRecord, toText } from './wire-values';
 
 /** An anchor that did not take a lock or unlock write. */
 type RtlsLockFailure = { id: string; detail: string };

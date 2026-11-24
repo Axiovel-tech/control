@@ -38,6 +38,7 @@ import {
   isSleepableRtlsDevice,
   isTagOrUnknownRtlsDevice,
 } from '~/features/rtls/utils';
+import CellSettingsIcon from '~/features/rtls/CellSettingsIcon';
 import Bolt from '~/icons/Bolt';
 
 import {
@@ -278,14 +279,19 @@ const RoleContent = ({
   stats: RtlsDeviceStats | undefined;
   where: 'figures' | 'cluster';
 }) => {
-  if (!isAnchorRole(role)) {
-    return where === 'figures' ? (
-      <TagSolveFigures stats={stats} />
-    ) : (
-      <TagStatusCluster stats={stats} />
+  if (where === 'cluster') {
+    return (
+      <>
+        <CellSettingsIcon device={device} />
+        {isAnchorRole(role) ? (
+          <AnchorStatusCluster locked={locked} stats={stats} />
+        ) : (
+          <TagStatusCluster stats={stats} />
+        )}
+      </>
     );
   }
-  return where === 'figures' ? (
+  return isAnchorRole(role) ? (
     <AnchorRangingFigures
       device={device}
       initiatorMacs={initiatorMacs}
@@ -293,7 +299,7 @@ const RoleContent = ({
       stats={stats}
     />
   ) : (
-    <AnchorStatusCluster locked={locked} stats={stats} />
+    <TagSolveFigures stats={stats} />
   );
 };
 

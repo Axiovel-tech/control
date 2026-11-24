@@ -9,6 +9,8 @@
 
 import { type Identifier } from '~/utils/collections';
 
+import { type RtlsCellState } from './cell-settings';
+
 /**
  * The parameter types supported by the RTLS firmware. These mirror the
  * MAV_PARAM_EXT_TYPE enum names, lowercased. Numeric parameters are carried as
@@ -126,6 +128,14 @@ export type RtlsDevice = {
    * anchors, never-associated tags and older firmware.
    */
   flightController?: RtlsFlightController;
+
+  /**
+   * The device against the cell's settings (`X-RTLS-CELL`); absent offline
+   * and from a server without them. `cellSettingsDetail` says why it differs
+   * when that is its TX level.
+   */
+  cellSettings?: RtlsCellState;
+  cellSettingsDetail?: string;
 };
 
 /**

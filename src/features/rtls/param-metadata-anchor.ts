@@ -17,6 +17,16 @@ export const ANCHOR_PARAM_METADATA: Record<string, RtlsParamMetadata> = {
     defaultValue: 0,
   },
 
+  /* --- Anchor TX level (rtls-link-zephyr lib/uwb/src/tx_gain.cpp) --- */
+  UWB_TX_GAIN: {
+    description:
+      'SR250 TX gain index: 0 strongest, 127 weakest, 0.25 dB steps. ' +
+      'Read at boot',
+    min: 0,
+    max: 127,
+    defaultValue: 47,
+  },
+
   /* --- Power and sleep (lib/power/src/{power_params,path/sleep_param}.cpp) --- */
   SLEEP: {
     description:

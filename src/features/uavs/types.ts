@@ -35,6 +35,8 @@ import { type Coordinate3D } from '~/utils/math';
  */
 export type StoredUAV = {
   age?: UAVAge;
+  /** The autopilot's arming state from the server; undefined when unknown. */
+  armed?: boolean;
   battery: UAVBattery;
   debugString?: string;
   errors: UAVErrorCode[];

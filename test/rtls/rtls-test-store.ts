@@ -18,7 +18,12 @@ import {
   type RootState,
 } from '~/store/reducers';
 
-export type FakeUav = { id: string; age?: UAVAge; errors: UAVErrorCode[] };
+export type FakeUav = {
+  id: string;
+  age?: UAVAge;
+  armed?: boolean;
+  errors: UAVErrorCode[];
+};
 
 export const createRtlsTestStore = (uavs: FakeUav[] = []) => {
   const uavSlice = createSlice({

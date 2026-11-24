@@ -25,6 +25,7 @@ import {
 } from './types';
 import { classifyRole, isAnchorRole } from './stats-utils';
 import { updateStateOfRtlsDevice } from './utils';
+import { type RtlsCellSettings } from './cell-settings';
 
 /**
  * How long an applied sleep/wake transaction result guards the device's
@@ -139,6 +140,12 @@ export type RtlsSliceState = {
   /** Whether the lock dialog is open. */
   lockDialogOpen: boolean;
 
+  /** The server's `cellSettings`; `undefined` while it has reported none. */
+  cellSettings?: RtlsCellSettings;
+
+  /** Whether the cell-settings dialog is open. */
+  cellDialogOpen: boolean;
+
   /** Fleet pre-flight verification state (X-RTLS-VERIFY). */
   verify: {
     running: boolean;
@@ -178,6 +185,8 @@ const initialState: RtlsSliceState = {
   },
   anchorLock: undefined,
   lockDialogOpen: false,
+  cellSettings: undefined,
+  cellDialogOpen: false,
   verify: {
     running: false,
     lastResult: undefined,
@@ -194,6 +203,8 @@ const { actions, reducer } = createSlice({
       // the next server reports its own lock; a dialog about this one closes
       state.anchorLock = undefined;
       state.lockDialogOpen = false;
+      state.cellSettings = undefined;
+      state.cellDialogOpen = false;
       clearOrderedCollection<RtlsDevice>(state.devices);
       state.stats = { byId: {}, lastUpdatedAt: undefined };
       state.positions = { byId: {} };
@@ -240,6 +251,18 @@ const { actions, reducer } = createSlice({
 
     closeRtlsLockDialog(state) {
       state.lockDialogOpen = false;
+    },
+
+    setRtlsCellSettings(state, { payload }: PayloadAction<RtlsCellSettings>) {
+      state.cellSettings = payload;
+    },
+
+    openRtlsCellDialog(state) {
+      state.cellDialogOpen = true;
+    },
+
+    closeRtlsCellDialog(state) {
+      state.cellDialogOpen = false;
     },
 
     /** Opens the fleet-verification dialog. */
@@ -577,10 +600,12 @@ const { actions, reducer } = createSlice({
 export const {
   applyRtlsSleepResults,
   clearRtlsDevices,
+  closeRtlsCellDialog,
   closeRtlsLockDialog,
   closeRtlsOtaDialog,
   closeRtlsParamDialog,
   closeRtlsVerifyDialog,
+  openRtlsCellDialog,
   openRtlsLockDialog,
   openRtlsOtaDialog,
   openRtlsParamDialog,
@@ -600,6 +625,7 @@ export const {
   rtlsSleepTransactionStarted,
   setRtlsAnchorLock,
   setRtlsAnchors,
+  setRtlsCellSettings,
   setRtlsDevicesFromStatus,
   setRtlsOtaJob,
   updateRtlsPositions,

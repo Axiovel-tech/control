@@ -371,6 +371,8 @@
  * RTLS read-only parameter hints (keys chosen by features/rtls/param-actions.ts)
  * t("rtlsParams.sleepReadOnly")
  * t("rtlsParams.lockReadOnly")
+ * t("rtlsParams.cellReadOnly")
+ * t("rtlsParams.cellCliOnly")
  *
  * RTLS tag details toggles (keys chosen by views/rtls/DeviceStatsRow.tsx and
  * views/rtls/RtlsRolePanel.tsx)
@@ -421,6 +423,18 @@
  * t("rtlsGeometry.summary.notCalibrated")
  * t("rtlsGeometry.summary.manualOnly")
  * t("rtlsGeometry.summary.consistent")
+ *
+ * RTLS cell settings (features/rtls/CellSettingsIcon.tsx and
+ * RtlsCellSettingsDialog.tsx)
+ * t("rtlsCellSettings.state.differ")
+ * t("rtlsCellSettings.state.tx")
+ * t("rtlsCellSettings.problem.differ")
+ * t("rtlsCellSettings.problem.offline")
+ * t("rtlsCellSettings.problem.tx")
+ * t("rtlsCellSettings.problem.unknown")
+ * t("rtlsCellSettings.unlockFirst")
+ * t("rtlsCellSettings.disarmFirst")
+ * t("rtlsCellSettings.noDevices")
  *
  * RTLS health lights
  * t("rtlsHealth.all.ok")

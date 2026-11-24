@@ -11,8 +11,10 @@ import isNil from 'lodash-es/isNil';
 
 import { type AppDispatch } from '~/store/reducers';
 
+import { mapCellSettings, mapCellState } from './cell-settings';
 import {
   setRtlsAnchorLock,
+  setRtlsCellSettings,
   setRtlsAnchors,
   setRtlsDevicesFromStatus,
   setRtlsOtaJob,
@@ -30,14 +32,7 @@ import {
   type RtlsPosEstimate,
   type RtlsTwrPeer,
 } from './types';
-
-type AnyRecord = Record<string, unknown>;
-
-const toNumber = (value: unknown): number | undefined =>
-  typeof value === 'number' && Number.isFinite(value) ? value : undefined;
-
-const toString = (value: unknown): string | undefined =>
-  typeof value === 'string' ? value : undefined;
+import { type AnyRecord, isRecord, toNumber, toText } from './wire-values';
 
 /**
  * Maps the server's inter-anchor TWR list (X-RTLS-INF `twr`) into the device
@@ -79,7 +74,7 @@ const mapFlightController = (
   const { reason, state, systemId: rawSystemId } = (value ?? {}) as AnyRecord;
   const systemId = toSystemId(rawSystemId);
   if (state === 'ambiguous') {
-    return { state, systemId, reason: toString(reason) };
+    return { state, systemId, reason: toText(reason) };
   }
   if ((state === 'live' || state === 'remembered') && systemId !== undefined) {
     return { state, systemId };
@@ -106,21 +101,21 @@ export function mapRtlsDeviceStatus(
 
   const result: Omit<RtlsDevice, 'id'> = { online };
 
-  const name = toString(raw.name);
+  const name = toText(raw.name);
   if (name !== undefined) {
     result.name = name;
   }
 
-  const role = toString(raw.role);
+  const role = toText(raw.role);
   if (role !== undefined) {
     result.role = role;
   }
 
   // Always assigned: the device update merges per-field, and a stale cell
   // would name a tag's flagged anchors from the wrong anchor table.
-  result.cell = toString(raw.cell);
+  result.cell = toText(raw.cell);
 
-  const address = toString(raw.address);
+  const address = toText(raw.address);
   if (address !== undefined) {
     result.address = address;
   }
@@ -130,7 +125,7 @@ export function mapRtlsDeviceStatus(
     result.age = age;
   }
 
-  const firmwareVersion = toString(raw.firmwareVersion);
+  const firmwareVersion = toText(raw.firmwareVersion);
   if (firmwareVersion !== undefined) {
     result.firmwareVersion = firmwareVersion;
   }
@@ -145,7 +140,7 @@ export function mapRtlsDeviceStatus(
     result.paramCount = paramCount;
   }
 
-  const otaStatus = toString(raw.otaStatus);
+  const otaStatus = toText(raw.otaStatus);
   if (otaStatus !== undefined) {
     result.otaStatus = otaStatus;
   }
@@ -159,12 +154,16 @@ export function mapRtlsDeviceStatus(
   // Always assigned for the same reason: the server clears the tag's
   // flight-controller claim and the drone it names by dropping the keys, and
   // a stale pairing that outlives the snapshot would mis-attribute the tag.
-  result.uav = toString(raw.uav);
+  result.uav = toText(raw.uav);
   result.flightController = mapFlightController(raw.flightController);
 
   // Always assigned: a device that rebooted (or was rediscovered) must not
   // keep a pre-reboot measurement the server no longer reports.
   result.twr = mapTwrPeers(raw.twr);
+
+  // Always assigned: the server drops both while the device is offline
+  result.cellSettings = mapCellState(raw.cellSettings);
+  result.cellSettingsDetail = toText(raw.cellSettingsDetail);
 
   return result;
 }
@@ -203,7 +202,7 @@ export function mapRtlsAnchors(value: unknown): RtlsAnchor[] {
   const result: RtlsAnchor[] = [];
   for (const raw of value) {
     const row = (raw ?? {}) as AnyRecord;
-    const id = toString(row.id);
+    const id = toText(row.id);
     if (id === undefined) {
       continue;
     }
@@ -211,7 +210,7 @@ export function mapRtlsAnchors(value: unknown): RtlsAnchor[] {
     const ned = (row.ned ?? {}) as AnyRecord;
     result.push({
       id,
-      cell: toString(row.cell),
+      cell: toText(row.cell),
       index: toNumber(row.index),
       mac: toNumber(row.mac),
       ned: {
@@ -226,9 +225,6 @@ export function mapRtlsAnchors(value: unknown): RtlsAnchor[] {
 
   return result;
 }
-
-const isRecord = (value: unknown): value is AnyRecord =>
-  typeof value === 'object' && value !== null && !Array.isArray(value);
 
 /**
  * Maps the server's `anchorLock`, the only source of the aggregate lock.
@@ -257,6 +253,7 @@ type RtlsInformationAction = ReturnType<
   | typeof setRtlsDevicesFromStatus
   | typeof setRtlsAnchors
   | typeof setRtlsAnchorLock
+  | typeof setRtlsCellSettings
 >;
 
 /**
@@ -281,6 +278,10 @@ export function rtlsInformationActions(
   const lock = mapAnchorLock(body?.anchorLock);
   if (lock !== undefined) {
     actions.push(setRtlsAnchorLock(lock));
+  }
+  const cell = mapCellSettings(body?.cellSettings);
+  if (cell !== undefined) {
+    actions.push(setRtlsCellSettings(cell));
   }
   return actions;
 }
@@ -432,14 +433,14 @@ export function mapRtlsOtaJob(raw: AnyRecord | undefined): RtlsOtaJob {
   }
 
   return {
-    id: toString(raw.id),
-    image: toString(raw.image),
-    status: toString(raw.status),
+    id: toText(raw.id),
+    image: toText(raw.image),
+    status: toText(raw.status),
     progress: toNumber(raw.progress),
-    version: toString(raw.version),
-    error: toString(raw.error),
-    species: toString(raw.species),
-    speciesSource: toString(raw.speciesSource),
+    version: toText(raw.version),
+    error: toText(raw.error),
+    species: toText(raw.species),
+    speciesSource: toText(raw.speciesSource),
   };
 }
 
@@ -451,7 +452,7 @@ export function handleRtlsOtaMessage(
   body: AnyRecord,
   dispatch: AppDispatch
 ): void {
-  const id = toString(body?.id);
+  const id = toText(body?.id);
   if (id === undefined) {
     return;
   }

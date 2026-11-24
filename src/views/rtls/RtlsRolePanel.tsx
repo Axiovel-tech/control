@@ -44,6 +44,7 @@ import {
   geometryPillFor,
 } from '~/features/rtls/geometry-utils';
 import AnchorLockControl from '~/features/rtls/AnchorLockControl';
+import CellSettingsControl from '~/features/rtls/CellSettingsControl';
 import OverallRtlsStatusLight from '~/features/rtls/OverallRtlsStatusLight';
 import {
   getRtlsAnchorDevices,
@@ -274,6 +275,7 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
             </>
           )}
           {!tags && expandAllButton}
+          {!tags && <CellSettingsControl />}
           {!tags && <AnchorLockControl />}
         </Box>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
