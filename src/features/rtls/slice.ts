@@ -97,6 +97,14 @@ export type RtlsSliceState = {
    */
   recentSleepResults: Record<string, { sleeping: boolean; appliedAt: number }>;
 
+  /**
+   * When each anchor last accepted a sleep or wake (`Date.now()`), keyed by
+   * system id, until it reports a new powerState: an anchor that drops off
+   * the network meanwhile is rebooting into the new state, not lost
+   * (`isAnchorSwitching`).
+   */
+  anchorPowerRequests: Record<string, number>;
+
   /** Cached read-only parameter lists keyed by device id. */
   paramsByDevice: Record<string, RtlsDeviceParamsState>;
 
@@ -153,6 +161,7 @@ const initialState: RtlsSliceState = {
   otaJobs: {},
   sleepPending: {},
   recentSleepResults: {},
+  anchorPowerRequests: {},
   paramsByDevice: {},
   paramDialog: {
     open: false,
@@ -192,6 +201,7 @@ const { actions, reducer } = createSlice({
       state.otaJobs = {};
       state.sleepPending = {};
       state.recentSleepResults = {};
+      state.anchorPowerRequests = {};
       state.paramsByDevice = {};
       // an agreement snapshot describes the fleet we just dropped
       state.geometry.checking = false;
@@ -282,6 +292,14 @@ const { actions, reducer } = createSlice({
         // woken device may have aged out of the snapshot and must still be
         // guarded against the stale latch when it reappears.
         state.recentSleepResults[id] = { sleeping, appliedAt: now };
+      }
+    },
+
+    /** Records that the given anchors accepted a sleep or wake now. */
+    rtlsAnchorPowerRequested(state, { payload: ids }: PayloadAction<string[]>) {
+      const now = Date.now();
+      for (const id of ids) {
+        state.anchorPowerRequests[id] = now;
       }
     },
 
@@ -504,6 +522,15 @@ const { actions, reducer } = createSlice({
         state.geometry.lastCheck = undefined;
         state.geometry.invalidations += 1;
       }
+      // An anchor that reports a new powerState after its accepted sleep or
+      // wake is no longer switching; `stopping` only announces the reboot.
+      for (const [id, stats] of Object.entries(payload.byId)) {
+        const before = state.stats.byId[id]?.powerState;
+        const after = stats.powerState;
+        if (after !== undefined && after !== before && after !== 'stopping') {
+          delete state.anchorPowerRequests[id];
+        }
+      }
       Object.assign(state.stats.byId, payload.byId);
       // The Tags panel's "updated" clock: only tag stats move it (a device
       // whose role is not known yet counts as a tag, like on that panel)
@@ -568,6 +595,7 @@ export const {
   rtlsParamsFetchStarted,
   rtlsParamsFetchSucceeded,
   rtlsParamValueUpdated,
+  rtlsAnchorPowerRequested,
   rtlsSleepTransactionEnded,
   rtlsSleepTransactionStarted,
   setRtlsAnchorLock,
