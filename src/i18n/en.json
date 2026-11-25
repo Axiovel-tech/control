@@ -999,7 +999,7 @@
       "tx": "Different TX level"
     },
     "title": "Cell settings",
-    "txHelper": "0 = strongest",
+    "txHelper": "0 = strongest, 57 = weakest",
     "txLabel": "TX level",
     "unlockFirst": "Unlock the anchors first"
   },
