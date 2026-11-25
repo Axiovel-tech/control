@@ -23,7 +23,6 @@ jest.mock('~/features/show/selectors', () => ({
 }));
 
 import {
-  acknowledgeRtlsSurveyWarnings,
   rtlsSurveyRequested,
   setRtlsSurveySketch,
   statusQueryDelayMs,
@@ -62,18 +61,20 @@ import {
   STATUS_IDLE,
 } from './survey-recording';
 import {
+  acknowledge,
   CELL,
   createSurveyTestStore as createStore,
+  FOUR_ANCHORS,
   play,
+  reportAnchors,
   run,
   stateOf,
+  surveyOf,
   type SurveyTestStore as TestStore,
 } from './survey-test-store';
 
 // eslint-disable-next-line @typescript-eslint/unbound-method -- a jest mock, never called through `this`
 const sendMessage = jest.mocked(messageHub.sendMessage);
-
-const surveyOf = (store: TestStore) => store.getState().rtlsSurvey.survey;
 
 const pageOf = (store: TestStore) => getRtlsSurveyPage(stateOf(store), CELL);
 
@@ -176,7 +177,7 @@ describe('the requests', () => {
       },
       { timeout: 15 }
     );
-    expect(surveyOf(store)?.state).toBe('measuring');
+    expect(surveyOf(store).state).toBe('measuring');
   });
 
   test('a sketch by hand starts with its frame and placement', async () => {
@@ -228,16 +229,21 @@ describe('the requests', () => {
 
     // a commit says nothing about the sketch
     play(store, RUN.slice(1));
-    store.dispatch(acknowledgeRtlsSurveyWarnings(true));
+    acknowledge(store);
     answerWith(COMMIT_INCOMPLETE);
-    await run(store, commitRtlsSurvey(CELL));
+    await run(store, commitRtlsSurvey(CELL, surveyOf(store)));
     expect(store.getState().rtlsSurvey.fittedRequest).toBe(started);
   });
 
   test('Survey sends nothing while the guard refuses or the sketch lacks a frame', async () => {
     await run(withStandardCell({ authorized: true }), startRtlsSurvey(CELL));
-    // no sketch: no origin, no +x
-    await run(createStore(), startRtlsSurvey(CELL));
+    // no sketch, and anchors that store nothing: no origin, no +x
+    const blank = createStore();
+    reportAnchors(
+      blank,
+      FOUR_ANCHORS.map(({ id, slot }) => ({ id, slot }))
+    );
+    await run(blank, startRtlsSurvey(CELL));
     expect(sendMessage).not.toHaveBeenCalled();
   });
 
@@ -264,9 +270,9 @@ describe('the requests', () => {
   test('Commit carries the acknowledgement of the warnings, and none without warnings', async () => {
     const store = withStandardCell();
     play(store, RUN);
-    store.dispatch(acknowledgeRtlsSurveyWarnings(true));
+    acknowledge(store);
     answerWith(COMMIT_INCOMPLETE);
-    await run(store, commitRtlsSurvey(CELL));
+    await run(store, commitRtlsSurvey(CELL, surveyOf(store)));
     expect(sendMessage).toHaveBeenLastCalledWith(
       { type: 'X-RTLS-SURVEY', action: 'commit', acknowledgeWarnings: true },
       { timeout: 30 }
@@ -275,7 +281,7 @@ describe('the requests', () => {
     // a refit without warnings: nothing to acknowledge
     play(store, [REFIT]);
     answerWith(COMMIT[2]);
-    await run(store, commitRtlsSurvey(CELL));
+    await run(store, commitRtlsSurvey(CELL, surveyOf(store)));
     expect(sendMessage).toHaveBeenLastCalledWith(
       { type: 'X-RTLS-SURVEY', action: 'commit' },
       { timeout: 30 }
@@ -286,19 +292,19 @@ describe('the requests', () => {
     // a warning nobody acknowledged
     const waiting = withStandardCell();
     play(waiting, RUN);
-    await run(waiting, commitRtlsSurvey(CELL));
+    await run(waiting, commitRtlsSurvey(CELL, surveyOf(waiting)));
 
     // a block that arrived after the page drew an open commit
     const blocked = withStandardCell();
     play(blocked, RUN);
-    blocked.dispatch(acknowledgeRtlsSurveyWarnings(true));
+    acknowledge(blocked);
     play(blocked, [RUN_BLOCKED[1]]);
-    await run(blocked, commitRtlsSurvey(CELL));
+    await run(blocked, commitRtlsSurvey(CELL, surveyOf(blocked)));
 
     // a new warning beside the acknowledged one
     const warned = withStandardCell();
     play(warned, RUN);
-    warned.dispatch(acknowledgeRtlsSurveyWarnings(true));
+    acknowledge(warned);
     play(warned, [
       push({
         ...READY,
@@ -311,21 +317,21 @@ describe('the requests', () => {
         },
       }),
     ]);
-    await run(warned, commitRtlsSurvey(CELL));
+    await run(warned, commitRtlsSurvey(CELL, surveyOf(warned)));
 
     // a request still in flight
     const busy = withStandardCell();
     play(busy, RUN);
-    busy.dispatch(acknowledgeRtlsSurveyWarnings(true));
+    acknowledge(busy);
     busy.dispatch(rtlsSurveyRequested('fit'));
-    await run(busy, commitRtlsSurvey(CELL));
+    await run(busy, commitRtlsSurvey(CELL, surveyOf(busy)));
 
     // a survey that is no longer ready
     const running = withStandardCell();
     play(running, RUN);
-    running.dispatch(acknowledgeRtlsSurveyWarnings(true));
+    acknowledge(running);
     play(running, [COMMIT[0]]);
-    await run(running, commitRtlsSurvey(CELL));
+    await run(running, commitRtlsSurvey(CELL, surveyOf(running)));
 
     expect(sendMessage).not.toHaveBeenCalled();
   });
@@ -352,30 +358,32 @@ describe('the requests', () => {
   test("a second survey does not commit on the first one's acknowledgement", async () => {
     const store = withStandardCell();
     play(store, RUN);
-    store.dispatch(acknowledgeRtlsSurveyWarnings(true));
+    acknowledge(store);
 
     answerWith(RUN[0]);
     await run(store, startRtlsSurvey(CELL));
     // the same warning comes back with the new measurement
     play(store, RUN.slice(1));
     sendMessage.mockClear();
-    await run(store, commitRtlsSurvey(CELL));
+    await run(store, commitRtlsSurvey(CELL, surveyOf(store)));
     expect(sendMessage).not.toHaveBeenCalled();
   });
 
-  test('committed opens the lock dialog; incomplete does not', async () => {
+  test('a commit opens no dialog: the page shows its results first', async () => {
     const store = withStandardCell();
     play(store, RUN);
-    store.dispatch(acknowledgeRtlsSurveyWarnings(true));
+    acknowledge(store);
 
     answerWith(COMMIT_INCOMPLETE);
-    await run(store, commitRtlsSurvey(CELL));
+    await run(store, commitRtlsSurvey(CELL, surveyOf(store)));
     expect(store.getState().rtls.lockDialogOpen).toBe(false);
     expect(showNotification).not.toHaveBeenCalled();
 
     answerWith(COMMIT[2]);
-    await run(store, commitRtlsSurvey(CELL));
-    expect(store.getState().rtls.lockDialogOpen).toBe(true);
+    await run(store, commitRtlsSurvey(CELL, surveyOf(store)));
+    // the lock is offered under the results, by the page
+    expect(store.getState().rtls.lockDialogOpen).toBe(false);
+    expect(store.getState().rtlsSurvey.survey?.state).toBe('committed');
     expect(showNotification).toHaveBeenCalledWith(
       'rtlsSurvey.notification.committed'
     );
@@ -386,7 +394,7 @@ describe('the requests', () => {
       uavs: [{ id: '7', age: UAVAge.ACTIVE, errors: [] }],
     });
     play(store, RUN);
-    await run(store, commitRtlsSurvey(CELL));
+    await run(store, commitRtlsSurvey(CELL, surveyOf(store)));
     expect(sendMessage).not.toHaveBeenCalled();
   });
 

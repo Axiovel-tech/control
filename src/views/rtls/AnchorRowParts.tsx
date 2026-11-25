@@ -382,6 +382,21 @@ const wifiLine: DetailGroup = (t, stats) =>
       })
     : undefined;
 
+/** The survey the anchor advertises and its live range against the surveyed one. */
+const surveyLine: DetailGroup = (t, stats) =>
+  anyKnown(stats.surveyId, stats.rangeDeviationM)
+    ? joinKnown([
+        stats.surveyId === undefined
+          ? undefined
+          : t('rtlsSurveyHealth.anchor.survey', { id: stats.surveyId }),
+        stats.rangeDeviationM === undefined
+          ? undefined
+          : t('rtlsAnchor.value.rangeDeviation', {
+              cm: (stats.rangeDeviationM * 100).toFixed(1),
+            }),
+      ])
+    : undefined;
+
 const bootsLine: DetailGroup = (t, stats) =>
   anyKnown(stats.bootCount, stats.resetCause)
     ? t('rtlsAnchor.value.boots', {
@@ -399,6 +414,7 @@ const DETAIL_GROUPS: Array<[string, DetailGroup]> = [
   ['charging', chargingLine],
   ['input', inputLine],
   ['uwb', uwbLine],
+  ['survey', surveyLine],
   ['motion', motionLine],
   ['ethernet', ethernetLine],
   ['wifi', wifiLine],

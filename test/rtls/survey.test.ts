@@ -11,7 +11,6 @@ jest.mock('~/features/show/selectors', () => ({
 
 import { clearRtlsDevices } from '~/features/rtls/slice';
 import {
-  acknowledgeRtlsSurveyWarnings,
   anchorsLeftBehind,
   rtlsSurveyRequested,
   setRtlsSurveySketch,
@@ -41,6 +40,7 @@ import {
   STATUS_IDLE,
 } from './survey-recording';
 import {
+  acknowledge,
   CELL,
   createSurveyTestStore as createStore,
   play,
@@ -192,7 +192,7 @@ describe('the survey state over a recorded run', () => {
     });
     expect(controlsOf(store).canCommit).toBe(false);
 
-    store.dispatch(acknowledgeRtlsSurveyWarnings(true));
+    acknowledge(store);
     expect(controlsOf(store)).toMatchObject({
       canCommit: true,
       commitBlockedKey: undefined,
@@ -208,7 +208,7 @@ describe('the survey state over a recorded run', () => {
   test('a new measurement needs a fresh acknowledgement of the same warning', () => {
     const store = createStore();
     play(store, RUN);
-    store.dispatch(acknowledgeRtlsSurveyWarnings(true));
+    acknowledge(store);
     expect(acknowledgedOf(store)).toBe(true);
 
     // surveyed again without committing: the same warning comes back
@@ -224,7 +224,7 @@ describe('the survey state over a recorded run', () => {
   test('so does a refit, whatever it comes back with', () => {
     const store = createStore();
     play(store, RUN);
-    store.dispatch(acknowledgeRtlsSurveyWarnings(true));
+    acknowledge(store);
     // the same fit and the same warning again
     play(store, [answer('fit', 'fitted', READY)]);
     expect(acknowledgedOf(store)).toBe(false);
@@ -233,7 +233,7 @@ describe('the survey state over a recorded run', () => {
   test('and a fit another client asked for', () => {
     const store = createStore();
     play(store, RUN);
-    store.dispatch(acknowledgeRtlsSurveyWarnings(true));
+    acknowledge(store);
     // the same state again changes nothing
     play(store, [push(READY)]);
     expect(acknowledgedOf(store)).toBe(true);
@@ -245,7 +245,7 @@ describe('the survey state over a recorded run', () => {
   test('committing, then committed: per anchor, and who runs the new ID', () => {
     const store = createStore();
     play(store, RUN);
-    store.dispatch(acknowledgeRtlsSurveyWarnings(true));
+    acknowledge(store);
 
     play(store, COMMIT.slice(0, 2));
     expect(surveyOf(store)).toMatchObject({
@@ -284,7 +284,7 @@ describe('the survey state over a recorded run', () => {
   test('incomplete: back in ready with the anchors left behind, and Retry', () => {
     const store = createStore();
     play(store, RUN);
-    store.dispatch(acknowledgeRtlsSurveyWarnings(true));
+    acknowledge(store);
     play(store, [COMMIT_INCOMPLETE]);
 
     expect(surveyOf(store)?.state).toBe('ready');
@@ -353,7 +353,7 @@ describe('the survey state over a recorded run', () => {
   test('a commit every anchor took but one never confirmed names it, with Retry', () => {
     const store = createStore();
     play(store, RUN);
-    store.dispatch(acknowledgeRtlsSurveyWarnings(true));
+    acknowledge(store);
     play(store, [COMMIT_UNCONFIRMED]);
 
     // no write failed: who is missing is who does not run the new ID
@@ -400,7 +400,7 @@ describe('the survey state over a recorded run', () => {
       },
     ]);
 
-    store.dispatch(acknowledgeRtlsSurveyWarnings(true));
+    acknowledge(store);
     expect(controlsOf(store)).toMatchObject({
       commitOffered: true,
       canCommit: false,
@@ -418,7 +418,7 @@ describe('the survey state over a recorded run', () => {
   test('a request in flight offers nothing until it is answered', () => {
     const store = createStore();
     play(store, RUN);
-    store.dispatch(acknowledgeRtlsSurveyWarnings(true));
+    acknowledge(store);
     store.dispatch(rtlsSurveyRequested('commit'));
     expect(controlsOf(store)).toMatchObject({
       canStart: false,

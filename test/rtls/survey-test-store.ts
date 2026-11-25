@@ -9,11 +9,16 @@ import { configureStore, createSlice } from '@reduxjs/toolkit';
 import { rtlsInformationActions } from '~/features/rtls/handlers';
 import rtlsReducer from '~/features/rtls/slice';
 import surveyReducer, {
+  acknowledgeRtlsSurveyWarnings,
   handleRtlsSurveyMessage,
   rtlsSurveyAnswered,
   rtlsSurveyRequested,
+  warningsSignature,
 } from '~/features/rtls/survey';
-import { mapRtlsSurveyAnswer } from '~/features/rtls/survey-messages';
+import {
+  mapRtlsSurveyAnswer,
+  type RtlsSurvey,
+} from '~/features/rtls/survey-messages';
 import {
   type AppDispatch,
   type AppThunk,
@@ -25,13 +30,16 @@ import { type RecordedMessage } from './survey-recording';
 
 export const CELL = 'bench';
 
-/** An anchor of a test cell; online and without a stored position unless said. */
+/**
+ * An anchor of a test cell; online and without a stored position unless
+ * said. One that stores a position stores it from survey 12.
+ */
 export type TestAnchor = {
   id: number;
   slot: number;
   cell?: string;
   online?: boolean;
-  stored?: { north: number; east: number };
+  stored?: { north: number; east: number; down?: number };
 };
 
 /** The X-RTLS-INF of the given anchors, with `lockedCount` of them locked. */
@@ -54,6 +62,8 @@ export const informationOf = (anchors: TestAnchor[], lockedCount = 0) => ({
     systemId: id,
     active: online,
     ned: stored ?? null,
+    surveyId: stored === undefined ? null : 12,
+    planar: false,
   })),
   anchorLock: {
     locked: lockedCount === anchors.length,
@@ -125,8 +135,21 @@ export const reportAnchors = (
 export const stateOf = (store: SurveyTestStore): RootState =>
   store.getState() as RootState;
 
+/** The survey the store holds: what a page rendered now shows. */
+export const surveyOf = (store: SurveyTestStore): RtlsSurvey =>
+  store.getState().rtlsSurvey.survey!; // non-null: a survey was played
+
 export const run = <R>(store: SurveyTestStore, thunk: AppThunk<R>): R =>
   thunk(store.dispatch as AppDispatch, () => stateOf(store), undefined);
+
+/** Ticks "Commit anyway" for the warnings of the survey the store holds. */
+export const acknowledge = (store: SurveyTestStore): void => {
+  store.dispatch(
+    acknowledgeRtlsSurveyWarnings(
+      warningsSignature(store.getState().rtlsSurvey.survey)
+    )
+  );
+};
 
 /** Plays recorded messages into the store as the hub would deliver them. */
 export const play = (

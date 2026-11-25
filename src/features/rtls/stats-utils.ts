@@ -8,6 +8,8 @@
  */
 
 import {
+  type RtlsAnchor,
+  type RtlsDevice,
   type RtlsDeviceStats,
   type RtlsPowerState,
   RtlsUwbStatus,
@@ -164,6 +166,79 @@ export function isAnchorResting(
   return RESTING_POWER_STATES.has(state);
 }
 
+/**
+ * An anchor warns while its live range to its initiator is farther than this
+ * from the one its survey measured, metres, either sign. The firmware's own
+ * bound (rtls-link-zephyr `docs/reference/anchor-health.md`, "Range check"),
+ * which its ring shows and the server's Verify rule `anchors` applies.
+ */
+export const RANGE_DEVIATION_WARNING_M = 0.08;
+
+/** Whether an anchor's range check warns: it may stand elsewhere than surveyed. */
+export const isRangeDeviating = (stats: RtlsDeviceStats | undefined): boolean =>
+  stats?.rangeDeviationM !== undefined &&
+  Math.abs(stats.rangeDeviationM) > RANGE_DEVIATION_WARNING_M;
+
+/**
+ * Whether the survey the cell is on (`cellSurveyId`) is `planar`: every
+ * anchor that advertises it now stores a position that declared all its
+ * anchors at one height. A tag then solves on three of them. An anchor that
+ * is offline, or on another survey, has no say: no tag uses it. The server's
+ * set (its Verify rule `survey`).
+ */
+export const isSurveyPlanar = (
+  cellSurveyId: number | undefined,
+  anchors: readonly RtlsDevice[],
+  statsById: Record<string, RtlsDeviceStats | undefined>,
+  siteAnchors: readonly RtlsAnchor[]
+): boolean => {
+  const onAir = anchors.filter(({ id, online }) => {
+    const stats = statsById[id];
+    return (
+      online &&
+      stats?.surveyId !== undefined &&
+      !stats.stale &&
+      stats.surveyId === cellSurveyId
+    );
+  });
+  return (
+    onAir.length > 0 &&
+    onAir.every(
+      ({ id }) =>
+        siteAnchors.find(({ systemId }) => String(systemId) === id)?.planar ===
+        true
+    )
+  );
+};
+
+/** What a tag's position is judged by: the survey the cell is on. */
+export type RtlsTagCell = {
+  /** Its ID; absent while no anchor is on one. */
+  surveyId?: number;
+  /** Three anchors of it are enough (`isSurveyPlanar`). */
+  planar: boolean;
+};
+
+/**
+ * Whether a tag positions: it follows the survey ID of the cell and uses
+ * four anchors of it, or three when the survey is planar. This is the
+ * solver's own minimum (rtls-link-zephyr
+ * `docs/reference/anchor-geometry.md`, "Enough") and the server's rule: a
+ * tag that keeps its survey ID on fewer anchors solves nothing. `undefined`
+ * while it does not report both how many anchors it uses and how many it
+ * leaves out: what is missing is not known, and never good. Never read from
+ * the show clock, which is valid in a cell with no survey at all.
+ */
+export const isTagPositioned = (
+  stats: RtlsDeviceStats | undefined,
+  { planar, surveyId }: RtlsTagCell
+): boolean | undefined =>
+  stats?.anchorsUsed === undefined || stats.anchorsExcluded === undefined
+    ? undefined
+    : surveyId !== undefined &&
+      stats.surveyId === surveyId &&
+      stats.anchorsUsed >= (planar ? 3 : 4);
+
 /** Whether the UWB session refused to start (configuration or hardware). */
 export function isUwbStartRefused(stats: RtlsDeviceStats | undefined): boolean {
   return (
@@ -222,9 +297,8 @@ function gradeAnchorLiveness(
 /**
  * Grades a live anchor's telemetry: errors first (fault, low battery, a
  * refused UWB start), a pack below its warning level, then rest (idle), then
- * warnings (moved, radio
- * restarts, operating without a measured ranging rate, an initiator its
- * responders do not hear).
+ * warnings (moved, a range check that warns, radio restarts, operating
+ * without a measured ranging rate, an initiator its responders do not hear).
  */
 function gradeAnchorTelemetry(
   stats: RtlsDeviceStats | undefined,
@@ -249,7 +323,10 @@ function gradeAnchorTelemetry(
     operating &&
     (!isRangingByTelemetry(stats) ||
       (evidence !== undefined && evidence !== 'hearing'));
-  return stats?.moved || (stats?.radioRestarts ?? 0) > 0 || notRanging
+  return stats?.moved ||
+    isRangeDeviating(stats) ||
+    (stats?.radioRestarts ?? 0) > 0 ||
+    notRanging
     ? RtlsHealth.WARNING
     : RtlsHealth.OK;
 }

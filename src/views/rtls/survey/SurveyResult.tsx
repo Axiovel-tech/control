@@ -1,26 +1,35 @@
 /**
- * @file The fit of a survey in numbers: its rms and worst pair, the server's
- * notes, each anchor's quality and every pair with its residual.
+ * @file The fit of a survey in numbers: each anchor's position and quality
+ * and, folded away under it, every pair with its residual. The fit's
+ * summary, the gate and the commit are shown above, with the run.
  */
 
-import Alert from '@mui/material/Alert';
+import ExpandLess from '@mui/icons-material/ExpandLess';
+import ExpandMore from '@mui/icons-material/ExpandMore';
 import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
+import Collapse from '@mui/material/Collapse';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
-import Typography from '@mui/material/Typography';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { residualLevel } from '~/features/rtls/survey';
+import { pairsNeedALook, residualLevel } from '~/features/rtls/survey';
 import {
   type RtlsSurvey,
   type RtlsSurveyDirection,
   type RtlsSurveyFit,
 } from '~/features/rtls/survey-messages';
 
-import { type AnchorNamer, centimetres, metres } from './labels';
+import {
+  type AnchorNamer,
+  centimetres,
+  metres,
+  signedCentimetres,
+} from './labels';
 
 const LEVEL_COLORS = {
   ok: 'success.main',
@@ -41,6 +50,11 @@ const AnchorTable = ({
   nameOf: AnchorNamer;
 }) => {
   const { t } = useTranslation();
+  // only a server whose height groups are "about the same height" says how
+  // far each anchor stands from its group
+  const offsets = Object.values(fit.anchors).some(
+    ({ heightOffsetM }) => heightOffsetM !== undefined
+  );
   return (
     <Table size='small' data-testid='rtls-survey-anchors-fit'>
       <TableHead>
@@ -49,6 +63,11 @@ const AnchorTable = ({
           <TableCell align='right'>{t('rtlsSurvey.result.x')}</TableCell>
           <TableCell align='right'>{t('rtlsSurvey.result.y')}</TableCell>
           <TableCell align='right'>{t('rtlsSurvey.result.z')}</TableCell>
+          {offsets && (
+            <TableCell align='right'>
+              {t('rtlsSurvey.result.heightOffset')}
+            </TableCell>
+          )}
           <TableCell align='right'>{t('rtlsSurvey.result.links')}</TableCell>
           <TableCell align='right'>{t('rtlsSurvey.result.rms')}</TableCell>
           <TableCell align='right'>{t('rtlsSurvey.result.worst')}</TableCell>
@@ -67,6 +86,14 @@ const AnchorTable = ({
                 <TableCell align='right'>{metres(anchor.x)}</TableCell>
                 <TableCell align='right'>{metres(anchor.y)}</TableCell>
                 <TableCell align='right'>{metres(anchor.z)}</TableCell>
+                {offsets && (
+                  <TableCell
+                    align='right'
+                    data-testid={`rtls-survey-offset-${id}`}
+                  >
+                    {signedCentimetres(anchor.heightOffsetM)}
+                  </TableCell>
+                )}
                 <TableCell align='right'>{anchor.links ?? '—'}</TableCell>
                 <TableCell align='right'>
                   {centimetres(anchor.residualRmsM)}
@@ -153,6 +180,8 @@ const SurveyResult = ({
 }) => {
   const { t } = useTranslation();
   const { fit, pairs } = survey;
+  // one row per pair: open only while a pair is past a bound
+  const [pairsOpen, setPairsOpen] = useState(() => pairsNeedALook(survey));
   if (fit === undefined) {
     return null;
   }
@@ -161,26 +190,29 @@ const SurveyResult = ({
       data-testid='rtls-survey-result'
       sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}
     >
-      <Typography variant='body2'>
-        {t('rtlsSurvey.result.summary', {
-          rms: centimetres(fit.rmsM),
-          worst: centimetres(fit.worstM),
-        })}
-        {fit.planar && ` ${t('rtlsSurvey.result.planar')}`}
-      </Typography>
-      {fit.notes.length > 0 && (
-        <Alert severity='info' data-testid='rtls-survey-notes'>
-          {fit.notes.map((note) => (
-            <div key={note}>{note}</div>
-          ))}
-        </Alert>
-      )}
       <Box sx={{ overflowX: 'auto' }}>
         <AnchorTable fit={fit} order={survey.anchors} nameOf={nameOf} />
       </Box>
-      <Box sx={{ overflowX: 'auto' }}>
-        <PairTable pairs={pairs} nameOf={nameOf} />
+      <Box>
+        <Button
+          data-testid='rtls-survey-pairs-toggle'
+          size='small'
+          color='inherit'
+          aria-expanded={pairsOpen}
+          endIcon={pairsOpen ? <ExpandLess /> : <ExpandMore />}
+          onClick={() => setPairsOpen(!pairsOpen)}
+        >
+          {t('rtlsSurvey.result.pairs', {
+            count: pairs.length,
+            worst: centimetres(fit.worstM),
+          })}
+        </Button>
       </Box>
+      <Collapse unmountOnExit in={pairsOpen}>
+        <Box sx={{ overflowX: 'auto' }}>
+          <PairTable pairs={pairs} nameOf={nameOf} />
+        </Box>
+      </Collapse>
     </Box>
   );
 };

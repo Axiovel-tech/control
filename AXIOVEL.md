@@ -8,16 +8,16 @@ here.
 
 ## What the fork adds
 
-| Area                                                                            | Code                                            | Contract (AxioStack `contracts/`)                                      |
-| ------------------------------------------------------------------------------- | ----------------------------------------------- | ---------------------------------------------------------------------- |
-| RTLS tags and anchors panels, fleet health, anchor health and manual sleep/wake | `src/features/rtls/`, `src/views/rtls/`         | `rtls-fleet-health.md`, `rtls-geometry-stats.md`, `rtls-client-api.md` |
-| Anchor lock: lock/unlock, frozen anchor actions, show step                      | `src/features/rtls/`, `src/views/show-control/` | `rtls-client-api.md` (`X-RTLS-LOCK`, `anchorLock`)                     |
-| Cell settings: ranging rate and anchor TX level for the whole cell              | `src/features/rtls/`                            | `rtls-client-api.md` (`X-RTLS-CELL`, `cellSettings`)                   |
-| Anchor survey: sketch, run, fit, commit gate, commit and lock                   | `src/features/rtls/`, `src/views/rtls/`         | `X-RTLS-SURVEY` (rtls-link-zephyr#390 until the contract has it)       |
-| `.gdm` shows: load, preview, upload gate                                        | `src/features/show/gdm/`                        | `gdm-format.md`, `show-artifacts.md`                                   |
-| Show music on the server's player                                               | `src/features/show-audio/`                      | `show-timing.md`                                                       |
-| ArduPilot flight-firmware update                                                | `src/features/firmware-update/`                 | none; the server's `X-AP-OTA` handler is the other half                |
-| In-app E2E bridge                                                               | `src/e2e/` (see its README)                     | `control-e2e-bridge.md`                                                |
+| Area                                                                                                  | Code                                            | Contract (AxioStack `contracts/`)                                                           |
+| ----------------------------------------------------------------------------------------------------- | ----------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| RTLS tags and anchors panels, fleet health, anchor health and manual sleep/wake                       | `src/features/rtls/`, `src/views/rtls/`         | `rtls-fleet-health.md`, `rtls-client-api.md`                                                |
+| Anchor lock: lock/unlock, frozen anchor actions, show step                                            | `src/features/rtls/`, `src/views/show-control/` | `rtls-client-api.md` (`X-RTLS-LOCK`, `anchorLock`)                                          |
+| Cell settings: ranging rate and anchor TX level for the whole cell                                    | `src/features/rtls/`                            | `rtls-client-api.md` (`X-RTLS-CELL`, `cellSettings`)                                        |
+| Anchor survey: sketch, run, fit, commit gate, commit, then the lock; survey state of anchors and tags | `src/features/rtls/`, `src/views/rtls/`         | `rtls-client-api.md` (`X-RTLS-SURVEY`, `survey` in `X-RTLS-INF`), `rtls-anchor-geometry.md` |
+| `.gdm` shows: load, preview, upload gate                                                              | `src/features/show/gdm/`                        | `gdm-format.md`, `show-artifacts.md`                                                        |
+| Show music on the server's player                                                                     | `src/features/show-audio/`                      | `show-timing.md`                                                                            |
+| ArduPilot flight-firmware update                                                                      | `src/features/firmware-update/`                 | none; the server's `X-AP-OTA` handler is the other half                                     |
+| In-app E2E bridge                                                                                     | `src/e2e/` (see its README)                     | `control-e2e-bridge.md`                                                                     |
 
 ## Rules
 
@@ -26,10 +26,13 @@ here.
 - Keep upstream-owned files close to upstream so merges stay cheap. Fork notes
   go in this file or next to fork code, never in `CHANGELOG.md`; upstream's
   `AGENTS.md` carries only the pointer to this file.
-- The GUI never writes anchor geometry. Tags fit the cell themselves; the GUI
-  only shows the fit and the fleet agreement verdict. The survey page keeps
-  to it: the server ranges, fits and writes the anchors' positions, at the
-  operator's Commit; Control sends the sketch and shows the server's state.
+- The anchors own the geometry: each stores its position and a survey ID and
+  advertises them, and a tag builds its table from the air. The GUI never
+  writes a position: the server ranges, fits and writes the anchors'
+  positions, at the operator's Commit; Control sends the sketch and shows the
+  server's state. A tag keeps no anchor list and no per-anchor bias, so
+  Control shows, edits and requires none; the anchors a tag's masks name come
+  from the table its own telemetry reports.
 - The ground only monitors devices and sends the operator's explicit commands;
   nothing in Control acts on a device by itself. Sleeping anchors always asks
   first, and `SLEEP` is never written from the parameter dialog.

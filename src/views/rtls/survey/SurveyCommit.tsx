@@ -1,7 +1,9 @@
 /**
- * @file The commit of the survey page: Commit and lock (Retry once a commit
- * left anchors behind), why it is unavailable, what each anchor answered and
- * which already run the new survey ID, and the way to the lock dialog.
+ * @file The commit of the survey page: Commit (Retry once a commit left
+ * anchors behind), why it is unavailable, what each anchor answered and
+ * which already run the new survey ID, and then, under those results, the
+ * offer to lock the anchors. The lock dialog opens only from that offer, so
+ * it never covers what the commit came to.
  */
 
 import Alert from '@mui/material/Alert';
@@ -54,7 +56,19 @@ const CommitResults = ({
           {t('rtlsSurvey.commit.surveyId', { id: commit.surveyId })}
         </Typography>
       )}
-      <ul style={{ margin: 0, paddingLeft: 20 }}>
+      {/* one short entry per anchor, side by side: eight lines would push
+       * the lock offer out of sight */}
+      <Box
+        component='ul'
+        sx={{
+          m: 0,
+          p: 0,
+          listStyle: 'none',
+          display: 'flex',
+          flexWrap: 'wrap',
+          columnGap: 2,
+        }}
+      >
         {Object.entries(commit.results).map(([id, { detail, written }]) => (
           <li key={id} data-written={written}>
             <Typography
@@ -73,7 +87,7 @@ const CommitResults = ({
             </Typography>
           </li>
         ))}
-      </ul>
+      </Box>
     </Box>
   );
 };
@@ -141,7 +155,8 @@ const SurveyCommit = ({
             locked ? undefined : (
               <Button
                 data-testid='rtls-survey-lock'
-                color='inherit'
+                color='success'
+                variant='contained'
                 size='small'
                 onClick={onLock}
               >
@@ -150,7 +165,11 @@ const SurveyCommit = ({
             )
           }
         >
-          {t('rtlsSurvey.commit.committed')}
+          {t(
+            locked
+              ? 'rtlsSurvey.commit.committedLocked'
+              : 'rtlsSurvey.commit.committed'
+          )}
         </Alert>
       )}
     </Box>

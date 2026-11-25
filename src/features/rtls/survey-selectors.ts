@@ -19,6 +19,7 @@ import {
   getRtlsAnchorLock,
   getRtlsAnchors,
   getRtlsDeviceDisplayName,
+  getRtlsStatsById,
 } from './selectors';
 import { type RtlsSurveySliceState, surveyRefusalKey } from './survey';
 import { type RtlsSurveyPage, surveyPage } from './survey-page';
@@ -32,18 +33,42 @@ export const getRtlsSurveyState: AppSelector<RtlsSurveySliceState> = (state) =>
   state.rtlsSurvey;
 
 /**
+ * Selector that returns the ids of the anchors a survey of their cell must
+ * include, as one string: the stats it is read from arrive every second, and
+ * the page must not be worked out again unless the answer changes. The rule
+ * is the server's: an online anchor must be in the group unless it reports
+ * a power state other than operating. One that reports none yet must, and
+ * so must one whose stats are stale: what it reported last says nothing now.
+ */
+const getOperatingAnchorKey: AppSelector<string> = createSelector(
+  getRtlsAnchorDevices,
+  getRtlsStatsById,
+  (devices, statsById) =>
+    devices
+      .filter(({ id, online }) => {
+        const stats = statsById[id];
+        const state = stats?.stale ? undefined : stats?.powerState;
+        return online && (state === undefined || state === 'operating');
+      })
+      .map(({ id }) => id)
+      .join(',')
+);
+
+/**
  * Selector that returns every anchor the server lists, online or not, in
  * slot order, with what the survey page shows of it: its slot and cell and
- * the position it stores, from the site anchor list, and its live range to
- * A0.
+ * the position and survey ID it stores, from the site anchor list, its live
+ * range to A0, and whether a survey of its cell must include it.
  */
 const getKnownAnchors: AppSelector<
   Array<RtlsSurveyAnchor & { online: boolean }>
 > = createSelector(
   getRtlsAnchorDevices,
   getRtlsAnchors,
-  (devices, siteAnchors) => {
+  getOperatingAnchorKey,
+  (devices, siteAnchors, operatingKey) => {
     const initiatorMacs = getInitiatorMacs(siteAnchors);
+    const operating = new Set(operatingKey.split(','));
     return inSlotOrder(
       devices.map((device) => {
         const site = siteAnchors.find(
@@ -59,8 +84,11 @@ const getKnownAnchors: AppSelector<
             site !== undefined && hasPlottableAnchor(site)
               ? { north: site.ned.north, east: site.ned.east }
               : undefined,
+          storedDown: site?.ned?.down,
+          surveyId: site?.surveyId,
           initiatorDistanceM: findInitiatorPeer(device.twr, initiatorMacs)
             ?.distanceM,
+          operating: operating.has(device.id),
         };
       })
     );

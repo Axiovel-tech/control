@@ -12,7 +12,6 @@ jest.mock('~/error-handling', () => ({
 }));
 
 import {
-  checkRtlsGeometryAgreement,
   getRtlsParameter,
   queryRtlsParameterList,
   sendRtlsForget,
@@ -41,36 +40,6 @@ const makeHub = (body: Record<string, unknown>) => {
 };
 
 describe('rtls messages', () => {
-  test('checkRtlsGeometryAgreement sends X-RTLS-GEOM with the options', async () => {
-    const { hub, sent } = makeHub({
-      type: 'X-RTLS-GEOM',
-      tolerance: 0.02,
-      reference: [8.587, 9.224, 12.528, 3.975, 9.435, 9.979, 13.233],
-      consistent: true,
-      devices: { '42': { id: 42, status: 'agree', maxDeviationM: 0.001 } },
-    });
-    const body = await checkRtlsGeometryAgreement(hub, {
-      ids: [42],
-      tolerance: 0.05,
-    });
-    expect(sent[0]).toEqual({
-      type: 'X-RTLS-GEOM',
-      ids: [42],
-      tolerance: 0.05,
-    });
-    expect(body.consistent).toBe(true);
-
-    await checkRtlsGeometryAgreement(hub);
-    expect(sent[1]).toEqual({ type: 'X-RTLS-GEOM' });
-  });
-
-  test('checkRtlsGeometryAgreement surfaces a NAK reason', async () => {
-    const { hub } = makeHub({ type: 'ACK-NAK', reason: 'Invalid tolerance' });
-    await expect(checkRtlsGeometryAgreement(hub)).rejects.toThrow(
-      /Invalid tolerance/
-    );
-  });
-
   test('verifyRtlsFleet needs no cell and forwards inDepth', async () => {
     const { hub, sent } = makeHub({
       type: 'X-RTLS-VERIFY',

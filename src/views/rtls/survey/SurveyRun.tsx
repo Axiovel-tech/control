@@ -22,6 +22,8 @@ type SurveyRunProps = {
   survey?: RtlsSurvey;
   controls: RtlsSurveyControls;
   outcome?: RtlsSurveyOutcome;
+  /** The operating anchors left out, which is why Survey is refused. */
+  leftOut: string[];
   /** What the operator should know about the sketch (i18n keys). */
   hintKeys: string[];
   /** The sketch moved on since the fit on screen. */
@@ -31,6 +33,9 @@ type SurveyRunProps = {
   onCancel: () => void;
   onRefit: () => void;
 };
+
+/** The server's reason for refusing a request made of an older revision. */
+const STALE_REASON = 'stale';
 
 /** The results that took effect: they need no line of their own. */
 const QUIET_RESULTS = new Set(['started', 'cancelled', 'fitted', 'committed']);
@@ -75,10 +80,71 @@ const Progress = ({
   return null;
 };
 
+/**
+ * What the run and the last request came to: the word on a refit, the step
+ * of a run, how a run ended, and a request that did not take effect.
+ */
+const RunNotices = ({
+  survey,
+  outcome,
+  sketchChanged,
+  nameOf,
+}: Pick<SurveyRunProps, 'survey' | 'outcome' | 'sketchChanged' | 'nameOf'>) => {
+  const { t } = useTranslation();
+  return (
+    <>
+      {outcome?.result === 'fitted' &&
+        survey?.state === 'ready' &&
+        !sketchChanged && (
+          <Typography
+            data-testid='rtls-survey-refitted'
+            data-unchanged={outcome.unchanged === true}
+            variant='body2'
+            color='textSecondary'
+          >
+            {t(
+              outcome.unchanged
+                ? 'rtlsSurvey.run.refitUnchanged'
+                : 'rtlsSurvey.run.refitChanged'
+            )}
+          </Typography>
+        )}
+      {survey !== undefined && <Progress survey={survey} nameOf={nameOf} />}
+      {survey?.state === 'idle' && survey.reason !== undefined && (
+        <Alert severity='info' data-testid='rtls-survey-ended'>
+          {survey.reason === 'cancelled'
+            ? t('rtlsSurvey.run.cancelled')
+            : survey.reason}
+        </Alert>
+      )}
+      {survey?.state === 'failed' && (
+        <Alert severity='error' data-testid='rtls-survey-failed'>
+          {survey.reason ?? t('rtlsSurvey.run.failed')}
+        </Alert>
+      )}
+      {outcome !== undefined && !QUIET_RESULTS.has(outcome.result) && (
+        <Alert
+          severity={outcome.result === 'warnings' ? 'warning' : 'error'}
+          data-testid='rtls-survey-outcome'
+          data-result={outcome.result}
+        >
+          {
+            // the server's word for a commit of a survey that moved on
+            outcome.reason === STALE_REASON
+              ? t('rtlsSurvey.outcome.stale')
+              : (outcome.reason ?? t(`rtlsSurvey.outcome.${outcome.result}`))
+          }
+        </Alert>
+      )}
+    </>
+  );
+};
+
 const SurveyRun = ({
   survey,
   controls,
   outcome,
+  leftOut,
   hintKeys,
   sketchChanged,
   nameOf,
@@ -89,7 +155,9 @@ const SurveyRun = ({
   const { t } = useTranslation();
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+      <Box
+        sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}
+      >
         <Button
           data-testid='rtls-survey-start'
           size='small'
@@ -132,7 +200,10 @@ const SurveyRun = ({
           variant='body2'
           color='warning.main'
         >
-          {t(controls.startBlockedKey)}
+          {t(controls.startBlockedKey, {
+            count: leftOut.length,
+            anchors: leftOut.map(nameOf).join(', '),
+          })}
         </Typography>
       )}
       {hintKeys.map((key) => (
@@ -145,28 +216,12 @@ const SurveyRun = ({
           {t('rtlsSurvey.run.sketchChanged')}
         </Typography>
       )}
-      {survey !== undefined && <Progress survey={survey} nameOf={nameOf} />}
-      {survey?.state === 'idle' && survey.reason !== undefined && (
-        <Alert severity='info' data-testid='rtls-survey-ended'>
-          {survey.reason === 'cancelled'
-            ? t('rtlsSurvey.run.cancelled')
-            : survey.reason}
-        </Alert>
-      )}
-      {survey?.state === 'failed' && (
-        <Alert severity='error' data-testid='rtls-survey-failed'>
-          {survey.reason ?? t('rtlsSurvey.run.failed')}
-        </Alert>
-      )}
-      {outcome !== undefined && !QUIET_RESULTS.has(outcome.result) && (
-        <Alert
-          severity={outcome.result === 'warnings' ? 'warning' : 'error'}
-          data-testid='rtls-survey-outcome'
-          data-result={outcome.result}
-        >
-          {outcome.reason ?? t(`rtlsSurvey.outcome.${outcome.result}`)}
-        </Alert>
-      )}
+      <RunNotices
+        survey={survey}
+        outcome={outcome}
+        sketchChanged={sketchChanged}
+        nameOf={nameOf}
+      />
     </Box>
   );
 };

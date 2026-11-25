@@ -37,7 +37,7 @@ describe('getRtlsParamMetadata', () => {
 
   test('resolves every anchor-slot parameter through the pattern tier', () => {
     for (let slot = 0; slot <= 7; slot++) {
-      for (const field of ['X', 'Y', 'Z', 'MAC', 'BIAS_M']) {
+      for (const field of ['X', 'Y', 'Z', 'MAC']) {
         const metadata = getRtlsParamMetadata(`UWB_AN${slot}_${field}`);
         expect(metadata).toBeDefined();
         expect(metadata!.description).toContain(`${slot}`);
@@ -45,14 +45,31 @@ describe('getRtlsParamMetadata', () => {
     }
 
     expect(getRtlsParamMetadata('UWB_AN3_X')).toMatchObject({
-      description: 'Anchor 3 north position in the site frame',
+      description: 'Simulation: true north position of anchor 3',
       unit: 'm',
     });
-    expect(getRtlsParamMetadata('UWB_AN7_BIAS_M')).toMatchObject({
-      unit: 'm',
-      min: -5,
-      max: 5,
-    });
+  });
+
+  test('no device holds a per-anchor bias, and a tag no anchor table', () => {
+    for (let slot = 0; slot <= 7; slot++) {
+      expect(getRtlsParamMetadata(`UWB_AN${slot}_BIAS_M`)).toBeUndefined();
+    }
+    // what is left describes an anchor's own table, not a tag's
+    expect(getRtlsParamMetadata('UWB_AN_COUNT')?.description).toMatch(
+      /a tag keeps no anchor table/
+    );
+    expect(getRtlsParamMetadata('UWB_AN2_MAC')?.description).toMatch(
+      /this anchor's table/
+    );
+    expect(getRtlsParamMetadata('UWB_GEOM_MODE')).toBeUndefined();
+    expect(getRtlsParamMetadata('UWB_GEOM_RECAL')).toBeUndefined();
+  });
+
+  test("describes the anchor's surveyed position", () => {
+    expect(getRtlsParamMetadata('UWB_LOC')?.description).toMatch(/survey ID/);
+    expect(getRtlsParamMetadata('UWB_SURVEY')?.description).toMatch(
+      /nothing is stored/
+    );
   });
 
   test('does not match out-of-range or malformed anchor-slot names', () => {

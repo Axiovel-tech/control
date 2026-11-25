@@ -1,0 +1,402 @@
+import { beforeEach, describe, expect, jest, test } from '@jest/globals';
+import { type ComponentType } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { Provider } from 'react-redux';
+
+// Thin mocks for the heavy import chains, as in survey-actions.test.ts.
+jest.mock('~/message-hub', () => ({
+  __esModule: true,
+  default: { sendMessage: jest.fn() },
+}));
+jest.mock('~/features/snackbar/actions', () => ({
+  __esModule: true,
+  showError: jest.fn(),
+  showNotification: jest.fn(),
+}));
+jest.mock('~/error-handling', () => ({
+  errorToString: (error: unknown): string => String(error),
+}));
+jest.mock('~/features/show/selectors', () => ({
+  __esModule: true,
+  isShowAuthorizedToStartLocally: (state: {
+    show: { start: { authorized: boolean } };
+  }): boolean => state.show.start.authorized,
+}));
+jest.mock('~/features/servers/selectors', () => ({
+  __esModule: true,
+  isConnected: (): boolean => false,
+}));
+// the panel's commit button as last rendered
+let mockCommit: () => void = () => undefined;
+jest.mock('~/views/rtls/survey/SurveyCommit', () => {
+  const actual = jest.requireActual<{
+    default: ComponentType<{ onCommit: () => void }>;
+  }>('~/views/rtls/survey/SurveyCommit');
+  return {
+    __esModule: true,
+    default: (props: { onCommit: () => void }) => {
+      mockCommit = props.onCommit;
+      return <actual.default {...props} />;
+    },
+  };
+});
+jest.mock('react-i18next', () => ({
+  useTranslation: () => ({ t: (key: string): string => key }),
+}));
+
+import { updateRtlsStats } from '~/features/rtls/slice';
+import { setRtlsSurveySketch } from '~/features/rtls/survey';
+import {
+  commitRtlsSurvey,
+  startRtlsSurvey,
+} from '~/features/rtls/survey-actions';
+import { getRtlsSurveyPage } from '~/features/rtls/survey-selectors';
+import {
+  type RtlsSurveySketch,
+  standardCellSketch,
+  withAnchorGroup,
+  withAnchorIncluded,
+  withAnchorMoved,
+  withGroupAdded,
+  withOrigin,
+  withXAxis,
+} from '~/features/rtls/survey-sketch';
+import messageHub from '~/message-hub';
+import RtlsSurveyPanel from '~/views/rtls/RtlsSurveyPanel';
+import SurveyCommit from '~/views/rtls/survey/SurveyCommit';
+
+import { reply } from './rtls-test-store';
+import { COMMIT, push, READY } from './survey-recording';
+import {
+  acknowledge,
+  CELL,
+  createSurveyTestStore,
+  FOUR_ANCHORS,
+  play,
+  reportAnchors,
+  run,
+  stateOf,
+  surveyOf,
+  type SurveyTestStore,
+} from './survey-test-store';
+
+// eslint-disable-next-line @typescript-eslint/unbound-method -- a jest mock, never called through `this`
+const sendMessage = jest.mocked(messageHub.sendMessage);
+
+beforeEach(() => {
+  sendMessage.mockReset();
+});
+
+const noop = (): void => undefined;
+
+const pageOf = (store: SurveyTestStore) =>
+  getRtlsSurveyPage(stateOf(store), CELL);
+
+const setSketch = (store: SurveyTestStore, sketch: RtlsSurveySketch): void => {
+  store.dispatch(setRtlsSurveySketch({ cell: CELL, sketch }));
+};
+
+/** A store whose cell was laid out with "Standard cell". */
+const withStandardCell = (): SurveyTestStore => {
+  const store = createSurveyTestStore();
+  setSketch(store, standardCellSketch(pageOf(store).anchors));
+  return store;
+};
+
+/** The recorded fit of the standard cell, as the server echoes it. */
+const ready = (revision: number, extra: Record<string, unknown> = {}) =>
+  push({ ...READY, frame: { preset: 'two-tiers' }, revision, ...extra });
+
+/** The standard cell surveyed as revision 7, its warnings acknowledged. */
+const committable = (): SurveyTestStore => {
+  const store = withStandardCell();
+  play(store, [ready(7)]);
+  acknowledge(store);
+  return store;
+};
+
+describe('C1. a sketch that cannot be sent is a changed sketch', () => {
+  test('the origin chosen as the +x anchor takes Commit away', async () => {
+    const store = committable();
+    expect(pageOf(store).controls.canCommit).toBe(true);
+
+    setSketch(store, withXAxis(pageOf(store).sketch, '101'));
+
+    const page = pageOf(store);
+    expect(page.refitTarget).toBeUndefined();
+    expect(page.sketchChanged).toBe(true);
+    expect(page.controls.canCommit).toBe(false);
+    expect(page.controls.canRefit).toBe(false);
+
+    await run(store, commitRtlsSurvey(CELL, surveyOf(store)));
+    expect(sendMessage).not.toHaveBeenCalled();
+  });
+
+  test('and the button says what the sketch lacks', () => {
+    const store = committable();
+    setSketch(store, withXAxis(pageOf(store).sketch, '101'));
+    const page = pageOf(store);
+    const markup = renderToStaticMarkup(
+      <SurveyCommit
+        survey={page.survey!} // non-null: the fit is held
+        controls={page.controls}
+        offline={[]}
+        locked={false}
+        nameOf={(id) => id}
+        onCommit={noop}
+        onLock={noop}
+      />
+    );
+    expect(markup).toContain('rtlsSurvey.problem.sameAnchor');
+  });
+});
+
+describe('C2. a commit is of the survey the button was rendered with', () => {
+  const renderPanel = (store: SurveyTestStore): string =>
+    renderToStaticMarkup(
+      <Provider store={store}>
+        <RtlsSurveyPanel />
+      </Provider>
+    );
+  const OTHER_FIT = { ...(READY.fit as object), rmsM: 0.012 };
+  const NO_WARNINGS = { blocked: [], warnings: [] };
+
+  test('a notification between the render and the click does not change it', () => {
+    const store = withStandardCell();
+    play(store, [ready(7, { gate: NO_WARNINGS })]);
+    renderPanel(store);
+    const commitAsRendered = mockCommit;
+    // another browser's refit: this one never showed it
+    play(store, [ready(8, { fit: OTHER_FIT, gate: NO_WARNINGS })]);
+    expect(pageOf(store).controls.canCommit).toBe(true);
+    sendMessage.mockResolvedValue(reply(COMMIT[2].body));
+
+    commitAsRendered();
+
+    // the server refuses it as stale
+    expect(sendMessage.mock.calls.at(-1)?.[0]).toMatchObject({
+      action: 'commit',
+      revision: 7,
+    });
+  });
+
+  test('without revisions the replaced fit is not committed at all', async () => {
+    const store = withStandardCell();
+    play(store, [push({ ...READY, gate: NO_WARNINGS })]);
+    const shown = surveyOf(store);
+    play(store, [push({ ...READY, fit: OTHER_FIT, gate: NO_WARNINGS })]);
+    expect(pageOf(store).controls.canCommit).toBe(true);
+
+    await run(store, commitRtlsSurvey(CELL, shown));
+
+    expect(sendMessage).not.toHaveBeenCalled();
+  });
+});
+
+describe('C3. a height group of one is no group, on both sides', () => {
+  /** A frame as the server echoes it: without its groups of one. */
+  const asEchoed = (heightGroups: number[][]): number[][] =>
+    heightGroups.filter((group) => group.length > 1);
+
+  test('the standard cell of five anchors is not refitted for ever', () => {
+    const store = createSurveyTestStore();
+    reportAnchors(store, [...FOUR_ANCHORS, { id: 105, slot: 4 }]);
+    setSketch(store, standardCellSketch(pageOf(store).anchors));
+    play(store, [
+      ready(7, {
+        anchors: [101, 102, 103, 104, 105],
+        frame: {
+          origin: 101,
+          xAxis: 102,
+          heightGroups: asEchoed([[101, 102, 103, 104], [105]]),
+          upper: [105],
+          yPositive: 103,
+        },
+      }),
+    ]);
+    const page = pageOf(store);
+    expect(page.refitTarget?.frame).toEqual({ preset: 'two-tiers' });
+    expect(page.sketchChanged).toBe(false);
+  });
+
+  test('nor is a group the operator made for one anchor', () => {
+    const store = withStandardCell();
+    const { sketch } = pageOf(store);
+    setSketch(
+      store,
+      withAnchorGroup(withGroupAdded(sketch, 'Stage'), '104', 2)
+    );
+    play(store, [ready(7)]);
+    expect(pageOf(store).sketchChanged).toBe(true);
+
+    // what the refit sends, as the server echoes it with the new fit
+    const { frame, placement } = pageOf(store).refitTarget!; // non-null: valid
+    expect(frame).toMatchObject({ heightGroups: [[101, 102, 103], [104]] });
+    play(store, [
+      ready(8, {
+        frame: { ...frame, heightGroups: asEchoed([[101, 102, 103], [104]]) },
+        placement,
+      }),
+    ]);
+    expect(pageOf(store).sketchChanged).toBe(false);
+  });
+});
+
+describe('C4. the retry of a partial commit is of the committed fit', () => {
+  /** 104 missed the commit; what 101..103 took is now what they store. */
+  const partial = (): SurveyTestStore => {
+    const store = createSurveyTestStore();
+    setSketch(
+      store,
+      withAnchorMoved(pageOf(store).sketch, '104', { north: 4, east: 3 })
+    );
+    play(store, [ready(6)]);
+    const { frame, placement } = pageOf(store).refitTarget!; // non-null: valid
+    const held = { frame, placement, gate: { blocked: [], warnings: [] } };
+    play(store, [ready(7, held)]);
+    expect(pageOf(store).controls.canCommit).toBe(true);
+    play(store, [
+      ready(8, {
+        ...held,
+        commit: {
+          surveyId: 13,
+          results: {
+            '101': { written: 'changed' },
+            '102': { written: 'changed' },
+            '103': { written: 'changed' },
+            '104': { written: 'failed', detail: 'no answer' },
+          },
+          running: [101, 102, 103],
+        },
+      }),
+    ]);
+    reportAnchors(store, [
+      { id: 101, slot: 0, stored: { north: 0, east: 0 } },
+      { id: 102, slot: 1, stored: { north: 4.2, east: 0 } },
+      { id: 103, slot: 2, stored: { north: 0.1, east: 3.3 } },
+      { id: 104, slot: 3 },
+    ]);
+    return store;
+  };
+
+  test('Retry stays on offer, and sends the commit again', async () => {
+    const store = partial();
+    const { controls, sketchChanged } = pageOf(store);
+    expect(controls.retry).toBe(true);
+    expect(sketchChanged).toBe(false);
+    expect(controls.commitBlockedKey).toBeUndefined();
+    expect(controls.canCommit).toBe(true);
+
+    sendMessage.mockResolvedValueOnce(reply(COMMIT[2].body));
+    await run(store, commitRtlsSurvey(CELL, surveyOf(store)));
+    expect(sendMessage.mock.calls.at(-1)?.[0]).toMatchObject({
+      action: 'commit',
+      revision: 8,
+    });
+  });
+
+  test('a sketch that moved on still takes a first commit away', () => {
+    const store = partial();
+    play(store, [ready(9, { gate: { blocked: [], warnings: [] } })]);
+    expect(pageOf(store).controls.retry).toBe(false);
+    expect(pageOf(store).sketchChanged).toBe(true);
+    expect(pageOf(store).controls.canCommit).toBe(false);
+  });
+});
+
+describe('C5. the frame can be laid on the anchors Survey again takes', () => {
+  /** 101..103 were measured and went to sleep; 105..107 woke up since. */
+  const awakeSince = (): SurveyTestStore => {
+    const store = withStandardCell();
+    play(store, [ready(7, { anchors: [101, 102, 103] })]);
+    reportAnchors(store, [
+      ...FOUR_ANCHORS.slice(0, 3),
+      { id: 105, slot: 4 },
+      { id: 106, slot: 5 },
+      { id: 107, slot: 6 },
+    ]);
+    store.dispatch(
+      updateRtlsStats({
+        byId: Object.fromEntries(
+          ['101', '102', '103'].map((id) => [id, { id, powerState: 'asleep' }])
+        ),
+      })
+    );
+    return store;
+  };
+
+  /** Whether the controls of an anchor's row are usable, box first. */
+  const usable = (store: SurveyTestStore, id: string): boolean[] => {
+    const markup = renderToStaticMarkup(
+      <Provider store={store}>
+        <RtlsSurveyPanel />
+      </Provider>
+    );
+    const start = markup.indexOf(`data-testid="rtls-survey-row-${id}"`);
+    const row = markup.slice(start, markup.indexOf('</tr>', start));
+    return [...row.matchAll(/<input[^>]*>/g)].map(
+      ([input]) => !input.includes('disabled')
+    );
+  };
+
+  test('its radios and height group are usable, its box stays fixed', () => {
+    const store = awakeSince();
+    expect(pageOf(store).groupFixed).toBe(true);
+    expect(pageOf(store).nextGroup).toEqual(['105', '106', '107']);
+    for (const id of ['105', '106', '107']) {
+      expect(usable(store, id)).toEqual([false, true, true, true]);
+    }
+    // the measured ones too: a refit is laid on them
+    expect(usable(store, '101')).toEqual([false, true, true, true]);
+  });
+
+  test('an anchor of neither group stays out', () => {
+    const store = awakeSince();
+    store.dispatch(
+      updateRtlsStats({ byId: { '107': { id: '107', powerState: 'asleep' } } })
+    );
+    expect(usable(store, '107')).toEqual([false, false, false, false]);
+  });
+
+  test('Survey again can be sent once its frame is chosen', async () => {
+    const store = awakeSince();
+    expect(pageOf(store).controls.canStart).toBe(false);
+
+    setSketch(store, withOrigin(pageOf(store).sketch, '105'));
+    setSketch(store, withXAxis(pageOf(store).sketch, '106'));
+    expect(pageOf(store).controls.canStart).toBe(true);
+
+    sendMessage.mockResolvedValueOnce(reply(COMMIT[2].body));
+    await run(store, startRtlsSurvey(CELL));
+    expect(sendMessage.mock.calls.at(-1)?.[0]).toMatchObject({
+      action: 'start',
+      anchors: [105, 106, 107],
+      frame: { origin: 105, xAxis: 106 },
+    });
+  });
+});
+
+describe('C6. a stale power state is no power state', () => {
+  const withFault = (stale: boolean): SurveyTestStore => {
+    const store = withStandardCell();
+    setSketch(store, withAnchorIncluded(pageOf(store).sketch, '104', false));
+    store.dispatch(
+      updateRtlsStats({
+        byId: { '104': { id: '104', powerState: 'fault', stale } },
+      })
+    );
+    return store;
+  };
+
+  test('an online anchor with stale stats must be in the group', () => {
+    const page = pageOf(withFault(true));
+    expect(page.leftOut).toEqual(['104']);
+    expect(page.controls.canStart).toBe(false);
+  });
+
+  test('one that reports a fault now may be left out', () => {
+    const page = pageOf(withFault(false));
+    expect(page.leftOut).toEqual([]);
+    expect(page.controls.canStart).toBe(true);
+  });
+});

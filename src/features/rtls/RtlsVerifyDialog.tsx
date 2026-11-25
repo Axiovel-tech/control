@@ -44,6 +44,20 @@ const statusOfRule = (rule: RtlsVerifyRule): Status => {
   return rule.severity === 'error' ? Status.ERROR : Status.WARNING;
 };
 
+/**
+ * A rule's detail, one finding per line: a failing rule joins its findings
+ * with "; " (an anchor off the survey, a tag that leaves one out, ...).
+ */
+const RuleDetail = ({ detail }: { detail: string }) => (
+  <>
+    {detail.split('; ').map((finding, index) => (
+      <span key={index} style={{ display: 'block' }}>
+        {finding}
+      </span>
+    ))}
+  </>
+);
+
 const RtlsVerifyDialog = () => {
   const dispatch: AppDispatch = useDispatch();
   const open = useSelector(isRtlsVerifyDialogOpen);
@@ -89,7 +103,13 @@ const RtlsVerifyDialog = () => {
         {result && (
           <List dense>
             {result.rules.map((rule) => (
-              <ListItem key={rule.id} disableGutters alignItems='flex-start'>
+              <ListItem
+                key={rule.id}
+                disableGutters
+                alignItems='flex-start'
+                data-testid={`rtls-verify-rule-${rule.id}`}
+                data-status={rule.status}
+              >
                 <ListItemIcon sx={{ minWidth: 32, mt: 0.5 }}>
                   <StatusLight status={statusOfRule(rule)} />
                 </ListItemIcon>
@@ -100,7 +120,12 @@ const RtlsVerifyDialog = () => {
                       ? ' (warning)'
                       : '')
                   }
-                  secondary={rule.detail}
+                  secondary={
+                    // a rule may come without a detail: no lines then
+                    typeof rule.detail === 'string' ? (
+                      <RuleDetail detail={rule.detail} />
+                    ) : undefined
+                  }
                 />
               </ListItem>
             ))}

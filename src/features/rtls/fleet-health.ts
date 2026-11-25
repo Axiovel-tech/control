@@ -1,6 +1,7 @@
 /**
- * @file Pre-show fleet health: each drone's IMU temperature and its tag's UWB
- * and WiFi link quality, graded into green / yellow / red zones.
+ * @file Pre-show fleet health: each drone's IMU temperature, the anchors its
+ * tag positions on and its tag's UWB and WiFi link quality, graded into
+ * green / yellow / red zones.
  *
  * The zones only inform the operator; nothing is gated on them. The evidence
  * behind every threshold is in AxioStack `contracts/rtls-fleet-health.md`;
@@ -9,9 +10,13 @@
 
 import { Status, statusToPriority } from '~/components/semantics';
 
-import { type I18nText } from './geometry-utils';
-import { countAnchorsInMask } from './stats-utils';
-import { type RtlsAnchor, type RtlsDeviceStats } from './types';
+import { type I18nText } from './i18n-text';
+import {
+  countAnchorsInMask,
+  isTagPositioned,
+  type RtlsTagCell,
+} from './stats-utils';
+import { type RtlsDeviceStats } from './types';
 
 /** Where the yellow and the red zone of a metric start. */
 type Zones = { yellow: number; red: number };
@@ -36,6 +41,14 @@ export const UWB_RSSI_ZONES_DBM: Zones = { yellow: -85, red: -90 };
  * three flagged anchors moved simulated fixes by 0.36 m.
  */
 export const NLOS_ANCHOR_ZONES: Zones = { yellow: 1, red: 3 };
+
+/**
+ * A tag's live initiator ranges against the distances between the advertised
+ * positions, metres: green under 5 cm, red above 10 cm, where the server's
+ * Verify rule `anchors` warns. The stat includes the survey fit's own
+ * residual on each pair, so it starts above zero with nothing moved.
+ */
+export const SURVEY_DRIFT_ZONES_M: Zones = { yellow: 0.05, red: 0.1 };
 
 /**
  * Anchors the solver is outvoting. The other seven absorb one wrong range; at
@@ -69,6 +82,8 @@ const zoneBelow = (value: number, zones: Zones): Status =>
 export type FleetHealthMetricId =
   | 'imuTemperature'
   | 'uwbRssi'
+  | 'anchorSet'
+  | 'surveyDrift'
   | 'nlosAnchors'
   | 'outvotedAnchors'
   | 'residual'
@@ -88,57 +103,16 @@ const UNKNOWN: Omit<FleetHealthMetric, 'id'> = {
 };
 
 /**
- * Anchor names by firmware slot, the bit index of a tag's anchor masks. A
- * slot without a name is shown as `AN<slot>`.
+ * Anchor names by row of the tag's own table (`tableRowNames`), the bit
+ * index of its anchor masks. A row without a name is shown as `row <i>`.
  */
 export type AnchorNames = ReadonlyArray<string | undefined>;
 
-/**
- * Each cell's anchor names: the system id of the live anchor device holding
- * the slot's MAC, which is also the last number of its static IP, else the
- * MAC as the inter-anchor TWR lines show it.
- */
-export const nameCellAnchors = (
-  anchors: RtlsAnchor[]
-): Map<string, AnchorNames> => {
-  const byCell = new Map<string, Array<string | undefined>>();
-  for (const { cell, index, mac, systemId } of anchors) {
-    if (cell === undefined || index === undefined) {
-      continue;
-    }
-
-    const names = byCell.get(cell) ?? [];
-    names[index] =
-      systemId === undefined
-        ? mac === undefined
-          ? undefined
-          : `0x${mac.toString(16).padStart(4, '0').toUpperCase()}`
-        : String(systemId);
-    byCell.set(cell, names);
-  }
-
-  return byCell;
-};
-
-/**
- * The names for a tag's anchor masks: those of its cell, or of the only cell
- * when the server does not say which one the tag is in.
- */
-export const anchorNamesForCell = (
-  byCell: Map<string, AnchorNames>,
-  cell: string | undefined
-): AnchorNames | undefined =>
-  cell === undefined
-    ? byCell.size === 1
-      ? [...byCell.values()][0]
-      : undefined
-    : byCell.get(cell);
-
-/** Anchor names of a mask, lowest slot first, for interpolation. */
+/** Anchor names of a mask, lowest row first, for interpolation. */
 const describeMaskAnchors = (mask: number, names?: AnchorNames): string =>
   Array.from({ length: 8 }, (_, index) => index)
     .filter((index) => (mask & (1 << index)) !== 0)
-    .map((index) => names?.[index] ?? `AN${index}`)
+    .map((index) => names?.[index] ?? `row ${index}`)
     .join(', ');
 
 const describeImuTemperature = (
@@ -189,6 +163,79 @@ const describeAnchorMask = (
   };
 };
 
+/**
+ * The anchors the tag positions on: green while it leaves none out, yellow
+ * while it leaves one or more out, red while it follows no survey or another
+ * one than the cell. Unknown while the tag does not report both how many
+ * anchors it uses and how many it leaves out.
+ */
+const describeAnchorSet = (
+  stats: RtlsDeviceStats,
+  cell: RtlsTagCell
+): Omit<FleetHealthMetric, 'id'> => {
+  const positioned = isTagPositioned(stats, cell);
+  if (
+    stats.anchorsUsed === undefined ||
+    stats.anchorsExcluded === undefined ||
+    positioned === undefined
+  ) {
+    return UNKNOWN;
+  }
+  if (!positioned) {
+    return {
+      status: Status.ERROR,
+      text:
+        stats.surveyId === undefined
+          ? { key: 'rtlsFleetHealth.value.noSurvey' }
+          : stats.surveyId !== cell.surveyId
+            ? {
+                key: 'rtlsFleetHealth.value.otherSurvey',
+                values: { id: stats.surveyId },
+              }
+            : {
+                key: 'rtlsFleetHealth.value.tooFewAnchors',
+                values: { count: stats.anchorsUsed },
+              },
+    };
+  }
+  const excluded = stats.anchorsExcluded;
+  return excluded > 0
+    ? {
+        status: Status.WARNING,
+        text: {
+          key: 'rtlsFleetHealth.value.anchorsExcluded',
+          values: { count: excluded },
+        },
+      }
+    : {
+        status: Status.SUCCESS,
+        text: { key: 'rtlsFleetHealth.value.anchorsClear' },
+      };
+};
+
+/** The drift of a positioning tag; red only above the bound, as the server. */
+const describeSurveyDrift = (
+  stats: RtlsDeviceStats,
+  cell: RtlsTagCell
+): Omit<FleetHealthMetric, 'id'> => {
+  const drift = stats.surveyDriftM;
+  if (drift === undefined || !isTagPositioned(stats, cell)) {
+    return UNKNOWN;
+  }
+  return {
+    status:
+      drift > SURVEY_DRIFT_ZONES_M.red
+        ? Status.ERROR
+        : drift >= SURVEY_DRIFT_ZONES_M.yellow
+          ? Status.WARNING
+          : Status.SUCCESS,
+    text: {
+      key: 'rtlsFleetHealth.value.surveyDrift',
+      values: { drift: (drift * 100).toFixed(1) },
+    },
+  };
+};
+
 const describeWifi = (
   stats: RtlsDeviceStats
 ): Omit<FleetHealthMetric, 'id'> => {
@@ -219,11 +266,13 @@ const describeWifi = (
 /**
  * The fleet-health metrics of one tag's drone, in display order; a metric
  * the firmware or the drone does not report is present with `Status.OFF`.
- * `anchorNames` names the anchors of the tag's cell in its anchor masks.
+ * `anchorNames` names the rows of the tag's table in its anchor masks;
+ * `cell` is the survey it must position on.
  */
 export const describeFleetHealth = (
   stats: RtlsDeviceStats | undefined,
-  anchorNames?: AnchorNames
+  anchorNames: AnchorNames | undefined,
+  cell: RtlsTagCell
 ): FleetHealthMetric[] => {
   if (!stats) {
     return [];
@@ -247,6 +296,8 @@ export const describeFleetHealth = (
             },
           }),
     },
+    { id: 'anchorSet', ...describeAnchorSet(stats, cell) },
+    { id: 'surveyDrift', ...describeSurveyDrift(stats, cell) },
     {
       id: 'nlosAnchors',
       ...describeAnchorMask(stats.nlosMask, NLOS_ANCHOR_ZONES, anchorNames),
@@ -293,21 +344,24 @@ export const getWorstFleetHealthMetric = (
 
 /** A drone's zone: that of its worst known metric, `Status.OFF` if none. */
 export const getFleetHealthStatus = (
-  stats: RtlsDeviceStats | undefined
+  stats: RtlsDeviceStats | undefined,
+  cell: RtlsTagCell
 ): Status =>
-  getWorstFleetHealthMetric(describeFleetHealth(stats))?.status ?? Status.OFF;
+  getWorstFleetHealthMetric(describeFleetHealth(stats, undefined, cell))
+    ?.status ?? Status.OFF;
 
 /**
  * The fleet summary: how many drones are green, yellow and red, in the color
  * of the worst one. Drones without any known metric are not counted.
  */
 export const summarizeFleetHealth = (
-  statsList: Array<RtlsDeviceStats | undefined>
+  statsList: Array<RtlsDeviceStats | undefined>,
+  cell: RtlsTagCell
 ): { status: Status; text: I18nText } => {
   const counts = { ok: 0, warning: 0, error: 0 };
   let status = Status.OFF;
   for (const stats of statsList) {
-    const worst = getFleetHealthStatus(stats);
+    const worst = getFleetHealthStatus(stats, cell);
     if (worst === Status.SUCCESS) {
       counts.ok++;
     } else if (worst === Status.WARNING) {

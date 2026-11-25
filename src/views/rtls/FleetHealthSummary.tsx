@@ -22,6 +22,7 @@ import {
   summarizeFleetHealth,
 } from '~/features/rtls/fleet-health';
 import { getRtlsDeviceDisplayName } from '~/features/rtls/selectors';
+import { type RtlsTagCell } from '~/features/rtls/stats-utils';
 import { type RtlsDevice, type RtlsDeviceStats } from '~/features/rtls/types';
 
 /**
@@ -37,6 +38,8 @@ const currentStats = (
 type FleetHealthSummaryProps = {
   devices: RtlsDevice[];
   statsById: Record<string, RtlsDeviceStats | undefined>;
+  /** What a tag's position is judged by. */
+  cell: RtlsTagCell;
   /** Called with the device id of the drone picked in the popup. */
   onSelect: (id: string) => void;
 };
@@ -44,6 +47,7 @@ type FleetHealthSummaryProps = {
 const FleetHealthSummary = ({
   devices,
   statsById,
+  cell,
   onSelect,
 }: FleetHealthSummaryProps) => {
   const { t } = useTranslation();
@@ -51,9 +55,10 @@ const FleetHealthSummary = ({
   const summary = useMemo(
     () =>
       summarizeFleetHealth(
-        devices.map((device) => currentStats(device, statsById[device.id]))
+        devices.map((device) => currentStats(device, statsById[device.id])),
+        cell
       ),
-    [devices, statsById]
+    [cell, devices, statsById]
   );
   // only computed while the popup is open
   const drones = useMemo(
@@ -62,7 +67,11 @@ const FleetHealthSummary = ({
         ? []
         : devices.map((device) => {
             const worst = getWorstFleetHealthMetric(
-              describeFleetHealth(currentStats(device, statsById[device.id]))
+              describeFleetHealth(
+                currentStats(device, statsById[device.id]),
+                undefined,
+                cell
+              )
             );
             const name = getRtlsDeviceDisplayName(device);
             const absence = device.sleeping
@@ -86,7 +95,7 @@ const FleetHealthSummary = ({
                   : name,
             };
           }),
-    [anchorElement, devices, statsById, t]
+    [anchorElement, cell, devices, statsById, t]
   );
 
   return (

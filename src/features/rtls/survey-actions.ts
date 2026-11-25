@@ -11,11 +11,12 @@ import i18n from '~/i18n';
 import messageHub from '~/message-hub';
 import { type AppThunk } from '~/store/reducers';
 
-import { openRtlsLockDialog } from './slice';
 import {
   rtlsSurveyAnswered,
   rtlsSurveyRequested,
   rtlsSurveyRequestFailed,
+  sameFit,
+  setRtlsSurveySketch,
 } from './survey';
 import {
   frameTransform,
@@ -24,6 +25,7 @@ import {
 } from './survey-frame';
 import {
   mapRtlsSurveyAnswer,
+  type RtlsSurvey,
   type RtlsSurveyAction,
   type RtlsSurveyAnswer,
 } from './survey-messages';
@@ -78,13 +80,19 @@ const request =
     members: AnyRecord = {},
     remembered?: RtlsSurveyRememberedFit
   ): AppThunk<Promise<RtlsSurveyAnswer | undefined>> =>
-  async (dispatch) => {
+  async (dispatch, getState) => {
     if (action !== 'status') {
       dispatch(rtlsSurveyRequested(action));
     }
+    // a status reply is too old when a state object arrives while it is
+    // under way
+    const heldAtRequest =
+      action === 'status' ? (getState().rtlsSurvey.held ?? 0) : undefined;
     try {
       const answer = await sendRtlsSurvey(action, members);
-      dispatch(rtlsSurveyAnswered({ answer, request: remembered }));
+      dispatch(
+        rtlsSurveyAnswered({ answer, request: remembered, heldAtRequest })
+      );
       return answer;
     } catch (error) {
       dispatch(
@@ -116,12 +124,15 @@ export const queryRtlsSurvey =
 export const startRtlsSurvey =
   (cell: string): AppThunk<Promise<void>> =>
   async (dispatch, getState) => {
-    const { anchors, controls, sketch, startTarget } = getRtlsSurveyPage(
-      getState(),
-      cell
-    );
+    const { anchors, controls, sketch, sketchRestored, startTarget } =
+      getRtlsSurveyPage(getState(), cell);
     if (!controls.canStart || startTarget === undefined) {
       return;
+    }
+    if (sketchRestored) {
+      // the run this frame was taken from ends with the new one: from here
+      // on it is this client's own sketch
+      dispatch(setRtlsSurveySketch({ cell, sketch }));
     }
     await dispatch(
       request('start', startTarget, {
@@ -170,24 +181,35 @@ export const refitRtlsSurvey =
   };
 
 /**
- * Commits the cell's held fit, with the acknowledgement of the warnings now
- * shown, and opens the lock dialog once every anchor took it. Sends nothing
- * unless the page offers the commit at this moment: a block, a warning not
- * acknowledged, another cell's survey or a request still in flight may have
- * reached the store after the click.
+ * Commits the cell's fit, with the acknowledgement of its warnings and the
+ * `revision` of the survey the button was rendered with (`shown`): the
+ * server commits only the survey the operator looked at, and refuses any
+ * other as `stale`, whatever reached the store before the click did. The
+ * page then shows what each anchor answered and offers the lock;
+ * no dialog opens over the results. Sends nothing unless the page offers the
+ * commit at this moment: a block, a warning not acknowledged, another cell's
+ * survey or a request still in flight may have reached the store after the
+ * click.
  */
 export const commitRtlsSurvey =
-  (cell: string): AppThunk<Promise<void>> =>
+  (cell: string, shown: RtlsSurvey): AppThunk<Promise<void>> =>
   async (dispatch, getState) => {
-    const { acknowledged, controls } = getRtlsSurveyPage(getState(), cell);
-    if (!controls.canCommit) {
+    const { acknowledged, controls, survey } = getRtlsSurveyPage(
+      getState(),
+      cell
+    );
+    // a server that does not count revisions yet cannot tell another fit
+    const replaced = shown.revision === undefined && !sameFit(survey, shown);
+    if (!controls.canCommit || replaced) {
       return;
     }
     const answer = await dispatch(
-      request('commit', acknowledged ? { acknowledgeWarnings: true } : {})
+      request('commit', {
+        ...(acknowledged ? { acknowledgeWarnings: true } : {}),
+        ...(shown.revision === undefined ? {} : { revision: shown.revision }),
+      })
     );
     if (answer?.result === 'committed') {
       showNotification(i18n.t('rtlsSurvey.notification.committed'));
-      dispatch(openRtlsLockDialog());
     }
   };

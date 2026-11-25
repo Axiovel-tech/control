@@ -17,7 +17,7 @@ import {
   type RtlsAnchorLock,
   type RtlsDevice,
   type RtlsDeviceStats,
-  type RtlsGeometryAgreement,
+  type RtlsCellSurvey,
   type RtlsVerifyResult,
   type RtlsOtaJob,
   type RtlsParam,
@@ -70,8 +70,15 @@ export type RtlsSliceState = {
     byId: Record<string, RtlsPosEstimate>;
   };
 
-  /** Site-level anchor list from X-RTLS-INF (configured cell geometry). */
+  /** Site-level anchor list from X-RTLS-INF: every known anchor device. */
   anchors: RtlsAnchor[];
+
+  /**
+   * The survey the cell is on, from X-RTLS-INF only; `undefined` while the
+   * server has reported none (a server whose tags still fit the cell
+   * themselves).
+   */
+  cellSurvey?: RtlsCellSurvey;
 
   /** Last known OTA job per device, keyed by system id. */
   otaJobs: Record<string, RtlsOtaJob>;
@@ -121,16 +128,6 @@ export type RtlsSliceState = {
     deviceId?: string;
   };
 
-  /** Fleet geometry-agreement state (X-RTLS-GEOM check). The tags fit
-   * the cell themselves; the client only verifies they agree. */
-  geometry: {
-    checking: boolean;
-    lastCheck?: RtlsGeometryAgreement;
-    /** Counts every time the slice voided a verdict (tag set changed, a
-     * tag rebooted): the tags panel re-checks whenever it moves. */
-    invalidations: number;
-  };
-
   /**
    * The server's anchor lock, from X-RTLS-INF only; `undefined` while the
    * server has not reported one (a server without the lock feature).
@@ -165,6 +162,7 @@ const initialState: RtlsSliceState = {
     byId: {},
   },
   anchors: [],
+  cellSurvey: undefined,
   otaJobs: {},
   sleepPending: {},
   recentSleepResults: {},
@@ -177,11 +175,6 @@ const initialState: RtlsSliceState = {
   otaDialog: {
     open: false,
     deviceId: undefined,
-  },
-  geometry: {
-    checking: false,
-    lastCheck: undefined,
-    invalidations: 0,
   },
   anchorLock: undefined,
   lockDialogOpen: false,
@@ -209,14 +202,12 @@ const { actions, reducer } = createSlice({
       state.stats = { byId: {}, lastUpdatedAt: undefined };
       state.positions = { byId: {} };
       state.anchors = [];
+      state.cellSurvey = undefined;
       state.otaJobs = {};
       state.sleepPending = {};
       state.recentSleepResults = {};
       state.anchorPowerRequests = {};
       state.paramsByDevice = {};
-      // an agreement snapshot describes the fleet we just dropped
-      state.geometry.checking = false;
-      state.geometry.lastCheck = undefined;
       state.verify.running = false;
       state.verify.lastResult = undefined;
     },
@@ -273,25 +264,6 @@ const { actions, reducer } = createSlice({
     /** Closes the fleet-verification dialog. */
     closeRtlsVerifyDialog(state) {
       state.verify.dialogOpen = false;
-    },
-
-    /** An X-RTLS-GEOM agreement check left the client. */
-    rtlsGeometryCheckStarted(state) {
-      state.geometry.checking = true;
-    },
-
-    /** An X-RTLS-GEOM check failed or was NAKed. */
-    rtlsGeometryCheckFailed(state) {
-      state.geometry.checking = false;
-    },
-
-    /** An X-RTLS-GEOM check completed; stores the fleet verdict. */
-    rtlsGeometryCheckSucceeded(
-      state,
-      { payload }: PayloadAction<RtlsGeometryAgreement>
-    ) {
-      state.geometry.checking = false;
-      state.geometry.lastCheck = payload;
     },
 
     /**
@@ -438,47 +410,6 @@ const { actions, reducer } = createSlice({
     ) {
       const ids = Object.keys(payload);
 
-      // An agreement snapshot certifies a specific TAG fleet: when the tag
-      // ID set changes (a tag joined or left), the certification is void —
-      // keeping a green "consistent" verdict over a fleet it never saw
-      // would be a false pre-flight pass. Anchors are not graded, so an
-      // anchor joining or leaving keeps the verdict (the tags panel
-      // re-checks on tag-set changes only). The generation counter moves
-      // even without a cached verdict: a check in flight compares it to
-      // drop an answer that describes the fleet before the event.
-      //
-      // The same tag definition as getRtlsTagDevices (every device that
-      // is not an anchor, unknown roles included), so the verdict is
-      // voided exactly when the panel's automatic re-check fires.
-      const tagIds = (collection: {
-        order: string[];
-        byId: Record<string, { role?: string }>;
-      }): string =>
-        collection.order
-          .filter(
-            (id) => !isAnchorRole(classifyRole(collection.byId[id]?.role))
-          )
-          .sort()
-          .join(',');
-      const before = tagIds(state.devices);
-      const after = tagIds({
-        order: ids,
-        byId: payload as Record<string, { role?: string }>,
-      });
-      // A tag that rebooted (uptime went backwards) fits its geometry
-      // again at boot: the old verdict no longer describes it.
-      const rebooted = ids.some((id) => {
-        const uptime = payload[id]?.uptimeMs;
-        const previous = state.devices.byId[id]?.uptimeMs;
-        return (
-          uptime !== undefined && previous !== undefined && uptime < previous
-        );
-      });
-      if (before !== after || rebooted) {
-        state.geometry.lastCheck = undefined;
-        state.geometry.invalidations += 1;
-      }
-
       // Drop devices that are no longer present in the snapshot, along with
       // their now-stale stats and OTA jobs. Device disappearance is the single
       // source of truth for pruning stats (the per-device stats broadcasts
@@ -534,17 +465,6 @@ const { actions, reducer } = createSlice({
         lastUpdatedAt?: number;
       }>
     ) {
-      // A tag whose fit state changed (it started or finished a
-      // recalibration) is no longer what the last verdict described.
-      const refitted = Object.entries(payload.byId).some(([id, stats]) => {
-        const before = state.stats.byId[id]?.geometryState;
-        const after = stats.geometryState;
-        return before !== undefined && after !== undefined && before !== after;
-      });
-      if (refitted) {
-        state.geometry.lastCheck = undefined;
-        state.geometry.invalidations += 1;
-      }
       // An anchor that reports a new powerState after its accepted sleep or
       // wake is no longer switching; `stopping` only announces the reboot.
       for (const [id, stats] of Object.entries(payload.byId)) {
@@ -587,6 +507,11 @@ const { actions, reducer } = createSlice({
       state.anchors = payload;
     },
 
+    /** Replaces the cell's survey with the server's latest report. */
+    setRtlsCellSurvey(state, { payload }: PayloadAction<RtlsCellSurvey>) {
+      state.cellSurvey = payload;
+    },
+
     /** Records the latest OTA job state for a single device. */
     setRtlsOtaJob(
       state,
@@ -613,9 +538,6 @@ export const {
   rtlsVerifyFailed,
   rtlsVerifyStarted,
   rtlsVerifySucceeded,
-  rtlsGeometryCheckFailed,
-  rtlsGeometryCheckStarted,
-  rtlsGeometryCheckSucceeded,
   rtlsParamsFetchFailed,
   rtlsParamsFetchStarted,
   rtlsParamsFetchSucceeded,
@@ -626,6 +548,7 @@ export const {
   setRtlsAnchorLock,
   setRtlsAnchors,
   setRtlsCellSettings,
+  setRtlsCellSurvey,
   setRtlsDevicesFromStatus,
   setRtlsOtaJob,
   updateRtlsPositions,

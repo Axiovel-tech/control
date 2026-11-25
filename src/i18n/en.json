@@ -838,11 +838,14 @@
       "moved": "moved",
       "radioRestarts_one": "{{count}} radio restart",
       "radioRestarts_other": "{{count}} radio restarts",
+      "rangeCloser": "{{cm}} cm closer",
+      "rangeFarther": "{{cm}} cm farther",
       "uwbHardware": "UWB hardware failure",
       "uwbRefused": "UWB start refused"
     },
     "badgeTooltip": {
-      "radioRestarts": "Since boot, after a fault or silence"
+      "radioRestarts": "Since boot, after a fault or silence",
+      "rangeDeviation": "Its live range to the initiator differs from the one its survey measured: it may stand elsewhere. Survey the cell again."
     },
     "chargeBlock": {
       "charger": "charger not ready",
@@ -874,6 +877,7 @@
       "input": "Power input",
       "motion": "Motion",
       "peer": "TWR peer {{mac}}",
+      "survey": "Survey",
       "uwb": "UWB",
       "wifi": "Wi-Fi"
     },
@@ -941,6 +945,7 @@
       "ethernetDown": "link down · {{drops}} drops",
       "ethernetUp": "link up · {{drops}} drops",
       "motion": "tilt {{tilt}} · {{knocks}} knocks",
+      "rangeDeviation": "range {{cm}} cm from surveyed",
       "restarts": "{{- status}} · {{restarts}} radio restarts",
       "samples_one": "{{count}} sample",
       "samples_other": "{{count}} samples",
@@ -1026,10 +1031,12 @@
   },
   "rtlsFleetHealth": {
     "label": {
+      "anchorSet": "Anchor set",
       "imuTemperature": "IMU temperature",
       "nlosAnchors": "NLOS anchors",
       "outvotedAnchors": "Outvoted anchors",
       "residual": "Fit residual",
+      "surveyDrift": "Survey drift",
       "uwbRssi": "UWB signal",
       "wifi": "WiFi"
     },
@@ -1044,13 +1051,20 @@
       "none": "health: no data"
     },
     "tooltip": {
-      "summary": "Pre-show health of the drones: IMU temperature, UWB signal, NLOS and outvoted anchors, fit residual and WiFi. Informative only; nothing is blocked. Click to see each drone."
+      "summary": "Pre-show health of the drones: IMU temperature, UWB signal, the anchors each tag positions on and its drift from their survey, NLOS and outvoted anchors, fit residual and WiFi. Informative only; nothing is blocked. Click to see each drone."
     },
     "value": {
       "anchors": "{{anchors}}",
       "anchorsClear": "none",
+      "anchorsExcluded_one": "{{count}} left out",
+      "anchorsExcluded_other": "{{count}} left out",
       "imuTemperature": "{{- temperatures}} °C",
+      "noSurvey": "no survey in use",
+      "otherSurvey": "survey {{id}}, not the cell's",
       "residual": "{{residual}} cm",
+      "surveyDrift": "{{drift}} cm",
+      "tooFewAnchors_one": "{{count}} anchor used, too few",
+      "tooFewAnchors_other": "{{count}} anchors used, too few",
       "unknown": "—",
       "uwbRssi": "{{rssi}} dBm (weakest anchor)",
       "wifi": "{{rssi}} dBm",
@@ -1068,66 +1082,6 @@
       "ambiguous": "Flight controller identity is ambiguous",
       "live": "Flight controller MAVLink system ID {{id}}, heard by the tag",
       "remembered": "Flight controller MAVLink system ID {{id}}, remembered by the tag; the flight controller is not connected (asleep or powered off)"
-    }
-  },
-  "rtlsGeometry": {
-    "checkFailed": "Geometry check failed: {{detail}}",
-    "fit": {
-      "calibratedDrift": "calibrated · residual {{residual}} cm · drift {{drift}} cm",
-      "calibratedPending": "calibrated · fit metrics pending"
-    },
-    "pill": {
-      "calibrated": "geometry calibrated",
-      "calibrating": "geometry calibrating",
-      "deviates": "geometry deviates",
-      "deviatesDeviation": "geometry deviates ({{deviation}} cm)",
-      "drifted": "geometry drifted",
-      "driftedDrift": "geometry drifted ({{drift}} cm)",
-      "failed": "geometry rejected",
-      "frame": "geometry frame differs",
-      "manual": "geometry manual",
-      "ok": "geometry ok",
-      "okDeviation": "geometry ok ({{deviation}} cm)",
-      "stale": "geometry stale",
-      "unknown": "geometry unknown"
-    },
-    "recalibrate": {
-      "noTags": "No awake tags to recalibrate",
-      "refused_one": "Recalibration refused by {{count}} tag (an armed tag refuses it): {{detail}}",
-      "refused_other": "Recalibration refused by {{count}} tags (an armed tag refuses it): {{detail}}",
-      "started_one": "Recalibrating {{count}} tag; the geometry check follows once it has fitted",
-      "started_other": "Recalibrating {{count}} tags; the geometry check follows once they have fitted"
-    },
-    "rejected": {
-      "anchorCount": "fit rejected · anchor count not 4 or 8",
-      "anchorMissing": "fit rejected · an anchor was never heard",
-      "none": "fit rejected · retrying",
-      "notRectangle": "fit rejected · not a rectangle (anchors swapped?)",
-      "sideTooShort": "fit rejected · a side or the height is under 1 m",
-      "topPlane": "fit rejected · top plane not above the bottom one (anchors swapped?)"
-    },
-    "state": {
-      "calibrated": "calibrated",
-      "calibrating": "calibrating",
-      "failed": "fit rejected",
-      "manual": "manual table",
-      "none": "no geometry",
-      "waiting": "waiting for anchors"
-    },
-    "summary": {
-      "consistent": "geometry consistent ({{count}} agree, max {{deviation}} cm)",
-      "deviating": "geometry: {{count}} deviating",
-      "drifted": "geometry: {{count}} drifted",
-      "manualOnly": "geometry: {{count}} manual",
-      "noTags": "geometry: no tags",
-      "notCalibrated": "geometry: {{count}} not calibrated",
-      "unchecked": "geometry unchecked"
-    },
-    "telemetry": "Geometry",
-    "tooltip": {
-      "check": "Check that every drone fitted the same cell geometry",
-      "recalibrate": "Recalibrate the cell geometry on every awake tag at once (a few seconds without positioning; refused while armed)",
-      "verify": "Run the fleet pre-flight verification"
     }
   },
   "rtlsHealth": {
@@ -1162,7 +1116,8 @@
     "cellCliOnly": "Cell-wide: set it on every device with the CLI",
     "cellReadOnly": "Set in Cell settings",
     "lockReadOnly": "Use the panel's Lock and Unlock",
-    "sleepReadOnly": "Use the row's Sleep and Wake buttons"
+    "sleepReadOnly": "Use the row's Sleep and Wake buttons",
+    "surveyReadOnly": "Written by the survey (RTLS Survey)"
   },
   "rtlsSurvey": {
     "anchor": {
@@ -1171,12 +1126,14 @@
     "cell": "Cell",
     "commit": {
       "acknowledgeFirst": "Acknowledge the warnings first",
-      "action": "Commit and lock",
+      "action": "Commit",
       "blocked": "The fit cannot be committed",
       "committed": "Every anchor runs the new survey. Lock the anchors now.",
+      "committedLocked": "Every anchor runs the new survey, and the anchors are locked.",
       "detail": "({{- detail}})",
       "incomplete": "Not every anchor took the survey: {{anchors}}",
       "offline": "{{anchors}} offline since this survey. Refit still works; a commit needs a new survey.",
+      "refitFirst": "The sketch changed since this fit: refit first",
       "result": "{{anchor}}: {{written}}",
       "retry": "Retry",
       "running": "· running",
@@ -1187,16 +1144,25 @@
         "failed": "failed"
       }
     },
+    "elevation": {
+      "caption": "Side view, seen from the bottom edge of the top view: the height groups, lowest at the bottom.",
+      "group": "{{group}} {{height}} m",
+      "height": "{{height}} m"
+    },
     "gate": {
       "acknowledge": "Commit anyway",
       "blocked": "Survey again or fix the sketch:",
+      "clear": "No blocks, no warnings: the fit can be committed.",
       "entry": "{{anchor}}: {{- detail}}",
       "pairEntry": "{{a}} – {{b}}: {{- detail}}"
     },
     "group": {
       "add": "Add group",
       "lower": "Lower",
-      "name": "Height group",
+      "members_one": "{{group}} · {{count}} anchor",
+      "members_other": "{{group}} · {{count}} anchors",
+      "name": "New height group",
+      "numbered": "Group {{number}}",
       "upper": "Upper"
     },
     "heldElsewhere": "The server holds a survey of another cell. A survey here replaces it.",
@@ -1206,10 +1172,16 @@
     },
     "list": {
       "anchor": "Anchor",
-      "group": "Height",
+      "explained": "Origin: this anchor is the point (0, 0), and its height group is height 0. +x (y = 0): this anchor fixes the direction of the X axis and nothing else. Height group: its anchors stand at about the same height, which is what makes the frame level. The groups are listed lowest first: every group after the origin's is above it.",
+      "group": "Height group",
+      "groupFixed": "The boxes show the anchors that were measured: a refit and a commit are of those. A new survey takes the anchors that are operating then.",
+      "groupMeans": "about the same height",
       "include": "Survey this anchor",
+      "leftOut": "Operating: include it, or put it to sleep",
       "origin": "Origin",
-      "xAxis": "+x"
+      "originMeans": "the point (0, 0), height 0",
+      "xAxis": "+x (y = 0)",
+      "xAxisMeans": "direction of the X axis"
     },
     "noAnchors": {
       "header": "No online anchors",
@@ -1223,17 +1195,22 @@
       "error": "No answer from the server",
       "incomplete": "Not every anchor took the survey",
       "refused": "Refused",
+      "stale": "The survey changed meanwhile. This is its state now.",
       "unknown": "Unexpected answer from the server",
       "warnings": "Acknowledge the warnings first"
     },
     "pair": "{{a}} – {{b}}",
     "plan": {
-      "caption": "Top view in metres. Drag each anchor to where it roughly stands.",
+      "caption": "Top view in metres. Drag each anchor to where it roughly stands. A dot is an anchor of the lowest height group, a ring one of a group above.",
       "moved": "{{anchor}} moved {{cm}} cm",
-      "xAxis": "+x"
+      "origin": "(0, 0)",
+      "x": "x",
+      "y": "y"
     },
     "problem": {
       "drawApart": "Draw the origin and the +x anchor apart",
+      "leftOut_one": "Include {{anchors}} in the survey, or put it to sleep",
+      "leftOut_other": "Include {{anchors}} in the survey, or put them to sleep",
       "pickOrigin": "Pick the origin anchor",
       "pickXAxis": "Pick the +x anchor",
       "sameAnchor": "The origin and the +x anchor must be two anchors",
@@ -1245,13 +1222,17 @@
       "running": "A survey is running",
       "showAuthorized": "A show is authorized"
     },
+    "restored": "Frame of the survey the server holds",
     "result": {
       "anchor": "Anchor",
       "fitted": "Fitted (m)",
+      "heightOffset": "From group (cm)",
       "links": "Links",
       "moved": "Moved (cm)",
       "pair": "Pair",
-      "planar": "One height: the tags lock their height.",
+      "pairs_one": "{{count}} pair · worst {{worst}} cm",
+      "pairs_other": "{{count}} pairs · worst {{worst}} cm",
+      "planar": "One height group: the tags lock their height.",
       "range": "Range (m)",
       "residual": "Residual (cm)",
       "rms": "Rms (cm)",
@@ -1270,6 +1251,8 @@
       "failed": "The survey failed",
       "measuring": "Ranging…",
       "refit": "Refit",
+      "refitChanged": "Refitted: the positions changed.",
+      "refitUnchanged": "Refitted: the result is the same.",
       "returning": "The anchors are returning to their session…",
       "sketchChanged": "The sketch changed since this fit. Refit to use it.",
       "start": "Survey",
@@ -1279,6 +1262,66 @@
     "standard": {
       "action": "Standard cell",
       "on": "Two tiers from the slots"
+    },
+    "stored": {
+      "survey": "Survey",
+      "title": "Stored on the anchors"
+    }
+  },
+  "rtlsSurveyHealth": {
+    "anchor": {
+      "notSurveyed": "not surveyed",
+      "otherSurvey": "other survey",
+      "otherSurveyId": "other survey {{id}}",
+      "survey": "survey {{id}}"
+    },
+    "anchorTooltip": {
+      "otherSurvey": "On another survey than the rest of the cell: every tag leaves it out. Survey the cell again."
+    },
+    "cell": {
+      "none": "no survey",
+      "ok_one": "Survey {{id}} · {{count}} anchor",
+      "ok_other": "Survey {{id}} · {{count}} anchors",
+      "out_one": "Survey {{id}} · {{count}} anchor · {{out}} out",
+      "out_other": "Survey {{id}} · {{count}} anchors · {{out}} out"
+    },
+    "line": {
+      "drift": "drift {{drift}} cm",
+      "excluded": "leaves out {{- anchors}}",
+      "excludedAnchor": "{{anchor}} ({{why}})",
+      "following_one": "survey {{id}} · {{count}} anchor used",
+      "following_other": "survey {{id}} · {{count}} anchors used",
+      "name": "Survey",
+      "none": "no survey in use",
+      "unnamed_one": "{{count}} more left out",
+      "unnamed_other": "{{count}} more left out"
+    },
+    "tag": {
+      "excluding_one": "survey {{id}} · {{count}} anchor · {{excluded}} out",
+      "excluding_other": "survey {{id}} · {{count}} anchors · {{excluded}} out",
+      "none": "no survey",
+      "ok_one": "survey {{id}} · {{count}} anchor",
+      "ok_other": "survey {{id}} · {{count}} anchors",
+      "otherSurvey": "survey {{id}}, not the cell's",
+      "tooFew_one": "survey {{id}} · {{count}} anchor, too few",
+      "tooFew_other": "survey {{id}} · {{count}} anchors, too few"
+    },
+    "tags": {
+      "excluding_one": "{{count}} tag excludes an anchor",
+      "excluding_other": "{{count}} tags exclude an anchor",
+      "noTelemetry_one": "{{count}} tag: no survey telemetry",
+      "noTelemetry_other": "{{count}} tags: no survey telemetry",
+      "none": "no survey",
+      "off_one": "{{count}} tag not positioned on survey {{id}}",
+      "off_other": "{{count}} tags not positioned on survey {{id}}",
+      "ok": "survey {{id}}"
+    },
+    "why": {
+      "noPosition": "no position",
+      "otherSurvey": "other survey",
+      "tableFull": "table full",
+      "unknown": "left out",
+      "unknownLayout": "unknown layout"
     }
   },
   "rtlsTagDetails": {
@@ -1286,6 +1329,9 @@
     "expandAll": "Expand all",
     "showLess": "Show less",
     "showMore": "Show more"
+  },
+  "rtlsVerify": {
+    "tooltip": "Run the fleet pre-flight verification"
   },
   "safetyDialog": {
     "geofence": "Geofence",

@@ -60,6 +60,12 @@ export type RtlsSurveyAnchorFit = {
   sigmaM?: number;
   /** Distance from the stored position; absent when the anchor stores none. */
   movedM?: number;
+  /**
+   * How far the anchor stands above (positive) or below its height group's
+   * common height, metres; absent for an anchor in no group and from a
+   * server whose groups still share one exact height.
+   */
+  heightOffsetM?: number;
 };
 
 export type RtlsSurveyFit = {
@@ -94,6 +100,11 @@ export type RtlsSurveyCommit = {
 
 /** The survey state object. */
 export type RtlsSurvey = {
+  /**
+   * Raised by one on every change of the survey the server holds, never
+   * lowered while it runs; absent from a server that does not count yet.
+   */
+  revision?: number;
   state: RtlsSurveyPhase;
   /** Why it failed or was refused. */
   reason?: string;
@@ -142,7 +153,10 @@ export type RtlsSurveyAnswer = {
 };
 
 /** What the last request came to. */
-export type RtlsSurveyOutcome = Omit<RtlsSurveyAnswer, 'survey'>;
+export type RtlsSurveyOutcome = Omit<RtlsSurveyAnswer, 'survey'> & {
+  /** A refit that gave the fit it replaced. */
+  unchanged?: boolean;
+};
 
 const toId = (value: unknown): string | undefined =>
   toNumber(value) === undefined ? undefined : String(value);
@@ -206,6 +220,7 @@ const mapAnchorFit = (value: unknown): RtlsSurveyAnchorFit | undefined => {
     worstPairM: toNumber(value.worstPairM),
     sigmaM: toNumber(value.sigmaM),
     movedM: toNumber(value.movedM),
+    heightOffsetM: toNumber(value.heightOffsetM),
   };
 };
 
@@ -336,6 +351,7 @@ export function mapRtlsSurvey(value: unknown): RtlsSurvey | undefined {
   }
   const gate = isRecord(value.gate) ? value.gate : {};
   return {
+    revision: toNumber(value.revision),
     state,
     reason: toText(value.reason),
     anchors: toIds(value.anchors),

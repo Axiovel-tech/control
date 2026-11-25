@@ -3,7 +3,7 @@
  *
  * Groups are derived client-side from the parameter naming convention: the
  * token before the first underscore is the domain prefix (UWB_CHANNEL and
- * UWB_AN0_X are both UWB; SIM_UWB_DROP_PCT is SIM). The wire protocol has no
+ * UWB_BLOCK_MS are both UWB; SIM_UWB_DROP_PCT is SIM). The wire protocol has no
  * group metadata, so this is the single source of the taxonomy. A few
  * parameters without a prefix are filed explicitly (`SLEEP` and `LOCK`
  * under power).
