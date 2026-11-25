@@ -20,7 +20,7 @@ import {
   sketchProblemKey,
   surveyTarget,
 } from './survey-frame';
-import { type RtlsSurvey } from './survey-messages';
+import { type RtlsSurvey, type RtlsSurveyPhase } from './survey-messages';
 import {
   EMPTY_SKETCH,
   isBlankSketch,
@@ -34,6 +34,14 @@ import {
 
 /** Why Survey is refused while an operating anchor of the cell is left out. */
 export const LEFT_OUT_PROBLEM_KEY = 'rtlsSurvey.problem.leftOut';
+
+/** The phases in which the server holds a measurement, or takes one. */
+const HOLDING_PHASES: readonly RtlsSurveyPhase[] = [
+  'measuring',
+  'returning',
+  'ready',
+  'committing',
+];
 
 export type RtlsSurveyPage = {
   /** The online anchors of the cell, in slot order. */
@@ -50,6 +58,12 @@ export type RtlsSurveyPage = {
    * refuses to survey beside them.
    */
   leftOut: string[];
+  /**
+   * The include boxes show the measured group and cannot be changed: a
+   * refit and a commit are of the anchors that were measured, whatever is
+   * ticked. A new survey takes the anchors that are operating then.
+   */
+  groupFixed: boolean;
   /**
    * The anchors of the cell that store a position, in slot order: what the
    * page shows while the server holds no fit of the cell (never surveyed
@@ -96,6 +110,56 @@ const ownerOf = (
 };
 
 /**
+ * The sketch of a cell as shown and sent. A client that drew nothing of the
+ * cell takes the frame and placement the server echoes for the survey it
+ * holds (`sketchRestored`): the survey of another browser, or of this one
+ * before a reload, can then be refitted and run again. While the group is
+ * fixed, who is left out is who was not measured. `anchors` are the online
+ * anchors of the cell and `measured` those of the held survey.
+ */
+function shownSketch({
+  own,
+  survey,
+  anchors,
+  measured,
+  groupFixed,
+}: {
+  own: RtlsSurveySketch | undefined;
+  survey: RtlsSurvey | undefined;
+  anchors: readonly RtlsSurveyAnchor[];
+  measured: readonly RtlsSurveyAnchor[];
+  groupFixed: boolean;
+}): { sketch: RtlsSurveySketch; sketchRestored: boolean } {
+  const basis =
+    isBlankSketch(own) && measured.length > 0 ? survey?.basis : undefined;
+  const restored =
+    basis === undefined ? undefined : sketchFromBasis(basis, measured);
+  const notMeasured = anchors
+    .map(({ id }) => id)
+    .filter((id) => !measured.some((anchor) => anchor.id === id));
+  const chosen =
+    restored === undefined
+      ? (own ?? EMPTY_SKETCH)
+      : {
+          ...restored,
+          // once committed, where the anchors are is what they store
+          positions: survey?.state === 'committed' ? {} : restored.positions,
+          excluded: own?.excluded ?? notMeasured,
+        };
+  const drawn = groupFixed ? { ...chosen, excluded: notMeasured } : chosen;
+  return {
+    sketch: resolveSketch(withStoredAsDefault(drawn, anchors), [
+      ...anchors,
+      // one that went offline since is still of the fit
+      ...measured.filter(
+        ({ id }) => !anchors.some((anchor) => anchor.id === id)
+      ),
+    ]),
+    sketchRestored: restored !== undefined,
+  };
+}
+
+/**
  * Works out the page of `cell`. `cells` are the online anchors per cell,
  * `known` every anchor the server lists, online or not, and `refusalKey`
  * why neither Survey nor Commit may be sent (`surveyRefusalKey`).
@@ -123,48 +187,45 @@ export function surveyPage(
   );
   const offline = measured.map(({ id }) => id).filter((id) => !online.has(id));
 
-  // a client that drew nothing of this cell takes the frame and placement
-  // the server echoes for the survey it holds: the survey of another
-  // browser, or of this one before a reload, can then be refitted and run
-  // again
-  const own = slice.sketches[cell];
-  const sketchRestored =
-    isBlankSketch(own) && survey?.basis !== undefined && measured.length > 0;
-  const restored =
-    sketchRestored && survey?.basis !== undefined
-      ? sketchFromBasis(survey.basis, measured)
-      : undefined;
-  const drawn =
-    restored !== undefined
-      ? {
-          ...restored,
-          // once committed, where the anchors are is what they store
-          positions: survey?.state === 'committed' ? {} : restored.positions,
-          excluded:
-            own?.excluded ??
-            anchors
-              .map(({ id }) => id)
-              .filter((id) => !measuredIds.includes(id)),
-        }
-      : (own ?? EMPTY_SKETCH);
-  const sketch = resolveSketch(withStoredAsDefault(drawn, anchors), [
-    ...anchors,
-    ...measured.filter(({ id }) => !online.has(id)),
-  ]);
-  const group = surveyGroup(sketch, anchors);
-  const leftOut = leftOutOperating(sketch, anchors).map(({ id }) => id);
+  const groupFixed =
+    survey !== undefined &&
+    measured.length > 0 &&
+    HOLDING_PHASES.includes(survey.state);
+  const { sketch, sketchRestored } = shownSketch({
+    own: slice.sketches[cell],
+    survey,
+    anchors,
+    measured,
+    groupFixed,
+  });
+  // while the boxes are fixed a new survey takes the anchors the server
+  // requires, so that one that went to sleep or woke up since the
+  // measurement does not leave Survey without a way to be sent
+  const group = groupFixed
+    ? anchors.filter(({ operating }) => operating === true)
+    : surveyGroup(sketch, anchors);
+  const leftOut = groupFixed
+    ? []
+    : leftOutOperating(sketch, anchors).map(({ id }) => id);
   const refitTarget =
     survey?.fit === undefined ? undefined : surveyTarget(sketch, measured);
   const fitBasis = survey?.basis ?? slice.fittedRequest;
   const acknowledged =
     slice.acknowledged !== undefined &&
     slice.acknowledged === warningsSignature(survey);
+  const sketchChanged =
+    survey?.state === 'ready' &&
+    refitTarget !== undefined &&
+    fitBasis !== undefined &&
+    fitSignature(refitTarget, refitTarget.anchors) !==
+      fitSignature(fitBasis, refitTarget.anchors);
 
   return {
     anchors,
     sketch,
     sketchRestored,
     leftOut,
+    groupFixed,
     stored: anchors.filter(({ stored }) => stored !== undefined),
     survey,
     heldElsewhere,
@@ -184,16 +245,12 @@ export function surveyPage(
       refitProblemKey: sketchProblemKey(sketch, measured),
       elsewhere: heldElsewhere,
       groupOffline: offline.length > 0,
+      fitStale: sketchChanged,
     }),
     startTarget: surveyTarget(sketch, group),
     refitTarget,
     fitBasis,
-    sketchChanged:
-      survey?.state === 'ready' &&
-      refitTarget !== undefined &&
-      fitBasis !== undefined &&
-      fitSignature(refitTarget, refitTarget.anchors) !==
-        fitSignature(fitBasis, refitTarget.anchors),
+    sketchChanged,
     hintKeys: sketchHintKeys(sketch, group),
   };
 }

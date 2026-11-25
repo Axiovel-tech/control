@@ -198,9 +198,10 @@ const NAME_WITHOUT_SITE = tableAnchorNamer([]);
 const describeSurveyLine = (
   t: T,
   stats: RtlsDeviceStats | undefined,
-  nameOf: TableAnchorNamer
+  nameOf: TableAnchorNamer,
+  planarSurvey: boolean
 ): DetailLine[] => {
-  const survey = describeTagSurvey(stats, nameOf);
+  const survey = describeTagSurvey(stats, nameOf, planarSurvey);
   if (survey === undefined) {
     return [];
   }
@@ -237,7 +238,8 @@ const describeSurveyLine = (
 export const describeTagDetailLines = (
   t: T,
   stats: RtlsDeviceStats | undefined,
-  nameTableAnchor: TableAnchorNamer = NAME_WITHOUT_SITE
+  nameTableAnchor: TableAnchorNamer = NAME_WITHOUT_SITE,
+  planarSurvey = false
 ): DetailLine[] => {
   const anchorsSeen = anchorsSeenOf(stats);
   const rowNames = tableRowNames(stats?.anchorTable, nameTableAnchor);
@@ -257,20 +259,22 @@ export const describeTagDetailLines = (
       name: 'Anchors seen',
       value: String(anchorsSeen),
     },
-    ...describeSurveyLine(t, stats, nameTableAnchor),
-    ...describeFleetHealth(stats, rowNames).map(({ id, status, text }) => ({
-      key: id,
-      // gray values throughout; a metric out of its green zone gets a dot in
-      // the zone's color beside its name
-      name: (
-        <>
-          {t(`rtlsFleetHealth.label.${id}`)}
-          {(status === Status.WARNING || status === Status.ERROR) && (
-            <StatusLight inline size='small' status={status} />
-          )}
-        </>
-      ),
-      value: t(text.key, text.values),
-    })),
+    ...describeSurveyLine(t, stats, nameTableAnchor, planarSurvey),
+    ...describeFleetHealth(stats, rowNames, planarSurvey).map(
+      ({ id, status, text }) => ({
+        key: id,
+        // gray values throughout; a metric out of its green zone gets a dot in
+        // the zone's color beside its name
+        name: (
+          <>
+            {t(`rtlsFleetHealth.label.${id}`)}
+            {(status === Status.WARNING || status === Status.ERROR) && (
+              <StatusLight inline size='small' status={status} />
+            )}
+          </>
+        ),
+        value: t(text.key, text.values),
+      })
+    ),
   ];
 };

@@ -23,7 +23,6 @@ jest.mock('~/features/show/selectors', () => ({
 }));
 
 import {
-  acknowledgeRtlsSurveyWarnings,
   rtlsSurveyRequested,
   setRtlsSurveySketch,
   statusQueryDelayMs,
@@ -62,6 +61,7 @@ import {
   STATUS_IDLE,
 } from './survey-recording';
 import {
+  acknowledge,
   CELL,
   createSurveyTestStore as createStore,
   FOUR_ANCHORS,
@@ -230,7 +230,7 @@ describe('the requests', () => {
 
     // a commit says nothing about the sketch
     play(store, RUN.slice(1));
-    store.dispatch(acknowledgeRtlsSurveyWarnings(true));
+    acknowledge(store);
     answerWith(COMMIT_INCOMPLETE);
     await run(store, commitRtlsSurvey(CELL));
     expect(store.getState().rtlsSurvey.fittedRequest).toBe(started);
@@ -271,7 +271,7 @@ describe('the requests', () => {
   test('Commit carries the acknowledgement of the warnings, and none without warnings', async () => {
     const store = withStandardCell();
     play(store, RUN);
-    store.dispatch(acknowledgeRtlsSurveyWarnings(true));
+    acknowledge(store);
     answerWith(COMMIT_INCOMPLETE);
     await run(store, commitRtlsSurvey(CELL));
     expect(sendMessage).toHaveBeenLastCalledWith(
@@ -298,14 +298,14 @@ describe('the requests', () => {
     // a block that arrived after the page drew an open commit
     const blocked = withStandardCell();
     play(blocked, RUN);
-    blocked.dispatch(acknowledgeRtlsSurveyWarnings(true));
+    acknowledge(blocked);
     play(blocked, [RUN_BLOCKED[1]]);
     await run(blocked, commitRtlsSurvey(CELL));
 
     // a new warning beside the acknowledged one
     const warned = withStandardCell();
     play(warned, RUN);
-    warned.dispatch(acknowledgeRtlsSurveyWarnings(true));
+    acknowledge(warned);
     play(warned, [
       push({
         ...READY,
@@ -323,14 +323,14 @@ describe('the requests', () => {
     // a request still in flight
     const busy = withStandardCell();
     play(busy, RUN);
-    busy.dispatch(acknowledgeRtlsSurveyWarnings(true));
+    acknowledge(busy);
     busy.dispatch(rtlsSurveyRequested('fit'));
     await run(busy, commitRtlsSurvey(CELL));
 
     // a survey that is no longer ready
     const running = withStandardCell();
     play(running, RUN);
-    running.dispatch(acknowledgeRtlsSurveyWarnings(true));
+    acknowledge(running);
     play(running, [COMMIT[0]]);
     await run(running, commitRtlsSurvey(CELL));
 
@@ -359,7 +359,7 @@ describe('the requests', () => {
   test("a second survey does not commit on the first one's acknowledgement", async () => {
     const store = withStandardCell();
     play(store, RUN);
-    store.dispatch(acknowledgeRtlsSurveyWarnings(true));
+    acknowledge(store);
 
     answerWith(RUN[0]);
     await run(store, startRtlsSurvey(CELL));
@@ -373,7 +373,7 @@ describe('the requests', () => {
   test('a commit opens no dialog: the page shows its results first', async () => {
     const store = withStandardCell();
     play(store, RUN);
-    store.dispatch(acknowledgeRtlsSurveyWarnings(true));
+    acknowledge(store);
 
     answerWith(COMMIT_INCOMPLETE);
     await run(store, commitRtlsSurvey(CELL));

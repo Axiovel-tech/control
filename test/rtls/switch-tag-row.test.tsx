@@ -36,7 +36,7 @@ describe("a tag's detail lines", () => {
       key: 'survey',
       name: 'rtlsSurveyHealth.line.name',
       value: [
-        'rtlsSurveyHealth.line.following(id=12,count=2)',
+        'rtlsSurveyHealth.line.following(id=12,count=4)',
         'rtlsSurveyHealth.line.excluded(anchors=' +
           'rtlsSurveyHealth.line.excludedAnchor(anchor=A2,why=rtlsSurveyHealth.why.noPosition), ' +
           'rtlsSurveyHealth.line.excludedAnchor(anchor=A3,why=rtlsSurveyHealth.why.otherSurvey))',

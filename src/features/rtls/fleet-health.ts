@@ -165,19 +165,30 @@ const describeAnchorMask = (
  * while its firmware reports no table.
  */
 const describeAnchorSet = (
-  stats: RtlsDeviceStats
+  stats: RtlsDeviceStats,
+  planarSurvey: boolean
 ): Omit<FleetHealthMetric, 'id'> => {
-  const positioned = isTagPositioned(stats);
-  if (positioned === undefined) {
+  const positioned = isTagPositioned(stats, planarSurvey);
+  if (stats.anchorsUsed === undefined || positioned === undefined) {
     return UNKNOWN;
   }
   if (!positioned) {
     return {
       status: Status.ERROR,
-      text: { key: 'rtlsFleetHealth.value.noSurvey' },
+      text:
+        stats.surveyId === undefined
+          ? { key: 'rtlsFleetHealth.value.noSurvey' }
+          : {
+              key: 'rtlsFleetHealth.value.tooFewAnchors',
+              values: { count: stats.anchorsUsed },
+            },
     };
   }
-  const excluded = stats.anchorsExcluded ?? 0;
+  const excluded = stats.anchorsExcluded;
+  if (excluded === undefined) {
+    // how many it leaves out is not known: that is not "none"
+    return UNKNOWN;
+  }
   return excluded > 0
     ? {
         status: Status.WARNING,
@@ -194,10 +205,11 @@ const describeAnchorSet = (
 
 /** The drift of a positioning tag; red only above the bound, as the server. */
 const describeSurveyDrift = (
-  stats: RtlsDeviceStats
+  stats: RtlsDeviceStats,
+  planarSurvey: boolean
 ): Omit<FleetHealthMetric, 'id'> => {
   const drift = stats.surveyDriftM;
-  if (drift === undefined || !isTagPositioned(stats)) {
+  if (drift === undefined || !isTagPositioned(stats, planarSurvey)) {
     return UNKNOWN;
   }
   return {
@@ -244,11 +256,14 @@ const describeWifi = (
 /**
  * The fleet-health metrics of one tag's drone, in display order; a metric
  * the firmware or the drone does not report is present with `Status.OFF`.
- * `anchorNames` names the rows of the tag's table in its anchor masks.
+ * `anchorNames` names the rows of the tag's table in its anchor masks;
+ * `planarSurvey` says that three anchors are enough to position
+ * (`isSurveyPlanar`).
  */
 export const describeFleetHealth = (
   stats: RtlsDeviceStats | undefined,
-  anchorNames?: AnchorNames
+  anchorNames?: AnchorNames,
+  planarSurvey = false
 ): FleetHealthMetric[] => {
   if (!stats) {
     return [];
@@ -272,8 +287,8 @@ export const describeFleetHealth = (
             },
           }),
     },
-    { id: 'anchorSet', ...describeAnchorSet(stats) },
-    { id: 'surveyDrift', ...describeSurveyDrift(stats) },
+    { id: 'anchorSet', ...describeAnchorSet(stats, planarSurvey) },
+    { id: 'surveyDrift', ...describeSurveyDrift(stats, planarSurvey) },
     {
       id: 'nlosAnchors',
       ...describeAnchorMask(stats.nlosMask, NLOS_ANCHOR_ZONES, anchorNames),
@@ -320,21 +335,24 @@ export const getWorstFleetHealthMetric = (
 
 /** A drone's zone: that of its worst known metric, `Status.OFF` if none. */
 export const getFleetHealthStatus = (
-  stats: RtlsDeviceStats | undefined
+  stats: RtlsDeviceStats | undefined,
+  planarSurvey = false
 ): Status =>
-  getWorstFleetHealthMetric(describeFleetHealth(stats))?.status ?? Status.OFF;
+  getWorstFleetHealthMetric(describeFleetHealth(stats, undefined, planarSurvey))
+    ?.status ?? Status.OFF;
 
 /**
  * The fleet summary: how many drones are green, yellow and red, in the color
  * of the worst one. Drones without any known metric are not counted.
  */
 export const summarizeFleetHealth = (
-  statsList: Array<RtlsDeviceStats | undefined>
+  statsList: Array<RtlsDeviceStats | undefined>,
+  planarSurvey = false
 ): { status: Status; text: I18nText } => {
   const counts = { ok: 0, warning: 0, error: 0 };
   let status = Status.OFF;
   for (const stats of statsList) {
-    const worst = getFleetHealthStatus(stats);
+    const worst = getFleetHealthStatus(stats, planarSurvey);
     if (worst === Status.SUCCESS) {
       counts.ok++;
     } else if (worst === Status.WARNING) {

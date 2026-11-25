@@ -45,6 +45,11 @@ type SurveyAnchorListProps = {
   leftOut: string[];
   /** The frame shown was taken from the survey the server holds. */
   restored: boolean;
+  /**
+   * A measurement is held or being taken: the boxes show its group and
+   * cannot be changed.
+   */
+  groupFixed?: boolean;
   onChange: (sketch: RtlsSurveySketch) => void;
 };
 
@@ -76,6 +81,7 @@ const SurveyAnchorList = ({
   sketch,
   leftOut,
   restored,
+  groupFixed = false,
   onChange,
 }: SurveyAnchorListProps) => {
   const { t } = useTranslation();
@@ -143,6 +149,7 @@ const SurveyAnchorList = ({
                   <Checkbox
                     size='small'
                     checked={included}
+                    disabled={groupFixed}
                     slotProps={{
                       input: { 'aria-label': t('rtlsSurvey.list.include') },
                     }}
@@ -213,6 +220,15 @@ const SurveyAnchorList = ({
           })}
         </TableBody>
       </Table>
+      {groupFixed && (
+        <Typography
+          data-testid='rtls-survey-group-fixed'
+          variant='caption'
+          color='textSecondary'
+        >
+          {t('rtlsSurvey.list.groupFixed')}
+        </Typography>
+      )}
       <Box
         data-testid='rtls-survey-groups'
         sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}

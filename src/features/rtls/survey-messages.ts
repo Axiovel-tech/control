@@ -100,6 +100,11 @@ export type RtlsSurveyCommit = {
 
 /** The survey state object. */
 export type RtlsSurvey = {
+  /**
+   * Raised by one on every change of the survey the server holds, never
+   * lowered while it runs; absent from a server that does not count yet.
+   */
+  revision?: number;
   state: RtlsSurveyPhase;
   /** Why it failed or was refused. */
   reason?: string;
@@ -346,6 +351,7 @@ export function mapRtlsSurvey(value: unknown): RtlsSurvey | undefined {
   }
   const gate = isRecord(value.gate) ? value.gate : {};
   return {
+    revision: toNumber(value.revision),
     state,
     reason: toText(value.reason),
     anchors: toIds(value.anchors),

@@ -12,7 +12,7 @@ import { Status } from '~/components/semantics';
 
 import { type StatusText } from './anchor-utils';
 import { type I18nText } from './i18n-text';
-import { isTagPositioned } from './stats-utils';
+import { classifyRole, isTagPositioned, RtlsRole } from './stats-utils';
 import {
   type RtlsAnchor,
   type RtlsAnchorTableEntry,
@@ -177,38 +177,58 @@ const reporting = (
   device.online && !device.sleeping && !stats?.stale ? stats : undefined;
 
 /**
+ * Whether a tag owes survey telemetry: it is awake, or was when it was
+ * lost. A sleeping tag has its radio off, and a disabled device is out of
+ * service.
+ */
+const owesTelemetry = (device: RtlsDevice): boolean =>
+  device.sleeping !== true && classifyRole(device.role) !== RtlsRole.DISABLED;
+
+/**
  * The pill of the tags panel: green with the survey the cell is on, amber
- * with how many tags leave an anchor out, red while there is no survey or a
- * reporting tag does not position on the cell's. `undefined` for a server
- * that reports no survey.
+ * with how many tags leave an anchor out, red while there is no survey, a
+ * tag does not position on the cell's, or a tag that is awake (or was when
+ * it was lost) reports no fresh survey telemetry: what is not known is not
+ * good, as in the server's Verify rule. `undefined` for a server that
+ * reports no survey.
  */
 export const describeTagSurveyPill = (
   survey: RtlsCellSurvey | undefined,
   tags: readonly RtlsDevice[],
-  statsById: Record<string, RtlsDeviceStats | undefined>
+  statsById: Record<string, RtlsDeviceStats | undefined>,
+  planarSurvey = false
 ): StatusText | undefined => {
   if (survey === undefined) {
     return undefined;
   }
-  if (survey.id === undefined) {
+  const { id } = survey;
+  if (id === undefined) {
     return {
       status: Status.ERROR,
       text: { key: 'rtlsSurveyHealth.tags.none' },
     };
   }
-  const off = tags.filter((tag) => {
-    const stats = reporting(tag, statsById[tag.id]);
-    return (
-      isTagPositioned(stats) === false ||
-      (stats?.surveyId !== undefined && stats.surveyId !== survey.id)
-    );
-  }).length;
+  const owing = tags.filter(owesTelemetry);
+  const positioned = (tag: RtlsDevice): boolean | undefined =>
+    isTagPositioned(reporting(tag, statsById[tag.id]), planarSurvey);
+  const off = owing.filter(
+    (tag) =>
+      positioned(tag) === false ||
+      (positioned(tag) === true && statsById[tag.id]?.surveyId !== id)
+  ).length;
   if (off > 0) {
     return {
       status: Status.ERROR,
+      text: { key: 'rtlsSurveyHealth.tags.off', values: { count: off, id } },
+    };
+  }
+  const silent = owing.filter((tag) => positioned(tag) === undefined).length;
+  if (silent > 0) {
+    return {
+      status: Status.ERROR,
       text: {
-        key: 'rtlsSurveyHealth.tags.off',
-        values: { count: off, id: survey.id },
+        key: 'rtlsSurveyHealth.tags.noTelemetry',
+        values: { count: silent },
       },
     };
   }
@@ -223,40 +243,46 @@ export const describeTagSurveyPill = (
       }
     : {
         status: Status.SUCCESS,
-        text: { key: 'rtlsSurveyHealth.tags.ok', values: { id: survey.id } },
+        text: { key: 'rtlsSurveyHealth.tags.ok', values: { id } },
       };
 };
 
 /**
  * The survey pill of one tag row: the survey it follows and how many anchors
- * it uses; amber while it leaves one out, red while it positions on none.
+ * it uses; amber while it leaves one out, red while it does not position (it
+ * follows no survey, or uses too few anchors of the one it follows).
  * `undefined` while the tag reports no table (asleep, lost, older firmware).
  */
 export const describeTagSurveyChip = (
   device: RtlsDevice,
-  stats: RtlsDeviceStats | undefined
+  stats: RtlsDeviceStats | undefined,
+  planarSurvey = false
 ): StatusText | undefined => {
   const live = reporting(device, stats);
-  const positioned = isTagPositioned(live);
-  if (live === undefined || positioned === undefined) {
+  const positioned = isTagPositioned(live, planarSurvey);
+  if (live?.anchorsUsed === undefined || positioned === undefined) {
     return undefined;
   }
-  if (!positioned) {
+  if (live.surveyId === undefined) {
     return {
       status: Status.ERROR,
       text: { key: 'rtlsSurveyHealth.tag.none' },
     };
   }
-  const values = {
-    id: live.surveyId!, // non-null: positioned
-    count: live.anchorsUsed!, // non-null: positioned
-  };
-  return (live.anchorsExcluded ?? 0) > 0
+  const values = { id: live.surveyId, count: live.anchorsUsed };
+  if (!positioned) {
+    return {
+      status: Status.ERROR,
+      text: { key: 'rtlsSurveyHealth.tag.tooFew', values },
+    };
+  }
+  const excluded = live.anchorsExcluded ?? 0;
+  return excluded > 0
     ? {
         status: Status.WARNING,
         text: {
           key: 'rtlsSurveyHealth.tag.excluding',
-          values: { ...values, excluded: live.anchorsExcluded! }, // checked
+          values: { ...values, excluded },
         },
       }
     : {
@@ -277,7 +303,8 @@ export type ExcludedAnchorText = { anchor: string; why: I18nText };
  */
 export const describeTagSurvey = (
   stats: RtlsDeviceStats | undefined,
-  nameOf: TableAnchorNamer
+  nameOf: TableAnchorNamer,
+  planarSurvey = false
 ):
   | {
       following: I18nText;
@@ -286,8 +313,8 @@ export const describeTagSurvey = (
       drift?: I18nText;
     }
   | undefined => {
-  const positioned = isTagPositioned(stats);
-  if (stats === undefined || positioned === undefined) {
+  const positioned = isTagPositioned(stats, planarSurvey);
+  if (stats?.anchorsUsed === undefined || positioned === undefined) {
     return undefined;
   }
   const excluded = excludedAnchors(stats).map((entry) => ({
@@ -296,12 +323,14 @@ export const describeTagSurvey = (
   }));
   const unnamed = (stats.anchorsExcluded ?? 0) - excluded.length;
   return {
-    following: positioned
-      ? {
-          key: 'rtlsSurveyHealth.line.following',
-          values: { id: stats.surveyId!, count: stats.anchorsUsed! }, // positioned
-        }
-      : { key: 'rtlsSurveyHealth.line.none' },
+    // the facts as reported, also of a tag with too few anchors to position
+    following:
+      stats.surveyId === undefined
+        ? { key: 'rtlsSurveyHealth.line.none' }
+        : {
+            key: 'rtlsSurveyHealth.line.following',
+            values: { id: stats.surveyId, count: stats.anchorsUsed },
+          },
     excluded,
     unnamed:
       unnamed > 0

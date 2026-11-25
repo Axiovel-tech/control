@@ -37,6 +37,8 @@ const currentStats = (
 type FleetHealthSummaryProps = {
   devices: RtlsDevice[];
   statsById: Record<string, RtlsDeviceStats | undefined>;
+  /** Three anchors are enough to position: every surveyed one is planar. */
+  planarSurvey?: boolean;
   /** Called with the device id of the drone picked in the popup. */
   onSelect: (id: string) => void;
 };
@@ -44,6 +46,7 @@ type FleetHealthSummaryProps = {
 const FleetHealthSummary = ({
   devices,
   statsById,
+  planarSurvey = false,
   onSelect,
 }: FleetHealthSummaryProps) => {
   const { t } = useTranslation();
@@ -51,9 +54,10 @@ const FleetHealthSummary = ({
   const summary = useMemo(
     () =>
       summarizeFleetHealth(
-        devices.map((device) => currentStats(device, statsById[device.id]))
+        devices.map((device) => currentStats(device, statsById[device.id])),
+        planarSurvey
       ),
-    [devices, statsById]
+    [devices, planarSurvey, statsById]
   );
   // only computed while the popup is open
   const drones = useMemo(
@@ -62,7 +66,11 @@ const FleetHealthSummary = ({
         ? []
         : devices.map((device) => {
             const worst = getWorstFleetHealthMetric(
-              describeFleetHealth(currentStats(device, statsById[device.id]))
+              describeFleetHealth(
+                currentStats(device, statsById[device.id]),
+                undefined,
+                planarSurvey
+              )
             );
             const name = getRtlsDeviceDisplayName(device);
             const absence = device.sleeping
@@ -86,7 +94,7 @@ const FleetHealthSummary = ({
                   : name,
             };
           }),
-    [anchorElement, devices, statsById, t]
+    [anchorElement, devices, planarSurvey, statsById, t]
   );
 
   return (

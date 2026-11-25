@@ -28,6 +28,7 @@ import {
   acknowledgeRtlsSurveyWarnings,
   setRtlsSurveySketch,
   statusQueryDelayMs,
+  warningsSignature,
 } from '~/features/rtls/survey';
 import {
   cancelRtlsSurvey,
@@ -153,6 +154,7 @@ const RtlsSurveyPanel = () => {
         sketch={sketch}
         leftOut={page.leftOut}
         restored={page.sketchRestored}
+        groupFixed={page.groupFixed}
         onChange={setSketch}
       />
       <Divider />
@@ -231,7 +233,11 @@ const RtlsSurveyPanel = () => {
               acknowledged={page.acknowledged}
               disabled={pending !== undefined}
               onAcknowledge={(value) =>
-                dispatch(acknowledgeRtlsSurveyWarnings(value))
+                dispatch(
+                  acknowledgeRtlsSurveyWarnings(
+                    value ? warningsSignature(survey) : undefined
+                  )
+                )
               }
             />
             <SurveyCommit

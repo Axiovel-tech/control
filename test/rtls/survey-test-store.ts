@@ -9,9 +9,11 @@ import { configureStore, createSlice } from '@reduxjs/toolkit';
 import { rtlsInformationActions } from '~/features/rtls/handlers';
 import rtlsReducer from '~/features/rtls/slice';
 import surveyReducer, {
+  acknowledgeRtlsSurveyWarnings,
   handleRtlsSurveyMessage,
   rtlsSurveyAnswered,
   rtlsSurveyRequested,
+  warningsSignature,
 } from '~/features/rtls/survey';
 import { mapRtlsSurveyAnswer } from '~/features/rtls/survey-messages';
 import {
@@ -132,6 +134,15 @@ export const stateOf = (store: SurveyTestStore): RootState =>
 
 export const run = <R>(store: SurveyTestStore, thunk: AppThunk<R>): R =>
   thunk(store.dispatch as AppDispatch, () => stateOf(store), undefined);
+
+/** Ticks "Commit anyway" for the warnings of the survey the store holds. */
+export const acknowledge = (store: SurveyTestStore): void => {
+  store.dispatch(
+    acknowledgeRtlsSurveyWarnings(
+      warningsSignature(store.getState().rtlsSurvey.survey)
+    )
+  );
+};
 
 /** Plays recorded messages into the store as the hub would deliver them. */
 export const play = (

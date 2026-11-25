@@ -27,8 +27,8 @@ export type RtlsSurveyAnchor = {
   /** Its live range to A0, metres. */
   initiatorDistanceM?: number;
   /**
-   * It ranges on its stored session now (online and neither asleep nor in
-   * standby): a survey of its cell cannot leave it out.
+   * A survey of its cell cannot leave it out: it is online and reports no
+   * power state other than operating.
    */
   operating?: boolean;
 };
@@ -40,6 +40,14 @@ export type RtlsSurveySketch = {
   groups: string[];
   /** Height group of each anchor: 0 Lower, 1 Upper, 2.. `groups`; absent = 0. */
   groupOf: Record<string, number>;
+  /**
+   * Anchors the frame puts in no height group: their height is free. Each
+   * has a level of its own in `groupOf`, which is how the list shows it and
+   * how it is above or below the origin's group, but that level is not a
+   * group and is not sent as one. Only a frame taken from the server names
+   * any; choosing a group for an anchor takes it off this list.
+   */
+  ungrouped?: string[];
   /** The online anchors left out of the survey. */
   excluded: string[];
   origin?: string;
@@ -269,6 +277,8 @@ export const withGroupRemoved = (
   }
   return edited(sketch, {
     groups: sketch.groups.filter((_, other) => other !== index),
+    // its anchors are put in Lower: that is a group chosen for them
+    ungrouped: sketch.ungrouped?.filter((id) => sketch.groupOf[id] !== level),
     groupOf: Object.fromEntries(
       Object.entries(sketch.groupOf).map(([id, other]) => [
         id,
@@ -288,7 +298,10 @@ export const withAnchorGroup = (
   level: number
 ): RtlsSurveySketch => {
   const before = sketch.groupOf[id] ?? 0;
-  const moved = edited(sketch, { groupOf: { ...sketch.groupOf, [id]: level } });
+  const moved = edited(sketch, {
+    groupOf: { ...sketch.groupOf, [id]: level },
+    ungrouped: sketch.ungrouped?.filter((other) => other !== id),
+  });
   return before >= BUILT_IN_GROUPS &&
     before !== level &&
     groupSize(moved, before) === 0

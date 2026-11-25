@@ -21,7 +21,6 @@ import {
   getRtlsDeviceDisplayName,
   getRtlsStatsById,
 } from './selectors';
-import { isAnchorResting } from './stats-utils';
 import { type RtlsSurveySliceState, surveyRefusalKey } from './survey';
 import { type RtlsSurveyPage, surveyPage } from './survey-page';
 import {
@@ -34,21 +33,21 @@ export const getRtlsSurveyState: AppSelector<RtlsSurveySliceState> = (state) =>
   state.rtlsSurvey;
 
 /**
- * Selector that returns the ids of the anchors that range on their stored
- * session now (online and neither asleep nor in standby), as one string: the
- * stats it is read from arrive every second, and the page must not be worked
- * out again unless the answer changes.
+ * Selector that returns the ids of the anchors a survey of their cell must
+ * include, as one string: the stats it is read from arrive every second, and
+ * the page must not be worked out again unless the answer changes. The rule
+ * is the server's: an online anchor must be in the group unless it reports
+ * a power state other than operating. One that reports none yet must.
  */
 const getOperatingAnchorKey: AppSelector<string> = createSelector(
   getRtlsAnchorDevices,
   getRtlsStatsById,
   (devices, statsById) =>
     devices
-      .filter(
-        (device) =>
-          device.online &&
-          !isAnchorResting(statsById[device.id], device.sleeping)
-      )
+      .filter(({ id, online }) => {
+        const state = statsById[id]?.powerState;
+        return online && (state === undefined || state === 'operating');
+      })
       .map(({ id }) => id)
       .join(',')
 );
@@ -57,7 +56,7 @@ const getOperatingAnchorKey: AppSelector<string> = createSelector(
  * Selector that returns every anchor the server lists, online or not, in
  * slot order, with what the survey page shows of it: its slot and cell and
  * the position and survey ID it stores, from the site anchor list, its live
- * range to A0, and whether it ranges on its stored session now.
+ * range to A0, and whether a survey of its cell must include it.
  */
 const getKnownAnchors: AppSelector<
   Array<RtlsSurveyAnchor & { online: boolean }>
@@ -87,8 +86,6 @@ const getKnownAnchors: AppSelector<
           surveyId: site?.surveyId,
           initiatorDistanceM: findInitiatorPeer(device.twr, initiatorMacs)
             ?.distanceM,
-          // the server lets a sleeping or standby anchor stay out of a
-          // survey, never one that ranges
           operating: operating.has(device.id),
         };
       })

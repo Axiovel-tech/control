@@ -34,6 +34,9 @@ type SurveyRunProps = {
   onRefit: () => void;
 };
 
+/** The server's reason for refusing a request made of an older revision. */
+const STALE_REASON = 'stale';
+
 /** The results that took effect: they need no line of their own. */
 const QUIET_RESULTS = new Set(['started', 'cancelled', 'fitted', 'committed']);
 
@@ -125,7 +128,12 @@ const RunNotices = ({
           data-testid='rtls-survey-outcome'
           data-result={outcome.result}
         >
-          {outcome.reason ?? t(`rtlsSurvey.outcome.${outcome.result}`)}
+          {
+            // the server's word for a commit of a survey that moved on
+            outcome.reason === STALE_REASON
+              ? t('rtlsSurvey.outcome.stale')
+              : (outcome.reason ?? t(`rtlsSurvey.outcome.${outcome.result}`))
+          }
         </Alert>
       )}
     </>

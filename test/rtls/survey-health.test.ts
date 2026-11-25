@@ -49,7 +49,7 @@ describe('the survey pill of the anchors panel', () => {
       status: Status.SUCCESS,
       text: {
         key: 'rtlsSurveyHealth.cell.ok',
-        values: { id: 12, count: 4, out: 0 },
+        values: { id: 12, count: 6, out: 0 },
       },
     });
   });
@@ -59,7 +59,7 @@ describe('the survey pill of the anchors panel', () => {
       status: Status.WARNING,
       text: {
         key: 'rtlsSurveyHealth.cell.out',
-        values: { id: 12, count: 2, out: 2 },
+        values: { id: 12, count: 4, out: 2 },
       },
     });
   });
@@ -226,7 +226,7 @@ describe('the survey pill of a tag row', () => {
       status: Status.WARNING,
       text: {
         key: 'rtlsSurveyHealth.tag.excluding',
-        values: { id: 12, count: 2, excluded: 2 },
+        values: { id: 12, count: 4, excluded: 2 },
       },
     });
   });
@@ -281,6 +281,8 @@ describe("the anchors of a tag's table", () => {
     expect(tableRowNames(stats['42'].anchorTable, nameOf)).toEqual([
       'A1',
       'A0',
+      'A4',
+      'A5',
     ]);
     expect(tableRowNames(undefined, nameOf)).toEqual([]);
   });
@@ -291,7 +293,7 @@ describe("a tag's survey line", () => {
     expect(describeTagSurvey(stats['42'], nameOf)).toEqual({
       following: {
         key: 'rtlsSurveyHealth.line.following',
-        values: { id: 12, count: 2 },
+        values: { id: 12, count: 4 },
       },
       excluded: [
         { anchor: 'A2', why: { key: 'rtlsSurveyHealth.why.noPosition' } },

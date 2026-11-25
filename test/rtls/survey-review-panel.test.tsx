@@ -36,11 +36,7 @@ jest.mock('react-i18next', () => ({
   }),
 }));
 
-import {
-  acknowledgeRtlsSurveyWarnings,
-  setRtlsSurveySketch,
-  surveyControls,
-} from '~/features/rtls/survey';
+import { setRtlsSurveySketch, surveyControls } from '~/features/rtls/survey';
 import { commitRtlsSurvey } from '~/features/rtls/survey-actions';
 import {
   mapRtlsSurvey,
@@ -69,6 +65,7 @@ import {
   RUN_CANCELLED,
 } from './survey-recording';
 import {
+  acknowledge,
   CELL,
   createSurveyTestStore,
   FOUR_ANCHORS,
@@ -211,7 +208,7 @@ describe('7. the lock is offered after the commit, under its results', () => {
   const committed = async (): Promise<SurveyTestStore> => {
     const store = withStandardCell();
     play(store, RUN);
-    store.dispatch(acknowledgeRtlsSurveyWarnings(true));
+    acknowledge(store);
     sendMessage.mockResolvedValueOnce(reply(COMMIT[2].body));
     await run(store, commitRtlsSurvey(CELL));
     return store;

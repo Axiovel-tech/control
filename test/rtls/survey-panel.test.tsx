@@ -42,10 +42,7 @@ import {
   rtlsInformationActions,
 } from '~/features/rtls/handlers';
 import { setRtlsDevicesFromStatus } from '~/features/rtls/slice';
-import {
-  acknowledgeRtlsSurveyWarnings,
-  setRtlsSurveySketch,
-} from '~/features/rtls/survey';
+import { setRtlsSurveySketch } from '~/features/rtls/survey';
 import { startRtlsSurvey } from '~/features/rtls/survey-actions';
 import { getRtlsSurveyAnchors } from '~/features/rtls/survey-selectors';
 import {
@@ -60,6 +57,7 @@ import { reply } from './rtls-test-store';
 
 import { push, READY, RUN, RUN_BLOCKED, STATUS_IDLE } from './survey-recording';
 import {
+  acknowledge,
   CELL,
   createSurveyTestStore,
   FOUR_ANCHORS,
@@ -185,7 +183,7 @@ describe('the survey panel', () => {
     expect(tagOf(waiting, 'rtls-survey-commit')).toContain('disabled');
     expect(waiting).toContain('rtlsSurvey.commit.acknowledgeFirst');
 
-    store.dispatch(acknowledgeRtlsSurveyWarnings(true));
+    acknowledge(store);
     expect(tagOf(render(store), 'rtls-survey-commit')).not.toContain(
       'disabled'
     );
@@ -266,7 +264,7 @@ describe('the survey panel', () => {
   test('locked anchors disable Survey and Commit, with the reason shown', () => {
     const store = withStandardCell();
     play(store, RUN);
-    store.dispatch(acknowledgeRtlsSurveyWarnings(true));
+    acknowledge(store);
     for (const action of rtlsInformationActions(information(4))) {
       store.dispatch(action);
     }

@@ -65,16 +65,20 @@ export const gateVerdict = ({
 export const pairsNeedALook = (survey: RtlsSurvey): boolean =>
   survey.pairs.some(({ residualM }) => residualLevel(residualM) !== 'ok');
 
-/** The warnings as one string: an acknowledgement holds for exactly these. */
+/**
+ * A fit and its warnings as one string: an acknowledgement holds for exactly
+ * these warnings of exactly this fit.
+ */
 export const warningsSignature = (survey: RtlsSurvey | undefined): string =>
-  JSON.stringify(
+  JSON.stringify([
+    survey?.fit ?? null,
     (survey?.gate.warnings ?? []).map(({ code, device, peer, detail }) => [
       code,
       device ?? null,
       peer ?? null,
       detail,
-    ])
-  );
+    ]),
+  ]);
 
 /**
  * The i18n key of why neither Survey nor Commit may be sent now; `undefined`
@@ -143,12 +147,33 @@ const gateBlockKey = (
       : undefined;
 
 /**
+ * The i18n key of why a held fit is not committed as it is: an anchor of it
+ * went offline, the sketch moved on since it was made (its gate is then of
+ * another sketch), or its gate.
+ */
+const fitBlockKey = (
+  gate: RtlsSurveyGate,
+  {
+    acknowledged,
+    groupOffline,
+    fitStale,
+  }: { acknowledged: boolean; groupOffline: boolean; fitStale: boolean }
+): string | undefined =>
+  groupOffline
+    ? 'rtlsSurvey.commit.surveyAgain'
+    : fitStale
+      ? 'rtlsSurvey.commit.refitFirst'
+      : gateBlockKey(gate, acknowledged);
+
+/**
  * What the page offers for one cell, from the survey as the server last
  * reported it. `refusalKey` is `surveyRefusalKey`; `startProblemKey` and
  * `refitProblemKey` say what the sketch lacks for the anchors a start or a
  * refit would name. A survey held for another cell (`elsewhere`) can be
  * replaced from here, never cancelled, refitted or committed. With an anchor
- * of the measured group offline the server commits nothing.
+ * of the measured group offline the server commits nothing. A fit made with
+ * another sketch than the one on screen (`fitStale`) is not committed: the
+ * operator refits first.
  */
 export function surveyControls({
   survey,
@@ -160,6 +185,7 @@ export function surveyControls({
   refitProblemKey,
   elsewhere = false,
   groupOffline = false,
+  fitStale = false,
 }: Pick<RtlsSurveySliceState, 'survey' | 'pending' | 'available'> & {
   /** The warnings now shown are acknowledged. */
   acknowledged: boolean;
@@ -168,6 +194,7 @@ export function surveyControls({
   refitProblemKey?: string;
   elsewhere?: boolean;
   groupOffline?: boolean;
+  fitStale?: boolean;
 }): RtlsSurveyControls {
   const phase = survey?.state;
   const idle = pending === undefined;
@@ -184,9 +211,7 @@ export function surveyControls({
     !elsewhere && survey?.state === 'ready' && survey.fit !== undefined;
   const commitBlockedKey = commitOffered
     ? (refusalKey ??
-      (groupOffline
-        ? 'rtlsSurvey.commit.surveyAgain'
-        : gateBlockKey(survey.gate, acknowledged)))
+      fitBlockKey(survey.gate, { acknowledged, groupOffline, fitStale }))
     : undefined;
 
   return {
@@ -212,6 +237,11 @@ export type RtlsSurveySliceState = {
   available?: boolean;
   /** Status requests that got no answer at all: each asks for another try. */
   statusFailures?: number;
+  /**
+   * How many state objects were held so far: a status request remembers it
+   * as it leaves, and its reply is too old when another state came since.
+   */
+  held?: number;
   /** The warnings (`warningsSignature`) the operator acknowledged. */
   acknowledged?: string;
   /**
@@ -263,6 +293,24 @@ const applyCommit = (state: RtlsSurveySliceState, survey: RtlsSurvey): void => {
 };
 
 /**
+ * Whether a state object is older than the held one: its `revision` is
+ * lower. The server counts every change of its survey, so a reply that was
+ * overtaken by a notification is told apart by it. A server that does not
+ * count yet leaves only this: the reply to a status request (`heldAtRequest`
+ * is `held` as the request left) is older than any state held since.
+ */
+const isOutdated = (
+  state: RtlsSurveySliceState,
+  survey: RtlsSurvey,
+  heldAtRequest?: number
+): boolean => {
+  const current = state.survey?.revision;
+  return current !== undefined && survey.revision !== undefined
+    ? survey.revision < current
+    : heldAtRequest !== undefined && heldAtRequest !== (state.held ?? 0);
+};
+
+/**
  * Takes the server's state object. An acknowledgement is for one fit: any
  * other fit, and none at all while a new measurement runs, voids it.
  */
@@ -272,6 +320,7 @@ const holdSurvey = (state: RtlsSurveySliceState, survey: RtlsSurvey): void => {
   }
   applyCommit(state, survey);
   state.survey = survey;
+  state.held = (state.held ?? 0) + 1;
 };
 
 const { actions, reducer } = createSlice({
@@ -291,18 +340,28 @@ const { actions, reducer } = createSlice({
       }
     },
 
-    /** The answer to this client's request; `request` as sent with it. */
+    /**
+     * The answer to this client's request; `request` as sent with it, and
+     * for a status request `heldAtRequest`, the slice's `held` as it left.
+     */
     rtlsSurveyAnswered(
       state,
       {
-        payload: { answer, request },
+        payload: { answer, request, heldAtRequest },
       }: PayloadAction<{
         answer: RtlsSurveyAnswer;
         request?: RtlsSurveyRememberedFit;
+        heldAtRequest?: number;
       }>
     ) {
-      const { survey, ...outcome } = answer;
+      const { survey: answered, ...outcome } = answer;
       state.available = true;
+      // an answer overtaken by a newer state says what it came to, but its
+      // state object is not the survey any more
+      const survey =
+        answered !== undefined && !isOutdated(state, answered, heldAtRequest)
+          ? answered
+          : undefined;
       // a refit that changes nothing must still say that it ran
       const unchanged =
         outcome.result === 'fitted' &&
@@ -353,6 +412,9 @@ const { actions, reducer } = createSlice({
 
     /** A pushed state object. */
     rtlsSurveyPushed(state, { payload }: PayloadAction<RtlsSurvey>) {
+      if (isOutdated(state, payload)) {
+        return;
+      }
       // an outcome describes the phase it was answered in
       if (state.survey?.state !== payload.state) {
         state.outcome = undefined;
@@ -361,11 +423,16 @@ const { actions, reducer } = createSlice({
       holdSurvey(state, payload);
     },
 
-    /** Ticks or clears the acknowledgement of the warnings now shown. */
-    acknowledgeRtlsSurveyWarnings(state, { payload }: PayloadAction<boolean>) {
-      state.acknowledged = payload
-        ? warningsSignature(state.survey)
-        : undefined;
+    /**
+     * Ticks the acknowledgement of the warnings on screen, given as their
+     * `warningsSignature`, or clears it. What is acknowledged is what the
+     * operator saw: a fit that arrived as the box was ticked is not.
+     */
+    acknowledgeRtlsSurveyWarnings(
+      state,
+      { payload }: PayloadAction<string | undefined>
+    ) {
+      state.acknowledged = payload;
     },
 
     setRtlsSurveySketch(

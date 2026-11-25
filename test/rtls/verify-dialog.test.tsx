@@ -104,7 +104,6 @@ describe('the fleet verification dialog with the survey rules', () => {
       'RTLS anchor A2 is not surveyed',
       'RTLS anchor A3 is on survey 11, the cell on 12',
       'tag 42 leaves out 2 anchor(s): anchor 203 (no-position), anchor 204 (other-survey)',
-      'tag 42 uses 2 of 2 surveyed anchors',
     ]);
   });
 

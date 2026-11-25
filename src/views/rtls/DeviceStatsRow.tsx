@@ -229,6 +229,8 @@ const RowActions = ({
 export type DeviceStatsRowProps = {
   /** Names the anchors of a tag's own table (tag rows only). */
   nameTableAnchor?: TableAnchorNamer;
+  /** Three anchors are enough for a tag to position (tag rows only). */
+  planarSurvey?: boolean;
   /** An anchor's slot in its cell (0 = initiator), when known. */
   anchorSlot?: number;
   /** Whether a sleep/wake transaction is in flight for this device. */
@@ -319,6 +321,7 @@ const RoleContent = ({
  */
 const DeviceStatsRow = ({
   nameTableAnchor,
+  planarSurvey = false,
   anchorSlot,
   busy = false,
   device,
@@ -427,7 +430,7 @@ const DeviceStatsRow = ({
           lines={
             anchor
               ? describeAnchorDetailLines(t, stats, device.twr)
-              : describeTagDetailLines(t, stats, nameTableAnchor)
+              : describeTagDetailLines(t, stats, nameTableAnchor, planarSurvey)
           }
         />
         <Typography

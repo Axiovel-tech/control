@@ -120,7 +120,12 @@ const RtlsVerifyDialog = () => {
                       ? ' (warning)'
                       : '')
                   }
-                  secondary={<RuleDetail detail={rule.detail} />}
+                  secondary={
+                    // a rule may come without a detail: no lines then
+                    typeof rule.detail === 'string' ? (
+                      <RuleDetail detail={rule.detail} />
+                    ) : undefined
+                  }
                 />
               </ListItem>
             ))}

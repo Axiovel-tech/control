@@ -234,6 +234,10 @@ export function surveyTarget(
   const levels = [...new Set(ordered.map(({ id }) => levelOf(sketch, id)))];
   const members = (level: number): number[] =>
     ordered.filter(({ id }) => levelOf(sketch, id) === level).map(idOf);
+  // an anchor the frame puts in no group has a level to itself, which is
+  // not a height group; one that got company is in a group like any other
+  const isGroup = (group: readonly number[]): boolean =>
+    group.length !== 1 || !sketch.ungrouped?.includes(String(group[0]));
 
   const farthest = ordered
     .filter(({ id }) => id !== origin && id !== xAxis && id in framed)
@@ -256,7 +260,10 @@ export function surveyTarget(
     frame: {
       origin: Number(origin),
       xAxis: Number(xAxis),
-      heightGroups: levels.sort((a, b) => a - b).map(members),
+      heightGroups: levels
+        .sort((a, b) => a - b)
+        .map(members)
+        .filter(isGroup),
       upper: ordered
         .filter(({ id }) => levelOf(sketch, id) > originLevel)
         .map(idOf),
@@ -320,9 +327,10 @@ export function fitSignature(
  *
  * The height groups come back lowest first as far as the frame says: the
  * groups it does not call upper, the origin's, then the upper ones. An
- * anchor in no group stands in one of its own. Groups past Upper get no
- * name. The placement is drawn with the plan as the frame, and the +y side
- * is the one the frame declares.
+ * anchor in no group stays in none (`ungrouped`): it has a level of its own
+ * for the list to show, which is never sent as a group. Groups past Upper
+ * get no name. The placement is drawn with the plan as the frame, and the
+ * +y side is the one the frame declares.
  */
 export function sketchFromBasis(
   { frame: echoed, placement }: RtlsSurveyFitBasis,
@@ -332,6 +340,7 @@ export function sketchFromBasis(
   const frame = 'preset' in echoed ? presetFrame(order) : echoed;
   const upper = new Set(frame.upper);
   const grouped = new Set(frame.heightGroups.flat());
+  const ungrouped = order.filter((id) => !grouped.has(id));
   const rank = (group: readonly number[]): number =>
     group.includes(frame.origin)
       ? 1
@@ -340,7 +349,7 @@ export function sketchFromBasis(
         : 0;
   const groups = [
     ...frame.heightGroups.filter((group) => group.length > 0),
-    ...order.filter((id) => !grouped.has(id)).map((id) => [id]),
+    ...ungrouped.map((id) => [id]),
   ]
     .map((group, index) => ({ group, index }))
     .sort((a, b) => rank(a.group) - rank(b.group) || a.index - b.index);
@@ -363,6 +372,7 @@ export function sketchFromBasis(
       () => ''
     ),
     groupOf,
+    ...(ungrouped.length > 0 ? { ungrouped: ungrouped.map(String) } : {}),
     excluded: [],
     origin: String(frame.origin),
     xAxis: String(frame.xAxis),

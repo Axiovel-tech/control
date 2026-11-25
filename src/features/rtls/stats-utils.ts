@@ -8,6 +8,7 @@
  */
 
 import {
+  type RtlsAnchor,
   type RtlsDeviceStats,
   type RtlsPowerState,
   RtlsUwbStatus,
@@ -178,16 +179,31 @@ export const isRangeDeviating = (stats: RtlsDeviceStats | undefined): boolean =>
   Math.abs(stats.rangeDeviationM) > RANGE_DEVIATION_WARNING_M;
 
 /**
- * Whether a tag positions: it follows a survey ID and uses anchors of it.
- * `undefined` while its firmware reports no table. Never read from the show
- * clock, which is valid in a cell with no survey at all.
+ * Whether every surveyed anchor is `planar`: its survey declared all its
+ * anchors at one height. A tag then solves on three of them.
+ */
+export const isSurveyPlanar = (anchors: readonly RtlsAnchor[]): boolean => {
+  const surveyed = anchors.filter(({ surveyId }) => surveyId !== undefined);
+  return surveyed.length > 0 && surveyed.every(({ planar }) => planar === true);
+};
+
+/**
+ * Whether a tag positions: it follows a survey ID and uses four anchors of
+ * it, or three when every surveyed anchor is planar (`planarSurvey`). This
+ * is the solver's own minimum (rtls-link-zephyr
+ * `docs/reference/anchor-geometry.md`, "Enough") and the server's rule: a
+ * tag that keeps its survey ID on fewer anchors solves nothing. `undefined`
+ * while its firmware reports no table. Never read from the show clock, which
+ * is valid in a cell with no survey at all.
  */
 export const isTagPositioned = (
-  stats: RtlsDeviceStats | undefined
+  stats: RtlsDeviceStats | undefined,
+  planarSurvey = false
 ): boolean | undefined =>
   stats?.anchorsUsed === undefined
     ? undefined
-    : stats.surveyId !== undefined && stats.anchorsUsed > 0;
+    : stats.surveyId !== undefined &&
+      stats.anchorsUsed >= (planarSurvey ? 3 : 4);
 
 /** Whether the UWB session refused to start (configuration or hardware). */
 export function isUwbStartRefused(stats: RtlsDeviceStats | undefined): boolean {

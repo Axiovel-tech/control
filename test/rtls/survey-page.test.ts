@@ -20,10 +20,7 @@ jest.mock('~/features/show/selectors', () => ({
   }): boolean => state.show.start.authorized,
 }));
 
-import {
-  acknowledgeRtlsSurveyWarnings,
-  setRtlsSurveySketch,
-} from '~/features/rtls/survey';
+import { setRtlsSurveySketch } from '~/features/rtls/survey';
 import {
   commitRtlsSurvey,
   refitRtlsSurvey,
@@ -46,6 +43,7 @@ import messageHub from '~/message-hub';
 import { reply } from './rtls-test-store';
 import { answer, push, READY, REFIT, RUN } from './survey-recording';
 import {
+  acknowledge,
   CELL,
   createSurveyTestStore,
   FOUR_ANCHORS,
@@ -100,7 +98,7 @@ describe('a survey held for another cell', () => {
     sketchCell(store, CELL);
     sketchCell(store, STAGE);
     play(store, RUN);
-    store.dispatch(acknowledgeRtlsSurveyWarnings(true));
+    acknowledge(store);
     return store;
   };
 
@@ -219,7 +217,7 @@ describe('an anchor of the survey that went offline', () => {
     reportAnchors(store, EIGHT);
     sketchCell(store, CELL, sketch);
     play(store, [answer('start', 'started', ready), push(ready)]);
-    store.dispatch(acknowledgeRtlsSurveyWarnings(true));
+    acknowledge(store);
     return store;
   };
 

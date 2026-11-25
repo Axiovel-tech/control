@@ -97,7 +97,7 @@ describe('the anchors panel', () => {
       'rtls-anchors-panel.survey'
     );
     expect(pill).toContain('StatusPill-status-warning');
-    expect(pill).toContain('rtlsSurveyHealth.cell.out(id=12,count=2,out=2)');
+    expect(pill).toContain('rtlsSurveyHealth.cell.out(id=12,count=4,out=2)');
   });
 
   test('header pill: green with every anchor on the survey, red with none', () => {
@@ -106,7 +106,7 @@ describe('the anchors panel', () => {
       'rtls-anchors-panel.survey'
     );
     expect(clean).toContain('StatusPill-status-success');
-    expect(clean).toContain('rtlsSurveyHealth.cell.ok(id=12,count=4,out=0)');
+    expect(clean).toContain('rtlsSurveyHealth.cell.ok(id=12,count=6,out=0)');
     const blank = element(
       render(storeWith(INFORMATION_BLANK), <RtlsAnchorsPanel />),
       'rtls-anchors-panel.survey'
@@ -170,7 +170,7 @@ describe('the tags panel', () => {
   test("a tag's row: its survey, the anchors it uses and how many are out", () => {
     const markup = render(storeWith(), <RtlsTagsPanel />);
     expect(element(row(markup, '42'), 'rtls-row-survey')).toContain(
-      'rtlsSurveyHealth.tag.excluding(id=12,count=2,excluded=2)'
+      'rtlsSurveyHealth.tag.excluding(id=12,count=4,excluded=2)'
     );
     // a sleeping tag reports no table
     expect(row(markup, '43')).not.toContain('rtls-row-survey');

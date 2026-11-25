@@ -39,7 +39,7 @@ describe('X-RTLS-INF once the anchors own the geometry', () => {
   test('the survey of the cell, ids as the device registry keys them', () => {
     expect(mapCellSurvey(INFORMATION.survey)).toEqual({
       id: 12,
-      anchors: 2,
+      anchors: 4,
       notSurveyed: ['203'],
       otherSurvey: ['204'],
       rangeDeviation: ['202'],
@@ -66,7 +66,7 @@ describe('X-RTLS-INF once the anchors own the geometry', () => {
       reducer(undefined, { type: '@@INIT' })
     );
     expect(state.cellSurvey?.id).toBe(12);
-    expect(state.anchors).toHaveLength(4);
+    expect(state.anchors).toHaveLength(6);
 
     // a message without the member leaves the stored one alone
     const { survey: _survey, ...older } = INFORMATION;
@@ -82,18 +82,20 @@ describe('X-RTLS-STATS once the anchors own the geometry', () => {
   test("a tag's survey stats and its table", () => {
     expect(stats['42']).toMatchObject({
       surveyId: 12,
-      anchorsUsed: 2,
+      anchorsUsed: 4,
       anchorsExcluded: 2,
       surveyDriftM: 0.0312,
       anchorTable: [
         { row: 0, mac: 2, state: 'in-use', systemId: 202 },
         { row: 1, mac: 1, state: 'in-use', systemId: 201 },
+        { row: 2, mac: 5, state: 'in-use', systemId: 205 },
+        { row: 3, mac: 6, state: 'in-use', systemId: 206 },
         { mac: 3, state: 'no-position', systemId: 203 },
         { mac: 4, state: 'other-survey', systemId: 204 },
       ],
     });
     // an anchor left out has no row
-    expect(stats['42'].anchorTable?.[2].row).toBeUndefined();
+    expect(stats['42'].anchorTable?.[4].row).toBeUndefined();
   });
 
   test('an empty table is a table; none is none', () => {

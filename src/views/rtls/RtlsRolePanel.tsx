@@ -45,6 +45,7 @@ import {
   getRtlsTagDevices,
 } from '~/features/rtls/selectors';
 import { setRtlsSleeping } from '~/features/rtls/sleep-actions';
+import { isSurveyPlanar } from '~/features/rtls/stats-utils';
 import {
   openRtlsOtaDialog,
   openRtlsParamDialog,
@@ -95,12 +96,18 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
   // cell is on and who is off it, as the server reports it
   const cellSurvey = useSelector(getRtlsCellSurvey);
   const siteAnchors = useSelector(getRtlsAnchors);
+  // with every surveyed anchor planar, three are enough for a tag to
+  // position: the pills, the rows and the pre-show health go by one answer
+  const planarSurvey = useMemo(
+    () => isSurveyPlanar(siteAnchors),
+    [siteAnchors]
+  );
   const surveyPill = useMemo(
     () =>
       tags
-        ? describeTagSurveyPill(cellSurvey, devices, statsById)
+        ? describeTagSurveyPill(cellSurvey, devices, statsById, planarSurvey)
         : describeCellSurveyPill(cellSurvey),
-    [cellSurvey, devices, statsById, tags]
+    [cellSurvey, devices, planarSurvey, statsById, tags]
   );
   // names the anchors of a tag's own table; stable, so the memoized rows
   // keep their prop
@@ -210,6 +217,7 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
               <FleetHealthSummary
                 devices={devices}
                 statsById={statsById}
+                planarSurvey={planarSurvey}
                 onSelect={showDevice}
               />
               {expandAllButton}
@@ -263,7 +271,7 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
           devices.map((device, index) => {
             const stats = statsById[device.id];
             const survey = tags
-              ? describeTagSurveyChip(device, stats)
+              ? describeTagSurveyChip(device, stats, planarSurvey)
               : describeAnchorSurveyChip(
                   device,
                   stats,
@@ -286,6 +294,7 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
                 {index > 0 && <Divider />}
                 <DeviceStatsRow
                   nameTableAnchor={tags ? nameTableAnchor : undefined}
+                  planarSurvey={planarSurvey}
                   anchorSlot={
                     tags ? undefined : getAnchorSlot(device, siteAnchors)
                   }

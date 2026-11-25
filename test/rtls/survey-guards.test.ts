@@ -14,11 +14,7 @@ import {
   rtlsInformationActions,
 } from '~/features/rtls/handlers';
 import { setRtlsDevicesFromStatus } from '~/features/rtls/slice';
-import {
-  acknowledgeRtlsSurveyWarnings,
-  surveyControls,
-  surveyRefusalKey,
-} from '~/features/rtls/survey';
+import { surveyControls, surveyRefusalKey } from '~/features/rtls/survey';
 import {
   getRtlsSurveyAnchors,
   getRtlsSurveyPage,
@@ -29,6 +25,7 @@ import { UAVAge } from '~/model/uav';
 import { type FakeUav } from './rtls-test-store';
 import { RUN } from './survey-recording';
 import {
+  acknowledge,
   CELL,
   createSurveyTestStore as createStore,
   information,
@@ -83,7 +80,7 @@ describe('the guard on Survey and Commit', () => {
   test('locked anchors disable Survey and Commit, with the reason', () => {
     const store = createStore();
     play(store, RUN);
-    store.dispatch(acknowledgeRtlsSurveyWarnings(true));
+    acknowledge(store);
     expect(controlsOf(store)).toMatchObject({
       canStart: true,
       canCommit: true,
@@ -108,7 +105,7 @@ describe('the guard on Survey and Commit', () => {
   test('an authorized show disables them', () => {
     const store = createStore({ authorized: true });
     play(store, RUN);
-    store.dispatch(acknowledgeRtlsSurveyWarnings(true));
+    acknowledge(store);
     expect(controlsOf(store)).toMatchObject({
       canStart: false,
       startBlockedKey: 'rtlsSurvey.refusal.showAuthorized',
@@ -121,7 +118,7 @@ describe('the guard on Survey and Commit', () => {
     const maybeArmed: FakeUav = { id: '7', age: UAVAge.ACTIVE, errors: [] };
     const store = createStore({ uavs: [maybeArmed] });
     play(store, RUN);
-    store.dispatch(acknowledgeRtlsSurveyWarnings(true));
+    acknowledge(store);
     expect(controlsOf(store)).toMatchObject({
       canStart: false,
       startBlockedKey: 'rtlsCellSettings.disarmFirst',

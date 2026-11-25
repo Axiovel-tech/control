@@ -270,7 +270,8 @@ describe('8. the frame and placement of the survey the server holds', () => {
     setSketch(store, withAnchorIncluded(EMPTY_SKETCH, '104', false));
     const page = pageOf(store);
     expect(page.sketchRestored).toBe(true);
-    expect(page.sketch.excluded).toEqual(['104']);
+    // while the fit is held the boxes show who was measured
+    expect(page.sketch.excluded).toEqual([]);
   });
 
   test('an online anchor the survey did not range starts left out', () => {

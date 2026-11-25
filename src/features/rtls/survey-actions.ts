@@ -78,13 +78,19 @@ const request =
     members: AnyRecord = {},
     remembered?: RtlsSurveyRememberedFit
   ): AppThunk<Promise<RtlsSurveyAnswer | undefined>> =>
-  async (dispatch) => {
+  async (dispatch, getState) => {
     if (action !== 'status') {
       dispatch(rtlsSurveyRequested(action));
     }
+    // a status reply is too old when a state object arrives while it is
+    // under way
+    const heldAtRequest =
+      action === 'status' ? (getState().rtlsSurvey.held ?? 0) : undefined;
     try {
       const answer = await sendRtlsSurvey(action, members);
-      dispatch(rtlsSurveyAnswered({ answer, request: remembered }));
+      dispatch(
+        rtlsSurveyAnswered({ answer, request: remembered, heldAtRequest })
+      );
       return answer;
     } catch (error) {
       dispatch(
@@ -174,7 +180,9 @@ export const refitRtlsSurvey =
 
 /**
  * Commits the cell's held fit, with the acknowledgement of the warnings now
- * shown. The page then shows what each anchor answered and offers the lock;
+ * shown and the `revision` of the survey on screen: the server commits only
+ * the survey the operator looked at, and refuses any other as `stale`. The
+ * page then shows what each anchor answered and offers the lock;
  * no dialog opens over the results. Sends nothing unless the page offers the
  * commit at this moment: a block, a warning not acknowledged, another cell's
  * survey or a request still in flight may have reached the store after the
@@ -183,12 +191,21 @@ export const refitRtlsSurvey =
 export const commitRtlsSurvey =
   (cell: string): AppThunk<Promise<void>> =>
   async (dispatch, getState) => {
-    const { acknowledged, controls } = getRtlsSurveyPage(getState(), cell);
+    const { acknowledged, controls, survey } = getRtlsSurveyPage(
+      getState(),
+      cell
+    );
     if (!controls.canCommit) {
       return;
     }
     const answer = await dispatch(
-      request('commit', acknowledged ? { acknowledgeWarnings: true } : {})
+      request('commit', {
+        ...(acknowledged ? { acknowledgeWarnings: true } : {}),
+        // a server that does not count revisions yet is sent none
+        ...(survey?.revision === undefined
+          ? {}
+          : { revision: survey.revision }),
+      })
     );
     if (answer?.result === 'committed') {
       showNotification(i18n.t('rtlsSurvey.notification.committed'));

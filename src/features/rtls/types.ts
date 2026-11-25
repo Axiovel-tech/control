@@ -456,7 +456,8 @@ export type RtlsVerifyRule = {
   label: string;
   severity: 'error' | 'warning';
   status: 'fail' | 'pass' | 'skipped';
-  detail: string;
+  /** What the rule found; a rule may come without. */
+  detail?: string;
   /** Per-drone findings of the yaw-source rule. */
   devices?: Record<string, Record<string, unknown>>;
   /** Per-parameter cross-drone differences of the in-depth rule. */

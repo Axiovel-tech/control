@@ -120,8 +120,8 @@ describe('the anchors of the NLOS and outvoted masks', () => {
 
   test('a row the table does not name is shown as its row', () => {
     expect(
-      metric({ ...tag, nlosMask: 0b1000 }, 'nlosAnchors').text.values
-    ).toEqual({ anchors: 'row 3' });
+      metric({ ...tag, nlosMask: 0b100000 }, 'nlosAnchors').text.values
+    ).toEqual({ anchors: 'row 5' });
     expect(
       describeFleetHealth({ id: '1', nlosMask: 1 }).find(
         ({ id }) => id === 'nlosAnchors'

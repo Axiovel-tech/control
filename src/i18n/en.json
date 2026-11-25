@@ -1062,6 +1062,8 @@
       "noSurvey": "no survey in use",
       "residual": "{{residual}} cm",
       "surveyDrift": "{{drift}} cm",
+      "tooFewAnchors_one": "{{count}} anchor used, too few",
+      "tooFewAnchors_other": "{{count}} anchors used, too few",
       "unknown": "—",
       "uwbRssi": "{{rssi}} dBm (weakest anchor)",
       "wifi": "{{rssi}} dBm",
@@ -1130,6 +1132,7 @@
       "detail": "({{- detail}})",
       "incomplete": "Not every anchor took the survey: {{anchors}}",
       "offline": "{{anchors}} offline since this survey. Refit still works; a commit needs a new survey.",
+      "refitFirst": "The sketch changed since this fit: refit first",
       "result": "{{anchor}}: {{written}}",
       "retry": "Retry",
       "running": "· running",
@@ -1170,6 +1173,7 @@
       "anchor": "Anchor",
       "explained": "Origin: this anchor is the point (0, 0), and its height group is height 0. +x (y = 0): this anchor fixes the direction of the X axis and nothing else. Height group: its anchors stand at about the same height, which is what makes the frame level. The groups are listed lowest first: every group after the origin's is above it.",
       "group": "Height group",
+      "groupFixed": "The boxes show the anchors that were measured: a refit and a commit are of those. A new survey takes the anchors that are operating then.",
       "groupMeans": "about the same height",
       "include": "Survey this anchor",
       "leftOut": "Operating: include it, or put it to sleep",
@@ -1190,6 +1194,7 @@
       "error": "No answer from the server",
       "incomplete": "Not every anchor took the survey",
       "refused": "Refused",
+      "stale": "The survey changed meanwhile. This is its state now.",
       "unknown": "Unexpected answer from the server",
       "warnings": "Acknowledge the warnings first"
     },
@@ -1295,14 +1300,18 @@
       "excluding_other": "survey {{id}} · {{count}} anchors · {{excluded}} out",
       "none": "no survey",
       "ok_one": "survey {{id}} · {{count}} anchor",
-      "ok_other": "survey {{id}} · {{count}} anchors"
+      "ok_other": "survey {{id}} · {{count}} anchors",
+      "tooFew_one": "survey {{id}} · {{count}} anchor, too few",
+      "tooFew_other": "survey {{id}} · {{count}} anchors, too few"
     },
     "tags": {
       "excluding_one": "{{count}} tag excludes an anchor",
       "excluding_other": "{{count}} tags exclude an anchor",
+      "noTelemetry_one": "{{count}} tag: no survey telemetry",
+      "noTelemetry_other": "{{count}} tags: no survey telemetry",
       "none": "no survey",
-      "off_one": "{{count}} tag not on survey {{id}}",
-      "off_other": "{{count}} tags not on survey {{id}}",
+      "off_one": "{{count}} tag not positioned on survey {{id}}",
+      "off_other": "{{count}} tags not positioned on survey {{id}}",
       "ok": "survey {{id}}"
     },
     "why": {
