@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, jest, test } from '@jest/globals';
+import { type ComponentType } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { Provider } from 'react-redux';
 
 // Thin mocks for the heavy import chains, as in survey-actions.test.ts.
 jest.mock('~/message-hub', () => ({
@@ -20,6 +22,24 @@ jest.mock('~/features/show/selectors', () => ({
     show: { start: { authorized: boolean } };
   }): boolean => state.show.start.authorized,
 }));
+jest.mock('~/features/servers/selectors', () => ({
+  __esModule: true,
+  isConnected: (): boolean => false,
+}));
+// the panel's commit button as last rendered
+let mockCommit: () => void = () => undefined;
+jest.mock('~/views/rtls/survey/SurveyCommit', () => {
+  const actual = jest.requireActual<{
+    default: ComponentType<{ onCommit: () => void }>;
+  }>('~/views/rtls/survey/SurveyCommit');
+  return {
+    __esModule: true,
+    default: (props: { onCommit: () => void }) => {
+      mockCommit = props.onCommit;
+      return <actual.default {...props} />;
+    },
+  };
+});
 jest.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string): string => key }),
 }));
@@ -33,9 +53,11 @@ import {
   withXAxis,
 } from '~/features/rtls/survey-sketch';
 import messageHub from '~/message-hub';
+import RtlsSurveyPanel from '~/views/rtls/RtlsSurveyPanel';
 import SurveyCommit from '~/views/rtls/survey/SurveyCommit';
 
-import { push, READY } from './survey-recording';
+import { reply } from './rtls-test-store';
+import { COMMIT, push, READY } from './survey-recording';
 import {
   acknowledge,
   CELL,
@@ -43,6 +65,7 @@ import {
   play,
   run,
   stateOf,
+  surveyOf,
   type SurveyTestStore,
 } from './survey-test-store';
 
@@ -94,7 +117,7 @@ describe('C1. a sketch that cannot be sent is a changed sketch', () => {
     expect(page.controls.canCommit).toBe(false);
     expect(page.controls.canRefit).toBe(false);
 
-    await run(store, commitRtlsSurvey(CELL));
+    await run(store, commitRtlsSurvey(CELL, surveyOf(store)));
     expect(sendMessage).not.toHaveBeenCalled();
   });
 
@@ -114,5 +137,47 @@ describe('C1. a sketch that cannot be sent is a changed sketch', () => {
       />
     );
     expect(markup).toContain('rtlsSurvey.problem.sameAnchor');
+  });
+});
+
+describe('C2. a commit is of the survey the button was rendered with', () => {
+  const renderPanel = (store: SurveyTestStore): string =>
+    renderToStaticMarkup(
+      <Provider store={store}>
+        <RtlsSurveyPanel />
+      </Provider>
+    );
+  const OTHER_FIT = { ...(READY.fit as object), rmsM: 0.012 };
+  const NO_WARNINGS = { blocked: [], warnings: [] };
+
+  test('a notification between the render and the click does not change it', () => {
+    const store = withStandardCell();
+    play(store, [ready(7, { gate: NO_WARNINGS })]);
+    renderPanel(store);
+    const commitAsRendered = mockCommit;
+    // another browser's refit: this one never showed it
+    play(store, [ready(8, { fit: OTHER_FIT, gate: NO_WARNINGS })]);
+    expect(pageOf(store).controls.canCommit).toBe(true);
+    sendMessage.mockResolvedValue(reply(COMMIT[2].body));
+
+    commitAsRendered();
+
+    // the server refuses it as stale
+    expect(sendMessage.mock.calls.at(-1)?.[0]).toMatchObject({
+      action: 'commit',
+      revision: 7,
+    });
+  });
+
+  test('without revisions the replaced fit is not committed at all', async () => {
+    const store = withStandardCell();
+    play(store, [push({ ...READY, gate: NO_WARNINGS })]);
+    const shown = surveyOf(store);
+    play(store, [push({ ...READY, fit: OTHER_FIT, gate: NO_WARNINGS })]);
+    expect(pageOf(store).controls.canCommit).toBe(true);
+
+    await run(store, commitRtlsSurvey(CELL, shown));
+
+    expect(sendMessage).not.toHaveBeenCalled();
   });
 });

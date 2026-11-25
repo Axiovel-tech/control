@@ -51,6 +51,7 @@ import {
   reportAnchors,
   run,
   stateOf,
+  surveyOf,
   type SurveyTestStore,
   type TestAnchor,
 } from './survey-test-store';
@@ -137,7 +138,7 @@ describe('a survey held for another cell', () => {
 
   test('Commit and Refit from the other cell send nothing', async () => {
     const store = benchSurveyed();
-    await run(store, commitRtlsSurvey(STAGE));
+    await run(store, commitRtlsSurvey(STAGE, surveyOf(store)));
     await run(store, refitRtlsSurvey(STAGE));
     expect(sendMessage).not.toHaveBeenCalled();
 
@@ -284,7 +285,7 @@ describe('an anchor of the survey that went offline', () => {
       canCommit: false,
       commitBlockedKey: 'rtlsSurvey.commit.surveyAgain',
     });
-    await run(store, commitRtlsSurvey(CELL));
+    await run(store, commitRtlsSurvey(CELL, surveyOf(store)));
     expect(sendMessage).not.toHaveBeenCalled();
   });
 

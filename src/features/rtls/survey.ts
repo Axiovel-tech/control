@@ -282,7 +282,8 @@ const STATUS_RETRY_MS = 5000;
 export const statusQueryDelayMs = (failures: number | undefined): number =>
   failures === undefined ? 0 : STATUS_RETRY_MS;
 
-const sameFit = (a: RtlsSurvey | undefined, b: RtlsSurvey): boolean =>
+/** Whether two states hold one and the same fit. */
+export const sameFit = (a: RtlsSurvey | undefined, b: RtlsSurvey): boolean =>
   JSON.stringify(a?.fit) === JSON.stringify(b.fit);
 
 /**

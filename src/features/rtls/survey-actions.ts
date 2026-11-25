@@ -15,6 +15,7 @@ import {
   rtlsSurveyAnswered,
   rtlsSurveyRequested,
   rtlsSurveyRequestFailed,
+  sameFit,
   setRtlsSurveySketch,
 } from './survey';
 import {
@@ -24,6 +25,7 @@ import {
 } from './survey-frame';
 import {
   mapRtlsSurveyAnswer,
+  type RtlsSurvey,
   type RtlsSurveyAction,
   type RtlsSurveyAnswer,
 } from './survey-messages';
@@ -179,9 +181,10 @@ export const refitRtlsSurvey =
   };
 
 /**
- * Commits the cell's held fit, with the acknowledgement of the warnings now
- * shown and the `revision` of the survey on screen: the server commits only
- * the survey the operator looked at, and refuses any other as `stale`. The
+ * Commits the cell's fit, with the acknowledgement of its warnings and the
+ * `revision` of the survey the button was rendered with (`shown`): the
+ * server commits only the survey the operator looked at, and refuses any
+ * other as `stale`, whatever reached the store before the click did. The
  * page then shows what each anchor answered and offers the lock;
  * no dialog opens over the results. Sends nothing unless the page offers the
  * commit at this moment: a block, a warning not acknowledged, another cell's
@@ -189,22 +192,21 @@ export const refitRtlsSurvey =
  * click.
  */
 export const commitRtlsSurvey =
-  (cell: string): AppThunk<Promise<void>> =>
+  (cell: string, shown: RtlsSurvey): AppThunk<Promise<void>> =>
   async (dispatch, getState) => {
     const { acknowledged, controls, survey } = getRtlsSurveyPage(
       getState(),
       cell
     );
-    if (!controls.canCommit) {
+    // a server that does not count revisions yet cannot tell another fit
+    const replaced = shown.revision === undefined && !sameFit(survey, shown);
+    if (!controls.canCommit || replaced) {
       return;
     }
     const answer = await dispatch(
       request('commit', {
         ...(acknowledged ? { acknowledgeWarnings: true } : {}),
-        // a server that does not count revisions yet is sent none
-        ...(survey?.revision === undefined
-          ? {}
-          : { revision: survey.revision }),
+        ...(shown.revision === undefined ? {} : { revision: shown.revision }),
       })
     );
     if (answer?.result === 'committed') {

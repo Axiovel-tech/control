@@ -75,6 +75,7 @@ import {
   reportAnchors,
   run,
   stateOf,
+  surveyOf,
   type SurveyTestStore,
 } from './survey-test-store';
 
@@ -151,7 +152,7 @@ describe('1. a fit that is stale against the sketch cannot be committed', () => 
     // the operator refits first
     expect(page.controls.canRefit).toBe(true);
 
-    await run(store, commitRtlsSurvey(CELL));
+    await run(store, commitRtlsSurvey(CELL, surveyOf(store)));
     expect(sendMessage).not.toHaveBeenCalled();
 
     const markup = renderToStaticMarkup(
@@ -211,7 +212,7 @@ describe('2. a commit is of the survey on screen', () => {
     play(store, [ready(7)]);
     acknowledge(store);
     sendMessage.mockResolvedValueOnce(reply(COMMIT[2].body));
-    await run(store, commitRtlsSurvey(CELL));
+    await run(store, commitRtlsSurvey(CELL, surveyOf(store)));
     expect(sendMessage).toHaveBeenCalledWith(
       {
         type: 'X-RTLS-SURVEY',
@@ -240,7 +241,7 @@ describe('2. a commit is of the survey on screen', () => {
 
     acknowledge(store);
     sendMessage.mockResolvedValueOnce(reply(COMMIT[2].body));
-    await run(store, commitRtlsSurvey(CELL));
+    await run(store, commitRtlsSurvey(CELL, surveyOf(store)));
     expect(sent()).toEqual({
       type: 'X-RTLS-SURVEY',
       action: 'commit',
@@ -254,7 +255,7 @@ describe('2. a commit is of the survey on screen', () => {
     play(store, [ready()]);
     acknowledge(store);
     sendMessage.mockResolvedValueOnce(reply(COMMIT[2].body));
-    await run(store, commitRtlsSurvey(CELL));
+    await run(store, commitRtlsSurvey(CELL, surveyOf(store)));
     expect(sent()).not.toHaveProperty('revision');
   });
 
@@ -275,7 +276,7 @@ describe('2. a commit is of the survey on screen', () => {
       'stale'
     );
     sendMessage.mockResolvedValueOnce(reply(moved.body));
-    await run(store, commitRtlsSurvey(CELL));
+    await run(store, commitRtlsSurvey(CELL, surveyOf(store)));
     return store;
   };
 

@@ -73,6 +73,7 @@ import {
   reportAnchors,
   run,
   stateOf,
+  surveyOf,
   type SurveyTestStore,
 } from './survey-test-store';
 
@@ -210,7 +211,7 @@ describe('7. the lock is offered after the commit, under its results', () => {
     play(store, RUN);
     acknowledge(store);
     sendMessage.mockResolvedValueOnce(reply(COMMIT[2].body));
-    await run(store, commitRtlsSurvey(CELL));
+    await run(store, commitRtlsSurvey(CELL, surveyOf(store)));
     return store;
   };
 

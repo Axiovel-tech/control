@@ -15,7 +15,10 @@ import surveyReducer, {
   rtlsSurveyRequested,
   warningsSignature,
 } from '~/features/rtls/survey';
-import { mapRtlsSurveyAnswer } from '~/features/rtls/survey-messages';
+import {
+  mapRtlsSurveyAnswer,
+  type RtlsSurvey,
+} from '~/features/rtls/survey-messages';
 import {
   type AppDispatch,
   type AppThunk,
@@ -131,6 +134,10 @@ export const reportAnchors = (
 /** The test store's state as the app's: it has every slice this code reads. */
 export const stateOf = (store: SurveyTestStore): RootState =>
   store.getState() as RootState;
+
+/** The survey the store holds: what a page rendered now shows. */
+export const surveyOf = (store: SurveyTestStore): RtlsSurvey =>
+  store.getState().rtlsSurvey.survey!; // non-null: a survey was played
 
 export const run = <R>(store: SurveyTestStore, thunk: AppThunk<R>): R =>
   thunk(store.dispatch as AppDispatch, () => stateOf(store), undefined);

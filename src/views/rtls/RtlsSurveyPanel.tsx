@@ -250,7 +250,7 @@ const RtlsSurveyPanel = () => {
               offline={page.offline}
               locked={locked}
               nameOf={nameOf}
-              onCommit={() => void dispatch(commitRtlsSurvey(cell))}
+              onCommit={() => void dispatch(commitRtlsSurvey(cell, survey))}
               onLock={() => dispatch(openRtlsLockDialog())}
             />
           </>
