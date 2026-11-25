@@ -19,7 +19,9 @@ import {
   getRtlsAnchorLock,
   getRtlsAnchors,
   getRtlsDeviceDisplayName,
+  getRtlsStatsById,
 } from './selectors';
+import { isAnchorResting } from './stats-utils';
 import { type RtlsSurveySliceState, surveyRefusalKey } from './survey';
 import { type RtlsSurveyPage, surveyPage } from './survey-page';
 import {
@@ -32,18 +34,40 @@ export const getRtlsSurveyState: AppSelector<RtlsSurveySliceState> = (state) =>
   state.rtlsSurvey;
 
 /**
+ * Selector that returns the ids of the anchors that range on their stored
+ * session now (online and neither asleep nor in standby), as one string: the
+ * stats it is read from arrive every second, and the page must not be worked
+ * out again unless the answer changes.
+ */
+const getOperatingAnchorKey: AppSelector<string> = createSelector(
+  getRtlsAnchorDevices,
+  getRtlsStatsById,
+  (devices, statsById) =>
+    devices
+      .filter(
+        (device) =>
+          device.online &&
+          !isAnchorResting(statsById[device.id], device.sleeping)
+      )
+      .map(({ id }) => id)
+      .join(',')
+);
+
+/**
  * Selector that returns every anchor the server lists, online or not, in
  * slot order, with what the survey page shows of it: its slot and cell and
- * the position it stores, from the site anchor list, and its live range to
- * A0.
+ * the position and survey ID it stores, from the site anchor list, its live
+ * range to A0, and whether it ranges on its stored session now.
  */
 const getKnownAnchors: AppSelector<
   Array<RtlsSurveyAnchor & { online: boolean }>
 > = createSelector(
   getRtlsAnchorDevices,
   getRtlsAnchors,
-  (devices, siteAnchors) => {
+  getOperatingAnchorKey,
+  (devices, siteAnchors, operatingKey) => {
     const initiatorMacs = getInitiatorMacs(siteAnchors);
+    const operating = new Set(operatingKey.split(','));
     return inSlotOrder(
       devices.map((device) => {
         const site = siteAnchors.find(
@@ -59,8 +83,13 @@ const getKnownAnchors: AppSelector<
             site !== undefined && hasPlottableAnchor(site)
               ? { north: site.ned.north, east: site.ned.east }
               : undefined,
+          storedDown: site?.ned?.down,
+          surveyId: site?.surveyId,
           initiatorDistanceM: findInitiatorPeer(device.twr, initiatorMacs)
             ?.distanceM,
+          // the server lets a sleeping or standby anchor stay out of a
+          // survey, never one that ranges
+          operating: operating.has(device.id),
         };
       })
     );

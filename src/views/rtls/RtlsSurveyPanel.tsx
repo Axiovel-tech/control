@@ -4,6 +4,11 @@
  * positions, reads the fit and its commit gate, and commits it to the
  * anchors. The survey on screen is the server's state object
  * (X-RTLS-SURVEY); Control keeps only the sketch, per cell.
+ *
+ * The run, the fit's summary, the gate and the commit stay at the top of the
+ * panel at any size: what the operator presses and what answers it are never
+ * under a table. Below them the views and the anchor list sit side by side,
+ * or one above the other in a panel too narrow for both.
  */
 
 import Alert from '@mui/material/Alert';
@@ -11,8 +16,7 @@ import Box from '@mui/material/Box';
 import Divider from '@mui/material/Divider';
 import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDispatch, useSelector } from 'react-redux';
 
@@ -32,7 +36,6 @@ import {
   refitRtlsSurvey,
   startRtlsSurvey,
 } from '~/features/rtls/survey-actions';
-import { heldFitTransform } from '~/features/rtls/survey-frame';
 import {
   getRtlsSurveyCells,
   getRtlsSurveyPage,
@@ -49,9 +52,36 @@ import { anchorNamer } from './survey/labels';
 import SurveyAnchorList from './survey/SurveyAnchorList';
 import SurveyCommit from './survey/SurveyCommit';
 import SurveyGate from './survey/SurveyGate';
-import SurveyPlan from './survey/SurveyPlan';
 import SurveyResult from './survey/SurveyResult';
 import SurveyRun from './survey/SurveyRun';
+import SurveyStored from './survey/SurveyStored';
+import SurveyViews from './survey/SurveyViews';
+
+/**
+ * The panel width under which the views and the list no longer fit side by
+ * side, px: about what the workbench gives a panel opened from the sidebar.
+ */
+const NARROW_PANEL_PX = 820;
+
+/** Whether an element is narrower than `limit`; `false` until it is measured. */
+const useNarrow = (limit: number) => {
+  const ref = useRef<HTMLDivElement>(null);
+  const [narrow, setNarrow] = useState(false);
+  useEffect(() => {
+    const element = ref.current;
+    if (element === null || typeof ResizeObserver === 'undefined') {
+      return undefined;
+    }
+    const observer = new ResizeObserver(([entry]) => {
+      setNarrow(entry.contentRect.width < limit);
+    });
+    observer.observe(element);
+    return () => {
+      observer.disconnect();
+    };
+  }, [limit]);
+  return { ref, narrow };
+};
 
 const RtlsSurveyPanel = () => {
   const { t } = useTranslation();
@@ -61,6 +91,7 @@ const RtlsSurveyPanel = () => {
   const { fittedRequest, outcome, pending, statusFailures } =
     useSelector(getRtlsSurveyState);
   const locked = useSelector(getRtlsAnchorLock)?.locked ?? false;
+  const { ref, narrow } = useNarrow(NARROW_PANEL_PX);
 
   const cellKeys = Object.keys(cells).sort();
   const [chosenCell, setChosenCell] = useState<string>();
@@ -105,64 +136,59 @@ const RtlsSurveyPanel = () => {
     );
   }
 
-  return (
+  const details = (
     <Box
-      data-testid='rtls-survey-panel'
-      data-state={survey?.state}
       sx={{
         display: 'flex',
-        flexWrap: 'wrap',
-        alignContent: 'flex-start',
-        height: '100%',
-        overflow: 'auto',
+        flexDirection: 'column',
+        gap: 1,
+        p: 1,
+        ...(narrow
+          ? { flex: 'none' }
+          : { flex: '1 1 50%', minWidth: 0, overflow: 'auto' }),
       }}
     >
-      <Box
-        sx={{
-          flex: '1 1 360px',
-          minWidth: 280,
-          height: '100%',
-          minHeight: 280,
-          p: 1,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 0.5,
-        }}
-      >
-        <Box sx={{ flex: 1, minHeight: 0 }}>
-          <SurveyPlan
-            anchors={anchors}
-            sketch={sketch}
-            survey={survey}
-            nameOf={nameOf}
-            fitTransformOf={(drawn) =>
-              heldFitTransform({
-                sketch: drawn,
-                group: measured,
-                echo: survey?.basis,
-                remembered: fittedRequest,
-              })
-            }
-            onMove={(id, point) =>
-              setSketch(withAnchorMoved(sketch, id, point))
-            }
-          />
-        </Box>
-        <Typography variant='caption' color='textSecondary'>
-          {t('rtlsSurvey.plan.caption')}
-        </Typography>
-      </Box>
+      <SurveyAnchorList
+        anchors={anchors}
+        sketch={sketch}
+        leftOut={page.leftOut}
+        restored={page.sketchRestored}
+        onChange={setSketch}
+      />
+      <Divider />
+      {survey?.fit === undefined ? (
+        <SurveyStored anchors={page.stored} nameOf={nameOf} />
+      ) : (
+        <SurveyResult
+          // a new fit decides anew whether its pair table opens
+          key={`${survey.fit.rmsM}-${survey.fit.worstM}`}
+          survey={survey}
+          nameOf={nameOf}
+        />
+      )}
+    </Box>
+  );
 
+  return (
+    <Box
+      ref={ref}
+      data-testid='rtls-survey-panel'
+      data-state={survey?.state}
+      data-layout={narrow ? 'narrow' : 'wide'}
+      sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}
+    >
       <Box
+        data-testid='rtls-survey-header'
         sx={{
-          flex: '1 1 360px',
-          minWidth: 300,
-          maxHeight: '100%',
+          flex: 'none',
+          maxHeight: '60%',
           overflow: 'auto',
           p: 1,
           display: 'flex',
           flexDirection: 'column',
           gap: 1,
+          borderBottom: 1,
+          borderColor: 'divider',
         }}
       >
         {cellKeys.length > 1 && (
@@ -180,12 +206,6 @@ const RtlsSurveyPanel = () => {
             ))}
           </TextField>
         )}
-        <SurveyAnchorList
-          anchors={anchors}
-          sketch={sketch}
-          onChange={setSketch}
-        />
-        <Divider />
         {page.heldElsewhere && (
           <Alert severity='info' data-testid='rtls-survey-elsewhere'>
             {t('rtlsSurvey.heldElsewhere')}
@@ -195,6 +215,7 @@ const RtlsSurveyPanel = () => {
           survey={survey}
           controls={controls}
           outcome={outcome}
+          leftOut={page.leftOut}
           hintKeys={page.hintKeys}
           sketchChanged={page.sketchChanged}
           nameOf={nameOf}
@@ -204,9 +225,8 @@ const RtlsSurveyPanel = () => {
         />
         {survey !== undefined && (
           <>
-            <SurveyResult survey={survey} nameOf={nameOf} />
             <SurveyGate
-              gate={survey.gate}
+              survey={survey}
               nameOf={nameOf}
               acknowledged={page.acknowledged}
               disabled={pending !== undefined}
@@ -225,6 +245,29 @@ const RtlsSurveyPanel = () => {
             />
           </>
         )}
+      </Box>
+      <Box
+        data-testid='rtls-survey-body'
+        sx={{
+          flex: 1,
+          minHeight: 0,
+          display: 'flex',
+          ...(narrow
+            ? { flexDirection: 'column', overflow: 'auto' }
+            : { flexDirection: 'row' }),
+        }}
+      >
+        <SurveyViews
+          anchors={anchors}
+          sketch={sketch}
+          survey={survey}
+          measured={measured}
+          fittedRequest={fittedRequest}
+          nameOf={nameOf}
+          narrow={narrow}
+          onMove={(id, point) => setSketch(withAnchorMoved(sketch, id, point))}
+        />
+        {details}
       </Box>
     </Box>
   );

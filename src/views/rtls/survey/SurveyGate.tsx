@@ -1,23 +1,27 @@
 /**
- * @file The commit gate of a fit: the server's blocks, which nothing
- * dismisses, and its warnings with the one acknowledgement a commit needs.
+ * @file The fit in one line and its commit gate, shown with the run and the
+ * commit, never under the tables: the server's blocks, which nothing
+ * dismisses, its warnings with the one acknowledgement a commit needs, or
+ * the word that there is neither.
  */
 
 import Alert from '@mui/material/Alert';
+import Box from '@mui/material/Box';
 import Checkbox from '@mui/material/Checkbox';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import Typography from '@mui/material/Typography';
 import { useTranslation } from 'react-i18next';
 
+import { gateVerdict } from '~/features/rtls/survey';
 import {
-  type RtlsSurveyGate,
+  type RtlsSurvey,
   type RtlsSurveyGateEntry,
 } from '~/features/rtls/survey-messages';
 
-import { type AnchorNamer } from './labels';
+import { type AnchorNamer, centimetres } from './labels';
 
 type SurveyGateProps = {
-  gate: RtlsSurveyGate;
+  survey: RtlsSurvey;
   nameOf: AnchorNamer;
   acknowledged: boolean;
   disabled?: boolean;
@@ -54,15 +58,48 @@ const GateEntries = ({
 };
 
 const SurveyGate = ({
-  gate,
+  survey,
   nameOf,
   acknowledged,
   disabled,
   onAcknowledge,
 }: SurveyGateProps) => {
   const { t } = useTranslation();
+  const { fit, gate } = survey;
+  if (fit === undefined) {
+    return null;
+  }
+  const verdict = gateVerdict(gate);
   return (
-    <>
+    <Box
+      data-testid='rtls-survey-gate'
+      data-verdict={verdict}
+      sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}
+    >
+      <Typography variant='body2' data-testid='rtls-survey-summary'>
+        {t('rtlsSurvey.result.summary', {
+          rms: centimetres(fit.rmsM),
+          worst: centimetres(fit.worstM),
+        })}
+        {fit.planar && ` ${t('rtlsSurvey.result.planar')}`}
+      </Typography>
+      {fit.notes.length > 0 && (
+        <Alert severity='info' data-testid='rtls-survey-notes'>
+          {fit.notes.map((note) => (
+            <div key={note}>{note}</div>
+          ))}
+        </Alert>
+      )}
+      {/* a fit already on the anchors has nothing left to pass */}
+      {verdict === 'clear' && survey.state !== 'committed' && (
+        <Alert
+          severity='success'
+          data-testid='rtls-survey-gate-clear'
+          sx={{ py: 0 }}
+        >
+          {t('rtlsSurvey.gate.clear')}
+        </Alert>
+      )}
       {gate.blocked.length > 0 && (
         <Alert severity='error' data-testid='rtls-survey-blocked'>
           <Typography variant='subtitle2'>
@@ -88,7 +125,7 @@ const SurveyGate = ({
           />
         </Alert>
       )}
-    </>
+    </Box>
   );
 };
 

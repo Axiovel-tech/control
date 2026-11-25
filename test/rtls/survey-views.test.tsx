@@ -77,15 +77,36 @@ describe('the commit gate', () => {
   const render = (survey: RtlsSurvey, acknowledged = false): string =>
     renderToStaticMarkup(
       <SurveyGate
-        gate={survey.gate}
+        survey={survey}
         nameOf={nameOf}
         acknowledged={acknowledged}
         onAcknowledge={noop}
       />
     );
 
-  test('a clean fit shows no gate', () => {
-    expect(render({ ...READY, gate: { blocked: [], warnings: [] } })).toBe('');
+  test('a fit that passes says so: no blocks, no warnings', () => {
+    const markup = render({ ...READY, gate: { blocked: [], warnings: [] } });
+    expect(markup).toContain('data-verdict="clear"');
+    expect(markup).toContain('data-testid="rtls-survey-gate-clear"');
+    expect(markup).toContain('MuiAlert-colorSuccess');
+    expect(markup).toContain('rtlsSurvey.gate.clear');
+    expect(markup).not.toContain('type="checkbox"');
+  });
+
+  test("the fit's rms, worst pair and the server's notes come with the gate", () => {
+    const markup = render(READY);
+    expect(markup).toContain('rtlsSurvey.result.summary(rms=3.1,worst=7.4)');
+    expect(markup).toContain('rtlsSurvey.result.planar');
+    expect(markup).toContain(
+      'anchors 103 and 104 are swapped against the placement'
+    );
+    // a gate with something to say does not also say it is clear
+    expect(markup).not.toContain('rtls-survey-gate-clear');
+    expect(markup).toContain('data-verdict="warnings"');
+  });
+
+  test('no fit, no gate', () => {
+    expect(render(surveyIn(RUN[1]))).toBe('');
   });
 
   test('warnings come with exactly one acknowledgement box', () => {
@@ -144,12 +165,77 @@ describe('the result', () => {
     <SurveyResult survey={READY} nameOf={nameOf} />
   );
 
-  test("the fit's rms, worst pair and the server's notes", () => {
-    expect(markup).toContain('rtlsSurvey.result.summary(rms=3.1,worst=7.4)');
-    expect(markup).toContain('rtlsSurvey.result.planar');
-    expect(markup).toContain(
-      'anchors 103 and 104 are swapped against the placement'
+  test('the pair table is folded away unless a pair is past a bound', () => {
+    // the recorded fit has a pair over the warning bound: it opens
+    expect(markup).toContain('data-testid="rtls-survey-pairs"');
+    expect(markup).toContain('rtlsSurvey.result.pairs(count=6,worst=7.4)');
+    expect(markup.indexOf('rtls-survey-anchors-fit')).toBeLessThan(
+      markup.indexOf('rtls-survey-pairs-toggle')
     );
+
+    const calm = renderToStaticMarkup(
+      <SurveyResult
+        survey={{
+          ...READY,
+          pairs: READY.pairs.map((pair) => ({ ...pair, residualM: 0.004 })),
+        }}
+        nameOf={nameOf}
+      />
+    );
+    expect(calm).toContain('data-testid="rtls-survey-pairs-toggle"');
+    expect(calm).toContain('aria-expanded="false"');
+    expect(calm).not.toContain('data-testid="rtls-survey-pairs"');
+    expect(calm).toContain('data-testid="rtls-survey-anchors-fit"');
+  });
+
+  test('a value that rounds to zero has no sign', () => {
+    const rounded = renderToStaticMarkup(
+      <SurveyResult
+        survey={{
+          ...READY,
+          fit: {
+            ...READY.fit!, // non-null: the recorded run ends with a fit
+            anchors: {
+              ...READY.fit!.anchors,
+              '103': { ...READY.fit!.anchors['103'], x: -0.004, y: -0.0049 },
+            },
+          },
+        }}
+        nameOf={nameOf}
+      />
+    );
+    expect(rounded).not.toContain('-0.00');
+    expect(rounded).not.toContain('-0.0<');
+  });
+
+  test("each anchor's offset from its height group, when the server sends it", () => {
+    expect(markup).not.toContain('rtlsSurvey.result.heightOffset');
+    const fit = READY.fit!; // non-null: the recorded run ends with a fit
+    const offsets = renderToStaticMarkup(
+      <SurveyResult
+        survey={{
+          ...READY,
+          fit: {
+            ...fit,
+            anchors: {
+              ...fit.anchors,
+              '101': { ...fit.anchors['101'], heightOffsetM: 0.012 },
+              '102': { ...fit.anchors['102'], heightOffsetM: -0.004 },
+              '103': { ...fit.anchors['103'], heightOffsetM: 0 },
+            },
+          },
+        }}
+        nameOf={nameOf}
+      />
+    );
+    expect(offsets).toContain('rtlsSurvey.result.heightOffset');
+    const offsetOf = (id: string): string | undefined =>
+      new RegExp(`rtls-survey-offset-${id}"[^>]*>([^<]*)<`).exec(offsets)?.[1];
+    expect(offsetOf('101')).toBe('+1.2');
+    expect(offsetOf('102')).toBe('-0.4');
+    expect(offsetOf('103')).toBe('0.0');
+    // an anchor in no group has none
+    expect(offsetOf('104')).toBe('—');
   });
 
   test("each anchor's quality; no move for one that stored no position", () => {
@@ -160,7 +246,7 @@ describe('the result', () => {
       );
     const cells = (id: string): string[] =>
       [...row(id).matchAll(/<td[^>]*>([^<]*)<\/td>/g)].map((match) => match[1]);
-    // name, x, y, z, links, rms, worst pair, sigma, moved
+    // name, x, y, z, links, rms, worst pair, sigma, moved (no offsets sent)
     expect(cells('103')).toEqual([
       'A2',
       '0.00',
@@ -222,6 +308,7 @@ describe('the run', () => {
       <SurveyRun
         survey={survey}
         controls={controlsFor(survey)}
+        leftOut={[]}
         hintKeys={[]}
         sketchChanged={false}
         nameOf={nameOf}

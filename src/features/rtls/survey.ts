@@ -21,7 +21,7 @@ import {
   surveyOfBody,
 } from './survey-messages';
 import { type RtlsSurveyRememberedFit } from './survey-frame';
-import { type RtlsSurveySketch } from './survey-sketch';
+import { type RtlsSurveySketch, withPositionsCommitted } from './survey-sketch';
 
 /** How a residual reads against the server's commit warnings. */
 export type RtlsSurveyResidualLevel = 'ok' | 'warning' | 'error';
@@ -43,6 +43,27 @@ export const residualLevel = (
       ? 'warning'
       : 'ok';
 };
+
+/** What the commit gate says of a fit. */
+export type RtlsSurveyGateVerdict = 'blocked' | 'warnings' | 'clear';
+
+/**
+ * The gate in one word, shown with the fit whatever it is: a gate that
+ * passes says so ("no blocks, no warnings") instead of showing nothing.
+ */
+export const gateVerdict = ({
+  blocked,
+  warnings,
+}: RtlsSurveyGate): RtlsSurveyGateVerdict =>
+  blocked.length > 0 ? 'blocked' : warnings.length > 0 ? 'warnings' : 'clear';
+
+/**
+ * Whether the pair table opens by itself: only while a pair is past a
+ * warning bound. Otherwise it stays folded under the fit, the gate and the
+ * commit, which must not be pushed out of sight by one row per pair.
+ */
+export const pairsNeedALook = (survey: RtlsSurvey): boolean =>
+  survey.pairs.some(({ residualM }) => residualLevel(residualM) !== 'ok');
 
 /** The warnings as one string: an acknowledgement holds for exactly these. */
 export const warningsSignature = (survey: RtlsSurvey | undefined): string =>
@@ -199,8 +220,15 @@ export type RtlsSurveySliceState = {
    * echo of them, when it sends one, says whether the held fit is that one.
    */
   fittedRequest?: RtlsSurveyRememberedFit;
-  /** The operator's sketch per cell; the only part kept across reloads. */
+  /** The operator's sketch per cell, kept across reloads. */
   sketches: Record<string, RtlsSurveySketch>;
+  /**
+   * The survey ID of the last commit whose anchors left the sketches: what
+   * was drawn of them gave way to the positions they store. Kept across
+   * reloads, so that the same commit, reported again, takes nothing drawn
+   * since.
+   */
+  committedSurveyId?: number;
 };
 
 const initialState: RtlsSurveySliceState = { sketches: {} };
@@ -212,14 +240,37 @@ const STATUS_RETRY_MS = 5000;
 export const statusQueryDelayMs = (failures: number | undefined): number =>
   failures === undefined ? 0 : STATUS_RETRY_MS;
 
+const sameFit = (a: RtlsSurvey | undefined, b: RtlsSurvey): boolean =>
+  JSON.stringify(a?.fit) === JSON.stringify(b.fit);
+
+/**
+ * A committed survey is what its anchors store from now on: the sketches
+ * give up what was drawn of them, once per commit.
+ */
+const applyCommit = (state: RtlsSurveySliceState, survey: RtlsSurvey): void => {
+  const surveyId = survey.commit?.surveyId;
+  const seen =
+    surveyId === undefined
+      ? state.survey?.state === 'committed'
+      : state.committedSurveyId === surveyId;
+  if (survey.state !== 'committed' || seen) {
+    return;
+  }
+  state.committedSurveyId = surveyId;
+  for (const [cell, sketch] of Object.entries(state.sketches)) {
+    state.sketches[cell] = withPositionsCommitted(sketch, survey.anchors);
+  }
+};
+
 /**
  * Takes the server's state object. An acknowledgement is for one fit: any
  * other fit, and none at all while a new measurement runs, voids it.
  */
 const holdSurvey = (state: RtlsSurveySliceState, survey: RtlsSurvey): void => {
-  if (JSON.stringify(state.survey?.fit) !== JSON.stringify(survey.fit)) {
+  if (!sameFit(state.survey, survey)) {
     state.acknowledged = undefined;
   }
+  applyCommit(state, survey);
   state.survey = survey;
 };
 
@@ -252,6 +303,11 @@ const { actions, reducer } = createSlice({
     ) {
       const { survey, ...outcome } = answer;
       state.available = true;
+      // a refit that changes nothing must still say that it ran
+      const unchanged =
+        outcome.result === 'fitted' &&
+        survey !== undefined &&
+        sameFit(state.survey, survey);
       if (survey !== undefined) {
         holdSurvey(state, survey);
       }
@@ -259,7 +315,8 @@ const { actions, reducer } = createSlice({
         return;
       }
       state.pending = undefined;
-      state.outcome = outcome;
+      state.outcome =
+        outcome.result === 'fitted' ? { ...outcome, unchanged } : outcome;
       if (outcome.result === 'committed') {
         state.acknowledged = undefined;
       }
@@ -324,6 +381,7 @@ const { actions, reducer } = createSlice({
     // the next server reports its own survey; the sketches are the venue's
     builder.addCase(clearRtlsDevices, (state) => ({
       sketches: state.sketches,
+      committedSurveyId: state.committedSurveyId,
     }));
   },
 });

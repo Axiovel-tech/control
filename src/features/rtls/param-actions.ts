@@ -47,7 +47,8 @@ export const fetchRtlsDeviceParameters =
  * warnings), and the cell settings, which every device of the cell must
  * share: the rate and TX level through the anchors panel's cell settings
  * (which write them to every device and restart it), channel and session id
- * only with the CLI.
+ * only with the CLI. An anchor's position is the survey's to write, from the
+ * survey page, to every anchor at once with one survey ID.
  */
 export const READ_ONLY_RTLS_PARAMS: Readonly<Record<string, string>> = {
   SLEEP: 'rtlsParams.sleepReadOnly',
@@ -58,6 +59,8 @@ export const READ_ONLY_RTLS_PARAMS: Readonly<Record<string, string>> = {
   UWB_TX_GAIN: 'rtlsParams.cellReadOnly',
   UWB_CHANNEL: 'rtlsParams.cellCliOnly',
   UWB_SESSION_ID: 'rtlsParams.cellCliOnly',
+  UWB_LOC: 'rtlsParams.surveyReadOnly',
+  UWB_SURVEY: 'rtlsParams.surveyReadOnly',
 };
 
 /**
@@ -66,8 +69,8 @@ export const READ_ONLY_RTLS_PARAMS: Readonly<Record<string, string>> = {
  * resolves normally with `accepted: false`; only transport errors reject).
  *
  * On an accepted set the cached parameter value is updated optimistically.
- * `SLEEP`, `LOCK` and the cell settings are refused before sending (see
- * {@link READ_ONLY_RTLS_PARAMS}).
+ * `SLEEP`, `LOCK`, the cell settings and what the survey writes are refused
+ * before sending (see {@link READ_ONLY_RTLS_PARAMS}).
  */
 export const setRtlsDeviceParameter =
   (

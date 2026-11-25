@@ -6,11 +6,12 @@
 
 import { Status } from '~/components/semantics';
 
-import { type I18nText } from './geometry-utils';
+import { type I18nText } from './i18n-text';
 import {
   classifyRole,
   type InitiatorEvidence,
   isAnchorResting,
+  isRangeDeviating,
   isRangingByTelemetry,
   isUwbStartRefused,
   RtlsRole,
@@ -298,6 +299,22 @@ export function describeAnchorBadges(
       id: 'moved',
       status: Status.WARNING,
       text: { key: 'rtlsAnchor.badge.moved' },
+    });
+  }
+  if (isRangeDeviating(stats)) {
+    // non-null: a deviating range check has a reading
+    const deviation = stats.rangeDeviationM!;
+    badges.push({
+      id: 'rangeDeviation',
+      status: Status.WARNING,
+      text: {
+        key:
+          deviation < 0
+            ? 'rtlsAnchor.badge.rangeCloser'
+            : 'rtlsAnchor.badge.rangeFarther',
+        values: { cm: Math.round(Math.abs(deviation) * 100) },
+      },
+      tooltip: { key: 'rtlsAnchor.badgeTooltip.rangeDeviation' },
     });
   }
   if ((stats.radioRestarts ?? 0) > 0) {

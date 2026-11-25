@@ -11,11 +11,11 @@ import i18n from '~/i18n';
 import messageHub from '~/message-hub';
 import { type AppThunk } from '~/store/reducers';
 
-import { openRtlsLockDialog } from './slice';
 import {
   rtlsSurveyAnswered,
   rtlsSurveyRequested,
   rtlsSurveyRequestFailed,
+  setRtlsSurveySketch,
 } from './survey';
 import {
   frameTransform,
@@ -116,12 +116,15 @@ export const queryRtlsSurvey =
 export const startRtlsSurvey =
   (cell: string): AppThunk<Promise<void>> =>
   async (dispatch, getState) => {
-    const { anchors, controls, sketch, startTarget } = getRtlsSurveyPage(
-      getState(),
-      cell
-    );
+    const { anchors, controls, sketch, sketchRestored, startTarget } =
+      getRtlsSurveyPage(getState(), cell);
     if (!controls.canStart || startTarget === undefined) {
       return;
+    }
+    if (sketchRestored) {
+      // the run this frame was taken from ends with the new one: from here
+      // on it is this client's own sketch
+      dispatch(setRtlsSurveySketch({ cell, sketch }));
     }
     await dispatch(
       request('start', startTarget, {
@@ -171,10 +174,11 @@ export const refitRtlsSurvey =
 
 /**
  * Commits the cell's held fit, with the acknowledgement of the warnings now
- * shown, and opens the lock dialog once every anchor took it. Sends nothing
- * unless the page offers the commit at this moment: a block, a warning not
- * acknowledged, another cell's survey or a request still in flight may have
- * reached the store after the click.
+ * shown. The page then shows what each anchor answered and offers the lock;
+ * no dialog opens over the results. Sends nothing unless the page offers the
+ * commit at this moment: a block, a warning not acknowledged, another cell's
+ * survey or a request still in flight may have reached the store after the
+ * click.
  */
 export const commitRtlsSurvey =
   (cell: string): AppThunk<Promise<void>> =>
@@ -188,6 +192,5 @@ export const commitRtlsSurvey =
     );
     if (answer?.result === 'committed') {
       showNotification(i18n.t('rtlsSurvey.notification.committed'));
-      dispatch(openRtlsLockDialog());
     }
   };

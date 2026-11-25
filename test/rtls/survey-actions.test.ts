@@ -64,7 +64,9 @@ import {
 import {
   CELL,
   createSurveyTestStore as createStore,
+  FOUR_ANCHORS,
   play,
+  reportAnchors,
   run,
   stateOf,
   type SurveyTestStore as TestStore,
@@ -236,8 +238,13 @@ describe('the requests', () => {
 
   test('Survey sends nothing while the guard refuses or the sketch lacks a frame', async () => {
     await run(withStandardCell({ authorized: true }), startRtlsSurvey(CELL));
-    // no sketch: no origin, no +x
-    await run(createStore(), startRtlsSurvey(CELL));
+    // no sketch, and anchors that store nothing: no origin, no +x
+    const blank = createStore();
+    reportAnchors(
+      blank,
+      FOUR_ANCHORS.map(({ id, slot }) => ({ id, slot }))
+    );
+    await run(blank, startRtlsSurvey(CELL));
     expect(sendMessage).not.toHaveBeenCalled();
   });
 
@@ -363,7 +370,7 @@ describe('the requests', () => {
     expect(sendMessage).not.toHaveBeenCalled();
   });
 
-  test('committed opens the lock dialog; incomplete does not', async () => {
+  test('a commit opens no dialog: the page shows its results first', async () => {
     const store = withStandardCell();
     play(store, RUN);
     store.dispatch(acknowledgeRtlsSurveyWarnings(true));
@@ -375,7 +382,9 @@ describe('the requests', () => {
 
     answerWith(COMMIT[2]);
     await run(store, commitRtlsSurvey(CELL));
-    expect(store.getState().rtls.lockDialogOpen).toBe(true);
+    // the lock is offered under the results, by the page
+    expect(store.getState().rtls.lockDialogOpen).toBe(false);
+    expect(store.getState().rtlsSurvey.survey?.state).toBe('committed');
     expect(showNotification).toHaveBeenCalledWith(
       'rtlsSurvey.notification.committed'
     );

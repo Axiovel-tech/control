@@ -111,8 +111,12 @@ describe('the survey panel', () => {
     expect(markup).not.toContain('rtls-survey-panel');
   });
 
-  test('before a sketch: every anchor on the plan and in the list, and what Survey lacks', () => {
+  test('a cell never surveyed: every anchor on the plan and in the list, and what Survey lacks', () => {
     const store = createSurveyTestStore();
+    reportAnchors(
+      store,
+      FOUR_ANCHORS.map(({ id, slot }) => ({ id, slot }))
+    );
     play(store, [STATUS_IDLE]);
     const markup = render(store);
     expect(tagOf(markup, 'rtls-survey-panel')).toContain('data-state="idle"');
@@ -120,12 +124,29 @@ describe('the survey panel', () => {
       expect(markup).toContain(`data-testid="rtls-survey-anchor-${id}"`);
       expect(markup).toContain(`data-testid="rtls-survey-row-${id}"`);
     }
-    // the three that store a position start there; the fourth waits
-    expect(markup.split('data-known="true"')).toHaveLength(4);
+    // nobody stores a position: every marker waits to be dragged
+    expect(markup.split('data-known="false"')).toHaveLength(5);
     expect(markup).toContain('RTLS anchor A3');
     expect(tagOf(markup, 'rtls-survey-start')).toContain('disabled');
     expect(markup).toContain('rtlsSurvey.problem.pickOrigin');
     expect(markup).not.toContain('rtls-survey-commit');
+    expect(markup).not.toContain('rtls-survey-stored');
+  });
+
+  test('a cell surveyed before: the anchors start where they store themselves, in their frame', () => {
+    const store = createSurveyTestStore();
+    play(store, [STATUS_IDLE]);
+    const markup = render(store);
+    // the three that store a position start there; the fourth waits
+    expect(markup.split('data-known="true"')).toHaveLength(4);
+    // the frame they were committed in: Survey needs nothing more
+    expect(markup).toContain('data-testid="rtls-survey-axis"');
+    expect(tagOf(markup, 'rtls-survey-start')).not.toContain('disabled');
+    expect(markup).not.toContain('rtlsSurvey.problem.pickOrigin');
+    // and what they store is on the page while no fit is held
+    expect(markup).toContain('data-testid="rtls-survey-stored"');
+    expect(markup).toContain('data-testid="rtls-survey-stored-102"');
+    expect(markup).not.toContain('data-testid="rtls-survey-stored-104"');
   });
 
   test('the standard cell makes Survey available', () => {
@@ -200,9 +221,9 @@ describe('the survey panel', () => {
     const fittedOf = (markup: string): string[] =>
       [
         ...markup.matchAll(
-          /data-testid="rtls-survey-fitted-\d+">.*?<rect[^>]*>/g
+          /data-testid="rtls-survey-fitted-\d+"[^>]*>.*?<polygon[^>]*>/g
         ),
-      ].map(([marker]) => marker.slice(marker.indexOf('<rect')));
+      ].map(([marker]) => marker.slice(marker.indexOf('<polygon')));
 
     const before = fittedOf(render(store));
     expect(before).toHaveLength(4);

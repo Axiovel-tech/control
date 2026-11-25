@@ -29,9 +29,9 @@ import { type RtlsCellSettings } from './cell-settings';
 import {
   type RtlsAnchor,
   type RtlsAnchorLock,
+  type RtlsCellSurvey,
   type RtlsDevice,
   type RtlsDeviceStats,
-  type RtlsGeometryAgreement,
   type RtlsOtaJob,
   type RtlsVerifyResult,
   type RtlsPosEstimate,
@@ -177,11 +177,16 @@ export const getRtlsPositionsById: AppSelector<
 > = (state) => state.rtls.positions.byId;
 
 /**
- * Selector that returns the site-level anchor list (configured cell geometry
- * from X-RTLS-INF).
+ * Selector that returns the site-level anchor list (X-RTLS-INF): every known
+ * anchor with the position it stores.
  */
 export const getRtlsAnchors: AppSelector<RtlsAnchor[]> = (state) =>
   state.rtls.anchors;
+
+/** Selector that returns the survey the cell is on, if the server reports it. */
+export const getRtlsCellSurvey: AppSelector<RtlsCellSurvey | undefined> = (
+  state
+) => state.rtls.cellSurvey;
 
 /** Unique cell IDs advertised by the live site-level anchor inventory. */
 export const getRtlsCellIds: AppSelector<string[]> = createSelector(
@@ -293,34 +298,6 @@ export const getRtlsTagHealth: AppSelector<RtlsHealth> = createSelector(
   getRtlsStatsById,
   getRtlsInitiatorEvidence,
   getHealthForDevices
-);
-
-/** Selector that returns the last X-RTLS-GEOM agreement verdict, if any. */
-export const getRtlsGeometryCheck: AppSelector<
-  RtlsGeometryAgreement | undefined
-> = (state) => state.rtls.geometry.lastCheck;
-
-/** Selector that returns whether an agreement check is in flight. */
-export const isRtlsGeometryBusy: AppSelector<boolean> = (state) =>
-  state.rtls.geometry.checking;
-
-/** Selector: how many times a verdict was voided (a re-check trigger). */
-export const getRtlsGeometryInvalidations: AppSelector<number> = (state) =>
-  state.rtls.geometry.invalidations;
-
-/**
- * Selector that returns the number of tags the last agreement check could
- * not certify (deviating, still calibrating, failed, stale or unknown);
- * 0 with no check. Manual tags are the operator's choice and do not count.
- */
-export const getRtlsGeometryProblemCount: AppSelector<number> = createSelector(
-  getRtlsGeometryCheck,
-  (check) =>
-    check
-      ? Object.values(check.devices).filter(
-          (entry) => entry.status !== 'agree' && entry.status !== 'manual'
-        ).length
-      : 0
 );
 
 /** Selector that returns whether a fleet verification is running. */

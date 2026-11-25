@@ -2,8 +2,9 @@
  * @file The operator's sketch of a cell for the anchor survey: a top-down
  * drawing in metres, north up and east right like the positions view, in
  * whatever orientation the operator drew the venue. Heights are never asked
- * in metres: the height groups, lowest first, say which anchors share one.
- * What the page sends from a sketch is in `survey-frame.ts`.
+ * in metres: the height groups, lowest first, say which anchors stand at
+ * about the same height. What the page sends from a sketch is in
+ * `survey-frame.ts`.
  */
 
 import { type NePoint } from './pos-view-utils';
@@ -19,8 +20,17 @@ export type RtlsSurveyAnchor = {
   cell?: string;
   /** The stored position (X-RTLS-INF `anchors[].ned`), as a plan point. */
   stored?: NePoint;
+  /** The stored position's down coordinate, metres (up is negative). */
+  storedDown?: number;
+  /** The survey ID it stores. */
+  surveyId?: number;
   /** Its live range to A0, metres. */
   initiatorDistanceM?: number;
+  /**
+   * It ranges on its stored session now (online and neither asleep nor in
+   * standby): a survey of its cell cannot leave it out.
+   */
+  operating?: boolean;
 };
 
 export type RtlsSurveySketch = {
@@ -34,9 +44,17 @@ export type RtlsSurveySketch = {
   excluded: string[];
   origin?: string;
   xAxis?: string;
+  /**
+   * The anchor on the +y side, when it is declared rather than read off the
+   * drawing: a sketch restored from the frame the server echoes.
+   */
+  yPositive?: string;
   /** Laid out by "Standard cell" and not touched since. */
   standard?: boolean;
 };
+
+/** The height groups every sketch has: Lower (0) and Upper (1). */
+export const BUILT_IN_GROUPS = 2;
 
 export const EMPTY_SKETCH: RtlsSurveySketch = {
   positions: {},
@@ -50,9 +68,6 @@ const SLOTS = 8;
 
 /** Side of the standard cell drawn when A1 or A2 reports no range to A0. */
 const STANDARD_SIDE_M = 5;
-
-/** How far the upper tier is drawn from the lower one it stands above. */
-const UPPER_TIER_OFFSET_M = 0.6;
 
 const bySlot = (a: RtlsSurveyAnchor, b: RtlsSurveyAnchor): number =>
   (a.slot ?? Number.POSITIVE_INFINITY) - (b.slot ?? Number.POSITIVE_INFINITY) ||
@@ -107,16 +122,19 @@ export type PlanMarker = {
 
 /**
  * Where each anchor is drawn: where the operator put it, else where it
- * stores itself, else parked in a row below the rest, to be dragged from.
+ * stores itself, else where `found` has it (the held fit, for a client that
+ * has neither), else parked in a row below the rest, to be dragged from.
  */
 export function planMarkers(
   sketch: RtlsSurveySketch,
-  anchors: readonly RtlsSurveyAnchor[]
+  anchors: readonly RtlsSurveyAnchor[],
+  found: Record<string, NePoint> = {}
 ): Record<string, PlanMarker> {
   const markers: Record<string, PlanMarker> = {};
   const parked: string[] = [];
   for (const anchor of anchors) {
-    const point = sketch.positions[anchor.id] ?? anchor.stored;
+    const point =
+      sketch.positions[anchor.id] ?? anchor.stored ?? found[anchor.id];
     if (point === undefined) {
       parked.push(anchor.id);
     } else {
@@ -150,11 +168,12 @@ function standardLayout(
     if (slot === undefined || slot >= SLOTS) {
       continue;
     }
+    // the upper tier stands right above the lower one: the plan tells the
+    // two apart by their markers, not by moving them
     const corner = slot % 4;
-    const offset = slot >= 4 ? UPPER_TIER_OFFSET_M : 0;
     positions[id] = {
-      north: (corner % 2 === 1 ? north : 0) + offset,
-      east: (corner >= 2 ? east : 0) + offset,
+      north: corner % 2 === 1 ? north : 0,
+      east: corner >= 2 ? east : 0,
     };
     groupOf[id] = slot >= 4 ? 1 : 0;
   }
@@ -221,29 +240,71 @@ const edited = (
   change: Partial<RtlsSurveySketch>
 ): RtlsSurveySketch => ({ ...sketch, ...change, standard: false });
 
+/** A drawing that changed says again which side +y is on. */
 export const withAnchorMoved = (
   sketch: RtlsSurveySketch,
   id: string,
   point: NePoint
 ): RtlsSurveySketch =>
-  edited(sketch, { positions: { ...sketch.positions, [id]: point } });
+  edited(sketch, {
+    positions: { ...sketch.positions, [id]: point },
+    yPositive: undefined,
+  });
 
+/** How many anchors the sketch puts in a height group. */
+export const groupSize = (sketch: RtlsSurveySketch, level: number): number =>
+  Object.values(sketch.groupOf).filter((other) => other === level).length;
+
+/**
+ * Removes a named height group (`level` 2 and up): its anchors go back to
+ * Lower and the groups above it move down one. Lower and Upper stay.
+ */
+export const withGroupRemoved = (
+  sketch: RtlsSurveySketch,
+  level: number
+): RtlsSurveySketch => {
+  const index = level - BUILT_IN_GROUPS;
+  if (index < 0 || index >= sketch.groups.length) {
+    return sketch;
+  }
+  return edited(sketch, {
+    groups: sketch.groups.filter((_, other) => other !== index),
+    groupOf: Object.fromEntries(
+      Object.entries(sketch.groupOf).map(([id, other]) => [
+        id,
+        other === level ? 0 : other > level ? other - 1 : other,
+      ])
+    ),
+  });
+};
+
+/**
+ * Puts an anchor in a height group. A named group that loses its last
+ * anchor this way goes away by itself.
+ */
 export const withAnchorGroup = (
   sketch: RtlsSurveySketch,
   id: string,
   level: number
-): RtlsSurveySketch =>
-  edited(sketch, { groupOf: { ...sketch.groupOf, [id]: level } });
+): RtlsSurveySketch => {
+  const before = sketch.groupOf[id] ?? 0;
+  const moved = edited(sketch, { groupOf: { ...sketch.groupOf, [id]: level } });
+  return before >= BUILT_IN_GROUPS &&
+    before !== level &&
+    groupSize(moved, before) === 0
+    ? withGroupRemoved(moved, before)
+    : moved;
+};
 
 export const withOrigin = (
   sketch: RtlsSurveySketch,
   id: string
-): RtlsSurveySketch => edited(sketch, { origin: id });
+): RtlsSurveySketch => edited(sketch, { origin: id, yPositive: undefined });
 
 export const withXAxis = (
   sketch: RtlsSurveySketch,
   id: string
-): RtlsSurveySketch => edited(sketch, { xAxis: id });
+): RtlsSurveySketch => edited(sketch, { xAxis: id, yPositive: undefined });
 
 /** Adds a named height group above the others; a blank or known name adds none. */
 export const withGroupAdded = (
@@ -255,6 +316,144 @@ export const withGroupAdded = (
     ? sketch
     : { ...sketch, groups: [...sketch.groups, trimmed] };
 };
+
+/**
+ * The operating anchors of the cell the sketch leaves out. The server
+ * refuses such a survey ("Include RTLS anchor A6 in the survey, or put it
+ * to sleep"): an anchor left ranging beside a survey restarts its radio at
+ * every step and keeps the old survey ID after the commit.
+ */
+export const leftOutOperating = (
+  sketch: RtlsSurveySketch,
+  anchors: readonly RtlsSurveyAnchor[]
+): RtlsSurveyAnchor[] =>
+  anchors.filter(
+    ({ id, operating }) => operating === true && sketch.excluded.includes(id)
+  );
+
+/** Whether nothing of a frame was sketched: no frame anchor and no position. */
+export const isBlankSketch = (sketch: RtlsSurveySketch | undefined): boolean =>
+  sketch === undefined ||
+  (!sketch.standard &&
+    sketch.origin === undefined &&
+    sketch.xAxis === undefined &&
+    Object.keys(sketch.positions).length === 0);
+
+/** Stored heights farther apart than this are different height groups, metres. */
+const HEIGHT_GROUP_GAP_M = 0.5;
+
+/** A stored coordinate this close to zero is zero: the anchors store millimetres. */
+const STORED_ZERO_M = 0.0005;
+
+const isZero = (value: number | undefined): boolean =>
+  value !== undefined && Math.abs(value) <= STORED_ZERO_M;
+
+/** The height groups the anchors' stored heights fall into, lowest first. */
+function groupsFromStored(
+  anchors: readonly RtlsSurveyAnchor[]
+): Record<string, number> {
+  // down is positive towards the floor: the largest is the lowest anchor
+  const byHeight = anchors
+    .flatMap(({ id, storedDown }) =>
+      storedDown === undefined ? [] : [{ id, down: storedDown }]
+    )
+    .sort((a, b) => b.down - a.down);
+  const groupOf: Record<string, number> = {};
+  let level = 0;
+  for (const [index, { id, down }] of byHeight.entries()) {
+    if (index > 0 && byHeight[index - 1].down - down > HEIGHT_GROUP_GAP_M) {
+      level += 1;
+    }
+    groupOf[id] = level;
+  }
+  return groupOf;
+}
+
+/** The one anchor of `candidates`, or none when they are not exactly one. */
+const only = (candidates: readonly RtlsSurveyAnchor[]): string | undefined =>
+  candidates.length === 1 ? candidates[0].id : undefined;
+
+/**
+ * The frame the stored positions were committed in: the origin anchor is the
+ * one stored at x = y = 0 (of several above each other, the one at height
+ * 0), and the +x anchor the one of its height group stored at y = 0. Either
+ * is left open when the positions do not single one out.
+ */
+function frameFromStored(
+  anchors: readonly RtlsSurveyAnchor[],
+  groupOf: Record<string, number>
+): Pick<RtlsSurveySketch, 'origin' | 'xAxis'> {
+  const atZero = anchors.filter(
+    ({ stored }) => isZero(stored?.north) && isZero(stored?.east)
+  );
+  const origin =
+    only(atZero) ?? only(atZero.filter((anchor) => isZero(anchor.storedDown)));
+  if (origin === undefined) {
+    return {};
+  }
+  return {
+    origin,
+    xAxis: only(
+      anchors.filter(
+        ({ id, stored }) =>
+          id !== origin &&
+          (groupOf[id] ?? 0) === (groupOf[origin] ?? 0) &&
+          isZero(stored?.east) &&
+          (stored?.north ?? 0) > 0.1
+      )
+    ),
+  };
+}
+
+/**
+ * A sketch starts from what the anchors store, as its plan does: one that
+ * names no height group takes the groups their stored heights fall into,
+ * and one in which nothing of a frame was chosen or drawn takes the frame
+ * their positions were committed in. A cell that was surveyed before can so
+ * be surveyed again, from any browser, without being described again; what
+ * the operator chose stays as it is.
+ */
+export function withStoredAsDefault(
+  sketch: RtlsSurveySketch,
+  anchors: readonly RtlsSurveyAnchor[]
+): RtlsSurveySketch {
+  if (sketch.standard || Object.keys(sketch.groupOf).length > 0) {
+    return sketch;
+  }
+  const groupOf = groupsFromStored(anchors);
+  const levels = Math.max(0, ...Object.values(groupOf)) + 1;
+  const unnamed = levels - BUILT_IN_GROUPS - sketch.groups.length;
+  return {
+    ...sketch,
+    ...(isBlankSketch(sketch) ? frameFromStored(anchors, groupOf) : {}),
+    groupOf,
+    groups: [
+      ...sketch.groups,
+      ...Array.from({ length: Math.max(0, unnamed) }, () => ''),
+    ],
+  };
+}
+
+/**
+ * The sketch of a cell once a commit wrote the fit to its anchors: where
+ * they are is now what they store, so what was drawn of `committed` goes.
+ * The height groups and the frame anchors stay, for the next survey.
+ */
+export const withPositionsCommitted = (
+  sketch: RtlsSurveySketch,
+  committed: readonly string[]
+): RtlsSurveySketch =>
+  committed.some((id) => id in sketch.positions) || sketch.standard
+    ? {
+        ...sketch,
+        positions: Object.fromEntries(
+          Object.entries(sketch.positions).filter(
+            ([id]) => !committed.includes(id)
+          )
+        ),
+        standard: false,
+      }
+    : sketch;
 
 /** Takes an anchor into the survey or leaves it out. */
 export const withAnchorIncluded = (

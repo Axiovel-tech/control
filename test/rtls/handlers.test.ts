@@ -257,6 +257,7 @@ describe('rtls handlers', () => {
           index: 0,
           mac: 1,
           ned: { north: -10, east: -10, down: 0 },
+          planar: false,
           active: true,
         },
       ])
@@ -278,6 +279,7 @@ describe('rtls handlers', () => {
           index: 1,
           mac: undefined,
           ned: { north: undefined, east: undefined, down: undefined },
+          planar: false,
           active: undefined,
         },
       ]);
@@ -333,7 +335,7 @@ describe('rtls handlers', () => {
       ).toBeUndefined();
     });
 
-    test('mapRtlsDeviceStats maps the automatic geometry fields', () => {
+    test('mapRtlsDeviceStats drops what a tag used to report of its own fit', () => {
       const mapped = mapRtlsDeviceStats('3', {
         solveRateHz: 1,
         geometryState: 3,
@@ -341,16 +343,9 @@ describe('rtls handlers', () => {
         geometryDriftM: 0.002,
         geometryDistancesM: [8.587, 9.224, 12.528, null, null, null, null],
       });
-      expect(mapped).toMatchObject({
-        geometryState: 3,
-        geometryResidualM: -0.075,
-        geometryDriftM: 0.002,
-        geometryDistancesM: [8.587, 9.224, 12.528, null, null, null, null],
-      });
-      // firmware without automatic geometry sends none of them
-      const legacy = mapRtlsDeviceStats('3', { solveRateHz: 1 });
-      expect(legacy.geometryState).toBeUndefined();
-      expect(legacy.geometryDistancesM).toBeUndefined();
+      expect(
+        Object.keys(mapped).filter((key) => /geometry/i.test(key))
+      ).toEqual([]);
     });
 
     test('mapRtlsDeviceStats ignores inter-anchor TWR (it rides on X-RTLS-INF)', () => {

@@ -25,13 +25,16 @@ import { type RecordedMessage } from './survey-recording';
 
 export const CELL = 'bench';
 
-/** An anchor of a test cell; online and without a stored position unless said. */
+/**
+ * An anchor of a test cell; online and without a stored position unless
+ * said. One that stores a position stores it from survey 12.
+ */
 export type TestAnchor = {
   id: number;
   slot: number;
   cell?: string;
   online?: boolean;
-  stored?: { north: number; east: number };
+  stored?: { north: number; east: number; down?: number };
 };
 
 /** The X-RTLS-INF of the given anchors, with `lockedCount` of them locked. */
@@ -54,6 +57,8 @@ export const informationOf = (anchors: TestAnchor[], lockedCount = 0) => ({
     systemId: id,
     active: online,
     ned: stored ?? null,
+    surveyId: stored === undefined ? null : 12,
+    planar: false,
   })),
   anchorLock: {
     locked: lockedCount === anchors.length,

@@ -353,29 +353,6 @@ export async function startRtlsOta(
 }
 
 /**
- * Grades the fleet's self-fitted cell geometries against each other via
- * X-RTLS-GEOM (a pure function over the server's cached stats). Returns the
- * raw response body: tolerance, per-distance reference, the `consistent`
- * flag and per-tag verdicts.
- */
-export async function checkRtlsGeometryAgreement(
-  hub: MessageHub,
-  options: { ids?: number[]; tolerance?: number } = {}
-): Promise<AnyMessageBody> {
-  const response: Message<AnyMessageBody> = await hub.sendMessage(
-    {
-      type: 'X-RTLS-GEOM',
-      ...(options.ids === undefined ? {} : { ids: options.ids }),
-      ...(options.tolerance === undefined
-        ? {}
-        : { tolerance: options.tolerance }),
-    },
-    { timeout: 15 }
-  );
-  return ensureResponseType(response.body, 'X-RTLS-GEOM');
-}
-
-/**
  * Runs the fleet pre-flight verification rule set (X-RTLS-VERIFY). The
  * in-depth pass reads the ArduPilot tuning set from every paired drone
  * over live MAVLink, hence the generous timeout.

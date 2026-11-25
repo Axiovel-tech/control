@@ -10,6 +10,7 @@
 
 import { type NePoint } from './pos-view-utils';
 import {
+  BUILT_IN_GROUPS,
   inSlotOrder,
   roundCm,
   type RtlsSurveyAnchor,
@@ -193,7 +194,8 @@ export function sketchHintKeys(
  * from A0 on goes as the server's `two-tiers` preset and needs no placement.
  * Otherwise the frame is spelled out: the origin and +x anchors, the height
  * groups, the anchors above the origin's group, and one anchor on the +y
- * side (A2 of a standard cell, else the one drawn farthest to that side).
+ * side (A2 of a standard cell, else the one the sketch declares, else the one
+ * drawn farthest to that side).
  * The placement is sent once the operator placed an anchor: every anchor
  * drawn, in frame coordinates. While the origin or the +x anchor is not
  * drawn the drawing has no frame: no placement and no +y side come from it.
@@ -237,8 +239,12 @@ export function surveyTarget(
     .filter(({ id }) => id !== origin && id !== xAxis && id in framed)
     .sort((a, b) => framed[b.id].y - framed[a.id].y)
     .at(0);
+  const declared = ordered.find(
+    ({ id }) => id === sketch.yPositive && id !== origin && id !== xAxis
+  );
   const yPositive =
     (sketch.standard ? withSlot(ordered, 2) : undefined) ??
+    declared ??
     (farthest !== undefined && framed[farthest.id].y > 0
       ? farthest
       : undefined);
@@ -307,6 +313,64 @@ export function fitSignature(
   });
 }
 
+/**
+ * The sketch a frame and placement stand for: what a client that never drew
+ * this cell shows of a survey another client started, so that it can refit
+ * it and survey again. `measured` are the anchors the survey ranged.
+ *
+ * The height groups come back lowest first as far as the frame says: the
+ * groups it does not call upper, the origin's, then the upper ones. An
+ * anchor in no group stands in one of its own. Groups past Upper get no
+ * name. The placement is drawn with the plan as the frame, and the +y side
+ * is the one the frame declares.
+ */
+export function sketchFromBasis(
+  { frame: echoed, placement }: RtlsSurveyFitBasis,
+  measured: readonly RtlsSurveyAnchor[]
+): RtlsSurveySketch {
+  const order = inSlotOrder(measured).map(idOf);
+  const frame = 'preset' in echoed ? presetFrame(order) : echoed;
+  const upper = new Set(frame.upper);
+  const grouped = new Set(frame.heightGroups.flat());
+  const rank = (group: readonly number[]): number =>
+    group.includes(frame.origin)
+      ? 1
+      : group.some((id) => upper.has(id))
+        ? 2
+        : 0;
+  const groups = [
+    ...frame.heightGroups.filter((group) => group.length > 0),
+    ...order.filter((id) => !grouped.has(id)).map((id) => [id]),
+  ]
+    .map((group, index) => ({ group, index }))
+    .sort((a, b) => rank(a.group) - rank(b.group) || a.index - b.index);
+
+  const groupOf: Record<string, number> = {};
+  for (const [level, { group }] of groups.entries()) {
+    for (const id of group) {
+      groupOf[String(id)] = level;
+    }
+  }
+  return {
+    positions: Object.fromEntries(
+      Object.entries(placement ?? {}).map(([id, point]) => [
+        id,
+        fromFrame(PLAN_AS_FRAME, point),
+      ])
+    ),
+    groups: Array.from(
+      { length: Math.max(0, groups.length - BUILT_IN_GROUPS) },
+      () => ''
+    ),
+    groupOf,
+    excluded: [],
+    origin: String(frame.origin),
+    xAxis: String(frame.xAxis),
+    yPositive:
+      frame.yPositive === undefined ? undefined : String(frame.yPositive),
+  };
+}
+
 /** The anchors the frame of a fit hangs on. */
 const frameAnchorsOf = (
   frame: RtlsSurveyFrame,
@@ -331,18 +395,25 @@ export type RtlsSurveyRememberedFit = RtlsSurveyFitBasis & {
  * reload, a fit another client asked for) the fit hangs on the anchors its
  * own frame names, as they are drawn now; `echo` is the frame and placement
  * the server reports for the fit and `group` the anchors it measured.
+ * A committed fit is what the anchors store, and the plan shows stored
+ * positions as the frame: north is +x.
  */
 export function heldFitTransform({
   sketch,
   group,
   echo,
   remembered,
+  committed = false,
 }: {
   sketch: RtlsSurveySketch;
   group: readonly RtlsSurveyAnchor[];
   echo?: RtlsSurveyFitBasis;
   remembered?: RtlsSurveyRememberedFit;
+  committed?: boolean;
 }): FrameTransform {
+  if (committed) {
+    return PLAN_AS_FRAME;
+  }
   const order = inSlotOrder(group).map(idOf);
   if (
     remembered !== undefined &&

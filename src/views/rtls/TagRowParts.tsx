@@ -13,16 +13,16 @@ import { StatusLight, StatusPill, Tooltip } from '@skybrush/mui-components';
 import BatteryIndicator from '~/components/BatteryIndicator';
 import { Status } from '~/components/semantics';
 import AnchorBars from '~/features/rtls/AnchorBars';
-import {
-  type AnchorNames,
-  describeFleetHealth,
-} from '~/features/rtls/fleet-health';
-import {
-  describeGeometryFit,
-  type I18nText,
-} from '~/features/rtls/geometry-utils';
+import { describeFleetHealth } from '~/features/rtls/fleet-health';
+import { type I18nText } from '~/features/rtls/i18n-text';
 import { getRtlsDeviceDisplayName } from '~/features/rtls/selectors';
 import { countAnchorsInMask } from '~/features/rtls/stats-utils';
+import {
+  describeTagSurvey,
+  type TableAnchorNamer,
+  tableAnchorNamer,
+  tableRowNames,
+} from '~/features/rtls/survey-health';
 import {
   type RtlsDevice,
   type RtlsDeviceStats,
@@ -164,8 +164,10 @@ export const TagSolveFigures = ({
 
 /** A tag's battery and anchor bars, at the right of its header line. */
 export const TagStatusCluster = ({
+  nameTableAnchor,
   stats,
 }: {
+  nameTableAnchor?: TableAnchorNamer;
   stats: RtlsDeviceStats | undefined;
 }) => (
   <>
@@ -177,18 +179,68 @@ export const TagStatusCluster = ({
     <AnchorBars
       anchorMask={stats?.anchorMask}
       anchorsSeen={anchorsSeenOf(stats)}
+      names={
+        nameTableAnchor && tableRowNames(stats?.anchorTable, nameTableAnchor)
+      }
     />
   </>
 );
 
+type T = ReturnType<typeof useTranslation>['t'];
+
+/** The names for a row rendered without the site list: system id or MAC. */
+const NAME_WITHOUT_SITE = tableAnchorNamer([]);
+
+/**
+ * The "Survey" line of a tag: the survey it follows and the anchors it
+ * uses, the anchors it leaves out by name with why, and the drift.
+ */
+const describeSurveyLine = (
+  t: T,
+  stats: RtlsDeviceStats | undefined,
+  nameOf: TableAnchorNamer
+): DetailLine[] => {
+  const survey = describeTagSurvey(stats, nameOf);
+  if (survey === undefined) {
+    return [];
+  }
+  const { drift, excluded, following, unnamed } = survey;
+  const parts = [
+    t(following.key, following.values),
+    ...(excluded.length > 0
+      ? [
+          t('rtlsSurveyHealth.line.excluded', {
+            anchors: excluded
+              .map(({ anchor, why }) =>
+                t('rtlsSurveyHealth.line.excludedAnchor', {
+                  anchor,
+                  why: t(why.key),
+                })
+              )
+              .join(', '),
+          }),
+        ]
+      : []),
+    ...(unnamed ? [t(unnamed.key, unnamed.values)] : []),
+    ...(drift ? [t(drift.key, drift.values)] : []),
+  ];
+  return [
+    {
+      key: 'survey',
+      name: t('rtlsSurveyHealth.line.name'),
+      value: parts.join(' · '),
+    },
+  ];
+};
+
 /** The tag rows' detail lines, behind "show more". */
 export const describeTagDetailLines = (
-  t: ReturnType<typeof useTranslation>['t'],
+  t: T,
   stats: RtlsDeviceStats | undefined,
-  anchorNames: AnchorNames | undefined
+  nameTableAnchor: TableAnchorNamer = NAME_WITHOUT_SITE
 ): DetailLine[] => {
-  const geometryFit = describeGeometryFit(stats);
   const anchorsSeen = anchorsSeenOf(stats);
+  const rowNames = tableRowNames(stats?.anchorTable, nameTableAnchor);
   return [
     {
       key: 'fixAge',
@@ -205,16 +257,8 @@ export const describeTagDetailLines = (
       name: 'Anchors seen',
       value: String(anchorsSeen),
     },
-    ...(geometryFit
-      ? [
-          {
-            key: 'geometry',
-            name: t('rtlsGeometry.telemetry'),
-            value: t(geometryFit.key, geometryFit.values),
-          },
-        ]
-      : []),
-    ...describeFleetHealth(stats, anchorNames).map(({ id, status, text }) => ({
+    ...describeSurveyLine(t, stats, nameTableAnchor),
+    ...describeFleetHealth(stats, rowNames).map(({ id, status, text }) => ({
       key: id,
       // gray values throughout; a metric out of its green zone gets a dot in
       // the zone's color beside its name

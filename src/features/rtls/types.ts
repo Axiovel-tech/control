@@ -72,9 +72,7 @@ export type RtlsDevice = {
   /** Optional role string reported by the device. */
   role?: string;
 
-  /**
-   * The cell whose anchor slots a tag's anchor masks index (tags only).
-   */
+  /** The tag's cell (its `CELL_ID`); tags only. */
   cell?: string;
 
   /** Whether the device is currently considered online by the server. */
@@ -104,8 +102,7 @@ export type RtlsDevice = {
 
   /**
    * Device uptime in milliseconds (from the state advertisement, when the
-   * firmware sends one). A decrease between snapshots means the device
-   * rebooted — used to clear the geometry pending-reboot mark.
+   * firmware sends one); it goes backwards when the device rebooted.
    */
   uptimeMs?: number;
 
@@ -185,23 +182,38 @@ export type RtlsDeviceStats = {
   anchorsSeen?: number;
   fixAgeMs?: number;
   clockPpm?: number;
-  /** Bitmask of anchors that contributed to the most recent fix. */
+  /** Bitmask of the table rows that contributed to the most recent fix. */
   anchorMask?: number;
-  /** Automatic cell geometry state (firmware `geom` stat code). */
-  geometryState?: RtlsGeometryState;
-  /** Why the tag rejected its last fit (firmware `gfail` stat code). */
-  geometryReason?: RtlsGeometryReason;
-  /** Rectangle-diagonal residual of the fitted cell, metres. */
-  geometryResidualM?: number;
-  /** Largest live initiator-distance drift since calibration, metres. */
-  geometryDriftM?: number;
-  /** The seven fitted AN0-ANi distances, metres (null where not fitted). */
-  geometryDistancesM?: Array<number | null>;
+  /**
+   * The survey ID a tag's table follows, or the one an anchor's session
+   * advertises (`sid`); absent while it has none.
+   */
+  surveyId?: number;
+  /** Rows of the tag's anchor table in use (`anuse`). */
+  anchorsUsed?: number;
+  /** Anchors the tag hears and leaves out (`anexc`). */
+  anchorsExcluded?: number;
+  /**
+   * The anchors the tag tracks, rows in use first: bit i of `anchorMask`,
+   * `nlosMask` and `outvotedMask` is the entry with `row` i. Empty while it
+   * tracks none; absent while its firmware reports no table.
+   */
+  anchorTable?: RtlsAnchorTableEntry[];
+  /**
+   * Largest gap between a live initiator range and the distance between the
+   * advertised positions, metres (`sdrift`).
+   */
+  surveyDriftM?: number;
+  /**
+   * An anchor's live range to its initiator minus the one its survey
+   * measured, metres, signed (`rdev`); absent while it has no reading.
+   */
+  rangeDeviationM?: number;
   /** The weakest anchor's mean UWB RSSI over the tag's last report, dBm. */
   uwbRssiDbm?: number;
-  /** Anchors the chip flagged NLOS on most rows of the tag's last report. */
+  /** Rows the chip flagged NLOS on most measurements of the tag's last report. */
   nlosMask?: number;
-  /** Anchors the tag's solver is outvoting as outliers. */
+  /** Rows the tag's solver is outvoting as outliers. */
   outvotedMask?: number;
   /** The solver's mean residual RMS over the tag's last report, metres. */
   residualRmsM?: number;
@@ -317,28 +329,24 @@ export enum RtlsUwbStatus {
   HARDWARE_FAILURE = 4,
 }
 
-/** Firmware states of the automatic cell geometry (`geom` stat). */
-export enum RtlsGeometryState {
-  MANUAL = 0,
-  WAITING = 1,
-  CALIBRATING = 2,
-  CALIBRATED = 3,
-  FAILED = 4,
-}
+/** How a tag holds an anchor it tracks (`X-RTLS-STATS.anchorTable[].state`). */
+export type RtlsAnchorTableState =
+  | 'in-use'
+  | 'other-survey'
+  | 'no-position'
+  | 'unknown-layout'
+  | 'table-full'
+  | 'unknown';
 
-/**
- * Why the tag rejected its last fit (`gfail` stat): a rig outside the
- * stacked-rectangle convention is never fitted, the tag stays without a
- * table and does not solve.
- */
-export enum RtlsGeometryReason {
-  NONE = 0,
-  ANCHOR_COUNT = 1,
-  ANCHOR_MISSING = 2,
-  SIDE_TOO_SHORT = 3,
-  NOT_RECTANGLE = 4,
-  TOP_PLANE = 5,
-}
+/** An anchor a tag tracks, as its telemetry names it. */
+export type RtlsAnchorTableEntry = {
+  /** The tag's row of an anchor in use; absent for one it leaves out. */
+  row?: number;
+  mac: number;
+  state: RtlsAnchorTableState;
+  /** The anchor device with that MAC, when the server knows one. */
+  systemId?: number;
+};
 
 /**
  * A live position estimate of a single tag, as reported by X-RTLS-POS.
@@ -369,24 +377,31 @@ export type RtlsPosEstimate = {
 };
 
 /**
- * A single configured RTLS anchor from the site-level anchor list of
- * X-RTLS-INF (one entry per anchor in every known cell).
+ * An anchor of the site-level anchor list of X-RTLS-INF: one entry per known
+ * anchor device, online or lost, with the position it stores itself.
  */
 export type RtlsAnchor = {
   /** Stable id of the anchor (`rtls::<cell>::anchor_<i>`). */
   id: string;
   /** Cell the anchor belongs to. */
   cell?: string;
-  /** Index of the anchor within its cell. */
+  /** The anchor's row in its own table (A0 initiates). */
   index?: number;
   /** UWB MAC of the anchor. */
   mac?: number;
-  /** Configured position in the cell's NED frame, metres. */
+  /**
+   * The position the anchor stores (its survey's result) in the cell's NED
+   * frame, metres; every member absent while it is not surveyed.
+   */
   ned?: {
     north?: number;
     east?: number;
     down?: number;
   };
+  /** The survey ID it stores; absent while it is not surveyed. */
+  surveyId?: number;
+  /** Its survey declared every anchor at one height. */
+  planar?: boolean;
   /** Whether a live anchor device with the matching MAC is online. */
   active?: boolean;
   /** System id of that live anchor device, while one is online. */
@@ -410,53 +425,29 @@ export type RtlsOtaJob = {
   speciesSource?: string;
 };
 
-/** Per-tag verdict of an X-RTLS-GEOM agreement check. */
-export type RtlsGeometryAgreementEntry = {
-  id?: number;
-  status:
-    | 'agree'
-    | 'calibrating'
-    | 'deviates'
-    | 'drifted'
-    | 'failed'
-    | 'frame'
-    | 'manual'
-    | 'stale'
-    | 'unknown';
-  /** Cell the tag belongs to (its CELL_ID); tags are compared per cell. */
-  cell?: string;
-  state?: RtlsGeometryState;
-  stateName?: string;
-  /** Why a `failed` tag rejected its fit (firmware reason code). */
-  reason?: RtlsGeometryReason;
-  residualM?: number;
-  driftM?: number;
-  distancesM?: Array<number | null>;
-  /** Largest deviation from the fleet reference, metres (graded tags). */
-  maxDeviationM?: number;
-  /** Deviating distances (`AN0-ANi`) with their deviation, metres. */
-  deviations?: Record<string, number>;
-  /** Distances this tag fitted differently from the fleet (anchor set). */
-  missing?: string[];
-  /** Coordinate-frame parameters that differ from the rest of the cell. */
-  frame?: string[];
-  detail?: string;
-};
+/** An anchor a tag leaves out, in the fleet warning of X-RTLS-INF. */
+export type RtlsExcludedAnchor = Omit<RtlsAnchorTableEntry, 'row'>;
 
-/** Result of an X-RTLS-GEOM agreement check. */
-export type RtlsGeometryAgreement = {
-  /** Largest accepted deviation of one distance, metres. */
-  tolerance: number;
-  /** Per-distance reference of the only cell (lower median); absent with
-   * none or several cells. */
-  reference?: Array<number | null>;
-  /** One per-distance reference per cell. */
-  references?: Record<string, Array<number | null>>;
-  consistent: boolean;
-  /** Per-tag verdicts keyed by system id. */
-  devices: Record<string, RtlsGeometryAgreementEntry>;
-  /** Client-side timestamp of when the result was received. */
-  receivedAt: number;
+/**
+ * The survey the cell is on (X-RTLS-INF `survey`), as its online anchors and
+ * tags report it. Ids are system ids as strings.
+ */
+export type RtlsCellSurvey = {
+  /** The survey ID most online anchors are on; absent when none is on one. */
+  id?: number;
+  /** How many online anchors are on it. */
+  anchors: number;
+  /** Online anchors without a survey ID. */
+  notSurveyed: string[];
+  /** Online anchors on another survey ID. */
+  otherSurvey: string[];
+  /** Online anchors whose range check warns. */
+  rangeDeviation: string[];
+  /**
+   * The anchors each tag leaves out, by tag; an empty list for a tag that
+   * counts one out before its table names it.
+   */
+  excluding: Record<string, RtlsExcludedAnchor[]>;
 };
 
 /** One rule outcome of an X-RTLS-VERIFY run. */

@@ -19,11 +19,10 @@ import Typography from '@mui/material/Typography';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { StatusLight, StatusPill } from '@skybrush/mui-components';
+import { StatusLight, StatusPill, Tooltip } from '@skybrush/mui-components';
 
 import { Status } from '~/components/semantics';
 import { isDeviceLost } from '~/features/rtls/anchor-utils';
-import { type AnchorNames } from '~/features/rtls/fleet-health';
 import { getStatusForHealth } from '~/features/rtls/health-status';
 import {
   classifyRole,
@@ -32,6 +31,7 @@ import {
   isAnchorRole,
   type RtlsRole,
 } from '~/features/rtls/stats-utils';
+import { type TableAnchorNamer } from '~/features/rtls/survey-health';
 import { type RtlsDevice, type RtlsDeviceStats } from '~/features/rtls/types';
 import {
   getRtlsDeviceListStatus,
@@ -227,8 +227,8 @@ const RowActions = ({
 };
 
 export type DeviceStatsRowProps = {
-  /** Names of the anchors in a tag's anchor masks, by slot. */
-  anchorNames?: AnchorNames;
+  /** Names the anchors of a tag's own table (tag rows only). */
+  nameTableAnchor?: TableAnchorNamer;
   /** An anchor's slot in its cell (0 = initiator), when known. */
   anchorSlot?: number;
   /** Whether a sleep/wake transaction is in flight for this device. */
@@ -239,10 +239,15 @@ export type DeviceStatsRowProps = {
    * line. A row always shows everything without `onToggleExpanded`.
    */
   expanded?: boolean;
-  /** Label of the geometry-agreement pill; the pill is hidden if unset. */
-  geometryLabel?: string;
-  /** Status coloring the geometry-agreement pill. */
-  geometryStatus?: Status;
+  /**
+   * Label of the survey pill: the survey a tag follows or an anchor is on.
+   * The pill is hidden if unset.
+   */
+  surveyLabel?: string;
+  /** Status coloring the survey pill. */
+  surveyStatus?: Status;
+  /** What the survey pill means, when it needs saying. */
+  surveyTooltip?: string;
   /** Stable action handlers; the actions are hidden when omitted. */
   handlers?: DeviceRowHandlers;
   /** Whether the device's firmware lock is on: its changing actions are disabled. */
@@ -268,6 +273,7 @@ const RoleContent = ({
   device,
   initiatorMacs,
   locked = false,
+  nameTableAnchor,
   role,
   stats,
   where,
@@ -275,6 +281,7 @@ const RoleContent = ({
   device: RtlsDevice;
   initiatorMacs: ReadonlySet<number>;
   locked?: boolean;
+  nameTableAnchor?: TableAnchorNamer;
   role: RtlsRole;
   stats: RtlsDeviceStats | undefined;
   where: 'figures' | 'cluster';
@@ -286,7 +293,7 @@ const RoleContent = ({
         {isAnchorRole(role) ? (
           <AnchorStatusCluster locked={locked} stats={stats} />
         ) : (
-          <TagStatusCluster stats={stats} />
+          <TagStatusCluster nameTableAnchor={nameTableAnchor} stats={stats} />
         )}
       </>
     );
@@ -305,19 +312,20 @@ const RoleContent = ({
 
 /**
  * One merged device row: header line (light, name, drone pill or an
- * anchor's slot and state, the role's figures, geometry pill, the role's
+ * anchor's slot and state, the role's figures, survey pill, the role's
  * status cluster, actions), then — behind "show more" — the rest of the
  * telemetry and the caption. A lost device stays listed, greyed, with when
  * it was last heard.
  */
 const DeviceStatsRow = ({
-  anchorNames,
+  nameTableAnchor,
   anchorSlot,
   busy = false,
   device,
   expanded = false,
-  geometryLabel,
-  geometryStatus,
+  surveyLabel,
+  surveyStatus,
+  surveyTooltip,
   handlers,
   initiatorEvidence,
   initiatorMacs = NO_MACS,
@@ -379,15 +387,21 @@ const DeviceStatsRow = ({
         />
         {/* the name and the figures keep left, the rest keeps right */}
         <Box sx={{ flexGrow: 1 }} />
-        {geometryLabel && (
-          <StatusPill inline status={geometryStatus ?? Status.OFF}>
-            {geometryLabel}
-          </StatusPill>
+        {surveyLabel && (
+          <Tooltip content={surveyTooltip ?? ''} disabled={!surveyTooltip}>
+            {/* Tippy needs a child that forwards refs, which StatusPill does not. */}
+            <Box component='span' data-testid='rtls-row-survey'>
+              <StatusPill inline status={surveyStatus ?? Status.OFF}>
+                {surveyLabel}
+              </StatusPill>
+            </Box>
+          </Tooltip>
         )}
         <RoleContent
           device={device}
           initiatorMacs={initiatorMacs}
           locked={locked}
+          nameTableAnchor={nameTableAnchor}
           role={role}
           stats={stats}
           where='cluster'
@@ -413,7 +427,7 @@ const DeviceStatsRow = ({
           lines={
             anchor
               ? describeAnchorDetailLines(t, stats, device.twr)
-              : describeTagDetailLines(t, stats, anchorNames)
+              : describeTagDetailLines(t, stats, nameTableAnchor)
           }
         />
         <Typography

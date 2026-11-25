@@ -71,8 +71,9 @@ describe('the standard cell', () => {
     expect(sketch.positions['101']).toEqual({ north: 5, east: 0 });
     expect(sketch.positions['102']).toEqual({ north: 0, east: 5 });
     expect(sketch.positions['103']).toEqual({ north: 5, east: 5 });
-    // the upper tier stands above the lower one, drawn beside it
-    expect(sketch.positions['106']).toEqual({ north: 0.6, east: 5.6 });
+    // the upper tier stands right above the lower one: the plan tells
+    // them apart by their markers, not by a false place
+    expect(sketch.positions['106']).toEqual(sketch.positions['102']);
   });
 
   test('takes its sides from the ranges A1 and A2 report to A0', () => {
@@ -150,7 +151,7 @@ describe('a standard cell and an anchor that comes online later', () => {
     // what "Standard cell" stored knows nothing of A4 and A6
     expect(stored.groupOf).not.toHaveProperty('104');
     expect(shown.groupOf).toMatchObject({ '103': 0, '104': 1, '106': 1 });
-    expect(shown.positions['106']).toEqual({ north: 0.6, east: 5.6 });
+    expect(shown.positions['106']).toEqual({ north: 0, east: 5 });
     // the anchors placed by "Standard cell" stay where they are
     expect(shown.positions['101']).toBe(stored.positions['101']);
   });
@@ -182,8 +183,8 @@ describe('a standard cell and an anchor that comes online later', () => {
       initiatorDistanceM: 9,
     }));
     expect(resolveSketch(stored, ranged).positions['107']).toEqual({
-      north: 5.6,
-      east: 5.6,
+      north: 5,
+      east: 5,
     });
   });
 

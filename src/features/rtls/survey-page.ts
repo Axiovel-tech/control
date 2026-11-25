@@ -15,6 +15,7 @@ import {
   fitSignature,
   type RtlsSurveyFitBasis,
   type RtlsSurveyTarget,
+  sketchFromBasis,
   sketchHintKeys,
   sketchProblemKey,
   surveyTarget,
@@ -22,17 +23,39 @@ import {
 import { type RtlsSurvey } from './survey-messages';
 import {
   EMPTY_SKETCH,
+  isBlankSketch,
+  leftOutOperating,
   resolveSketch,
   type RtlsSurveyAnchor,
   type RtlsSurveySketch,
   surveyGroup,
+  withStoredAsDefault,
 } from './survey-sketch';
+
+/** Why Survey is refused while an operating anchor of the cell is left out. */
+export const LEFT_OUT_PROBLEM_KEY = 'rtlsSurvey.problem.leftOut';
 
 export type RtlsSurveyPage = {
   /** The online anchors of the cell, in slot order. */
   anchors: RtlsSurveyAnchor[];
   /** The sketch as shown and sent (`resolveSketch`). */
   sketch: RtlsSurveySketch;
+  /**
+   * The sketch is the frame and placement of the survey the server holds:
+   * this client drew none of its own for the cell.
+   */
+  sketchRestored: boolean;
+  /**
+   * The operating anchors of the cell the sketch leaves out: the server
+   * refuses to survey beside them.
+   */
+  leftOut: string[];
+  /**
+   * The anchors of the cell that store a position, in slot order: what the
+   * page shows while the server holds no fit of the cell (never surveyed
+   * from here, a run cancelled or failed, a run in progress).
+   */
+  stored: RtlsSurveyAnchor[];
   /**
    * The survey the server holds, when it is this cell's or nobody's;
    * `undefined` while it holds one of another cell (`heldElsewhere`).
@@ -100,11 +123,36 @@ export function surveyPage(
   );
   const offline = measured.map(({ id }) => id).filter((id) => !online.has(id));
 
-  const sketch = resolveSketch(slice.sketches[cell] ?? EMPTY_SKETCH, [
+  // a client that drew nothing of this cell takes the frame and placement
+  // the server echoes for the survey it holds: the survey of another
+  // browser, or of this one before a reload, can then be refitted and run
+  // again
+  const own = slice.sketches[cell];
+  const sketchRestored =
+    isBlankSketch(own) && survey?.basis !== undefined && measured.length > 0;
+  const restored =
+    sketchRestored && survey?.basis !== undefined
+      ? sketchFromBasis(survey.basis, measured)
+      : undefined;
+  const drawn =
+    restored !== undefined
+      ? {
+          ...restored,
+          // once committed, where the anchors are is what they store
+          positions: survey?.state === 'committed' ? {} : restored.positions,
+          excluded:
+            own?.excluded ??
+            anchors
+              .map(({ id }) => id)
+              .filter((id) => !measuredIds.includes(id)),
+        }
+      : (own ?? EMPTY_SKETCH);
+  const sketch = resolveSketch(withStoredAsDefault(drawn, anchors), [
     ...anchors,
     ...measured.filter(({ id }) => !online.has(id)),
   ]);
   const group = surveyGroup(sketch, anchors);
+  const leftOut = leftOutOperating(sketch, anchors).map(({ id }) => id);
   const refitTarget =
     survey?.fit === undefined ? undefined : surveyTarget(sketch, measured);
   const fitBasis = survey?.basis ?? slice.fittedRequest;
@@ -115,6 +163,9 @@ export function surveyPage(
   return {
     anchors,
     sketch,
+    sketchRestored,
+    leftOut,
+    stored: anchors.filter(({ stored }) => stored !== undefined),
     survey,
     heldElsewhere,
     measured,
@@ -126,7 +177,10 @@ export function surveyPage(
       available: slice.available,
       acknowledged,
       refusalKey,
-      startProblemKey: sketchProblemKey(sketch, group),
+      startProblemKey:
+        leftOut.length > 0
+          ? LEFT_OUT_PROBLEM_KEY
+          : sketchProblemKey(sketch, group),
       refitProblemKey: sketchProblemKey(sketch, measured),
       elsewhere: heldElsewhere,
       groupOffline: offline.length > 0,

@@ -164,6 +164,31 @@ export function isAnchorResting(
   return RESTING_POWER_STATES.has(state);
 }
 
+/**
+ * An anchor warns while its live range to its initiator is farther than this
+ * from the one its survey measured, metres, either sign. The firmware's own
+ * bound (rtls-link-zephyr `docs/reference/anchor-health.md`, "Range check"),
+ * which its ring shows and the server's Verify rule `anchors` applies.
+ */
+export const RANGE_DEVIATION_WARNING_M = 0.08;
+
+/** Whether an anchor's range check warns: it may stand elsewhere than surveyed. */
+export const isRangeDeviating = (stats: RtlsDeviceStats | undefined): boolean =>
+  stats?.rangeDeviationM !== undefined &&
+  Math.abs(stats.rangeDeviationM) > RANGE_DEVIATION_WARNING_M;
+
+/**
+ * Whether a tag positions: it follows a survey ID and uses anchors of it.
+ * `undefined` while its firmware reports no table. Never read from the show
+ * clock, which is valid in a cell with no survey at all.
+ */
+export const isTagPositioned = (
+  stats: RtlsDeviceStats | undefined
+): boolean | undefined =>
+  stats?.anchorsUsed === undefined
+    ? undefined
+    : stats.surveyId !== undefined && stats.anchorsUsed > 0;
+
 /** Whether the UWB session refused to start (configuration or hardware). */
 export function isUwbStartRefused(stats: RtlsDeviceStats | undefined): boolean {
   return (
@@ -222,9 +247,8 @@ function gradeAnchorLiveness(
 /**
  * Grades a live anchor's telemetry: errors first (fault, low battery, a
  * refused UWB start), a pack below its warning level, then rest (idle), then
- * warnings (moved, radio
- * restarts, operating without a measured ranging rate, an initiator its
- * responders do not hear).
+ * warnings (moved, a range check that warns, radio restarts, operating
+ * without a measured ranging rate, an initiator its responders do not hear).
  */
 function gradeAnchorTelemetry(
   stats: RtlsDeviceStats | undefined,
@@ -249,7 +273,10 @@ function gradeAnchorTelemetry(
     operating &&
     (!isRangingByTelemetry(stats) ||
       (evidence !== undefined && evidence !== 'hearing'));
-  return stats?.moved || (stats?.radioRestarts ?? 0) > 0 || notRanging
+  return stats?.moved ||
+    isRangeDeviating(stats) ||
+    (stats?.radioRestarts ?? 0) > 0 ||
+    notRanging
     ? RtlsHealth.WARNING
     : RtlsHealth.OK;
 }

@@ -131,9 +131,10 @@ const persistConfig = {
     // Store only the persistent settings of the upload procedure
     createFilter('upload', ['settings']),
 
-    // Of the anchor survey only the operator's sketches outlive a reload;
-    // the survey itself is the server's
-    createFilter('rtlsSurvey', ['sketches']),
+    // Of the anchor survey only the operator's sketches outlive a reload,
+    // with the commit that last replaced what was drawn; the survey itself
+    // is the server's
+    createFilter('rtlsSurvey', ['sketches', 'committedSurveyId']),
 
     // Store only saved coordinates from RTK
     createFilter('rtk', ['savedCoordinates']),

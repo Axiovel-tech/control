@@ -60,6 +60,12 @@ export type RtlsSurveyAnchorFit = {
   sigmaM?: number;
   /** Distance from the stored position; absent when the anchor stores none. */
   movedM?: number;
+  /**
+   * How far the anchor stands above (positive) or below its height group's
+   * common height, metres; absent for an anchor in no group and from a
+   * server whose groups still share one exact height.
+   */
+  heightOffsetM?: number;
 };
 
 export type RtlsSurveyFit = {
@@ -142,7 +148,10 @@ export type RtlsSurveyAnswer = {
 };
 
 /** What the last request came to. */
-export type RtlsSurveyOutcome = Omit<RtlsSurveyAnswer, 'survey'>;
+export type RtlsSurveyOutcome = Omit<RtlsSurveyAnswer, 'survey'> & {
+  /** A refit that gave the fit it replaced. */
+  unchanged?: boolean;
+};
 
 const toId = (value: unknown): string | undefined =>
   toNumber(value) === undefined ? undefined : String(value);
@@ -206,6 +215,7 @@ const mapAnchorFit = (value: unknown): RtlsSurveyAnchorFit | undefined => {
     worstPairM: toNumber(value.worstPairM),
     sigmaM: toNumber(value.sigmaM),
     movedM: toNumber(value.movedM),
+    heightOffsetM: toNumber(value.heightOffsetM),
   };
 };
 

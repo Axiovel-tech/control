@@ -15,6 +15,7 @@ import { mapCellSettings, mapCellState } from './cell-settings';
 import {
   setRtlsAnchorLock,
   setRtlsCellSettings,
+  setRtlsCellSurvey,
   setRtlsAnchors,
   setRtlsDevicesFromStatus,
   setRtlsOtaJob,
@@ -22,6 +23,7 @@ import {
   updateRtlsStats,
 } from './slice';
 import { mapRtlsAnchorStats } from './handlers-anchor';
+import { mapAnchorTable, mapCellSurvey } from './handlers-survey';
 import {
   type RtlsAnchor,
   type RtlsAnchorLock,
@@ -111,8 +113,8 @@ export function mapRtlsDeviceStatus(
     result.role = role;
   }
 
-  // Always assigned: the device update merges per-field, and a stale cell
-  // would name a tag's flagged anchors from the wrong anchor table.
+  // Always assigned: the device update merges per-field, and a tag moved to
+  // another cell must not keep the old one.
   result.cell = toText(raw.cell);
 
   const address = toText(raw.address);
@@ -218,6 +220,8 @@ export function mapRtlsAnchors(value: unknown): RtlsAnchor[] {
         east: toNumber(ned.east),
         down: toNumber(ned.down),
       },
+      surveyId: toNumber(row.surveyId),
+      planar: row.planar === true,
       active: typeof row.active === 'boolean' ? row.active : undefined,
       systemId: toNumber(row.systemId),
     });
@@ -254,12 +258,14 @@ type RtlsInformationAction = ReturnType<
   | typeof setRtlsAnchors
   | typeof setRtlsAnchorLock
   | typeof setRtlsCellSettings
+  | typeof setRtlsCellSurvey
 >;
 
 /**
  * The actions an X-RTLS-INF body (pushed, answered, or polled by the saga)
- * applies: the device registry wholesale, then the site anchor list and the
- * anchor lock when the body carries them.
+ * applies: the device registry wholesale, then the site anchor list, the
+ * anchor lock, the cell settings and the cell's survey when the body carries
+ * them.
  */
 export function rtlsInformationActions(
   body: AnyRecord
@@ -270,7 +276,7 @@ export function rtlsInformationActions(
   ];
   // Only an explicit anchor list may replace the stored one: an X-RTLS-INF
   // from a server that predates the anchors field must not wipe the
-  // configured cell geometry off the debug position view.
+  // anchors off the debug position view.
   if (Array.isArray(body?.anchors)) {
     actions.push(setRtlsAnchors(mapRtlsAnchors(body.anchors)));
   }
@@ -282,6 +288,10 @@ export function rtlsInformationActions(
   const cell = mapCellSettings(body?.cellSettings);
   if (cell !== undefined) {
     actions.push(setRtlsCellSettings(cell));
+  }
+  const survey = mapCellSurvey(body?.survey);
+  if (survey !== undefined) {
+    actions.push(setRtlsCellSurvey(survey));
   }
   return actions;
 }
@@ -312,13 +322,14 @@ export function mapRtlsDeviceStats(
     fixAgeMs: toNumber(raw.fixAgeMs),
     clockPpm: toNumber(raw.clockPpm),
     anchorMask: toNumber(raw.anchorMask),
-    geometryState: toNumber(raw.geometryState),
-    geometryReason: toNumber(raw.geometryReason),
-    geometryResidualM: toNumber(raw.geometryResidualM),
-    geometryDriftM: toNumber(raw.geometryDriftM),
-    geometryDistancesM: Array.isArray(raw.geometryDistancesM)
-      ? raw.geometryDistancesM.map((value: unknown) => toNumber(value) ?? null)
+    surveyId: toNumber(raw.surveyId),
+    anchorsUsed: toNumber(raw.anchorsUsed),
+    anchorsExcluded: toNumber(raw.anchorsExcluded),
+    anchorTable: Array.isArray(raw.anchorTable)
+      ? mapAnchorTable(raw.anchorTable)
       : undefined,
+    surveyDriftM: toNumber(raw.surveyDriftM),
+    rangeDeviationM: toNumber(raw.rangeDeviationM),
     uwbRssiDbm: toNumber(raw.uwbRssiDbm),
     nlosMask: toNumber(raw.nlosMask),
     outvotedMask: toNumber(raw.outvotedMask),

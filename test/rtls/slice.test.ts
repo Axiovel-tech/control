@@ -6,7 +6,6 @@ import reducer, {
   clearRtlsDevices,
   closeRtlsParamDialog,
   openRtlsParamDialog,
-  rtlsGeometryCheckSucceeded,
   rtlsParamsFetchFailed,
   rtlsParamsFetchStarted,
   rtlsParamsFetchSucceeded,
@@ -14,6 +13,7 @@ import reducer, {
   rtlsSleepTransactionEnded,
   rtlsSleepTransactionStarted,
   setRtlsAnchors,
+  setRtlsCellSurvey,
   setRtlsDevicesFromStatus,
   setRtlsOtaJob,
   updateRtlsPositions,
@@ -108,41 +108,25 @@ describe('rtls slice', () => {
     expect(state.stats.lastUpdatedAt).toBe(200);
   });
 
-  test('a tag whose fit state changes voids the geometry verdict', () => {
-    const verdict = {
-      tolerance: 0.05,
-      consistent: true,
-      devices: {},
-      receivedAt: 0,
+  test("the cell's survey is the server's, and goes with the server", () => {
+    const survey = {
+      id: 12,
+      anchors: 7,
+      notSurveyed: ['203'],
+      otherSurvey: [],
+      rangeDeviation: [],
+      excluding: {},
     };
-    let state = reducer(
-      initial(),
-      updateRtlsStats({ byId: { '1': { id: '1', geometryState: 3 } } })
-    );
-    state = reducer(state, rtlsGeometryCheckSucceeded(verdict));
-    const invalidations = state.geometry.invalidations;
+    let state = reducer(initial(), setRtlsCellSurvey(survey));
+    expect(state.cellSurvey).toEqual(survey);
+    // a later report replaces it whole
+    state = reducer(state, setRtlsCellSurvey({ ...survey, notSurveyed: [] }));
+    expect(state.cellSurvey?.notSurveyed).toEqual([]);
+    expect(reducer(state, clearRtlsDevices()).cellSurvey).toBeUndefined();
+  });
 
-    // same state again (the next stats report): the verdict holds
-    state = reducer(
-      state,
-      updateRtlsStats({ byId: { '1': { id: '1', geometryState: 3 } } })
-    );
-    expect(state.geometry.lastCheck).toBeDefined();
-
-    // the tag started recalibrating: the verdict no longer describes it
-    state = reducer(
-      state,
-      updateRtlsStats({ byId: { '1': { id: '1', geometryState: 2 } } })
-    );
-    expect(state.geometry.lastCheck).toBeUndefined();
-    expect(state.geometry.invalidations).toBe(invalidations + 1);
-
-    // and again when it finished
-    state = reducer(
-      state,
-      updateRtlsStats({ byId: { '1': { id: '1', geometryState: 3 } } })
-    );
-    expect(state.geometry.invalidations).toBe(invalidations + 2);
+  test('nothing of a fleet geometry check is kept', () => {
+    expect(initial()).not.toHaveProperty('geometry');
   });
 
   test("a device's stats survive a single-device stats broadcast for another device", () => {
