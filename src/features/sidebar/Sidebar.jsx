@@ -14,6 +14,7 @@ import Map from '@mui/icons-material/Map';
 import Place from '@mui/icons-material/Place';
 import Radar from '@mui/icons-material/Radar';
 import SettingsInputAntenna from '@mui/icons-material/SettingsInputAntenna';
+import Straighten from '@mui/icons-material/Straighten';
 import TrackChanges from '@mui/icons-material/TrackChanges';
 // import Storage from '@mui/icons-material/Storage';
 import ThreeDRotation from '@mui/icons-material/ThreeDRotation';
@@ -146,6 +147,14 @@ const Sidebar = ({
             icon={<SettingsInputAntenna />}
             label={t('view.rtls-anchors')}
             component='rtls-anchors'
+          />
+        )}
+        {hasFeature('rtls') && (
+          <Module
+            id='rtls-survey'
+            icon={<Straighten />}
+            label={t('view.rtls-survey')}
+            component='rtls-survey'
           />
         )}
         {hasFeature('rtls') && (

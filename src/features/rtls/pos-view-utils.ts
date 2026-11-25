@@ -103,6 +103,17 @@ export function computeSceneBounds(
     }
   }
 
+  return boundsOfPoints(points, { margin, minSpan });
+}
+
+/**
+ * The bounds of the given points, expanded by a margin (metres) and padded to
+ * a minimum span. `undefined` without points.
+ */
+export function boundsOfPoints(
+  points: readonly NePoint[],
+  { margin = 1, minSpan = 4 }: { margin?: number; minSpan?: number } = {}
+): SceneBounds | undefined {
   if (points.length === 0) {
     return undefined;
   }
@@ -137,6 +148,40 @@ export function computeSceneBounds(
   [minEast, maxEast] = padAxis(minEast, maxEast);
 
   return { minNorth, maxNorth, minEast, maxEast };
+}
+
+/** Where an element lies in the viewport (a `DOMRect`'s members). */
+export type ClientBox = {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+};
+
+/**
+ * The scene point under a pointer, for a plot that shows `bounds` in an
+ * element with `preserveAspectRatio='xMidYMid meet'`: the scene is scaled
+ * uniformly to fit the element and centred in it. `undefined` while the
+ * element has no size.
+ */
+export function scenePointFromClient(
+  client: { x: number; y: number },
+  box: ClientBox,
+  bounds: SceneBounds
+): NePoint | undefined {
+  const width = bounds.maxEast - bounds.minEast;
+  const height = bounds.maxNorth - bounds.minNorth;
+  if (box.width <= 0 || box.height <= 0 || width <= 0 || height <= 0) {
+    return undefined;
+  }
+
+  const scale = Math.min(box.width / width, box.height / height);
+  const left = box.left + (box.width - width * scale) / 2;
+  const top = box.top + (box.height - height * scale) / 2;
+  return {
+    east: bounds.minEast + (client.x - left) / scale,
+    north: bounds.maxNorth - (client.y - top) / scale,
+  };
 }
 
 /**

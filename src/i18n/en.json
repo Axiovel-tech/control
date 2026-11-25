@@ -1164,6 +1164,123 @@
     "lockReadOnly": "Use the panel's Lock and Unlock",
     "sleepReadOnly": "Use the row's Sleep and Wake buttons"
   },
+  "rtlsSurvey": {
+    "anchor": {
+      "unknown": "#{{id}}"
+    },
+    "cell": "Cell",
+    "commit": {
+      "acknowledgeFirst": "Acknowledge the warnings first",
+      "action": "Commit and lock",
+      "blocked": "The fit cannot be committed",
+      "committed": "Every anchor runs the new survey. Lock the anchors now.",
+      "detail": "({{- detail}})",
+      "incomplete": "Not every anchor took the survey: {{anchors}}",
+      "offline": "{{anchors}} offline since this survey. Refit still works; a commit needs a new survey.",
+      "result": "{{anchor}}: {{written}}",
+      "retry": "Retry",
+      "running": "· running",
+      "surveyAgain": "Survey again to commit",
+      "surveyId": "Survey {{id}}",
+      "written": {
+        "changed": "written",
+        "failed": "failed"
+      }
+    },
+    "gate": {
+      "acknowledge": "Commit anyway",
+      "blocked": "Survey again or fix the sketch:",
+      "entry": "{{anchor}}: {{- detail}}",
+      "pairEntry": "{{a}} – {{b}}: {{- detail}}"
+    },
+    "group": {
+      "add": "Add group",
+      "lower": "Lower",
+      "name": "Height group",
+      "upper": "Upper"
+    },
+    "heldElsewhere": "The server holds a survey of another cell. A survey here replaces it.",
+    "hint": {
+      "originNotLowest": "Pick the origin among the lowest anchors: nothing else tells the fit which anchors are below it.",
+      "partialSketch": "Place every anchor: a sketch with anchors missing is not used."
+    },
+    "list": {
+      "anchor": "Anchor",
+      "group": "Height",
+      "include": "Survey this anchor",
+      "origin": "Origin",
+      "xAxis": "+x"
+    },
+    "noAnchors": {
+      "header": "No online anchors",
+      "text": "The anchors appear here once they are online."
+    },
+    "notification": {
+      "committed": "Survey committed"
+    },
+    "outcome": {
+      "blocked": "The fit cannot be committed",
+      "error": "No answer from the server",
+      "incomplete": "Not every anchor took the survey",
+      "refused": "Refused",
+      "unknown": "Unexpected answer from the server",
+      "warnings": "Acknowledge the warnings first"
+    },
+    "pair": "{{a}} – {{b}}",
+    "plan": {
+      "caption": "Top view in metres. Drag each anchor to where it roughly stands.",
+      "moved": "{{anchor}} moved {{cm}} cm",
+      "xAxis": "+x"
+    },
+    "problem": {
+      "drawApart": "Draw the origin and the +x anchor apart",
+      "pickOrigin": "Pick the origin anchor",
+      "pickXAxis": "Pick the +x anchor",
+      "sameAnchor": "The origin and the +x anchor must be two anchors",
+      "tooFew": "A survey needs at least three anchors",
+      "tooMany": "A survey takes at most eight anchors"
+    },
+    "refusal": {
+      "noServer": "This server has no anchor survey",
+      "running": "A survey is running",
+      "showAuthorized": "A show is authorized"
+    },
+    "result": {
+      "anchor": "Anchor",
+      "fitted": "Fitted (m)",
+      "links": "Links",
+      "moved": "Moved (cm)",
+      "pair": "Pair",
+      "planar": "One height: the tags lock their height.",
+      "range": "Range (m)",
+      "residual": "Residual (cm)",
+      "rms": "Rms (cm)",
+      "share": "Valid (%)",
+      "shares": "{{ab}} / {{ba}}",
+      "sigma": "± (cm)",
+      "summary": "Fit rms {{rms}} cm, worst pair {{worst}} cm.",
+      "worst": "Worst (cm)",
+      "x": "x (m)",
+      "y": "y (m)",
+      "z": "z (m)"
+    },
+    "run": {
+      "cancelled": "Survey cancelled",
+      "committing": "Writing the positions to the anchors…",
+      "failed": "The survey failed",
+      "measuring": "Ranging…",
+      "refit": "Refit",
+      "returning": "The anchors are returning to their session…",
+      "sketchChanged": "The sketch changed since this fit. Refit to use it.",
+      "start": "Survey",
+      "startAgain": "Survey again",
+      "step": "Step {{step}} of {{steps}}: {{anchor}} initiates"
+    },
+    "standard": {
+      "action": "Standard cell",
+      "on": "Two tiers from the slots"
+    }
+  },
   "rtlsTagDetails": {
     "collapseAll": "Collapse all",
     "expandAll": "Expand all",
@@ -1889,6 +2006,7 @@
     "rtls-device-list": "RTLS Tags",
     "rtls-positions": "Debug Pos Estimates",
     "rtls-stats": "RTLS Tags",
+    "rtls-survey": "RTLS Survey",
     "rtls-tags": "RTLS Tags",
     "saved-location-list": "Locations",
     "show-control": "Show control",

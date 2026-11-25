@@ -60,6 +60,7 @@ import parametersReducer from '~/features/parameters/slice';
 import preflightReducer from '~/features/preflight/slice';
 import rtkReducer from '~/features/rtk/slice';
 import rtlsReducer from '~/features/rtls/slice';
+import rtlsSurveyReducer from '~/features/rtls/survey';
 import safetyReducer from '~/features/safety/slice';
 import savedLocationsReducer from '~/features/saved-locations/slice';
 import serversReducer from '~/features/servers/slice';
@@ -138,6 +139,7 @@ const reducer = combineReducers({
   preflight: preflightReducer,
   rtk: rtkReducer,
   rtls: rtlsReducer,
+  rtlsSurvey: rtlsSurveyReducer,
   safety: safetyReducer,
   savedLocations: savedLocationsReducer,
   selection: selectionReducer,
