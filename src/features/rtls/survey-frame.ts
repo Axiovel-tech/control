@@ -296,7 +296,8 @@ const ascending = (a: number, b: number): number => a - b;
 /**
  * A frame and placement as one string, the same for the preset and for the
  * frame it stands for, whatever the order inside a group: two fits were made
- * with the same sketch exactly when these agree. `order` is the group in
+ * with the same sketch exactly when these agree. A height group of one is no
+ * group: the server drops it when it reads a frame. `order` is the group in
  * slot order, which is what a preset means.
  */
 export function fitSignature(
@@ -309,7 +310,7 @@ export function fitSignature(
     origin,
     xAxis,
     heightGroups: heightGroups
-      .filter((group) => group.length > 0)
+      .filter((group) => group.length > 1)
       .map((group) => [...group].sort(ascending))
       .sort((a, b) => a[0] - b[0]),
     upper: [...upper].sort(ascending),

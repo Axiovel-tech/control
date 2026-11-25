@@ -50,6 +50,8 @@ import { getRtlsSurveyPage } from '~/features/rtls/survey-selectors';
 import {
   type RtlsSurveySketch,
   standardCellSketch,
+  withAnchorGroup,
+  withGroupAdded,
   withXAxis,
 } from '~/features/rtls/survey-sketch';
 import messageHub from '~/message-hub';
@@ -62,7 +64,9 @@ import {
   acknowledge,
   CELL,
   createSurveyTestStore,
+  FOUR_ANCHORS,
   play,
+  reportAnchors,
   run,
   stateOf,
   surveyOf,
@@ -179,5 +183,54 @@ describe('C2. a commit is of the survey the button was rendered with', () => {
     await run(store, commitRtlsSurvey(CELL, shown));
 
     expect(sendMessage).not.toHaveBeenCalled();
+  });
+});
+
+describe('C3. a height group of one is no group, on both sides', () => {
+  /** A frame as the server echoes it: without its groups of one. */
+  const asEchoed = (heightGroups: number[][]): number[][] =>
+    heightGroups.filter((group) => group.length > 1);
+
+  test('the standard cell of five anchors is not refitted for ever', () => {
+    const store = createSurveyTestStore();
+    reportAnchors(store, [...FOUR_ANCHORS, { id: 105, slot: 4 }]);
+    setSketch(store, standardCellSketch(pageOf(store).anchors));
+    play(store, [
+      ready(7, {
+        anchors: [101, 102, 103, 104, 105],
+        frame: {
+          origin: 101,
+          xAxis: 102,
+          heightGroups: asEchoed([[101, 102, 103, 104], [105]]),
+          upper: [105],
+          yPositive: 103,
+        },
+      }),
+    ]);
+    const page = pageOf(store);
+    expect(page.refitTarget?.frame).toEqual({ preset: 'two-tiers' });
+    expect(page.sketchChanged).toBe(false);
+  });
+
+  test('nor is a group the operator made for one anchor', () => {
+    const store = withStandardCell();
+    const { sketch } = pageOf(store);
+    setSketch(
+      store,
+      withAnchorGroup(withGroupAdded(sketch, 'Stage'), '104', 2)
+    );
+    play(store, [ready(7)]);
+    expect(pageOf(store).sketchChanged).toBe(true);
+
+    // what the refit sends, as the server echoes it with the new fit
+    const { frame, placement } = pageOf(store).refitTarget!; // non-null: valid
+    expect(frame).toMatchObject({ heightGroups: [[101, 102, 103], [104]] });
+    play(store, [
+      ready(8, {
+        frame: { ...frame, heightGroups: asEchoed([[101, 102, 103], [104]]) },
+        placement,
+      }),
+    ]);
+    expect(pageOf(store).sketchChanged).toBe(false);
   });
 });
