@@ -5,6 +5,7 @@
  * catalogue of `param-metadata.ts`.
  */
 
+import { RTLS_TX_GAIN_MAX, RTLS_TX_GAIN_MIN } from './cell-settings';
 import { type RtlsParamMetadata } from './param-metadata';
 
 export const ANCHOR_PARAM_METADATA: Record<string, RtlsParamMetadata> = {
@@ -20,10 +21,10 @@ export const ANCHOR_PARAM_METADATA: Record<string, RtlsParamMetadata> = {
   /* --- Anchor TX level (rtls-link-zephyr lib/uwb/src/tx_gain.cpp) --- */
   UWB_TX_GAIN: {
     description:
-      'SR250 TX gain index: 0 strongest, 127 weakest, 0.25 dB steps. ' +
-      'Read at boot',
-    min: 0,
-    max: 127,
+      'SR250 TX gain index: 0 strongest, 57 the weakest accepted, 0.25 dB ' +
+      'steps. Applied live, the radio session restarts',
+    min: RTLS_TX_GAIN_MIN,
+    max: RTLS_TX_GAIN_MAX,
     defaultValue: 47,
   },
 
@@ -53,7 +54,7 @@ export const ANCHOR_PARAM_METADATA: Record<string, RtlsParamMetadata> = {
     enumLabels: { 0: 'none', 1: 'lip1708', 2: 'fey7ah' },
     min: 0,
     max: 2,
-    defaultValue: 0,
+    defaultValue: 1,
   },
   BAT_NTC: {
     description:

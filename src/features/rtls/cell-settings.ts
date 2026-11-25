@@ -13,9 +13,12 @@ import { type AnyRecord, isRecord, toNumber, toText } from './wire-values';
 /** The ranging-rate presets the server applies (Hz). */
 export const RTLS_RATE_PRESETS = [33, 50, 83] as const;
 
-/** The anchors' TX gain index range (the firmware's UWB_TX_GAIN). */
+/**
+ * The anchors' TX gain index range (the firmware's UWB_TX_GAIN). The index is
+ * inverted: 0 is the strongest level, and 57 the weakest one the firmware takes.
+ */
 export const RTLS_TX_GAIN_MIN = 0;
-export const RTLS_TX_GAIN_MAX = 127;
+export const RTLS_TX_GAIN_MAX = 57;
 
 /** A device's state against A0's settings. */
 export type RtlsCellState = 'ok' | 'differ' | 'unknown';
