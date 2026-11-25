@@ -213,12 +213,14 @@ export function surveyPage(
   const acknowledged =
     slice.acknowledged !== undefined &&
     slice.acknowledged === warningsSignature(survey);
+  // a sketch that cannot be sent is not the one the fit was made with
   const sketchChanged =
     survey?.state === 'ready' &&
-    refitTarget !== undefined &&
+    survey.fit !== undefined &&
     fitBasis !== undefined &&
-    fitSignature(refitTarget, refitTarget.anchors) !==
-      fitSignature(fitBasis, refitTarget.anchors);
+    (refitTarget === undefined ||
+      fitSignature(refitTarget, refitTarget.anchors) !==
+        fitSignature(fitBasis, refitTarget.anchors));
 
   return {
     anchors,

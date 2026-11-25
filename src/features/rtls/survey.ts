@@ -149,7 +149,8 @@ const gateBlockKey = (
 /**
  * The i18n key of why a held fit is not committed as it is: an anchor of it
  * went offline, the sketch moved on since it was made (its gate is then of
- * another sketch), or its gate.
+ * another sketch) and is to be refitted or cannot be (`refitProblemKey`), or
+ * its gate.
  */
 const fitBlockKey = (
   gate: RtlsSurveyGate,
@@ -157,12 +158,18 @@ const fitBlockKey = (
     acknowledged,
     groupOffline,
     fitStale,
-  }: { acknowledged: boolean; groupOffline: boolean; fitStale: boolean }
+    refitProblemKey,
+  }: {
+    acknowledged: boolean;
+    groupOffline: boolean;
+    fitStale: boolean;
+    refitProblemKey?: string;
+  }
 ): string | undefined =>
   groupOffline
     ? 'rtlsSurvey.commit.surveyAgain'
     : fitStale
-      ? 'rtlsSurvey.commit.refitFirst'
+      ? (refitProblemKey ?? 'rtlsSurvey.commit.refitFirst')
       : gateBlockKey(gate, acknowledged);
 
 /**
@@ -211,7 +218,12 @@ export function surveyControls({
     !elsewhere && survey?.state === 'ready' && survey.fit !== undefined;
   const commitBlockedKey = commitOffered
     ? (refusalKey ??
-      fitBlockKey(survey.gate, { acknowledged, groupOffline, fitStale }))
+      fitBlockKey(survey.gate, {
+        acknowledged,
+        groupOffline,
+        fitStale,
+        refitProblemKey,
+      }))
     : undefined;
 
   return {
