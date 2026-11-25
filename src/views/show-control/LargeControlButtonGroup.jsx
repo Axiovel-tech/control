@@ -28,6 +28,7 @@ import {
 } from '~/features/mission/selectors';
 import { setCommandsAreBroadcast } from '~/features/mission/slice';
 import { isDeveloperModeEnabled } from '~/features/session/selectors';
+import { requestReturnToHome } from '~/features/show-rth/actions';
 import { getSelectedUAVIds } from '~/features/uavs/selectors';
 import Pro from '~/icons/Pro';
 import { createUAVOperationThunks } from '~/utils/messaging';
@@ -63,6 +64,7 @@ const LargeControlButtonGroup = ({
   broadcast,
   devModeEnabled,
   onChangeBroadcastMode,
+  onReturnToHome,
   t,
   uavActions,
 }) => {
@@ -143,7 +145,7 @@ const LargeControlButtonGroup = ({
           className={classes.button}
           color={Colors.warning}
           icon={<Home fontSize='inherit' />}
-          onClick={uavActions.returnToHome}
+          onClick={() => onReturnToHome(uavActions.returnToHome)}
         >
           {broadcast
             ? t('largeControlButtonGroup.RTHAll')
@@ -180,6 +182,7 @@ LargeControlButtonGroup.propTypes = {
   broadcast: PropTypes.bool,
   devModeEnabled: PropTypes.bool.isRequired,
   onChangeBroadcastMode: PropTypes.func,
+  onReturnToHome: PropTypes.func,
   t: PropTypes.func,
   uavActions: PropTypes.objectOf(PropTypes.func),
 };
@@ -197,6 +200,10 @@ export default connect(
   (dispatch) => ({
     onChangeBroadcastMode: (event) =>
       dispatch(setCommandsAreBroadcast(Boolean(event.target.checked))),
+
+    /* A show whose drones hold a certified .gdm RTH plan opens the RTH
+     * dialog; any other show runs the regular RTH command. */
+    onReturnToHome: (fallback) => dispatch(requestReturnToHome(fallback)),
 
     uavActions: bindActionCreators(
       createUAVOperationThunks({
