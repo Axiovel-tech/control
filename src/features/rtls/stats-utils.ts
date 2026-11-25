@@ -225,14 +225,15 @@ export type RtlsTagCell = {
  * solver's own minimum (rtls-link-zephyr
  * `docs/reference/anchor-geometry.md`, "Enough") and the server's rule: a
  * tag that keeps its survey ID on fewer anchors solves nothing. `undefined`
- * while its firmware reports no table. Never read from the show clock, which
- * is valid in a cell with no survey at all.
+ * while it does not report both how many anchors it uses and how many it
+ * leaves out: what is missing is not known, and never good. Never read from
+ * the show clock, which is valid in a cell with no survey at all.
  */
 export const isTagPositioned = (
   stats: RtlsDeviceStats | undefined,
   { planar, surveyId }: RtlsTagCell
 ): boolean | undefined =>
-  stats?.anchorsUsed === undefined
+  stats?.anchorsUsed === undefined || stats.anchorsExcluded === undefined
     ? undefined
     : surveyId !== undefined &&
       stats.surveyId === surveyId &&

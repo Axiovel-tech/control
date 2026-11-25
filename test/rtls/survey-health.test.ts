@@ -155,9 +155,14 @@ describe('whether a tag positions', () => {
   test('from its survey ID and the anchors it uses', () => {
     expect(isTagPositioned(stats['42'], CELL)).toBe(true);
     expect(
-      isTagPositioned({ id: '1', surveyId: 12, anchorsUsed: 0 }, CELL)
+      isTagPositioned(
+        { id: '1', surveyId: 12, anchorsUsed: 0, anchorsExcluded: 0 },
+        CELL
+      )
     ).toBe(false);
-    expect(isTagPositioned({ id: '1', anchorsUsed: 4 }, CELL)).toBe(false);
+    expect(
+      isTagPositioned({ id: '1', anchorsUsed: 4, anchorsExcluded: 0 }, CELL)
+    ).toBe(false);
   });
 
   test('never from the show clock, which runs in a cell with no survey', () => {

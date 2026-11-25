@@ -50,6 +50,10 @@ import {
   rtlsInformationActions,
 } from '~/features/rtls/handlers';
 import { isTagPositioned } from '~/features/rtls/stats-utils';
+import {
+  describeTagSurvey,
+  tableAnchorNamer,
+} from '~/features/rtls/survey-health';
 import { type AppDispatch } from '~/store/reducers';
 import { RtlsTagsPanel } from '~/views/rtls/RtlsRolePanel';
 
@@ -184,5 +188,45 @@ describe('C8. a tag is positioned only on the survey ID of the cell', () => {
     const stats = { id: '42', ...onSurvey(12) };
     expect(isTagPositioned(stats, { planar: false })).toBe(false);
     expect(isTagPositioned(stats, { surveyId: 12, planar: false })).toBe(true);
+  });
+});
+
+describe('C9. a tag that does not say how many anchors it leaves out is unknown', () => {
+  const unsaid = {
+    surveyId: 12,
+    anchorsUsed: 4,
+    anchorsExcluded: undefined,
+    surveyDriftM: 0.01,
+  };
+
+  test('neither the header nor the row chip is green', () => {
+    const { chip, header } = shown({}, unsaid);
+    expect(header).toContain('rtlsSurveyHealth.tags.noTelemetry(count=1)');
+    expect(chip).toBe('');
+  });
+
+  test('nor is a pre-show metric of the survey', () => {
+    const cell = { surveyId: 12, planar: false };
+    const stats = { id: '42', ...unsaid };
+    expect(isTagPositioned(stats, cell)).toBeUndefined();
+    const metrics = describeFleetHealth(stats, undefined, cell);
+    for (const id of ['anchorSet', 'surveyDrift']) {
+      expect(metrics.find((metric) => metric.id === id)?.status).toBe(
+        Status.OFF
+      );
+    }
+  });
+
+  test('the survey line keeps the facts and claims no drift', () => {
+    const line = describeTagSurvey(
+      { id: '42', ...unsaid },
+      tableAnchorNamer([]),
+      { surveyId: 12, planar: false }
+    );
+    expect(line?.following).toEqual({
+      key: 'rtlsSurveyHealth.line.following',
+      values: { id: 12, count: 4 },
+    });
+    expect(line?.drift).toBeUndefined();
   });
 });

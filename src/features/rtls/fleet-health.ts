@@ -166,14 +166,19 @@ const describeAnchorMask = (
 /**
  * The anchors the tag positions on: green while it leaves none out, yellow
  * while it leaves one or more out, red while it follows no survey or another
- * one than the cell. Unknown while its firmware reports no table.
+ * one than the cell. Unknown while the tag does not report both how many
+ * anchors it uses and how many it leaves out.
  */
 const describeAnchorSet = (
   stats: RtlsDeviceStats,
   cell: RtlsTagCell
 ): Omit<FleetHealthMetric, 'id'> => {
   const positioned = isTagPositioned(stats, cell);
-  if (stats.anchorsUsed === undefined || positioned === undefined) {
+  if (
+    stats.anchorsUsed === undefined ||
+    stats.anchorsExcluded === undefined ||
+    positioned === undefined
+  ) {
     return UNKNOWN;
   }
   if (!positioned) {
@@ -194,10 +199,6 @@ const describeAnchorSet = (
     };
   }
   const excluded = stats.anchorsExcluded;
-  if (excluded === undefined) {
-    // how many it leaves out is not known: that is not "none"
-    return UNKNOWN;
-  }
   return excluded > 0
     ? {
         status: Status.WARNING,

@@ -255,7 +255,8 @@ export const describeTagSurveyPill = (
  * The survey pill of one tag row: the survey it follows and how many anchors
  * it uses; amber while it leaves one out, red while it does not position (it
  * follows no survey, or another one than the cell, or uses too few anchors).
- * `undefined` while the tag reports no table (asleep, lost, older firmware).
+ * `undefined` while the tag does not report both how many anchors it uses and
+ * how many it leaves out (asleep, lost, older firmware).
  */
 export const describeTagSurveyChip = (
   device: RtlsDevice,
@@ -264,7 +265,11 @@ export const describeTagSurveyChip = (
 ): StatusText | undefined => {
   const live = reporting(device, stats);
   const positioned = isTagPositioned(live, cell);
-  if (live?.anchorsUsed === undefined || positioned === undefined) {
+  if (
+    live?.anchorsUsed === undefined ||
+    live.anchorsExcluded === undefined ||
+    positioned === undefined
+  ) {
     return undefined;
   }
   if (live.surveyId === undefined) {
@@ -289,7 +294,7 @@ export const describeTagSurveyChip = (
       text: { key: 'rtlsSurveyHealth.tag.tooFew', values },
     };
   }
-  const excluded = live.anchorsExcluded ?? 0;
+  const excluded = live.anchorsExcluded;
   return excluded > 0
     ? {
         status: Status.WARNING,
@@ -326,10 +331,10 @@ export const describeTagSurvey = (
       drift?: I18nText;
     }
   | undefined => {
-  const positioned = isTagPositioned(stats, cell);
-  if (stats?.anchorsUsed === undefined || positioned === undefined) {
+  if (stats?.anchorsUsed === undefined) {
     return undefined;
   }
+  const positioned = isTagPositioned(stats, cell);
   const excluded = excludedAnchors(stats).map((entry) => ({
     anchor: nameOf(entry),
     why: describeExclusion(entry.state),
