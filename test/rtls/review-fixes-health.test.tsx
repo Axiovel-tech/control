@@ -57,6 +57,7 @@ jest.mock('@mui/material/Dialog', () => ({
 }));
 
 import { Status } from '~/components/semantics';
+import { describeAnchorBadges } from '~/features/rtls/anchor-utils';
 import {
   describeFleetHealth,
   type FleetHealthMetric,
@@ -76,7 +77,13 @@ import {
   openRtlsVerifyDialog,
   rtlsVerifySucceeded,
 } from '~/features/rtls/slice';
-import { isSurveyPlanar, isTagPositioned } from '~/features/rtls/stats-utils';
+import {
+  getAnchorHealth,
+  isRangeDeviating,
+  isSurveyPlanar,
+  isTagPositioned,
+  RtlsHealth,
+} from '~/features/rtls/stats-utils';
 import {
   describeTagSurvey,
   describeTagSurveyChip,
@@ -89,6 +96,7 @@ import {
   type RtlsVerifyRule,
 } from '~/features/rtls/types';
 import { type AppDispatch } from '~/store/reducers';
+import { describeAnchorDetailLines } from '~/views/rtls/AnchorRowParts';
 import { RtlsTagsPanel } from '~/views/rtls/RtlsRolePanel';
 
 import { createRtlsTestStore, type RtlsTestStore } from './rtls-test-store';
@@ -405,5 +413,64 @@ describe('10. a Verify rule without a detail', () => {
     expect(
       findings(render({ detail: 'A2 is not surveyed; tag 42 lost' }))
     ).toEqual(['A2 is not surveyed', 'tag 42 lost']);
+  });
+});
+
+describe("11. an anchor's range check on the value as the anchor reported it", () => {
+  /** An anchor's stats as mapped from the wire, with the given reading. */
+  const reading = (rangeDeviationM: number): RtlsDeviceStats =>
+    buildRtlsStatsMap({
+      '202': { powerState: 'operating', rangingRateHz: 83, rangeDeviationM },
+    })['202'];
+  /** Echoes the key with its values, as the views' mocked `t` does. */
+  const t = ((key: string, values?: Record<string, unknown>): string =>
+    values === undefined
+      ? key
+      : `${key}(${Object.entries(values)
+          .map(([name, value]) => `${name}=${String(value)}`)
+          .join(',')})`) as Parameters<typeof describeAnchorDetailLines>[0];
+
+  test('the value is kept as it came, not rounded', () => {
+    expect(reading(0.08004).rangeDeviationM).toBe(0.08004);
+    expect(reading(-0.123456789).rangeDeviationM).toBe(-0.123456789);
+  });
+
+  test('8.004 cm warns, as on the anchor; 8 cm does not', () => {
+    expect(isRangeDeviating(reading(0.08004))).toBe(true);
+    expect(isRangeDeviating(reading(-0.08004))).toBe(true);
+    expect(isRangeDeviating(reading(0.08))).toBe(false);
+    expect(isRangeDeviating(reading(0.07996))).toBe(false);
+    expect(getAnchorHealth({ online: true, age: 1 }, reading(0.08004))).toBe(
+      RtlsHealth.WARNING
+    );
+  });
+
+  test('the badge shows whole centimetres', () => {
+    expect(describeAnchorBadges(reading(0.08004))[0].text).toEqual({
+      key: 'rtlsAnchor.badge.rangeFarther',
+      values: { cm: 8 },
+    });
+    expect(describeAnchorBadges(reading(-0.123456789))[0].text).toEqual({
+      key: 'rtlsAnchor.badge.rangeCloser',
+      values: { cm: 12 },
+    });
+  });
+
+  test('the detail line shows one decimal: no long float reaches the screen', () => {
+    const line = (rangeDeviationM: number): string | undefined => {
+      const found = describeAnchorDetailLines(
+        t,
+        reading(rangeDeviationM),
+        undefined
+      ).find(({ key }) => key === 'survey');
+      return typeof found?.value === 'string' ? found.value : undefined;
+    };
+    expect(line(0.08004)).toBe('rtlsAnchor.value.rangeDeviation(cm=8.0)');
+    expect(line(-0.123456789)).toBe(
+      'rtlsAnchor.value.rangeDeviation(cm=-12.3)'
+    );
+    expect(line(0.0041999999999)).toBe(
+      'rtlsAnchor.value.rangeDeviation(cm=0.4)'
+    );
   });
 });

@@ -16,7 +16,7 @@ import Box from '@mui/material/Box';
 import Divider from '@mui/material/Divider';
 import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDispatch, useSelector } from 'react-redux';
 
@@ -64,12 +64,16 @@ import SurveyViews from './survey/SurveyViews';
  */
 const NARROW_PANEL_PX = 820;
 
-/** Whether an element is narrower than `limit`; `false` until it is measured. */
+/**
+ * Whether an element is narrower than `limit`; `false` until it is measured.
+ * The element is given through `ref` when it mounts, which may be after the
+ * first render (the panel shows a hint until the anchors are known): it is
+ * measured from then on, whenever that is.
+ */
 const useNarrow = (limit: number) => {
-  const ref = useRef<HTMLDivElement>(null);
+  const [element, setElement] = useState<HTMLDivElement | null>(null);
   const [narrow, setNarrow] = useState(false);
   useEffect(() => {
-    const element = ref.current;
     if (element === null || typeof ResizeObserver === 'undefined') {
       return undefined;
     }
@@ -80,8 +84,8 @@ const useNarrow = (limit: number) => {
     return () => {
       observer.disconnect();
     };
-  }, [limit]);
-  return { ref, narrow };
+  }, [element, limit]);
+  return { ref: setElement, narrow };
 };
 
 const RtlsSurveyPanel = () => {

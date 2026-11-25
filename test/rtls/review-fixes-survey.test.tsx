@@ -223,6 +223,32 @@ describe('2. a commit is of the survey on screen', () => {
     );
   });
 
+  test('the acknowledged retry carries the same revision', async () => {
+    const store = withStandardCell();
+    play(store, [ready(7)]);
+    // a commit of this client's that the server answers with the warnings:
+    // such an answer does not raise the revision
+    play(store, [
+      answer('commit', 'warnings', {
+        ...READY,
+        frame: STANDARD_FRAME,
+        revision: 7,
+      }),
+    ]);
+    expect(heldOf(store)?.revision).toBe(7);
+    expect(pageOf(store).controls.canCommit).toBe(false);
+
+    acknowledge(store);
+    sendMessage.mockResolvedValueOnce(reply(COMMIT[2].body));
+    await run(store, commitRtlsSurvey(CELL));
+    expect(sent()).toEqual({
+      type: 'X-RTLS-SURVEY',
+      action: 'commit',
+      acknowledgeWarnings: true,
+      revision: 7,
+    });
+  });
+
   test('a server that sends no revision is sent none', async () => {
     const store = withStandardCell();
     play(store, [ready()]);
