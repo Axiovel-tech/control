@@ -51,6 +51,7 @@ import {
   type RtlsSurveySketch,
   standardCellSketch,
   withAnchorGroup,
+  withAnchorMoved,
   withGroupAdded,
   withXAxis,
 } from '~/features/rtls/survey-sketch';
@@ -232,5 +233,67 @@ describe('C3. a height group of one is no group, on both sides', () => {
       }),
     ]);
     expect(pageOf(store).sketchChanged).toBe(false);
+  });
+});
+
+describe('C4. the retry of a partial commit is of the committed fit', () => {
+  /** 104 missed the commit; what 101..103 took is now what they store. */
+  const partial = (): SurveyTestStore => {
+    const store = createSurveyTestStore();
+    setSketch(
+      store,
+      withAnchorMoved(pageOf(store).sketch, '104', { north: 4, east: 3 })
+    );
+    play(store, [ready(6)]);
+    const { frame, placement } = pageOf(store).refitTarget!; // non-null: valid
+    const held = { frame, placement, gate: { blocked: [], warnings: [] } };
+    play(store, [ready(7, held)]);
+    expect(pageOf(store).controls.canCommit).toBe(true);
+    play(store, [
+      ready(8, {
+        ...held,
+        commit: {
+          surveyId: 13,
+          results: {
+            '101': { written: 'changed' },
+            '102': { written: 'changed' },
+            '103': { written: 'changed' },
+            '104': { written: 'failed', detail: 'no answer' },
+          },
+          running: [101, 102, 103],
+        },
+      }),
+    ]);
+    reportAnchors(store, [
+      { id: 101, slot: 0, stored: { north: 0, east: 0 } },
+      { id: 102, slot: 1, stored: { north: 4.2, east: 0 } },
+      { id: 103, slot: 2, stored: { north: 0.1, east: 3.3 } },
+      { id: 104, slot: 3 },
+    ]);
+    return store;
+  };
+
+  test('Retry stays on offer, and sends the commit again', async () => {
+    const store = partial();
+    const { controls, sketchChanged } = pageOf(store);
+    expect(controls.retry).toBe(true);
+    expect(sketchChanged).toBe(false);
+    expect(controls.commitBlockedKey).toBeUndefined();
+    expect(controls.canCommit).toBe(true);
+
+    sendMessage.mockResolvedValueOnce(reply(COMMIT[2].body));
+    await run(store, commitRtlsSurvey(CELL, surveyOf(store)));
+    expect(sendMessage.mock.calls.at(-1)?.[0]).toMatchObject({
+      action: 'commit',
+      revision: 8,
+    });
+  });
+
+  test('a sketch that moved on still takes a first commit away', () => {
+    const store = partial();
+    play(store, [ready(9, { gate: { blocked: [], warnings: [] } })]);
+    expect(pageOf(store).controls.retry).toBe(false);
+    expect(pageOf(store).sketchChanged).toBe(true);
+    expect(pageOf(store).controls.canCommit).toBe(false);
   });
 });

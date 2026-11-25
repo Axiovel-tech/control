@@ -6,6 +6,7 @@
  */
 
 import {
+  anchorsLeftBehind,
   type RtlsSurveyControls,
   type RtlsSurveySliceState,
   surveyControls,
@@ -89,7 +90,7 @@ export type RtlsSurveyPage = {
   refitTarget?: RtlsSurveyTarget;
   /** The frame and placement the held fit was made with, as far as known. */
   fitBasis?: RtlsSurveyFitBasis;
-  /** The sketch moved on since the fit on screen. */
+  /** The sketch moved on since the fit on screen, which is not being retried. */
   sketchChanged: boolean;
   hintKeys: string[];
 };
@@ -213,11 +214,14 @@ export function surveyPage(
   const acknowledged =
     slice.acknowledged !== undefined &&
     slice.acknowledged === warningsSignature(survey);
-  // a sketch that cannot be sent is not the one the fit was made with
+  // a sketch that cannot be sent is not the one the fit was made with. The
+  // retry of a commit is of the committed fit, whatever is drawn: what its
+  // anchors store by now is already part of the drawing
   const sketchChanged =
     survey?.state === 'ready' &&
     survey.fit !== undefined &&
     fitBasis !== undefined &&
+    anchorsLeftBehind(survey).length === 0 &&
     (refitTarget === undefined ||
       fitSignature(refitTarget, refitTarget.anchors) !==
         fitSignature(fitBasis, refitTarget.anchors));
