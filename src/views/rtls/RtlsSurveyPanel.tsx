@@ -159,6 +159,7 @@ const RtlsSurveyPanel = () => {
         leftOut={page.leftOut}
         restored={page.sketchRestored}
         groupFixed={page.groupFixed}
+        nextGroup={page.nextGroup}
         onChange={setSketch}
       />
       <Divider />

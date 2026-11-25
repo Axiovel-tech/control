@@ -65,6 +65,8 @@ export type RtlsSurveyPage = {
    * ticked. A new survey takes the anchors that are operating then.
    */
   groupFixed: boolean;
+  /** The anchors a new survey takes: the frame may be laid on any of them. */
+  nextGroup: string[];
   /**
    * The anchors of the cell that store a position, in slot order: what the
    * page shows while the server holds no fit of the cell (never surveyed
@@ -232,6 +234,7 @@ export function surveyPage(
     sketchRestored,
     leftOut,
     groupFixed,
+    nextGroup: group.map(({ id }) => id),
     stored: anchors.filter(({ stored }) => stored !== undefined),
     survey,
     heldElsewhere,

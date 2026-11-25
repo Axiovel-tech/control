@@ -50,6 +50,11 @@ type SurveyAnchorListProps = {
    * cannot be changed.
    */
   groupFixed?: boolean;
+  /**
+   * The anchors a new survey takes. While the boxes are fixed it may take
+   * others than the measured ones, and its frame is chosen among them.
+   */
+  nextGroup?: readonly string[];
   onChange: (sketch: RtlsSurveySketch) => void;
 };
 
@@ -82,6 +87,7 @@ const SurveyAnchorList = ({
   leftOut,
   restored,
   groupFixed = false,
+  nextGroup = [],
   onChange,
 }: SurveyAnchorListProps) => {
   const { t } = useTranslation();
@@ -143,6 +149,7 @@ const SurveyAnchorList = ({
         <TableBody>
           {anchors.map(({ id, name }) => {
             const included = !sketch.excluded.includes(id);
+            const inFrame = included || nextGroup.includes(id);
             return (
               <TableRow key={id} data-testid={`rtls-survey-row-${id}`}>
                 <TableCell padding='checkbox'>
@@ -178,7 +185,7 @@ const SurveyAnchorList = ({
                     select
                     size='small'
                     variant='standard'
-                    disabled={!included}
+                    disabled={!inFrame}
                     value={Math.min(sketch.groupOf[id] ?? 0, groups.length - 1)}
                     onChange={(event) =>
                       onChange(
@@ -196,7 +203,7 @@ const SurveyAnchorList = ({
                 <TableCell align='center' padding='none'>
                   <Radio
                     size='small'
-                    disabled={!included}
+                    disabled={!inFrame}
                     checked={sketch.origin === id}
                     slotProps={{
                       input: { 'aria-label': t('rtlsSurvey.list.origin') },
@@ -207,7 +214,7 @@ const SurveyAnchorList = ({
                 <TableCell align='center' padding='none'>
                   <Radio
                     size='small'
-                    disabled={!included}
+                    disabled={!inFrame}
                     checked={sketch.xAxis === id}
                     slotProps={{
                       input: { 'aria-label': t('rtlsSurvey.list.xAxis') },

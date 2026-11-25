@@ -44,8 +44,12 @@ jest.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string): string => key }),
 }));
 
+import { updateRtlsStats } from '~/features/rtls/slice';
 import { setRtlsSurveySketch } from '~/features/rtls/survey';
-import { commitRtlsSurvey } from '~/features/rtls/survey-actions';
+import {
+  commitRtlsSurvey,
+  startRtlsSurvey,
+} from '~/features/rtls/survey-actions';
 import { getRtlsSurveyPage } from '~/features/rtls/survey-selectors';
 import {
   type RtlsSurveySketch,
@@ -53,6 +57,7 @@ import {
   withAnchorGroup,
   withAnchorMoved,
   withGroupAdded,
+  withOrigin,
   withXAxis,
 } from '~/features/rtls/survey-sketch';
 import messageHub from '~/message-hub';
@@ -295,5 +300,77 @@ describe('C4. the retry of a partial commit is of the committed fit', () => {
     expect(pageOf(store).controls.retry).toBe(false);
     expect(pageOf(store).sketchChanged).toBe(true);
     expect(pageOf(store).controls.canCommit).toBe(false);
+  });
+});
+
+describe('C5. the frame can be laid on the anchors Survey again takes', () => {
+  /** 101..103 were measured and went to sleep; 105..107 woke up since. */
+  const awakeSince = (): SurveyTestStore => {
+    const store = withStandardCell();
+    play(store, [ready(7, { anchors: [101, 102, 103] })]);
+    reportAnchors(store, [
+      ...FOUR_ANCHORS.slice(0, 3),
+      { id: 105, slot: 4 },
+      { id: 106, slot: 5 },
+      { id: 107, slot: 6 },
+    ]);
+    store.dispatch(
+      updateRtlsStats({
+        byId: Object.fromEntries(
+          ['101', '102', '103'].map((id) => [id, { id, powerState: 'asleep' }])
+        ),
+      })
+    );
+    return store;
+  };
+
+  /** Whether the controls of an anchor's row are usable, box first. */
+  const usable = (store: SurveyTestStore, id: string): boolean[] => {
+    const markup = renderToStaticMarkup(
+      <Provider store={store}>
+        <RtlsSurveyPanel />
+      </Provider>
+    );
+    const start = markup.indexOf(`data-testid="rtls-survey-row-${id}"`);
+    const row = markup.slice(start, markup.indexOf('</tr>', start));
+    return [...row.matchAll(/<input[^>]*>/g)].map(
+      ([input]) => !input.includes('disabled')
+    );
+  };
+
+  test('its radios and height group are usable, its box stays fixed', () => {
+    const store = awakeSince();
+    expect(pageOf(store).groupFixed).toBe(true);
+    expect(pageOf(store).nextGroup).toEqual(['105', '106', '107']);
+    for (const id of ['105', '106', '107']) {
+      expect(usable(store, id)).toEqual([false, true, true, true]);
+    }
+    // the measured ones too: a refit is laid on them
+    expect(usable(store, '101')).toEqual([false, true, true, true]);
+  });
+
+  test('an anchor of neither group stays out', () => {
+    const store = awakeSince();
+    store.dispatch(
+      updateRtlsStats({ byId: { '107': { id: '107', powerState: 'asleep' } } })
+    );
+    expect(usable(store, '107')).toEqual([false, false, false, false]);
+  });
+
+  test('Survey again can be sent once its frame is chosen', async () => {
+    const store = awakeSince();
+    expect(pageOf(store).controls.canStart).toBe(false);
+
+    setSketch(store, withOrigin(pageOf(store).sketch, '105'));
+    setSketch(store, withXAxis(pageOf(store).sketch, '106'));
+    expect(pageOf(store).controls.canStart).toBe(true);
+
+    sendMessage.mockResolvedValueOnce(reply(COMMIT[2].body));
+    await run(store, startRtlsSurvey(CELL));
+    expect(sendMessage.mock.calls.at(-1)?.[0]).toMatchObject({
+      action: 'start',
+      anchors: [105, 106, 107],
+      frame: { origin: 105, xAxis: 106 },
+    });
   });
 });
