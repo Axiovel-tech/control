@@ -28,7 +28,8 @@ describe("a tag's detail lines", () => {
   const lines = describeTagDetailLines(
     t,
     buildRtlsStatsMap(STATS.stats)['42'],
-    nameOf
+    nameOf,
+    { surveyId: 12, planar: false }
   );
 
   test('the survey line: ID, anchors used, who is out and why, the drift', () => {

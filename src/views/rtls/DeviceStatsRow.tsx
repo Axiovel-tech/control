@@ -30,6 +30,7 @@ import {
   type InitiatorEvidence,
   isAnchorRole,
   type RtlsRole,
+  type RtlsTagCell,
 } from '~/features/rtls/stats-utils';
 import { type TableAnchorNamer } from '~/features/rtls/survey-health';
 import { type RtlsDevice, type RtlsDeviceStats } from '~/features/rtls/types';
@@ -229,8 +230,8 @@ const RowActions = ({
 export type DeviceStatsRowProps = {
   /** Names the anchors of a tag's own table (tag rows only). */
   nameTableAnchor?: TableAnchorNamer;
-  /** Three anchors are enough for a tag to position (tag rows only). */
-  planarSurvey?: boolean;
+  /** What a tag's position is judged by (tag rows only). */
+  tagCell?: RtlsTagCell;
   /** An anchor's slot in its cell (0 = initiator), when known. */
   anchorSlot?: number;
   /** Whether a sleep/wake transaction is in flight for this device. */
@@ -321,7 +322,7 @@ const RoleContent = ({
  */
 const DeviceStatsRow = ({
   nameTableAnchor,
-  planarSurvey = false,
+  tagCell,
   anchorSlot,
   busy = false,
   device,
@@ -430,7 +431,7 @@ const DeviceStatsRow = ({
           lines={
             anchor
               ? describeAnchorDetailLines(t, stats, device.twr)
-              : describeTagDetailLines(t, stats, nameTableAnchor, planarSurvey)
+              : describeTagDetailLines(t, stats, nameTableAnchor, tagCell)
           }
         />
         <Typography

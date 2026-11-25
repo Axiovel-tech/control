@@ -119,14 +119,17 @@ const using = (anchorsUsed: number): RtlsDeviceStats => ({
   anchorsExcluded: 0,
 });
 
+/** The cell of the recording: on survey 12, its anchors at two heights. */
+const CELL = { surveyId: 12, planar: false };
+/** The same with every anchor of the survey at one height. */
+const PLANAR = { surveyId: 12, planar: true };
+
 const metric = (
   stats: RtlsDeviceStats,
   id: FleetHealthMetricId,
-  planarSurvey = false
+  cell = CELL
 ): FleetHealthMetric =>
-  describeFleetHealth(stats, undefined, planarSurvey).find(
-    (entry) => entry.id === id
-  )!; // non-null: every metric is listed
+  describeFleetHealth(stats, undefined, cell).find((entry) => entry.id === id)!; // non-null: every metric is listed
 
 /** The recorded anchors with every surveyed one declared planar, or not. */
 const information = (planar: boolean, tagStats: Record<string, unknown>) => ({
@@ -166,17 +169,19 @@ const element = (markup: string, id: string): string => {
 
 describe('3. a tag is positioned on four anchors, or on three planar ones', () => {
   test('four anchors of its survey are enough; three are not', () => {
-    expect(isTagPositioned(using(4))).toBe(true);
-    expect(isTagPositioned(using(8))).toBe(true);
-    expect(isTagPositioned(using(3))).toBe(false);
-    expect(isTagPositioned(using(1))).toBe(false);
+    expect(isTagPositioned(using(4), CELL)).toBe(true);
+    expect(isTagPositioned(using(8), CELL)).toBe(true);
+    expect(isTagPositioned(using(3), CELL)).toBe(false);
+    expect(isTagPositioned(using(1), CELL)).toBe(false);
     // and none without a survey ID, however many it hears
-    expect(isTagPositioned({ ...using(8), surveyId: undefined })).toBe(false);
+    expect(isTagPositioned({ ...using(8), surveyId: undefined }, CELL)).toBe(
+      false
+    );
   });
 
   test('three are, when every surveyed anchor is planar', () => {
-    expect(isTagPositioned(using(3), true)).toBe(true);
-    expect(isTagPositioned(using(2), true)).toBe(false);
+    expect(isTagPositioned(using(3), PLANAR)).toBe(true);
+    expect(isTagPositioned(using(2), PLANAR)).toBe(false);
   });
 
   test('a survey is planar when every anchor that advertises it says so', () => {
@@ -219,17 +224,17 @@ describe('3. a tag is positioned on four anchors, or on three planar ones', () =
   });
 
   test('the row pill: three anchors of its survey are too few, and say so', () => {
-    expect(describeTagSurveyChip(tag42, using(3))).toEqual({
+    expect(describeTagSurveyChip(tag42, using(3), CELL)).toEqual({
       status: Status.ERROR,
       text: {
         key: 'rtlsSurveyHealth.tag.tooFew',
         values: { id: 12, count: 3 },
       },
     });
-    expect(describeTagSurveyChip(tag42, using(3), true)).toMatchObject({
+    expect(describeTagSurveyChip(tag42, using(3), PLANAR)).toMatchObject({
       status: Status.SUCCESS,
     });
-    expect(describeTagSurveyChip(tag42, using(4))).toMatchObject({
+    expect(describeTagSurveyChip(tag42, using(4), CELL)).toMatchObject({
       status: Status.SUCCESS,
     });
   });
@@ -254,23 +259,23 @@ describe('3. a tag is positioned on four anchors, or on three planar ones', () =
       },
     });
     expect(metric(using(3), 'surveyDrift').status).toBe(Status.OFF);
-    expect(summarizeFleetHealth([using(3)]).status).toBe(Status.ERROR);
+    expect(summarizeFleetHealth([using(3)], CELL).status).toBe(Status.ERROR);
 
-    expect(metric(using(3), 'anchorSet', true).status).toBe(Status.SUCCESS);
-    expect(metric(using(3), 'surveyDrift', true).status).toBe(Status.SUCCESS);
-    expect(summarizeFleetHealth([using(3)], true).status).not.toBe(
+    expect(metric(using(3), 'anchorSet', PLANAR).status).toBe(Status.SUCCESS);
+    expect(metric(using(3), 'surveyDrift', PLANAR).status).toBe(Status.SUCCESS);
+    expect(summarizeFleetHealth([using(3)], PLANAR).status).not.toBe(
       Status.ERROR
     );
   });
 
   test('the survey line keeps the facts and claims no drift', () => {
-    const line = describeTagSurvey(using(3), nameOf);
+    const line = describeTagSurvey(using(3), nameOf, CELL);
     expect(line?.following).toEqual({
       key: 'rtlsSurveyHealth.line.following',
       values: { id: 12, count: 3 },
     });
     expect(line?.drift).toBeUndefined();
-    expect(describeTagSurvey(using(3), nameOf, true)?.drift).toBeDefined();
+    expect(describeTagSurvey(using(3), nameOf, PLANAR)?.drift).toBeDefined();
   });
 
   test('on the panel the header, the row and the health line agree', () => {

@@ -16,7 +16,10 @@ import AnchorBars from '~/features/rtls/AnchorBars';
 import { describeFleetHealth } from '~/features/rtls/fleet-health';
 import { type I18nText } from '~/features/rtls/i18n-text';
 import { getRtlsDeviceDisplayName } from '~/features/rtls/selectors';
-import { countAnchorsInMask } from '~/features/rtls/stats-utils';
+import {
+  countAnchorsInMask,
+  type RtlsTagCell,
+} from '~/features/rtls/stats-utils';
 import {
   describeTagSurvey,
   type TableAnchorNamer,
@@ -188,6 +191,9 @@ export const TagStatusCluster = ({
 
 type T = ReturnType<typeof useTranslation>['t'];
 
+/** The cell of a row rendered without its survey: none is in use. */
+const NO_CELL: RtlsTagCell = { planar: false };
+
 /** The names for a row rendered without the site list: system id or MAC. */
 const NAME_WITHOUT_SITE = tableAnchorNamer([]);
 
@@ -199,9 +205,9 @@ const describeSurveyLine = (
   t: T,
   stats: RtlsDeviceStats | undefined,
   nameOf: TableAnchorNamer,
-  planarSurvey: boolean
+  cell: RtlsTagCell
 ): DetailLine[] => {
-  const survey = describeTagSurvey(stats, nameOf, planarSurvey);
+  const survey = describeTagSurvey(stats, nameOf, cell);
   if (survey === undefined) {
     return [];
   }
@@ -239,7 +245,7 @@ export const describeTagDetailLines = (
   t: T,
   stats: RtlsDeviceStats | undefined,
   nameTableAnchor: TableAnchorNamer = NAME_WITHOUT_SITE,
-  planarSurvey = false
+  cell: RtlsTagCell = NO_CELL
 ): DetailLine[] => {
   const anchorsSeen = anchorsSeenOf(stats);
   const rowNames = tableRowNames(stats?.anchorTable, nameTableAnchor);
@@ -259,8 +265,8 @@ export const describeTagDetailLines = (
       name: 'Anchors seen',
       value: String(anchorsSeen),
     },
-    ...describeSurveyLine(t, stats, nameTableAnchor, planarSurvey),
-    ...describeFleetHealth(stats, rowNames, planarSurvey).map(
+    ...describeSurveyLine(t, stats, nameTableAnchor, cell),
+    ...describeFleetHealth(stats, rowNames, cell).map(
       ({ id, status, text }) => ({
         key: id,
         // gray values throughout; a metric out of its green zone gets a dot in

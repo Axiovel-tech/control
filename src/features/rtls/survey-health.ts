@@ -12,7 +12,12 @@ import { Status } from '~/components/semantics';
 
 import { type StatusText } from './anchor-utils';
 import { type I18nText } from './i18n-text';
-import { classifyRole, isTagPositioned, RtlsRole } from './stats-utils';
+import {
+  classifyRole,
+  isTagPositioned,
+  RtlsRole,
+  type RtlsTagCell,
+} from './stats-utils';
 import {
   type RtlsAnchor,
   type RtlsAnchorTableEntry,
@@ -196,7 +201,7 @@ export const describeTagSurveyPill = (
   survey: RtlsCellSurvey | undefined,
   tags: readonly RtlsDevice[],
   statsById: Record<string, RtlsDeviceStats | undefined>,
-  planarSurvey = false
+  planar = false
 ): StatusText | undefined => {
   if (survey === undefined) {
     return undefined;
@@ -210,12 +215,11 @@ export const describeTagSurveyPill = (
   }
   const owing = tags.filter(owesTelemetry);
   const positioned = (tag: RtlsDevice): boolean | undefined =>
-    isTagPositioned(reporting(tag, statsById[tag.id]), planarSurvey);
-  const off = owing.filter(
-    (tag) =>
-      positioned(tag) === false ||
-      (positioned(tag) === true && statsById[tag.id]?.surveyId !== id)
-  ).length;
+    isTagPositioned(reporting(tag, statsById[tag.id]), {
+      surveyId: id,
+      planar,
+    });
+  const off = owing.filter((tag) => positioned(tag) === false).length;
   if (off > 0) {
     return {
       status: Status.ERROR,
@@ -250,16 +254,16 @@ export const describeTagSurveyPill = (
 /**
  * The survey pill of one tag row: the survey it follows and how many anchors
  * it uses; amber while it leaves one out, red while it does not position (it
- * follows no survey, or uses too few anchors of the one it follows).
+ * follows no survey, or another one than the cell, or uses too few anchors).
  * `undefined` while the tag reports no table (asleep, lost, older firmware).
  */
 export const describeTagSurveyChip = (
   device: RtlsDevice,
   stats: RtlsDeviceStats | undefined,
-  planarSurvey = false
+  cell: RtlsTagCell
 ): StatusText | undefined => {
   const live = reporting(device, stats);
-  const positioned = isTagPositioned(live, planarSurvey);
+  const positioned = isTagPositioned(live, cell);
   if (live?.anchorsUsed === undefined || positioned === undefined) {
     return undefined;
   }
@@ -270,6 +274,15 @@ export const describeTagSurveyChip = (
     };
   }
   const values = { id: live.surveyId, count: live.anchorsUsed };
+  if (live.surveyId !== cell.surveyId) {
+    return {
+      status: Status.ERROR,
+      text: {
+        key: 'rtlsSurveyHealth.tag.otherSurvey',
+        values: { id: live.surveyId },
+      },
+    };
+  }
   if (!positioned) {
     return {
       status: Status.ERROR,
@@ -304,7 +317,7 @@ export type ExcludedAnchorText = { anchor: string; why: I18nText };
 export const describeTagSurvey = (
   stats: RtlsDeviceStats | undefined,
   nameOf: TableAnchorNamer,
-  planarSurvey = false
+  cell: RtlsTagCell
 ):
   | {
       following: I18nText;
@@ -313,7 +326,7 @@ export const describeTagSurvey = (
       drift?: I18nText;
     }
   | undefined => {
-  const positioned = isTagPositioned(stats, planarSurvey);
+  const positioned = isTagPositioned(stats, cell);
   if (stats?.anchorsUsed === undefined || positioned === undefined) {
     return undefined;
   }

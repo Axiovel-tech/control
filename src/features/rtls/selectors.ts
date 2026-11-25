@@ -25,6 +25,7 @@ import {
   isSurveyPlanar,
   type RtlsHealth,
   RtlsRole,
+  type RtlsTagCell,
 } from './stats-utils';
 import { type RtlsCellSettings } from './cell-settings';
 import {
@@ -189,16 +190,20 @@ export const getRtlsCellSurvey: AppSelector<RtlsCellSurvey | undefined> = (
   state
 ) => state.rtls.cellSurvey;
 
-/**
- * Selector that returns whether three anchors are enough for a tag to
- * position: the survey the cell is on is planar (`isSurveyPlanar`).
- */
-export const isRtlsSurveyPlanar: AppSelector<boolean> = createSelector(
-  (state: RootState) => getRtlsCellSurvey(state)?.id,
-  getRtlsAnchorDevices,
-  getRtlsStatsById,
-  getRtlsAnchors,
-  isSurveyPlanar
+const getCellSurveyId = (state: RootState): number | undefined =>
+  getRtlsCellSurvey(state)?.id;
+
+/** Selector that returns what a tag's position is judged by. */
+export const getRtlsTagCell: AppSelector<RtlsTagCell> = createSelector(
+  getCellSurveyId,
+  createSelector(
+    getCellSurveyId,
+    getRtlsAnchorDevices,
+    getRtlsStatsById,
+    getRtlsAnchors,
+    isSurveyPlanar
+  ),
+  (surveyId, planar) => ({ surveyId, planar })
 );
 
 /** Unique cell IDs advertised by the live site-level anchor inventory. */

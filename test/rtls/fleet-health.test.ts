@@ -17,17 +17,24 @@ import { INFORMATION, STATS, STATS_TAG_NO_SURVEY } from './switch-recording';
 const tag = buildRtlsStatsMap(STATS.stats)['42'];
 const nameOf = tableAnchorNamer(mapRtlsAnchors(INFORMATION.anchors));
 
+/** The cell of the recording: on survey 12, its anchors at two heights. */
+const CELL = { surveyId: 12, planar: false };
+
 const metric = (
   stats: RtlsDeviceStats,
   id: FleetHealthMetricId
 ): FleetHealthMetric =>
-  describeFleetHealth(stats, tableRowNames(stats.anchorTable, nameOf)).find(
-    (entry) => entry.id === id
-  )!; // non-null: every metric is listed
+  describeFleetHealth(
+    stats,
+    tableRowNames(stats.anchorTable, nameOf),
+    CELL
+  ).find((entry) => entry.id === id)!; // non-null: every metric is listed
 
 describe('the pre-show health metrics', () => {
   test('eight of them: the two of the survey join the six', () => {
-    expect(describeFleetHealth(tag).map(({ id }) => id)).toEqual([
+    expect(
+      describeFleetHealth(tag, undefined, CELL).map(({ id }) => id)
+    ).toEqual([
       'imuTemperature',
       'uwbRssi',
       'anchorSet',
@@ -123,7 +130,7 @@ describe('the anchors of the NLOS and outvoted masks', () => {
       metric({ ...tag, nlosMask: 0b100000 }, 'nlosAnchors').text.values
     ).toEqual({ anchors: 'row 5' });
     expect(
-      describeFleetHealth({ id: '1', nlosMask: 1 }).find(
+      describeFleetHealth({ id: '1', nlosMask: 1 }, undefined, CELL).find(
         ({ id }) => id === 'nlosAnchors'
       )?.text.values
     ).toEqual({ anchors: 'row 0' });
@@ -133,10 +140,11 @@ describe('the anchors of the NLOS and outvoted masks', () => {
 describe('the zone of a drone', () => {
   test('a tag with no survey in use is red', () => {
     const noSurvey = buildRtlsStatsMap(STATS_TAG_NO_SURVEY.stats)['42'];
-    expect(getWorstFleetHealthMetric(describeFleetHealth(noSurvey))?.id).toBe(
-      'anchorSet'
-    );
-    expect(summarizeFleetHealth([noSurvey])).toMatchObject({
+    expect(
+      getWorstFleetHealthMetric(describeFleetHealth(noSurvey, undefined, CELL))
+        ?.id
+    ).toBe('anchorSet');
+    expect(summarizeFleetHealth([noSurvey], CELL)).toMatchObject({
       status: Status.ERROR,
     });
   });

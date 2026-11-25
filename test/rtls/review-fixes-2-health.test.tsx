@@ -43,10 +43,13 @@ jest.mock('~/containerContext', () => ({
   }) => children,
 }));
 
+import { Status } from '~/components/semantics';
+import { describeFleetHealth } from '~/features/rtls/fleet-health';
 import {
   handleRtlsStatsMessage,
   rtlsInformationActions,
 } from '~/features/rtls/handlers';
+import { isTagPositioned } from '~/features/rtls/stats-utils';
 import { type AppDispatch } from '~/store/reducers';
 import { RtlsTagsPanel } from '~/views/rtls/RtlsRolePanel';
 
@@ -131,5 +134,55 @@ describe('C7. planar is said of the anchors that advertise the cell survey now',
     expect(shown({ ...threePlanar, ...mixed }, usingThree).chip).toContain(
       'rtlsSurveyHealth.tag.tooFew(id=12,count=3)'
     );
+  });
+});
+
+describe('C8. a tag is positioned only on the survey ID of the cell', () => {
+  const onSurvey = (surveyId: number) => ({
+    surveyId,
+    anchorsUsed: 4,
+    anchorsExcluded: 0,
+    surveyDriftM: 0.01,
+  });
+
+  test('four anchors of the cell survey: green in all three places', () => {
+    const { chip, header, health } = shown({}, onSurvey(12));
+    expect(header).toContain('rtlsSurveyHealth.tags.ok(id=12)');
+    expect(chip).toContain('rtlsSurveyHealth.tag.ok(id=12,count=4)');
+    expect(health).not.toContain('StatusPill-status-error');
+  });
+
+  test('four anchors of another one: red in all three places', () => {
+    const { chip, header, health } = shown({}, onSurvey(11));
+    expect(header).toContain('rtlsSurveyHealth.tags.off(count=1,id=12)');
+    expect(chip).toContain('rtlsSurveyHealth.tag.otherSurvey(id=11)');
+    expect(chip).toContain('StatusPill-status-error');
+    expect(health).toContain('StatusPill-status-error');
+  });
+
+  test('"Anchor set" is red with the survey it follows; no drift is graded', () => {
+    const cell = { surveyId: 12, planar: false };
+    const metrics = describeFleetHealth(
+      { id: '42', ...onSurvey(11) },
+      undefined,
+      cell
+    );
+    expect(metrics.find(({ id }) => id === 'anchorSet')).toEqual({
+      id: 'anchorSet',
+      status: Status.ERROR,
+      text: {
+        key: 'rtlsFleetHealth.value.otherSurvey',
+        values: { id: 11 },
+      },
+    });
+    expect(metrics.find(({ id }) => id === 'surveyDrift')?.status).toBe(
+      Status.OFF
+    );
+  });
+
+  test('nor is it while no anchor is on a survey', () => {
+    const stats = { id: '42', ...onSurvey(12) };
+    expect(isTagPositioned(stats, { planar: false })).toBe(false);
+    expect(isTagPositioned(stats, { surveyId: 12, planar: false })).toBe(true);
   });
 });

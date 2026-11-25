@@ -11,7 +11,11 @@
 import { Status, statusToPriority } from '~/components/semantics';
 
 import { type I18nText } from './i18n-text';
-import { countAnchorsInMask, isTagPositioned } from './stats-utils';
+import {
+  countAnchorsInMask,
+  isTagPositioned,
+  type RtlsTagCell,
+} from './stats-utils';
 import { type RtlsDeviceStats } from './types';
 
 /** Where the yellow and the red zone of a metric start. */
@@ -161,14 +165,14 @@ const describeAnchorMask = (
 
 /**
  * The anchors the tag positions on: green while it leaves none out, yellow
- * while it leaves one or more out, red while it follows no survey. Unknown
- * while its firmware reports no table.
+ * while it leaves one or more out, red while it follows no survey or another
+ * one than the cell. Unknown while its firmware reports no table.
  */
 const describeAnchorSet = (
   stats: RtlsDeviceStats,
-  planarSurvey: boolean
+  cell: RtlsTagCell
 ): Omit<FleetHealthMetric, 'id'> => {
-  const positioned = isTagPositioned(stats, planarSurvey);
+  const positioned = isTagPositioned(stats, cell);
   if (stats.anchorsUsed === undefined || positioned === undefined) {
     return UNKNOWN;
   }
@@ -178,10 +182,15 @@ const describeAnchorSet = (
       text:
         stats.surveyId === undefined
           ? { key: 'rtlsFleetHealth.value.noSurvey' }
-          : {
-              key: 'rtlsFleetHealth.value.tooFewAnchors',
-              values: { count: stats.anchorsUsed },
-            },
+          : stats.surveyId !== cell.surveyId
+            ? {
+                key: 'rtlsFleetHealth.value.otherSurvey',
+                values: { id: stats.surveyId },
+              }
+            : {
+                key: 'rtlsFleetHealth.value.tooFewAnchors',
+                values: { count: stats.anchorsUsed },
+              },
     };
   }
   const excluded = stats.anchorsExcluded;
@@ -206,10 +215,10 @@ const describeAnchorSet = (
 /** The drift of a positioning tag; red only above the bound, as the server. */
 const describeSurveyDrift = (
   stats: RtlsDeviceStats,
-  planarSurvey: boolean
+  cell: RtlsTagCell
 ): Omit<FleetHealthMetric, 'id'> => {
   const drift = stats.surveyDriftM;
-  if (drift === undefined || !isTagPositioned(stats, planarSurvey)) {
+  if (drift === undefined || !isTagPositioned(stats, cell)) {
     return UNKNOWN;
   }
   return {
@@ -257,13 +266,12 @@ const describeWifi = (
  * The fleet-health metrics of one tag's drone, in display order; a metric
  * the firmware or the drone does not report is present with `Status.OFF`.
  * `anchorNames` names the rows of the tag's table in its anchor masks;
- * `planarSurvey` says that three anchors are enough to position
- * (`isSurveyPlanar`).
+ * `cell` is the survey it must position on.
  */
 export const describeFleetHealth = (
   stats: RtlsDeviceStats | undefined,
-  anchorNames?: AnchorNames,
-  planarSurvey = false
+  anchorNames: AnchorNames | undefined,
+  cell: RtlsTagCell
 ): FleetHealthMetric[] => {
   if (!stats) {
     return [];
@@ -287,8 +295,8 @@ export const describeFleetHealth = (
             },
           }),
     },
-    { id: 'anchorSet', ...describeAnchorSet(stats, planarSurvey) },
-    { id: 'surveyDrift', ...describeSurveyDrift(stats, planarSurvey) },
+    { id: 'anchorSet', ...describeAnchorSet(stats, cell) },
+    { id: 'surveyDrift', ...describeSurveyDrift(stats, cell) },
     {
       id: 'nlosAnchors',
       ...describeAnchorMask(stats.nlosMask, NLOS_ANCHOR_ZONES, anchorNames),
@@ -336,9 +344,9 @@ export const getWorstFleetHealthMetric = (
 /** A drone's zone: that of its worst known metric, `Status.OFF` if none. */
 export const getFleetHealthStatus = (
   stats: RtlsDeviceStats | undefined,
-  planarSurvey = false
+  cell: RtlsTagCell
 ): Status =>
-  getWorstFleetHealthMetric(describeFleetHealth(stats, undefined, planarSurvey))
+  getWorstFleetHealthMetric(describeFleetHealth(stats, undefined, cell))
     ?.status ?? Status.OFF;
 
 /**
@@ -347,12 +355,12 @@ export const getFleetHealthStatus = (
  */
 export const summarizeFleetHealth = (
   statsList: Array<RtlsDeviceStats | undefined>,
-  planarSurvey = false
+  cell: RtlsTagCell
 ): { status: Status; text: I18nText } => {
   const counts = { ok: 0, warning: 0, error: 0 };
   let status = Status.OFF;
   for (const stats of statsList) {
-    const worst = getFleetHealthStatus(stats, planarSurvey);
+    const worst = getFleetHealthStatus(stats, cell);
     if (worst === Status.SUCCESS) {
       counts.ok++;
     } else if (worst === Status.WARNING) {

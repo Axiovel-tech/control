@@ -1060,6 +1060,7 @@
       "anchorsExcluded_other": "{{count}} left out",
       "imuTemperature": "{{- temperatures}} °C",
       "noSurvey": "no survey in use",
+      "otherSurvey": "survey {{id}}, not the cell's",
       "residual": "{{residual}} cm",
       "surveyDrift": "{{drift}} cm",
       "tooFewAnchors_one": "{{count}} anchor used, too few",
@@ -1301,6 +1302,7 @@
       "none": "no survey",
       "ok_one": "survey {{id}} · {{count}} anchor",
       "ok_other": "survey {{id}} · {{count}} anchors",
+      "otherSurvey": "survey {{id}}, not the cell's",
       "tooFew_one": "survey {{id}} · {{count}} anchor, too few",
       "tooFew_other": "survey {{id}} · {{count}} anchors, too few"
     },

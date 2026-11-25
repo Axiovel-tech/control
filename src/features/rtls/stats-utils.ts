@@ -211,10 +211,18 @@ export const isSurveyPlanar = (
   );
 };
 
+/** What a tag's position is judged by: the survey the cell is on. */
+export type RtlsTagCell = {
+  /** Its ID; absent while no anchor is on one. */
+  surveyId?: number;
+  /** Three anchors of it are enough (`isSurveyPlanar`). */
+  planar: boolean;
+};
+
 /**
- * Whether a tag positions: it follows a survey ID and uses four anchors of
- * it, or three when every surveyed anchor is planar (`planarSurvey`). This
- * is the solver's own minimum (rtls-link-zephyr
+ * Whether a tag positions: it follows the survey ID of the cell and uses
+ * four anchors of it, or three when the survey is planar. This is the
+ * solver's own minimum (rtls-link-zephyr
  * `docs/reference/anchor-geometry.md`, "Enough") and the server's rule: a
  * tag that keeps its survey ID on fewer anchors solves nothing. `undefined`
  * while its firmware reports no table. Never read from the show clock, which
@@ -222,12 +230,13 @@ export const isSurveyPlanar = (
  */
 export const isTagPositioned = (
   stats: RtlsDeviceStats | undefined,
-  planarSurvey = false
+  { planar, surveyId }: RtlsTagCell
 ): boolean | undefined =>
   stats?.anchorsUsed === undefined
     ? undefined
-    : stats.surveyId !== undefined &&
-      stats.anchorsUsed >= (planarSurvey ? 3 : 4);
+    : surveyId !== undefined &&
+      stats.surveyId === surveyId &&
+      stats.anchorsUsed >= (planar ? 3 : 4);
 
 /** Whether the UWB session refused to start (configuration or hardware). */
 export function isUwbStartRefused(stats: RtlsDeviceStats | undefined): boolean {

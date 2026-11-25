@@ -22,6 +22,7 @@ import {
   summarizeFleetHealth,
 } from '~/features/rtls/fleet-health';
 import { getRtlsDeviceDisplayName } from '~/features/rtls/selectors';
+import { type RtlsTagCell } from '~/features/rtls/stats-utils';
 import { type RtlsDevice, type RtlsDeviceStats } from '~/features/rtls/types';
 
 /**
@@ -37,8 +38,8 @@ const currentStats = (
 type FleetHealthSummaryProps = {
   devices: RtlsDevice[];
   statsById: Record<string, RtlsDeviceStats | undefined>;
-  /** Three anchors are enough to position: every surveyed one is planar. */
-  planarSurvey?: boolean;
+  /** What a tag's position is judged by. */
+  cell: RtlsTagCell;
   /** Called with the device id of the drone picked in the popup. */
   onSelect: (id: string) => void;
 };
@@ -46,7 +47,7 @@ type FleetHealthSummaryProps = {
 const FleetHealthSummary = ({
   devices,
   statsById,
-  planarSurvey = false,
+  cell,
   onSelect,
 }: FleetHealthSummaryProps) => {
   const { t } = useTranslation();
@@ -55,9 +56,9 @@ const FleetHealthSummary = ({
     () =>
       summarizeFleetHealth(
         devices.map((device) => currentStats(device, statsById[device.id])),
-        planarSurvey
+        cell
       ),
-    [devices, planarSurvey, statsById]
+    [cell, devices, statsById]
   );
   // only computed while the popup is open
   const drones = useMemo(
@@ -69,7 +70,7 @@ const FleetHealthSummary = ({
               describeFleetHealth(
                 currentStats(device, statsById[device.id]),
                 undefined,
-                planarSurvey
+                cell
               )
             );
             const name = getRtlsDeviceDisplayName(device);
@@ -94,7 +95,7 @@ const FleetHealthSummary = ({
                   : name,
             };
           }),
-    [anchorElement, devices, planarSurvey, statsById, t]
+    [anchorElement, cell, devices, statsById, t]
   );
 
   return (

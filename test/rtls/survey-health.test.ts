@@ -17,7 +17,7 @@ import {
   tableAnchorNamer,
   tableRowNames,
 } from '~/features/rtls/survey-health';
-import { type RtlsDevice } from '~/features/rtls/types';
+import { type RtlsDevice, type RtlsDeviceStats } from '~/features/rtls/types';
 
 import {
   INFORMATION,
@@ -42,6 +42,8 @@ const survey = mapCellSurvey(INFORMATION.survey);
 const clean = mapCellSurvey(INFORMATION_CLEAN.survey);
 const blank = mapCellSurvey(INFORMATION_BLANK.survey);
 const nameOf = tableAnchorNamer(siteAnchors);
+/** The cell of the recording: on survey 12, its anchors at two heights. */
+const CELL = { surveyId: 12, planar: false };
 
 describe('the survey pill of the anchors panel', () => {
   test('the survey and how many anchors are on it; green with none out', () => {
@@ -151,22 +153,22 @@ describe("an anchor's range check", () => {
 
 describe('whether a tag positions', () => {
   test('from its survey ID and the anchors it uses', () => {
-    expect(isTagPositioned(stats['42'])).toBe(true);
-    expect(isTagPositioned({ id: '1', surveyId: 12, anchorsUsed: 0 })).toBe(
-      false
-    );
-    expect(isTagPositioned({ id: '1', anchorsUsed: 4 })).toBe(false);
+    expect(isTagPositioned(stats['42'], CELL)).toBe(true);
+    expect(
+      isTagPositioned({ id: '1', surveyId: 12, anchorsUsed: 0 }, CELL)
+    ).toBe(false);
+    expect(isTagPositioned({ id: '1', anchorsUsed: 4 }, CELL)).toBe(false);
   });
 
   test('never from the show clock, which runs in a cell with no survey', () => {
     const noSurvey = buildRtlsStatsMap(STATS_TAG_NO_SURVEY.stats)['42'];
     expect(noSurvey).not.toHaveProperty('clockSyncOk');
-    expect(isTagPositioned(noSurvey)).toBe(false);
+    expect(isTagPositioned(noSurvey, CELL)).toBe(false);
   });
 
   test('unknown while the firmware reports no table', () => {
-    expect(isTagPositioned({ id: '1', solveRateHz: 80 })).toBeUndefined();
-    expect(isTagPositioned(undefined)).toBeUndefined();
+    expect(isTagPositioned({ id: '1', solveRateHz: 80 }, CELL)).toBeUndefined();
+    expect(isTagPositioned(undefined, CELL)).toBeUndefined();
   });
 });
 
@@ -221,8 +223,11 @@ describe('the survey pill of the tags panel', () => {
 });
 
 describe('the survey pill of a tag row', () => {
+  const tagChip = (tag: RtlsDevice, tagStats: RtlsDeviceStats | undefined) =>
+    describeTagSurveyChip(tag, tagStats, CELL);
+
   test('amber: the survey, the anchors used and how many are out', () => {
-    expect(describeTagSurveyChip(device('42'), stats['42'])).toEqual({
+    expect(tagChip(device('42'), stats['42'])).toEqual({
       status: Status.WARNING,
       text: {
         key: 'rtlsSurveyHealth.tag.excluding',
@@ -233,7 +238,7 @@ describe('the survey pill of a tag row', () => {
 
   test('green on every anchor, red on none', () => {
     expect(
-      describeTagSurveyChip(device('42'), {
+      tagChip(device('42'), {
         ...stats['42'],
         anchorsUsed: 4,
         anchorsExcluded: 0,
@@ -243,10 +248,7 @@ describe('the survey pill of a tag row', () => {
       text: { key: 'rtlsSurveyHealth.tag.ok', values: { id: 12, count: 4 } },
     });
     expect(
-      describeTagSurveyChip(
-        device('42'),
-        buildRtlsStatsMap(STATS_TAG_NO_SURVEY.stats)['42']
-      )
+      tagChip(device('42'), buildRtlsStatsMap(STATS_TAG_NO_SURVEY.stats)['42'])
     ).toMatchObject({
       status: Status.ERROR,
       text: { key: 'rtlsSurveyHealth.tag.none' },
@@ -254,12 +256,12 @@ describe('the survey pill of a tag row', () => {
   });
 
   test('none for a tag that reports nothing now', () => {
-    expect(describeTagSurveyChip(device('43'), stats['42'])).toBeUndefined();
+    expect(tagChip(device('43'), stats['42'])).toBeUndefined();
     expect(
-      describeTagSurveyChip({ ...device('42'), online: false }, stats['42'])
+      tagChip({ ...device('42'), online: false }, stats['42'])
     ).toBeUndefined();
     expect(
-      describeTagSurveyChip(device('42'), { id: '42', solveRateHz: 80 })
+      tagChip(device('42'), { id: '42', solveRateHz: 80 })
     ).toBeUndefined();
   });
 });
@@ -290,7 +292,7 @@ describe("the anchors of a tag's table", () => {
 
 describe("a tag's survey line", () => {
   test('the survey, the anchors used, who is out and why, and the drift', () => {
-    expect(describeTagSurvey(stats['42'], nameOf)).toEqual({
+    expect(describeTagSurvey(stats['42'], nameOf, CELL)).toEqual({
       following: {
         key: 'rtlsSurveyHealth.line.following',
         values: { id: 12, count: 4 },
@@ -307,7 +309,8 @@ describe("a tag's survey line", () => {
   test('anchors counted out before the table names them are counted', () => {
     const line = describeTagSurvey(
       buildRtlsStatsMap(STATS_TAG_NO_SURVEY.stats)['42'],
-      nameOf
+      nameOf,
+      CELL
     );
     expect(line).toMatchObject({
       following: { key: 'rtlsSurveyHealth.line.none' },
@@ -322,7 +325,7 @@ describe("a tag's survey line", () => {
   });
 
   test('none while the tag reports no table', () => {
-    expect(describeTagSurvey({ id: '1', solveRateHz: 80 }, nameOf)).toBe(
+    expect(describeTagSurvey({ id: '1', solveRateHz: 80 }, nameOf, CELL)).toBe(
       undefined
     );
   });
