@@ -7,7 +7,7 @@ import {
 } from '~/features/uavs/selectors';
 import UAVErrorCode from '~/flockwave/UAVErrorCode';
 import { UAVAge } from '~/model/uav';
-import { type AppSelector } from '~/store/reducers';
+import { type AppSelector, type RootState } from '~/store/reducers';
 import {
   type Collection,
   type Identifier,
@@ -22,6 +22,7 @@ import {
   getOverallHealth,
   type InitiatorEvidence,
   isAnchorRole,
+  isSurveyPlanar,
   type RtlsHealth,
   RtlsRole,
 } from './stats-utils';
@@ -187,6 +188,18 @@ export const getRtlsAnchors: AppSelector<RtlsAnchor[]> = (state) =>
 export const getRtlsCellSurvey: AppSelector<RtlsCellSurvey | undefined> = (
   state
 ) => state.rtls.cellSurvey;
+
+/**
+ * Selector that returns whether three anchors are enough for a tag to
+ * position: the survey the cell is on is planar (`isSurveyPlanar`).
+ */
+export const isRtlsSurveyPlanar: AppSelector<boolean> = createSelector(
+  (state: RootState) => getRtlsCellSurvey(state)?.id,
+  getRtlsAnchorDevices,
+  getRtlsStatsById,
+  getRtlsAnchors,
+  isSurveyPlanar
+);
 
 /** Unique cell IDs advertised by the live site-level anchor inventory. */
 export const getRtlsCellIds: AppSelector<string[]> = createSelector(

@@ -9,6 +9,7 @@
 
 import {
   type RtlsAnchor,
+  type RtlsDevice,
   type RtlsDeviceStats,
   type RtlsPowerState,
   RtlsUwbStatus,
@@ -179,12 +180,35 @@ export const isRangeDeviating = (stats: RtlsDeviceStats | undefined): boolean =>
   Math.abs(stats.rangeDeviationM) > RANGE_DEVIATION_WARNING_M;
 
 /**
- * Whether every surveyed anchor is `planar`: its survey declared all its
- * anchors at one height. A tag then solves on three of them.
+ * Whether the survey the cell is on (`cellSurveyId`) is `planar`: every
+ * anchor that advertises it now stores a position that declared all its
+ * anchors at one height. A tag then solves on three of them. An anchor that
+ * is offline, or on another survey, has no say: no tag uses it. The server's
+ * set (its Verify rule `survey`).
  */
-export const isSurveyPlanar = (anchors: readonly RtlsAnchor[]): boolean => {
-  const surveyed = anchors.filter(({ surveyId }) => surveyId !== undefined);
-  return surveyed.length > 0 && surveyed.every(({ planar }) => planar === true);
+export const isSurveyPlanar = (
+  cellSurveyId: number | undefined,
+  anchors: readonly RtlsDevice[],
+  statsById: Record<string, RtlsDeviceStats | undefined>,
+  siteAnchors: readonly RtlsAnchor[]
+): boolean => {
+  const onAir = anchors.filter(({ id, online }) => {
+    const stats = statsById[id];
+    return (
+      online &&
+      stats?.surveyId !== undefined &&
+      !stats.stale &&
+      stats.surveyId === cellSurveyId
+    );
+  });
+  return (
+    onAir.length > 0 &&
+    onAir.every(
+      ({ id }) =>
+        siteAnchors.find(({ systemId }) => String(systemId) === id)?.planar ===
+        true
+    )
+  );
 };
 
 /**

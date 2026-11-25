@@ -179,23 +179,43 @@ describe('3. a tag is positioned on four anchors, or on three planar ones', () =
     expect(isTagPositioned(using(2), true)).toBe(false);
   });
 
-  test('a survey is planar when every anchor that stores one says so', () => {
+  test('a survey is planar when every anchor that advertises it says so', () => {
+    const anchors = devices.filter(({ role }) => role !== 'tag');
+    const statsById = buildRtlsStatsMap(STATS.stats);
+    const planarSurvey = (
+      site: typeof siteAnchors,
+      online = anchors,
+      stats = statsById
+    ): boolean => isSurveyPlanar(12, online, stats, site);
     const planar = siteAnchors.map((anchor) => ({ ...anchor, planar: true }));
-    expect(isSurveyPlanar(siteAnchors)).toBe(false);
+    expect(planarSurvey(siteAnchors)).toBe(false);
+    expect(planarSurvey(planar)).toBe(true);
+    // 203 is not surveyed and 204 is on survey 11: they have no say
+    const but = (systemId: number) =>
+      planar.map((anchor) =>
+        anchor.systemId === systemId ? { ...anchor, planar: false } : anchor
+      );
+    expect(planarSurvey(but(203))).toBe(true);
+    expect(planarSurvey(but(204))).toBe(true);
+    // one anchor of the survey that is not planar is enough
+    expect(planarSurvey(but(206))).toBe(false);
+    // unless it is offline, or its telemetry stopped
     expect(
-      isSurveyPlanar(planar.filter(({ surveyId }) => surveyId !== undefined))
-    ).toBe(true);
-    // an anchor that is not surveyed has no say
-    expect(
-      isSurveyPlanar(
-        planar.map((anchor) =>
-          anchor.surveyId === undefined ? { ...anchor, planar: false } : anchor
+      planarSurvey(
+        but(206),
+        anchors.map((anchor) =>
+          anchor.id === '206' ? { ...anchor, online: false } : anchor
         )
       )
     ).toBe(true);
-    // one surveyed anchor that is not planar is enough
-    expect(isSurveyPlanar([...planar.slice(0, 2), siteAnchors[4]])).toBe(false);
-    expect(isSurveyPlanar([])).toBe(false);
+    expect(
+      planarSurvey(but(206), anchors, {
+        ...statsById,
+        '206': { ...statsById['206'], stale: true },
+      })
+    ).toBe(true);
+    expect(planarSurvey(planar, [])).toBe(false);
+    expect(isSurveyPlanar(undefined, anchors, statsById, planar)).toBe(false);
   });
 
   test('the row pill: three anchors of its survey are too few, and say so', () => {

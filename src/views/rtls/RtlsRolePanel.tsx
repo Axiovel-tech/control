@@ -43,9 +43,9 @@ import {
   getRtlsLockedOutDeviceIds,
   getRtlsStatsLastUpdatedAt,
   getRtlsTagDevices,
+  isRtlsSurveyPlanar,
 } from '~/features/rtls/selectors';
 import { setRtlsSleeping } from '~/features/rtls/sleep-actions';
-import { isSurveyPlanar } from '~/features/rtls/stats-utils';
 import {
   openRtlsOtaDialog,
   openRtlsParamDialog,
@@ -98,10 +98,7 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
   const siteAnchors = useSelector(getRtlsAnchors);
   // with every surveyed anchor planar, three are enough for a tag to
   // position: the pills, the rows and the pre-show health go by one answer
-  const planarSurvey = useMemo(
-    () => isSurveyPlanar(siteAnchors),
-    [siteAnchors]
-  );
+  const planarSurvey = useSelector(isRtlsSurveyPlanar);
   const surveyPill = useMemo(
     () =>
       tags
