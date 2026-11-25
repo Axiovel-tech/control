@@ -55,6 +55,7 @@ import {
   type RtlsSurveySketch,
   standardCellSketch,
   withAnchorGroup,
+  withAnchorIncluded,
   withAnchorMoved,
   withGroupAdded,
   withOrigin,
@@ -372,5 +373,30 @@ describe('C5. the frame can be laid on the anchors Survey again takes', () => {
       anchors: [105, 106, 107],
       frame: { origin: 105, xAxis: 106 },
     });
+  });
+});
+
+describe('C6. a stale power state is no power state', () => {
+  const withFault = (stale: boolean): SurveyTestStore => {
+    const store = withStandardCell();
+    setSketch(store, withAnchorIncluded(pageOf(store).sketch, '104', false));
+    store.dispatch(
+      updateRtlsStats({
+        byId: { '104': { id: '104', powerState: 'fault', stale } },
+      })
+    );
+    return store;
+  };
+
+  test('an online anchor with stale stats must be in the group', () => {
+    const page = pageOf(withFault(true));
+    expect(page.leftOut).toEqual(['104']);
+    expect(page.controls.canStart).toBe(false);
+  });
+
+  test('one that reports a fault now may be left out', () => {
+    const page = pageOf(withFault(false));
+    expect(page.leftOut).toEqual([]);
+    expect(page.controls.canStart).toBe(true);
   });
 });

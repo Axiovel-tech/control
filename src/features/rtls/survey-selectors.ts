@@ -37,7 +37,8 @@ export const getRtlsSurveyState: AppSelector<RtlsSurveySliceState> = (state) =>
  * include, as one string: the stats it is read from arrive every second, and
  * the page must not be worked out again unless the answer changes. The rule
  * is the server's: an online anchor must be in the group unless it reports
- * a power state other than operating. One that reports none yet must.
+ * a power state other than operating. One that reports none yet must, and
+ * so must one whose stats are stale: what it reported last says nothing now.
  */
 const getOperatingAnchorKey: AppSelector<string> = createSelector(
   getRtlsAnchorDevices,
@@ -45,7 +46,8 @@ const getOperatingAnchorKey: AppSelector<string> = createSelector(
   (devices, statsById) =>
     devices
       .filter(({ id, online }) => {
-        const state = statsById[id]?.powerState;
+        const stats = statsById[id];
+        const state = stats?.stale ? undefined : stats?.powerState;
         return online && (state === undefined || state === 'operating');
       })
       .map(({ id }) => id)
