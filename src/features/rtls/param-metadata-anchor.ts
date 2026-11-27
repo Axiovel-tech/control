@@ -66,24 +66,4 @@ export const ANCHOR_PARAM_METADATA: Record<string, RtlsParamMetadata> = {
     max: 1,
     defaultValue: 0,
   },
-
-  /* --- Anchor motion watch (lib/management/src/motion/motion_params.cpp) --- */
-  MOT_TILT_DEG: {
-    description:
-      'Tilt from the orientation captured at the start that, held for 3 s, ' +
-      'marks the anchor as moved (latched until the next start). Live',
-    unit: 'deg',
-    min: 0.2,
-    max: 10,
-    defaultValue: 0.5,
-  },
-  MOT_KNOCK_MG: {
-    description:
-      'Accelerometer slope threshold of a knock, which marks the anchor as ' +
-      "moved; 0 ignores knocks. Rounded to the chip's 15.625 mg steps. Live",
-    unit: 'mg',
-    min: 0,
-    max: 984,
-    defaultValue: 250,
-  },
 };

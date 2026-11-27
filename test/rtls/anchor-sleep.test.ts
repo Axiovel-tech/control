@@ -388,14 +388,14 @@ describe('SLEEP from the parameter dialog', () => {
     sendMessage.mockResolvedValueOnce(
       reply({
         type: 'X-RTLS-PARAM-SET',
-        name: 'MOT_TILT_DEG',
+        name: 'POS_YAW_DEG',
         value: 1,
         accepted: true,
       })
     );
     await dispatchThunk(
       store,
-      setRtlsDeviceParameter('101', 'MOT_TILT_DEG', 1, 'real32')
+      setRtlsDeviceParameter('101', 'POS_YAW_DEG', 1, 'real32')
     );
     expect(sendMessage).toHaveBeenCalledTimes(1);
   });

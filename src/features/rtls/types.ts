@@ -257,12 +257,6 @@ export type RtlsDeviceStats = {
   rangingRateHz?: number;
   /** UWB radio restarts since boot. */
   radioRestarts?: number;
-  /** Motion watch latch: the anchor tilted or was knocked since its start. */
-  moved?: boolean;
-  /** Tilt from the orientation captured at the start, degrees. */
-  tiltDeg?: number;
-  /** Knocks counted since the start. */
-  knocks?: number;
   ethernetLink?: boolean;
   /** Ethernet link drops since boot. */
   ethernetDrops?: number;
@@ -443,6 +437,8 @@ export type RtlsCellSurvey = {
   otherSurvey: string[];
   /** Online anchors whose range check warns. */
   rangeDeviation: string[];
+  /** Those of them beyond the danger bound. */
+  rangeDanger: string[];
   /**
    * The anchors each tag leaves out, by tag; an empty list for a tag that
    * counts one out before its table names it.

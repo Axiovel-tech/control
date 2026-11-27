@@ -45,7 +45,7 @@ const ranging: RtlsDeviceStats = {
   batteryVoltage: 3.92,
   powerInput: 'poe',
   charging: 'cc',
-  moved: true,
+  rangeDeviationM: 0.1,
   radioRestarts: 2,
   bootCount: 4,
   resetCause: 0x10,
@@ -82,7 +82,7 @@ describe('anchor row header', () => {
   test('shows the battery percent, the input source and the warnings', () => {
     expect(markup).toContain('81%');
     expect(markup).toContain('data-testid="rtls-anchor-input-poe"');
-    expect(markup).toContain('data-testid="rtls-anchor-badge-moved"');
+    expect(markup).toContain('data-testid="rtls-anchor-badge-rangeDeviation"');
     expect(markup).toContain('rtlsAnchor.badge.radioRestarts(count=2)');
   });
 

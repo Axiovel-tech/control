@@ -329,9 +329,12 @@ describe('anchor health from the health stats', () => {
     );
   });
 
-  test('moved, radio restarts and operating without ranging are warnings', () => {
-    expect(anchor({ powerState: 'operating', moved: true })).toBe(
+  test('a range check, radio restarts and operating without ranging are warnings', () => {
+    expect(anchor({ powerState: 'operating', rangeDeviationM: 0.1 })).toBe(
       RtlsHealth.WARNING
+    );
+    expect(anchor({ powerState: 'operating', rangeDeviationM: -0.21 })).toBe(
+      RtlsHealth.ERROR
     );
     expect(anchor({ powerState: 'operating', radioRestarts: 2 })).toBe(
       RtlsHealth.WARNING
@@ -448,6 +451,22 @@ describe('battery warning in health', () => {
           lowBattery: true,
         },
         live
+      )
+    ).toBe(RtlsHealth.ERROR);
+  });
+
+  test('gives way to a range check that reads danger', () => {
+    expect(
+      getDeviceHealthForRole(
+        RtlsRole.ANCHOR_RESPONDER,
+        {
+          id: '2',
+          powerState: 'operating',
+          rangingRateHz: 9,
+          batteryWarning: true,
+          rangeDeviationM: 0.25,
+        },
+        { online: true }
       )
     ).toBe(RtlsHealth.ERROR);
   });

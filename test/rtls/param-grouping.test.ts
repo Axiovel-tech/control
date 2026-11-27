@@ -109,23 +109,19 @@ describe('matchesRtlsParamFilter', () => {
   });
 });
 
-describe('anchor power, battery and motion parameters', () => {
+describe('anchor power and battery parameters', () => {
   test('are grouped and labelled', () => {
     expect(getRtlsParamGroup('SLEEP')).toBe('PWR');
     expect(getRtlsParamGroup('BAT_PROFILE')).toBe('BAT');
-    expect(getRtlsParamGroup('MOT_TILT_DEG')).toBe('MOT');
     expect(getRtlsParamGroupLabel('PWR')).toBe('Power');
     expect(getRtlsParamGroupLabel('BAT')).toBe('Battery');
-    expect(getRtlsParamGroupLabel('MOT')).toBe('Motion watch');
   });
 
   test('sort after positioning and before Wi-Fi', () => {
     expect(
       groupRtlsParams(
-        ['WIFI_MODE', 'MOT_KNOCK_MG', 'SLEEP', 'BAT_NTC', 'POS_YAW_DEG'].map(
-          param
-        )
+        ['WIFI_MODE', 'SLEEP', 'BAT_NTC', 'POS_YAW_DEG'].map(param)
       ).map((group) => group.key)
-    ).toEqual(['POS', 'PWR', 'BAT', 'MOT', 'WIFI']);
+    ).toEqual(['POS', 'PWR', 'BAT', 'WIFI']);
   });
 });

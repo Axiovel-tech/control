@@ -7,7 +7,11 @@ import {
   mapRtlsAnchors,
 } from '~/features/rtls/handlers';
 import { mapCellSurvey } from '~/features/rtls/handlers-survey';
-import { isRangeDeviating, isTagPositioned } from '~/features/rtls/stats-utils';
+import {
+  isRangeDanger,
+  isRangeDeviating,
+  isTagPositioned,
+} from '~/features/rtls/stats-utils';
 import {
   describeAnchorSurveyChip,
   describeCellSurveyPill,
@@ -148,6 +152,19 @@ describe("an anchor's range check", () => {
     // the bound itself does not warn
     expect(isRangeDeviating({ id: '1', rangeDeviationM: 0.08 })).toBe(false);
     expect(isRangeDeviating({ id: '1', rangeDeviationM: -0.08 })).toBe(false);
+  });
+
+  test('compares a float32 reading at a bound as the firmware does', () => {
+    // the wire carries 0.2F as 0.2000000030: the ring shows a warning
+    for (const sign of [1, -1]) {
+      const at = (bound: number) => ({
+        id: '1',
+        rangeDeviationM: sign * Math.fround(bound),
+      });
+      expect(isRangeDeviating(at(0.08))).toBe(false);
+      expect(isRangeDeviating(at(0.2))).toBe(true);
+      expect(isRangeDanger(at(0.2))).toBe(false);
+    }
   });
 });
 
