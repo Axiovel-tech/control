@@ -1,0 +1,1 @@
+export { VenueGridLayer } from './connected';

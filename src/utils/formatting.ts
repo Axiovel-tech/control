@@ -326,14 +326,6 @@ export const formatUnixTimestamp = (timestamp: number, naText = '—'): string =
     : formatISO9075(fromUnixTime(timestamp));
 
 /**
- * Formats a UNIX timestamp in seconds as a time of day text.
- */
-export const formatTimeOfDay = (timestamp: number, naText = '—'): string =>
-  Number.isNaN(timestamp)
-    ? naText
-    : formatISO9075(fromUnixTime(timestamp), { representation: 'time' });
-
-/**
  * Twitter-style short formatter for TimeAgo components
  */
 export const shortTimeAgoFormatter = (value: number, unit: string): string =>
@@ -342,23 +334,6 @@ export const shortTimeAgoFormatter = (value: number, unit: string): string =>
     : unit === 'second' && value < 1
       ? 'now'
       : `${value}${unit.charAt(0)}`;
-
-/**
- * Twitter-style short formatter for TimeAgo components that is suitable for
- * both past and future timestamps.
- */
-export const shortRelativeTimeFormatter = (
-  value: number,
-  unit: string,
-  suffix: string
-): string => {
-  const base = shortTimeAgoFormatter(value, unit);
-  return base === 'now'
-    ? base
-    : suffix === 'ago'
-      ? `${base} ago`
-      : `in ${base}`;
-};
 
 /**
  * Truncates a string with ellipses if it exceeds a certain length.

@@ -39,7 +39,6 @@ const MESSAGES_WITH_RECEIPTS: Record<string, boolean> = {
   'PRM-GET': true,
   'PRM-SET': true,
   'PRM-SET-MANY': true,
-  'UAV-CALIB': true,
   'UAV-FLY': true,
   'UAV-HALT': true,
   'UAV-HOVER': true,

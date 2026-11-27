@@ -159,7 +159,6 @@ const layerComponents: Partial<
 };
 
 const mapControlSettings: Partial<MapControlDisplaySettings> = {
-  showAttribution: false,
   showMouseCoordinates: false,
   showScaleLine: false,
 };

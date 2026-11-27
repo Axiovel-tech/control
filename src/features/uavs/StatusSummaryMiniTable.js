@@ -7,10 +7,8 @@ import { StatusText } from '@skybrush/mui-components';
 import MiniTable, { naText } from '~/components/MiniTable';
 import { getRtlsDevicePairedToUav } from '~/features/rtls/selectors';
 import {
-  abbreviateGPSFixType,
   getFlightModeLabel,
   getSemanticsForFlightMode,
-  getSemanticsForGPSFixType,
   getSemanticsForRSSI,
 } from '~/model/enums';
 import {
@@ -46,49 +44,7 @@ const StatusSummaryMiniTable = ({
   const rows = [['Mode', flightModeLabel], 'sep0'];
 
   if (shouldShowGlobalPositionInfo) {
-    const gpsFixLabel = gpsFixType ? (
-      <>
-        <StatusText status={getSemanticsForGPSFixType(gpsFixType)}>
-          {abbreviateGPSFixType(gpsFixType)}
-        </StatusText>
-        {gpsFix?.numSatellites && ` (${gpsFix?.numSatellites} sats)`}
-      </>
-    ) : (
-      naText
-    );
-
-    let { horizontalAccuracy, verticalAccuracy } = gpsFix || {};
-
-    if (typeof horizontalAccuracy === 'number' && horizontalAccuracy > 50) {
-      horizontalAccuracy = '50+';
-    } else {
-      horizontalAccuracy = formatNumberSafely(
-        horizontalAccuracy,
-        2,
-        '',
-        naText
-      );
-    }
-
-    if (typeof verticalAccuracy === 'number' && verticalAccuracy > 50) {
-      verticalAccuracy = '50+';
-    } else {
-      verticalAccuracy = formatNumberSafely(verticalAccuracy, 2, '', naText);
-    }
-
-    const gpsAcc = (
-      <>
-        {horizontalAccuracy}
-        {' / '}
-        {verticalAccuracy}
-        {' m'}
-      </>
-    );
-
     rows.push(
-      ['GPS fix', gpsFixLabel],
-      ['GPS acc', gpsAcc],
-      'sep1',
       ['Lat', formatNumberSafely(lat, 7, '°', naText)],
       ['Lon', formatNumberSafely(lon, 7, '°', naText)],
       ['AMSL', formatNumberSafely(amsl, 2, ' m', naText)],
@@ -148,9 +104,6 @@ const StatusSummaryMiniTable = ({
 StatusSummaryMiniTable.propTypes = {
   gpsFix: PropTypes.shape({
     type: PropTypes.number,
-    numSatellites: PropTypes.number,
-    horizontalAccuracy: PropTypes.number,
-    verticalAccuracy: PropTypes.number,
   }),
   heading: PropTypes.number,
   lastUpdated: PropTypes.number,

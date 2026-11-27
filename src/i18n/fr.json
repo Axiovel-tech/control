@@ -21,18 +21,6 @@
     "passed": "Les Checklist de pré-vol sont passée.",
     "signOffOn": "Signer les checklist pré-vol embarquée"
   },
-  "RTKCorrectionSourceSelector": {
-    "RTKCorrections": "Corrections RTK",
-    "error": "Erreur lors du chargement des sources RTK à partir du serveur",
-    "noRTKData": "Pas de données RTK sur le serveur",
-    "pleaseWait": "Merci de patienter, chargement des sources RTK…"
-  },
-  "RTKStatusMiniList": {
-    "satelliteCount": "Nombre de satellite",
-    "surveyInProgress": "Enquête en cours…",
-    "surveyNo": "Pas d'enquête en cours",
-    "surveySuccesful": "Enquête réussie"
-  },
   "UAVList": {
     "allUAVs": "Tous les UAV",
     "assignedUAVs": "UAVs assignés",
@@ -54,34 +42,13 @@
     "clickToMute": "Cliquer pour désactiver les alertes sonores.",
     "muted": "Alertes sonores désactivées, cliquer ici pour les réactiver."
   },
-  "altitudeSummaryButton": {
-    "clickToChange": "Cliquer pour changer l'altitude à {{altitudeType}}.",
-    "showingCurrent": "Montrer l'altitude maximum et minimum {{altitudeType}}."
-  },
   "augmentMappingButton": {
     "assignSparesToEmptySlots": "Affecter les UAVs de rechange aux emplacements vides"
   },
-  "authentication": "Authentification",
   "batteryStatusHeaderButton": "Montrer la moyenne et le minimum de l'état de charge.",
-  "bearingCalculator": {
-    "addAtLeastTwoItems": "Ajouter au moins deux éléments pour calculer le relèvement et la distance qui les séparent",
-    "bearing": ", balises: ",
-    "finalBearing": ", balise finale: ",
-    "initialBearing": ", balise initiale: ",
-    "selectTwoItems": "Sélectionnez exactement deux éléments pour calculer le relèvement et la distance qui les séparent"
-  },
   "broadcastButton": {
     "disable": "Désactiver le broadcast",
     "enable": "Activer le broadcast pour {{time}} secondes"
-  },
-  "coordinateAveragingDialogToolbar": {
-    "addNewDrone": "Ajouter un nouveau drone",
-    "copyCentroid": "Copier le centroïde",
-    "pauseMeasurement": "Mettre en pause les mesures",
-    "removeSelected": "Enlever la sélection",
-    "resetMeasurement": "Réinitialise la mesure",
-    "resumeMeasurement": "Reprendre les mesures",
-    "setCentroidAsMapOrigin": "Définir le centroïde comme point d'origine de la carte"
   },
   "environmentEditorDialog": {
     "environmentSettings": "Paramètres de l'application",
@@ -169,7 +136,6 @@
     }
   },
   "header": {
-    "distanceSummary": "Distance minimale et maximale du point de départ",
     "velocitySummary": "Vitesse horizontale et verticale maximale"
   },
   "help": "Aide",
@@ -227,15 +193,6 @@
   "mappingToggleButton": {
     "sortByMissionID": "trie les missions par ID"
   },
-  "mission": {
-    "planner": {
-      "schema": {
-        "error": "Erreur lors du chargement des paramètres de la mission à partir du serveur",
-        "loading": "Recherche les paramètres de mission…",
-        "notFound": "Le serveur connecté ne fournit pas de schéma pour le type de mission sélectionné"
-      }
-    }
-  },
   "notifications": {
     "connectedToServer": "Connexion au serveur Axio"
   },
@@ -283,18 +240,6 @@
     },
     "title": "Paramètres des barrières de sécurités"
   },
-  "savedLocation": {
-    "addNew": "Ajoute un nouvel emplacement",
-    "edit": "Modifie l'emplacement"
-  },
-  "savedLocationEditor": {
-    "copyFromMapView": "Copier depuis la vue de carte",
-    "createNew": "Crée un nouvel emplacement",
-    "editSaved": "Modifie l'emplacement sauvegardé",
-    "name": "Nom",
-    "notes": "Notes",
-    "zoomLevel": "Niveau de zoom"
-  },
   "serverConnectionStatus": {
     "clockSkew": "Décalage d'horloge",
     "clocksSync": "Horloge synchronisée",
@@ -309,7 +254,6 @@
   "settings": {
     "display": {
       "coordinateFormat": "Format de coordonnées",
-      "enableExperimentalFeatures": "Activer les options expérimentales (utilisateur avancés)",
       "flatEarthCoordinateSystem": "Système de coordination de la \"Terre plate\"",
       "hideInactiveSegmentsOnDarkLCD": "Augmentez le contraste durant le mode sombre pour les horloges",
       "language": "Langue",
@@ -323,7 +267,6 @@
       "showScaleLine": "Voir la ligne d'échelle"
     },
     "tabs": {
-      "apiKeys": "Clefs pour les API",
       "display": "Ecran",
       "preflight": "Prévol",
       "server": "Serveur",
@@ -378,7 +321,6 @@
     "dronePlacementCheck": "Contrôle de l'emplacement des drones…",
     "dronePlacementError": "Erreur dans le placement des drones",
     "dronePlacementPartial": "Placement partiel de drone approuvé",
-    "fromCloud": "Charger le SHOW depuis le cloud",
     "indoor": "Intérieur",
     "loading": "Merci de patienter, chargement du fichier SHOW en cours…",
     "manualPreflightChecks": "Checklist prévol manuel",
@@ -413,31 +355,22 @@
     "uploadShowDataLoading": "Merci de patienter, Chargement…",
     "uploadShowDataStart": "Cliquer ici pour débuter un processus de chargement"
   },
-  "sidebar": {
-    "missionType": "Type de mission:({{missionType}})"
-  },
   "sorting": {
     "ascending": "Montant",
     "descending": "Descendant",
     "label": {
-      "agl": "Altitude/Sol",
       "ahl": "Altitude au dessus du point d'origine",
-      "amsl": "Altitude/Mer",
       "battery": "Batterie",
       "default": "Défaut",
       "flightMode": "Mode de vol",
-      "gpsFix": "GPS Fixe",
       "heading": "Cap",
       "status": "Statuts"
     },
     "shortLabel": {
-      "agl": "AGL",
       "ahl": "AHL",
-      "amsl": "AMSL",
       "battery": "Batterie",
       "default": "Défaut",
       "flightMode": "Mode",
-      "gpsFix": "GPS Fixe",
       "heading": "Cap",
       "status": "Statuts"
     },
@@ -470,10 +403,6 @@
     "unspecified": "Non spécifié"
   },
   "toolbox": {
-    "averagingInProgress": "{{number}} en chargement",
-    "coordinateAveraging": "Calcul de la moyenne des coordonnées",
-    "licenseInfo": "Information de licence",
-    "offlineMaps": "Carte hors ligne",
     "paramUpload": "Chargement des paramètres",
     "tooltip": "Boîte à outils",
     "uploadInProgress": "Chargement en cours"
@@ -494,31 +423,15 @@
     "retryFailedItems": "Réessayer les éléments ayant échoué"
   },
   "view": {
-    "beacon-list": "Balises",
-    "dock-list": "Docks",
-    "feature-list": "Options",
     "field-notes": "Notes de terrain",
     "layer-list": "Couches",
     "lcd-clock-panel": "Horloge",
     "light-control": "Contrôle des lumières",
     "log-panel": "Journal d'évènements",
     "map": "Carte",
-    "mission-editor": "Editeur de mission",
-    "saved-location-list": "Emplacments",
     "show-control": "SHOW Control",
     "three-d-view": "Vue 3D",
     "uav-details": "Détails de l'UAV",
     "uav-list": "UAVs"
-  },
-  "weatherMiniList": {
-    "compassDeclination": "Déclinaison du compas",
-    "kpIndex": "Indice Kp",
-    "lastUpdate": "Dernière mise à jour",
-    "noWeatherInfo": "Pas d'information météo pour aujourd'hui",
-    "refreshing": "Actualisation…",
-    "sunrise": "Lever de soleil",
-    "sunset": "Coucher de soleil",
-    "timezone": "Fuseau horaire",
-    "utcOffset": "Temps UTC (Zulu)"
   }
 }

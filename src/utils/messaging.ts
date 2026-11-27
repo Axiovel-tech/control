@@ -14,7 +14,6 @@ import { UAV_SIGNAL_DURATION } from '~/features/settings/constants';
 import { shouldConfirmUAVOperation } from '~/features/settings/selectors';
 import { showNotification } from '~/features/snackbar/actions';
 import { MessageSemantics } from '~/features/snackbar/types';
-import { COMPASS_CALIB_TIMEOUT } from '~/features/uavs/constants';
 import type { StartAsyncOperationOptions } from '~/flockwave/messages';
 import messageHub from '~/message-hub';
 import { NULL_ISLAND, type GPSPosition } from '~/model/geography';
@@ -229,16 +228,6 @@ export const resetUAVs = performMassOperation({
   name: 'Reset command',
 });
 
-export const sleepUAVs = performMassOperation({
-  type: 'UAV-SLEEP',
-  name: 'Low-power mode command',
-});
-
-export const wakeUpUAVs = performMassOperation({
-  type: 'UAV-WAKEUP',
-  name: 'Resume from low-power mode command',
-});
-
 export const setColorOnUAVs = performMassOperation({
   type: 'OBJ-CMD',
   name: 'Set color command',
@@ -333,22 +322,6 @@ export const turnMotorsOnForUAVs = performMassOperation({
   }),
 });
 
-export const calibrateCompassOnUAVs = performMassOperation(
-  {
-    type: 'UAV-CALIB',
-    name: 'Calibrate compass',
-    mapper: ({
-      transport,
-      ...options
-    }: { transport?: TransportOptions } = {}) => ({
-      // Ignore transport, it's not a valid argument.
-      ...options,
-      component: 'compass',
-    }),
-  },
-  { timeout: COMPASS_CALIB_TIMEOUT }
-);
-
 type OperationHandler<T extends object = object> = (
   uavs: string[],
   args: T & { transport?: TransportOptions }
@@ -356,18 +329,15 @@ type OperationHandler<T extends object = object> = (
 
 // moveUAVs() and setColor() are not in this map because they require extra args
 const OPERATION_MAP: Record<string, OperationHandler<object>> = {
-  calibrateCompass: calibrateCompassOnUAVs,
   flashLight: flashLightOnUAVs,
   holdPosition: positionHoldUAVs,
   land: landUAVs,
   reset: resetUAVs,
   returnToHome: returnToHomeUAVs,
   shutdown: shutdownUAVs,
-  sleep: sleepUAVs,
   takeOff: takeoffUAVs,
   turnMotorsOff: turnMotorsOffForUAVs,
   turnMotorsOn: turnMotorsOnForUAVs,
-  wakeUp: wakeUpUAVs,
 };
 
 /**

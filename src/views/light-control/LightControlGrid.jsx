@@ -11,7 +11,12 @@ import {
   setColorAndActivate,
   setColorAndUpdateServerIfActive,
 } from '~/features/light-control/actions';
-import { getCurrentColorInLightControlPanel } from '~/features/light-control/selectors';
+import {
+  getCurrentColorInLightControlPanel,
+  getLightControlTarget,
+  isLightControlActive,
+} from '~/features/light-control/selectors';
+import { getSelectedUAVIds } from '~/features/uavs/selectors';
 
 const LightButton = ({ color, label = '\u00A0', onClick, ...rest }) => (
   <ColoredButton
@@ -82,39 +87,73 @@ const useStyles = makeStyles((theme) => ({
  * Panel that shows the widgets that are needed to control the LED lights on
  * the drone swarm from the GCS before or during a drone show.
  */
-const LightControlGrid = ({ color, onSetColor, onSetColorAndActivate, t }) => {
+const LightControlGrid = ({
+  color,
+  disabled,
+  onSetColor,
+  onSetColorAndActivate,
+  t,
+}) => {
   const classes = useStyles();
   return (
     <Box className={classes.root}>
-      <Box className={classes.grid}>
+      <Box className={classes.grid} sx={{ opacity: disabled ? 0.4 : 1 }}>
         <LightButton
+          disabled={disabled}
           color='#000000'
           label={t('lightControlGrid.allOff')}
           style={{ gridColumn: '1 / span 2' }}
           onClick={onSetColorAndActivate}
         />
         <LightButton
+          disabled={disabled}
           color='#404040'
           label='25%'
           onClick={onSetColorAndActivate}
         />
         <LightButton
+          disabled={disabled}
           color='#808080'
           label='50%'
           onClick={onSetColorAndActivate}
         />
         <LightButton
+          disabled={disabled}
           color='#ffffff'
           label={t('lightControlGrid.allOn')}
           style={{ gridColumn: '5 / span 3' }}
           onClick={onSetColorAndActivate}
         />
-        <LightButton color='#ff0000' onClick={onSetColorAndActivate} />
-        <LightButton color='#ffff00' onClick={onSetColorAndActivate} />
-        <LightButton color='#00ff00' onClick={onSetColorAndActivate} />
-        <LightButton color='#00ffff' onClick={onSetColorAndActivate} />
-        <LightButton color='#0000ff' onClick={onSetColorAndActivate} />
-        <LightButton color='#ff00ff' onClick={onSetColorAndActivate} />
+        <LightButton
+          disabled={disabled}
+          color='#ff0000'
+          onClick={onSetColorAndActivate}
+        />
+        <LightButton
+          disabled={disabled}
+          color='#ffff00'
+          onClick={onSetColorAndActivate}
+        />
+        <LightButton
+          disabled={disabled}
+          color='#00ff00'
+          onClick={onSetColorAndActivate}
+        />
+        <LightButton
+          disabled={disabled}
+          color='#00ffff'
+          onClick={onSetColorAndActivate}
+        />
+        <LightButton
+          disabled={disabled}
+          color='#0000ff'
+          onClick={onSetColorAndActivate}
+        />
+        <LightButton
+          disabled={disabled}
+          color='#ff00ff'
+          onClick={onSetColorAndActivate}
+        />
       </Box>
       <HexColorPicker
         className={classes.picker}
@@ -133,6 +172,7 @@ const LightControlGrid = ({ color, onSetColor, onSetColorAndActivate, t }) => {
 
 LightControlGrid.propTypes = {
   color: PropTypes.string,
+  disabled: PropTypes.bool,
   onSetColor: PropTypes.func,
   onSetColorAndActivate: PropTypes.func,
   t: PropTypes.func,
@@ -142,6 +182,11 @@ export default connect(
   // mapStateToProps
   (state) => ({
     color: getCurrentColorInLightControlPanel(state),
+    // the selected drones are the target, but the lights are not controlled
+    // from the GCS or no drone is selected
+    disabled:
+      getLightControlTarget(state) === 'selected' &&
+      (!isLightControlActive(state) || getSelectedUAVIds(state).length === 0),
   }),
   // mapDispatchToProps
   {

@@ -1,12 +1,10 @@
 import Assignment from '@mui/icons-material/Assignment';
 import Clear from '@mui/icons-material/Clear';
 import Delete from '@mui/icons-material/Delete';
-import Explore from '@mui/icons-material/Explore';
 import PositionHold from '@mui/icons-material/Flag';
 import FlightLand from '@mui/icons-material/FlightLand';
 import FlightTakeoff from '@mui/icons-material/FlightTakeoff';
 import Home from '@mui/icons-material/Home';
-import Moon from '@mui/icons-material/NightsStay';
 import PlayArrow from '@mui/icons-material/PlayArrow';
 import PowerSettingsNew from '@mui/icons-material/PowerSettingsNew';
 import Refresh from '@mui/icons-material/Refresh';
@@ -30,14 +28,10 @@ import {
   requestRemovalOfUAVsByIds,
   requestRemovalOfUAVsMarkedAsGone,
 } from '~/features/uavs/actions';
-import { UAV_TOOLBAR_MULTI_SELECTION_LIMIT } from '~/features/uavs/constants';
 import { openUAVDetailsDialog } from '~/features/uavs/details';
 import { getUAVIdList } from '~/features/uavs/selectors';
-import Bolt from '~/icons/Bolt';
 import type { AppDispatch, RootState } from '~/store/reducers';
 import { createUAVOperationThunks } from '~/utils/messaging';
-
-import OverrideUAVColorButton from './OverrideUAVColorButton';
 
 type Props = {
   broadcast: boolean;
@@ -47,14 +41,9 @@ type Props = {
   requestRemovalOfUAVsByIds: (ids: string[]) => void;
   requestRemovalOfUAVsMarkedAsGone: () => void;
   selectedUAVIds: string[];
-  showColorOverrideBadges?: boolean;
   size?: 'small' | 'medium';
   startSeparator?: boolean;
 };
-
-// Must be valid CSS color names that are _also_ understood by the server in the
-// "color" command
-const COLORS: string[] = ['#ff0000', '#00ff00', '#0000ff', '#ffffff'];
 
 /**
  * Main toolbar for controlling the UAVs.
@@ -68,7 +57,6 @@ const UAVOperationsButtonGroup = ({
   requestRemovalOfUAVsMarkedAsGone,
   selectedUAVIds,
   size,
-  showColorOverrideBadges,
   startSeparator,
 }: Props) => {
   const { t } = useTranslation();
@@ -95,18 +83,15 @@ const UAVOperationsButtonGroup = ({
   };
 
   const {
-    calibrateCompass,
     flashLight,
     holdPosition,
     land,
     reset,
     returnToHome,
     shutdown,
-    sleep,
     takeOff,
     turnMotorsOff,
     turnMotorsOn,
-    wakeUp,
   } = bindActionCreators(createUAVOperationThunks(thunkOptions), dispatch);
 
   const [keepFlashing, setKeepFlashing] = useState(false);
@@ -128,9 +113,6 @@ const UAVOperationsButtonGroup = ({
 
   const fontSize = size === 'small' ? 'small' : 'medium';
   const iconSize = size;
-  const allowOperationForMultipleSelection =
-    selectedUAVIds.length >= 1 &&
-    selectedUAVIds.length <= UAV_TOOLBAR_MULTI_SELECTION_LIMIT;
 
   const flashLightsButton =
     size === 'small' ? (
@@ -213,29 +195,8 @@ const UAVOperationsButtonGroup = ({
             </IconButton>
           </Tooltip>
           {flashLightsButton}
-          <Tooltip content={t('general.commands.calibrateCompass')}>
-            <IconButton
-              size={iconSize}
-              disabled={!allowOperationForMultipleSelection}
-              onClick={() => calibrateCompass()}
-            >
-              <Explore />
-            </IconButton>
-          </Tooltip>
         </>
       )}
-
-      {!hideSeparators && <ToolbarDivider orientation='vertical' />}
-
-      {COLORS.map((color) => (
-        <OverrideUAVColorButton
-          key={color}
-          color={color}
-          showBadge={showColorOverrideBadges}
-          uavIds={selectedUAVIds}
-          size={iconSize}
-        />
-      ))}
 
       {!hideSeparators && <ToolbarDivider orientation='vertical' />}
 
@@ -268,28 +229,6 @@ const UAVOperationsButtonGroup = ({
       {size === 'small' && flashLightsButton}
 
       {!hideSeparators && <ToolbarDivider orientation='vertical' />}
-
-      <Tooltip content={t('general.commands.powerOn')}>
-        <IconButton
-          disabled={isSelectionEmpty}
-          size={iconSize}
-          onClick={wakeUp}
-        >
-          <Bolt
-            htmlColor={isSelectionEmpty ? undefined : Colors.success}
-            fontSize={fontSize}
-          />
-        </IconButton>
-      </Tooltip>
-
-      <Tooltip content={t('general.commands.sleep')}>
-        <IconButton disabled={isSelectionEmpty} size={iconSize} onClick={sleep}>
-          <Moon
-            htmlColor={isSelectionEmpty ? undefined : Colors.warning}
-            fontSize={fontSize}
-          />
-        </IconButton>
-      </Tooltip>
 
       <Tooltip content={t('general.commands.reboot')}>
         <IconButton disabled={isSelectionEmpty} size={iconSize} onClick={reset}>

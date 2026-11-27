@@ -4,6 +4,7 @@ import Button from '@mui/material/Button';
 import { createSelector } from '@reduxjs/toolkit';
 import clsx from 'clsx';
 import React, { useContext } from 'react';
+import { useTranslation } from 'react-i18next';
 import { connect } from 'react-redux';
 
 import { makeStyles } from '@skybrush/app-theme-mui';
@@ -11,7 +12,6 @@ import { LazyTooltip, StatusLight } from '@skybrush/mui-components';
 
 import { Status } from '~/components/semantics';
 import { selectAllUAVs } from '~/features/selection/slice';
-import { showWarning } from '~/features/snackbar/actions';
 import {
   getSingleUAVStatusLevel,
   getUAVIdList,
@@ -160,17 +160,29 @@ const UAVStatusSummary = ({
   ...rest
 }: UAVStatusSummaryProps) => {
   const classes = useStyles();
+  const { t } = useTranslation();
   const workbench = useContext(Workbench);
+
+  // Shows the UAVs panel: at the front of its tabs or, if it was closed, back
+  // on the workbench where an entry of the rail would put it.
+  const showUAVsPanel = () => {
+    if (workbench.findPanelById('uavList')) {
+      workbench.bringToFront('uavList');
+    } else {
+      workbench.addNewItemWithConfiguration({
+        ...workbench.createItemConfigurationFor('uav-list', {
+          title: t('view.uav-list'),
+        }),
+        id: 'uavList',
+      });
+    }
+  };
 
   return (
     <LazyTooltip interactive content={<UAVStatusMiniList />}>
       <Box
         className={clsx(classes.root, 'wb-module')}
-        onClick={() => {
-          if (!workbench.bringToFront('uavList')) {
-            showWarning('UAVs panel is not added to the workbench yet');
-          }
-        }}
+        onClick={showUAVsPanel}
         {...rest}
       >
         <div className={classes.inner}>

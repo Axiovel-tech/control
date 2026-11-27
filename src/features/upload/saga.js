@@ -11,6 +11,7 @@ import {
   race,
   select,
   take,
+  takeLatest,
 } from 'redux-saga/effects';
 
 import { errorToString, handleError } from '~/error-handling';
@@ -24,7 +25,10 @@ import { getSpecificationForJobType } from './jobs';
 import {
   getCurrentUploadJob,
   getNextDroneFromUploadQueue,
+  getUploadDialogState,
   getUploadItemsBeingProcessed,
+  hasLastUploadSucceededOnAllUAVs,
+  isUploadInProgress,
   shouldFlashLightsOfFailedUploads,
   shouldRetryFailedUploadsAutomatically,
 } from './selectors';
@@ -40,6 +44,7 @@ import {
   _setErrorMessageForUAV,
   _setProgressInfoForUAV,
   cancelUpload,
+  closeUploadDialog,
   startUpload,
 } from './slice';
 
@@ -282,9 +287,41 @@ const startUploadActionListenerSaga = createActionListenerSaga({
   [startUpload]: uploaderSagaWithCancellation,
 });
 
+/* ----- Upload dialog ------------------------------------------------------ */
+
+/**
+ * How long the upload dialog shows the result of a job that needs nothing
+ * more from the user before it closes, in milliseconds.
+ */
+const RESULT_DISPLAY_TIME = 1000;
+
+/**
+ * Saga that closes the upload dialog after a job that succeeded on all of its
+ * drones. Any other outcome keeps the dialog open: the user has drones to look
+ * at or to retry.
+ */
+function* closeDialogAfterSuccessSaga() {
+  const { type } = yield select(getCurrentUploadJob);
+  if (!(yield select(hasLastUploadSucceededOnAllUAVs, type))) {
+    return;
+  }
+
+  yield delay(RESULT_DISPLAY_TIME);
+
+  // the user may have moved on to another job in the meantime
+  const { selectedJob } = yield select(getUploadDialogState);
+  if (selectedJob?.type === type && !(yield select(isUploadInProgress))) {
+    yield put(closeUploadDialog());
+  }
+}
+
 /**
  * Compound saga related to the management of upload procedures.
  */
 export default function* uploadManagementSaga() {
-  yield all([startUploadActionListenerSaga(), uploadProgressHandlerSaga()]);
+  yield all([
+    startUploadActionListenerSaga(),
+    uploadProgressHandlerSaga(),
+    takeLatest(_notifyUploadFinished.type, closeDialogAfterSuccessSaga),
+  ]);
 }

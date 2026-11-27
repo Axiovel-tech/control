@@ -104,6 +104,38 @@ export function isAnchorRole(role: RtlsRole): boolean {
 /** Fixes older than this (ms) are considered stale. */
 export const STALE_FIX_AGE_MS = 1000;
 
+/**
+ * Tag parameter that sets how often the tag solves and emits a position, in
+ * Hz. Zero makes the tag solve on every ranging epoch instead.
+ */
+export const SOLVE_RATE_PARAM = 'UWB_EMIT_HZ';
+
+/** Formats a rate with one decimal, dropped when it is zero (48, 47.6). */
+const formatRate = (hz: number): string =>
+  String(Number.parseFloat(hz.toFixed(1)));
+
+/**
+ * Formats the solve rate of a tag for display. When the rate the tag is
+ * configured for is known, the measured rate is shown against it ("48/50 Hz")
+ * so a shortfall is visible without knowing the configuration by heart.
+ *
+ * @param rateHz  the measured solve rate
+ * @param targetHz  the configured solve rate; undefined when not known yet,
+ *        zero when the tag solves on every ranging epoch (no fixed target)
+ */
+export function formatSolveRate(
+  rateHz: number | undefined,
+  targetHz?: number
+): string {
+  if (rateHz === undefined) {
+    return '—';
+  }
+
+  return targetHz !== undefined && targetHz > 0
+    ? `${formatRate(rateHz)}/${formatRate(targetHz)} Hz`
+    : `${formatRate(rateHz)} Hz`;
+}
+
 /** Solve rates below this (Hz) are considered degraded. */
 const MIN_HEALTHY_SOLVE_RATE_HZ = 1;
 

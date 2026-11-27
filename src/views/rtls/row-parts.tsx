@@ -63,7 +63,7 @@ export const DetailLines = ({
     sx={{
       display: 'grid',
       // same gap as the header line's, so the values line up with its figures
-      gridTemplateColumns: `${leadWidth}px 1fr`,
+      gridTemplateColumns: `minmax(0, ${leadWidth}px) minmax(0, 1fr)`,
       columnGap: 1,
       '& > div': { py: 0.5 },
     }}

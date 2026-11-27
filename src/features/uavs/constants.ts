@@ -29,14 +29,3 @@ export const UAV_DETAILS_DIALOG_MIN_WIDTH =
  */
 export const UAV_DETAILS_DIALOG_HEIGHT =
   UAV_DETAILS_DIALOG_HEADER_HEIGHT + UAV_DETAILS_DIALOG_BODY_HEIGHT;
-
-/**
- * The maximum number of drones to allow for operations triggered from the UAV toolbar
- * that affects the entire selection.
- */
-export const UAV_TOOLBAR_MULTI_SELECTION_LIMIT = 100;
-
-/**
- * Timout for the async compass calibration operation.
- */
-export const COMPASS_CALIB_TIMEOUT = 90;

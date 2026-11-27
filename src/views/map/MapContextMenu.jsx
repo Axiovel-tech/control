@@ -28,7 +28,6 @@ import { openUAVDetailsDialog } from '~/features/uavs/details';
 import { getSelectedUAVIds } from '~/features/uavs/selectors';
 import { hasFeature } from '~/utils/configuration';
 
-const hasMapFeatures = hasFeature('mapFeatures');
 const hasGeofence = hasFeature('geofence');
 const hasShowControl = hasFeature('showControl');
 
@@ -52,10 +51,10 @@ const MapContextMenuContainer = connect(
   // mapDispatchToProps
   {
     clearGeofencePolygonId: hasGeofence ? clearGeofencePolygonId : null,
-    cutFeature: hasMapFeatures ? cutFeature : null,
-    editFeature: hasMapFeatures ? showFeatureEditorDialog : null,
+    cutFeature: cutFeature,
+    editFeature: showFeatureEditorDialog,
     openUAVDetailsDialog,
-    removeFeaturesByIds: hasMapFeatures ? removeFeaturesByIds : null,
+    removeFeaturesByIds: removeFeaturesByIds,
     setGeofencePolygonId: hasGeofence ? setGeofencePolygonId : null,
     setMapCoordinateSystemOrigin: setFlatEarthCoordinateSystemOrigin,
     setShowCoordinateSystemOrigin: hasShowControl

@@ -10,7 +10,6 @@ import {
 import type { RootState } from '~/store/reducers';
 
 export type MapControlDisplaySettings = {
-  showAttribution?: boolean;
   showMouseCoordinates?: boolean;
   showScaleLine?: boolean;
   showZoom?: boolean;
@@ -24,16 +23,12 @@ type MapControlsPresentationProps = Partial<MapControlDisplaySettings> & {
 const MapControlsPresentation = ({
   defaultDisplaySettings,
   formatCoordinate,
-  showAttribution,
   showMouseCoordinates,
   showScaleLine,
   showZoom,
 }: MapControlsPresentationProps): React.JSX.Element => (
   <>
     {(showZoom ?? true) && <control.Zoom />}
-    {(showAttribution ?? true) && (
-      <control.Attribution collapsed collapsible collapseLabel='&laquo;' />
-    )}
     {(showMouseCoordinates ?? defaultDisplaySettings.showMouseCoordinates) && (
       <control.MousePosition
         key='control.MousePosition'

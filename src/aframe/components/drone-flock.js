@@ -260,7 +260,7 @@ AFrame.registerComponent('drone-flock', {
           // contain the information about whether the Ctrl/Cmd key is pressed.
           // We need to subscribe to keydown/keyup events on our own to record
           // this information and use it.
-          store.dispatch(this.system._selectionThunk(event, id));
+          store.dispatch(this.system._selectionThunk(id, event));
         });
 
         this._uavIdToEntity[id] = entity;

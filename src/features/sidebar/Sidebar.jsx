@@ -1,9 +1,6 @@
 /* global VERSION */
 
 import Alarm from '@mui/icons-material/Alarm';
-import Box from '@mui/material/Box';
-import Typography from '@mui/material/Typography';
-// import Apps from '@mui/icons-material/Apps';
 import Assignment from '@mui/icons-material/Assignment';
 import Flight from '@mui/icons-material/Flight';
 import FormatListBulleted from '@mui/icons-material/FormatListBulleted';
@@ -13,205 +10,220 @@ import Map from '@mui/icons-material/Map';
 import Radar from '@mui/icons-material/Radar';
 import SettingsInputAntenna from '@mui/icons-material/SettingsInputAntenna';
 import Straighten from '@mui/icons-material/Straighten';
-import TrackChanges from '@mui/icons-material/TrackChanges';
-// import Storage from '@mui/icons-material/Storage';
 import ThreeDRotation from '@mui/icons-material/ThreeDRotation';
+import TrackChanges from '@mui/icons-material/TrackChanges';
 import WbSunny from '@mui/icons-material/WbSunny';
+import clsx from 'clsx';
 import PropTypes from 'prop-types';
 import { Module, ModuleTray, Workbench } from 'react-flexible-workbench';
 import { withTranslation } from 'react-i18next';
 import { connect } from 'react-redux';
 
 import LogStatusBadge from '~/components/badges/LogStatusBadge';
-import { getMissionType } from '~/features/mission/selectors';
 import ConnectingAirports from '~/icons/ConnectingAirports';
-import ShapeLine from '~/icons/ShapeLine';
-import { MissionType } from '~/model/missions';
 import { hasFeature } from '~/utils/configuration';
 
 import { isSidebarOpen } from './selectors';
 
-// NOTE: The scrollbar is not only OS dependent, but also browser dependent.
-const SIDEBAR_OPEN_WIDTH = 180; /* 160px is enough for most platforms, but apparently Windows needs 180px because of the scrollbar */
-
-const style = {
-  backgroundColor: '#333',
-  boxShadow: 'rgba(0, 0, 0, 0.3) -9px -3px 6px -6px inset',
-  display: 'flex',
-  flexFlow: 'column nowrap',
-  height: 'calc(100vh - 48px)',
-  overflow: 'hidden',
-};
-
-const innerStyle = {
-  display: 'flex',
-  flexFlow: 'column nowrap',
-  flexGrow: 1,
-  overflow: 'auto',
-  width: SIDEBAR_OPEN_WIDTH,
-};
-
+const hasRTLS = hasFeature('rtls');
 const hasShowControl = hasFeature('showControl');
 
 /**
- * Presentation component for the sidebar at the left edge of the main
- * window.
- *
- * @returns  {Object}  the rendered sidebar component
+ * The panels of the rail, grouped by what an operator is doing. The label of
+ * an entry is also the title of its panel.
  */
-const Sidebar = ({ isOpen, missionType, t, workbench }) => (
-  <div
-    id='sidebar'
-    style={{ ...style, width: isOpen ? SIDEBAR_OPEN_WIDTH : 48 }}
-  >
-    <div style={innerStyle}>
-      <ModuleTray allowMultipleSelection vertical workbench={workbench}>
-        <Module id='map' icon={<Map />} label={t('view.map')} component='map' />
-        <Module
-          id='threeDView'
-          icon={<ThreeDRotation />}
-          label={t('view.three-d-view')}
-          component='three-d-view'
-          reorderEnabled={false}
-        />
-        <Module
-          id='layers'
-          icon={<Layers />}
-          label={t('view.layer-list')}
-          component='layer-list'
-        />
-        {hasFeature('mapFeatures') && (
-          <Module
-            id='features'
-            icon={<ShapeLine />}
-            label={t('view.feature-list')}
-            component='feature-list'
-          />
-        )}
-        <hr />
-        <Module
-          id='uavDetails'
-          icon={<Flight />}
-          label={t('view.uav-details')}
-          component='uav-details'
-        />
-        <Module
-          id='uavList'
-          icon={<ConnectingAirports />}
-          label={t('view.uav-list')}
-          component='uav-list'
-        />
-        {/* The RTLS server extension is optional; `hasFeature('rtls')` mirrors
-            the gating of the other optional modules above. It defaults to true
-            when the key is absent, so RTLS stays visible unless a deployment
-            opts out via config. A runtime gate (hide until devices appear)
-            would be a larger change; tracked as follow-up. */}
-        {hasFeature('rtls') && (
-          <Module
-            id='rtls-tags'
-            icon={<Radar />}
-            label={t('view.rtls-tags')}
-            component='rtls-tags'
-          />
-        )}
-        {hasFeature('rtls') && (
-          <Module
-            id='rtls-anchors'
-            icon={<SettingsInputAntenna />}
-            label={t('view.rtls-anchors')}
-            component='rtls-anchors'
-          />
-        )}
-        {hasFeature('rtls') && (
-          <Module
-            id='rtls-survey'
-            icon={<Straighten />}
-            label={t('view.rtls-survey')}
-            component='rtls-survey'
-          />
-        )}
-        {hasFeature('rtls') && (
-          <Module
-            id='rtls-positions'
-            icon={<TrackChanges />}
-            label={t('view.rtls-positions')}
-            component='rtls-positions'
-          />
-        )}
-        <hr />
-        {/* Do not use a single React fragment here for the next section; it would confuse `react-flexible-workbench` */}
-        {hasShowControl && (
-          <Module
-            id='show'
-            icon={<Grain />}
-            label={t('view.show-control')}
-            component='show-control'
-          />
-        )}
-        {hasShowControl && (
-          <Module
-            id='lights'
-            icon={<WbSunny />}
-            label={t('view.light-control')}
-            component='light-control'
-          />
-        )}
-        {hasShowControl && <hr />}
-        <Module
-          id='clocks'
-          icon={<Alarm />}
-          label={t('view.lcd-clock-panel')}
-          component='lcd-clock-panel'
-        />
-        <hr />
-        <Module
-          id='notes'
-          icon={<Assignment />}
-          label={t('view.field-notes')}
-          component='field-notes'
-        />
-        <Module
-          id='log'
-          badge={<LogStatusBadge />}
-          icon={<FormatListBulleted />}
-          label={t('view.log-panel')}
-          component='log-panel'
-        />
-      </ModuleTray>
-    </div>
-    {isOpen && (
-      <Box
-        style={{ color: '#fff', opacity: 0.3, width: SIDEBAR_OPEN_WIDTH }}
-        sx={{ py: 0.5, px: 1 }}
-      >
-        {missionType && (
-          <Typography align='center' variant='caption' component='footer'>
-            {t('sidebar.missionType', { missionType })}
-          </Typography>
-        )}
-        <Typography align='center' variant='caption' component='footer'>
-          {VERSION}
-        </Typography>
-      </Box>
-    )}
-  </div>
+const createGroups = (t) =>
+  [
+    {
+      key: 'venue',
+      title: t('sidebar.groups.venue'),
+      modules: [
+        { id: 'map', icon: <Map />, label: t('view.map'), component: 'map' },
+        {
+          id: 'threeDView',
+          icon: <ThreeDRotation />,
+          label: t('view.three-d-view'),
+          component: 'three-d-view',
+        },
+        {
+          id: 'layers',
+          icon: <Layers />,
+          label: t('view.layer-list'),
+          component: 'layer-list',
+        },
+      ],
+    },
+    {
+      key: 'fleet',
+      title: t('sidebar.groups.fleet'),
+      modules: [
+        {
+          id: 'uavList',
+          icon: <ConnectingAirports />,
+          label: t('view.uav-list'),
+          component: 'uav-list',
+        },
+        {
+          id: 'uavDetails',
+          icon: <Flight />,
+          label: t('view.uav-details'),
+          component: 'uav-details',
+        },
+      ],
+    },
+    {
+      key: 'positioning',
+      title: t('sidebar.groups.positioning'),
+      modules: hasRTLS
+        ? [
+            {
+              id: 'rtlsTags',
+              icon: <Radar />,
+              label: t('view.rtls-tags'),
+              component: 'rtls-tags',
+            },
+            {
+              id: 'rtlsAnchors',
+              icon: <SettingsInputAntenna />,
+              label: t('view.rtls-anchors'),
+              component: 'rtls-anchors',
+            },
+            {
+              id: 'rtlsSurvey',
+              icon: <Straighten />,
+              label: t('view.rtls-survey'),
+              component: 'rtls-survey',
+            },
+            {
+              id: 'rtlsPositions',
+              icon: <TrackChanges />,
+              label: t('view.rtls-positions'),
+              component: 'rtls-positions',
+            },
+          ]
+        : [],
+    },
+    {
+      key: 'show',
+      title: t('sidebar.groups.show'),
+      modules: [
+        ...(hasShowControl
+          ? [
+              {
+                id: 'show',
+                icon: <Grain />,
+                label: t('view.show-control'),
+                component: 'show-control',
+              },
+              {
+                id: 'lights',
+                icon: <WbSunny />,
+                label: t('view.light-control'),
+                component: 'light-control',
+              },
+            ]
+          : []),
+        {
+          id: 'clocks',
+          icon: <Alarm />,
+          label: t('view.lcd-clock-panel'),
+          component: 'lcd-clock-panel',
+        },
+      ],
+    },
+    {
+      key: 'records',
+      title: t('sidebar.groups.records'),
+      modules: [
+        {
+          id: 'notes',
+          icon: <Assignment />,
+          label: t('view.field-notes'),
+          component: 'field-notes',
+        },
+        {
+          id: 'log',
+          badge: <LogStatusBadge />,
+          icon: <FormatListBulleted />,
+          label: t('view.log-panel'),
+          component: 'log-panel',
+        },
+      ],
+    },
+  ].filter((group) => group.modules.length > 0);
+
+/**
+ * Heading of a group of modules. The module tray passes anything that is not
+ * a module through untouched, so these can sit between the modules.
+ */
+const Heading = ({ children }) => (
+  <div className='ax-rail-heading'>{children}</div>
 );
+
+Heading.propTypes = {
+  children: PropTypes.node,
+};
+
+/**
+ * Presentation component for the navigation rail at the left edge of the
+ * main window: one entry per panel. An entry is lit while its panel is on
+ * the workbench; clicking it closes the panel, and clicking or dragging an
+ * unlit one brings its panel in.
+ */
+const Sidebar = ({ isOpen, t, workbench }) => {
+  const groups = createGroups(t);
+
+  // The tray only handles clicks on unlit entries, and its entries carry no
+  // id in the DOM: a lit one is told apart by its place in the rail. In the
+  // capture phase, so the entry is still as it was when it was clicked.
+  const closePanelOfLitEntry = (event) => {
+    const entry = event.target.closest('.wb-module-disabled');
+    if (!entry) {
+      return;
+    }
+
+    const entries = [...event.currentTarget.querySelectorAll('.wb-module')];
+    const ids = groups.flatMap((group) => group.modules.map(({ id }) => id));
+    const id = ids[entries.indexOf(entry)];
+    if (id !== undefined) {
+      // not while React is dispatching the click: closing a panel unmounts
+      // its component
+      setTimeout(() => workbench.findPanelById(id)?.remove(), 0);
+    }
+  };
+
+  return (
+    <div id='sidebar' className={clsx(isOpen && 'ax-rail-open')}>
+      <div className='ax-rail-scroll' onClickCapture={closePanelOfLitEntry}>
+        {/* Modules must be direct children of the tray (arrays are fine,
+         * fragments are not): it does not recognize them otherwise */}
+        <ModuleTray allowMultipleSelection vertical workbench={workbench}>
+          {groups.map(({ key, modules, title }) => [
+            <Heading key={`group-${key}`}>{title}</Heading>,
+            ...modules.map(({ id, ...rest }) => (
+              <Module key={id} id={id} {...rest} />
+            )),
+          ])}
+        </ModuleTray>
+      </div>
+      {isOpen && <footer className='ax-rail-footer'>{VERSION}</footer>}
+    </div>
+  );
+};
 
 Sidebar.propTypes = {
   isOpen: PropTypes.bool,
-  missionType: PropTypes.oneOf(Object.values(MissionType)),
   t: PropTypes.func,
   workbench: PropTypes.instanceOf(Workbench).isRequired,
 };
 
 /**
- * Sidebar at the left edge of the main window.
+ * Navigation rail at the left edge of the main window.
  */
 export default connect(
   // mapStateToProps
   (state, { workbench }) => ({
     isOpen: isSidebarOpen(state),
-    missionType: getMissionType(state),
     workbench,
   })
 )(withTranslation()(Sidebar));

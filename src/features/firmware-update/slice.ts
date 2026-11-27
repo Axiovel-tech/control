@@ -81,8 +81,22 @@ const slice = createSlice({
       state.dialogOpen = false;
     },
 
-    openFirmwareUpdateDialog(state) {
+    /**
+     * Opens the dialog. The optional payload is the UAVs to tick as targets
+     * (the selection of the UAVs panel); it is ignored while a sequence runs
+     * or its results are still shown. The target list that loads next drops
+     * the ones the server does not offer as compatible.
+     */
+    openFirmwareUpdateDialog(
+      state,
+      { payload }: PayloadAction<string[] | undefined>
+    ) {
       state.dialogOpen = true;
+      if (payload?.length && !state.running && state.order.length === 0) {
+        state.selectedIds = Array.from(new Set(payload));
+        state.confirmed = false;
+        state.lowBatteryAccepted = false;
+      }
     },
 
     firmwareTargetsLoading(state, { payload }: PayloadAction<number>) {

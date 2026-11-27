@@ -24,6 +24,7 @@ import {
   clearManualPreflightChecks,
   closeManualPreflightChecksDialog,
 } from '~/features/show/slice';
+import { closeDialogWhenDone } from '~/utils/redux';
 
 /**
  * Presentation component that shows a list of manual preflight checks and
@@ -160,6 +161,9 @@ export default connect(
   {
     onClear: clearManualPreflightChecks,
     onClose: closeManualPreflightChecksDialog,
-    onSignOff: signOffOnManualPreflightChecks,
+    onSignOff: () => (dispatch) => {
+      dispatch(signOffOnManualPreflightChecks());
+      dispatch(closeDialogWhenDone(closeManualPreflightChecksDialog));
+    },
   }
 )(ManualPreflightChecksDialog);

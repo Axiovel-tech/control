@@ -33,6 +33,7 @@ import {
   formatMissionId,
   formatIdsAndTruncateTrailingItems as formatUAVIds,
 } from '~/utils/formatting';
+import { closeDialogWhenDone } from '~/utils/redux';
 import MappingToggleButton from '~/views/uavs/MappingToggleButton';
 
 const severityToStatus = [
@@ -187,6 +188,9 @@ export default connect(
   {
     onClear: clearOnboardPreflightChecks,
     onClose: closeOnboardPreflightChecksDialog,
-    onSignOff: signOffOnOnboardPreflightChecks,
+    onSignOff: () => (dispatch) => {
+      dispatch(signOffOnOnboardPreflightChecks());
+      dispatch(closeDialogWhenDone(closeOnboardPreflightChecksDialog));
+    },
   }
 )(withTranslation()(OnboardPreflightChecksDialog));

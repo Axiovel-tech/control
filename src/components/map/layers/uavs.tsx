@@ -8,6 +8,7 @@ import { FormHeader as Header } from '@skybrush/mui-components';
 import SwatchesColorPicker, {
   type ColorResult,
 } from '~/components/SwatchesColorPicker';
+import { schemes } from '~/design/tokens';
 import flock from '~/flock';
 import type FlockModel from '~/model/flock';
 import type { Layer } from '~/model/layers';
@@ -36,7 +37,7 @@ export const UAVsLayerSettings = ({
   const { parameters } = layer;
   const { labelColor: labelColorParam, scale: scaleParam } = parameters || {};
   const labelColor =
-    typeof labelColorParam === 'string' ? labelColorParam : '#000000';
+    typeof labelColorParam === 'string' ? labelColorParam : schemes.dark.ink;
   const scale = typeof scaleParam === 'number' ? scaleParam : 1;
 
   const onColorChanged = useCallback(

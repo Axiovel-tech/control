@@ -1,25 +1,19 @@
 import { createSelector } from '@reduxjs/toolkit';
 import * as TurfHelpers from '@turf/helpers';
-import { produce } from 'immer';
 import isNil from 'lodash-es/isNil';
 import max from 'lodash-es/max';
 import range from 'lodash-es/range';
 import unary from 'lodash-es/unary';
 
 import { GeofenceAction, isValidGeofenceAction } from '~/features/safety/model';
-import {
-  type Altitude,
-  AltitudeReference,
-  type GPSPosition,
-} from '~/model/geography';
+import { type Altitude, type GPSPosition } from '~/model/geography';
 import {
   getAltitudeFromMissionItem,
   getAreaFromMissionItem,
   getCoordinateFromMissionItem,
-  MarkerType,
   type MissionIndex,
   type MissionItem,
-  MissionItemType,
+  type MissionItemType,
   MissionType,
 } from '~/model/missions';
 import type UAV from '~/model/uav';
@@ -37,7 +31,7 @@ import {
   mapViewCoordinateFromLonLat,
   turfDistanceInMeters,
 } from '~/utils/geography';
-import { convexHull2D, estimatePathDuration } from '~/utils/math';
+import { convexHull2D } from '~/utils/math';
 import { findNearestNeighborsDistance } from '~/utils/nearestNeighbors';
 import { type Nullable } from '~/utils/types';
 
@@ -57,12 +51,6 @@ export const selectMissionIndex: AppSelector<number, [number]> = (
  */
 export const getMissionType: AppSelector<MissionType> = (state) =>
   state.mission.type ?? MissionType.UNKNOWN;
-
-/**
- * Returns the name of the current mission, if given.
- */
-export const getMissionName: AppSelector<string | undefined> = (state) =>
-  state.mission.name;
 
 /**
  * Selector that returns a list of mission item IDs with a mapping from these
@@ -333,13 +321,6 @@ export const getGeofencePolygonId: AppSelector<
   MissionSliceState['geofencePolygonId']
 > = (state) => state.mission.geofencePolygonId;
 
-/**
- * Returns whether the mission editor panel should follow the active item.
- */
-export const shouldMissionEditorPanelFollowScroll: AppSelector<boolean> = (
-  state
-) => state.mission.editorPanel.followScroll;
-
 // prettier-ignore
 type StringLiteral<T> = T extends string ? string extends T ? never : T : never;
 
@@ -607,245 +588,6 @@ export const getMinimumDistanceBetweenLandingPositions = createSelector(
 );
 
 /**
- * Selector that returns whether the mission planner dialog is open.
- */
-export const isMissionPlannerDialogOpen: AppSelector<boolean> = (state) =>
-  state.mission.plannerDialog.open;
-
-/**
- * Selector that returns the mapping to be used when setting parameters for the
- * mission planner from the context.
- */
-export const getMissionPlannerDialogContextParameters: AppSelector<
-  MissionSliceState['plannerDialog']['parameters']['fromContext']
-> = (state) => state.mission.plannerDialog.parameters.fromContext;
-
-/**
- * Selector that returns the parameters for the mission planner set by the user.
- */
-export const getMissionPlannerDialogUserParameters: AppSelector<
-  MissionSliceState['plannerDialog']['parameters']['fromUser']
-> = (state) => state.mission.plannerDialog.parameters.fromUser;
-
-/**
- * Selector that returns the parameters used in the last successful invocation
- * of the mission planner.
- */
-export const getLastSuccessfulPlannerInvocationParameters: AppSelector<
-  MissionSliceState['lastSuccessfulPlannerInvocationParameters']
-> = (state) => state.mission.lastSuccessfulPlannerInvocationParameters;
-
-/**
- * Selector that returns the mission type currently selected for planning.
- */
-export const getMissionPlannerDialogSelectedType: AppSelector<
-  string | undefined
-> = (state) => state.mission.plannerDialog.selectedType;
-
-/**
- * Selector that returns whether the mission planner dialog should apply an
- * automatically generated geofence.
- */
-export const shouldMissionPlannerDialogApplyGeofence: AppSelector<boolean> = (
-  state
-) => state.mission.plannerDialog.applyGeofence;
-
-/**
- * Selector that returns the backup of the last cleared mission data.
- */
-export const getLastClearedMissionData: AppSelector<
-  MissionSliceState['lastClearedMissionData']
-> = (state) => state.mission.lastClearedMissionData;
-
-type Segment = {
-  item: MissionItem;
-  distance?: number;
-  velocity?: number;
-};
-
-type Accumulator = {
-  _altitudeReference?: AltitudeReference;
-  _position: {
-    xy?: TurfHelpers.Coord;
-    z: Record<AltitudeReference, number | undefined>;
-  };
-  _velocity: { xy?: number; z?: number };
-  segments: Segment[];
-};
-
-/**
- * Selector that returns the items of the mission wrapped together with distance
- * and velocity information where movement is involved.
- */
-export const getMissionItemsInOrderAsSegments: AppSelector<Segment[]> =
-  createSelector(
-    getGPSBasedHomePositionsInMission,
-    getMissionItemsInOrder,
-    ([homePosition], items) => {
-      const home = homePosition && {
-        xy: TurfHelpers.point([homePosition.lon, homePosition.lat]),
-        z: {
-          [AltitudeReference.GROUND]: homePosition.agl,
-          [AltitudeReference.HOME]: homePosition.ahl,
-          [AltitudeReference.MSL]: homePosition.amsl,
-        },
-      };
-      try {
-        return items.reduce<Accumulator>(
-          (state, item) =>
-            produce(state, (draft) => {
-              const next: Segment = { item };
-
-              const moveToXY = (target: TurfHelpers.Coord): void => {
-                draft._position.xy = target;
-
-                if (state._position.xy) {
-                  next.distance = turfDistanceInMeters(
-                    state._position.xy,
-                    target
-                  );
-                  next.velocity = state._velocity.xy;
-                }
-              };
-
-              const moveToZ = ({
-                value: target,
-                reference,
-              }: Altitude): void => {
-                draft._altitudeReference = reference;
-                draft._position.z[reference] = target;
-
-                const prevZ = state._position.z[reference];
-                if (
-                  prevZ !== undefined &&
-                  (!state._altitudeReference ||
-                    // TODO: Mixed references should probably raise a warning.
-                    state._altitudeReference === reference)
-                ) {
-                  next.distance = Math.abs(prevZ - target);
-                  next.velocity = state._velocity.z;
-                }
-              };
-
-              // TODO: According to the server code some mission item types
-              // can have optional parameters for altitude and velocities.
-              // We should include that information when it is available.
-              switch (item.type) {
-                /* =================== Changing velocity =================== */
-
-                case MissionItemType.CHANGE_SPEED: {
-                  draft._velocity.xy =
-                    item.parameters.velocityXY ?? state._velocity.xy;
-                  draft._velocity.z =
-                    item.parameters.velocityZ ?? state._velocity.z;
-                  break;
-                }
-
-                /* =================== Changing altitude =================== */
-
-                case MissionItemType.TAKEOFF: {
-                  moveToZ(item.parameters.alt);
-                  break;
-                }
-
-                case MissionItemType.CHANGE_ALTITUDE: {
-                  moveToZ(item.parameters.alt);
-                  break;
-                }
-
-                case MissionItemType.LAND: {
-                  if (home && state._altitudeReference !== undefined) {
-                    // NOTE: This can be simplified after TypeScript 5.5:
-                    //       https://devblogs.microsoft.com/typescript/announcing-typescript-5-5/#control-flow-narrowing-for-constant-indexed-accesses
-                    const homeZ = home.z[state._altitudeReference];
-                    if (homeZ !== undefined) {
-                      moveToZ({
-                        value: homeZ,
-                        reference: state._altitudeReference,
-                      });
-                    }
-                  }
-
-                  break;
-                }
-
-                /* =================== Changing position =================== */
-
-                case MissionItemType.GO_TO: {
-                  moveToXY(
-                    TurfHelpers.point([
-                      item.parameters.lon,
-                      item.parameters.lat,
-                    ])
-                  );
-
-                  break;
-                }
-
-                case MissionItemType.RETURN_TO_HOME: {
-                  if (home) {
-                    moveToXY(home.xy);
-                  }
-
-                  break;
-                }
-
-                default:
-                // The remaining mission item types do not contain movement
-              }
-
-              draft.segments.push(next);
-            }),
-          {
-            // The first item to have altitude information can choose which
-            // reference type to use
-            _altitudeReference: undefined,
-            _position: {
-              xy: home?.xy,
-              z: home?.z ?? {
-                [AltitudeReference.GROUND]: undefined,
-                [AltitudeReference.HOME]: undefined,
-                [AltitudeReference.MSL]: undefined,
-              },
-            },
-            _velocity: { xy: undefined, z: undefined },
-            segments: [],
-          }
-        ).segments;
-      } catch (error) {
-        console.error(`Route segment calculation error:`, error);
-        return [];
-      }
-    }
-  );
-
-/**
- * Selector that returns estimates about the mission.
- *
- * TODO: Calculate distances and durations separately and sum the afterwards?
- *
- * @returns {Object} estimates
- * @property {number} distance - the length of the planned trajectory in meters
- * @property {number} duration - the expected duration of the mission in seconds
- */
-export const getMissionEstimates: AppSelector<{
-  distance: number;
-  duration: number;
-}> = createSelector(getMissionItemsInOrderAsSegments, (segments) =>
-  segments.reduce(
-    ({ distance, duration }, s) => ({
-      distance: distance + (s.distance ?? 0),
-      duration:
-        duration +
-        (s.distance !== undefined && s.velocity !== undefined
-          ? estimatePathDuration(s.distance, s.velocity)
-          : 0),
-    }),
-    { distance: 0, duration: 0 }
-  )
-);
-
-/**
  * Selector that returns the id of the mission item that's currently being
  * executed.
  */
@@ -878,153 +620,3 @@ export const getCurrentMissionItemRatio: AppSelector<number | undefined> = (
  */
 export const isProgressInformationAvailable: AppSelector<boolean> = (state) =>
   state.mission.progress.currentItemId !== undefined;
-
-/**
- * Selector that returns the starting ratio of a partial mission.
- */
-export const getStartRatioOfPartialMission: AppSelector<number> =
-  createSelector(getMissionItemsInOrder, (items) =>
-    Number(
-      items.find(
-        (mi): mi is MissionItem & { type: MissionItemType.MARKER } =>
-          mi.type === MissionItemType.MARKER &&
-          mi.parameters.marker === MarkerType.START
-      )?.parameters?.ratio ?? 0
-    )
-  );
-
-/**
- * Selector that returns the ending ratio of a partial mission.
- */
-export const getEndRatioOfPartialMission: AppSelector<number> = createSelector(
-  getMissionItemsInOrder,
-  (items) =>
-    Number(
-      items.find(
-        (mi): mi is MissionItem & { type: MissionItemType.MARKER } =>
-          mi.type === MissionItemType.MARKER &&
-          mi.parameters.marker === MarkerType.END
-      )?.parameters?.ratio ?? 1
-    )
-);
-
-/**
- * Selector that returns the completion ratio of the net mission.
- *
- * @returns {number} the ratio of the done and total lengths of the net mission
- */
-export const getNetMissionCompletionRatio: AppSelector<number> = createSelector(
-  getMissionItemsInOrderAsSegments,
-  getCurrentMissionItemId,
-  getCurrentMissionItemRatio,
-  (segments, currentId, currentRatio) => {
-    const { doneDistance, totalDistance } = segments.reduce(
-      (state, { item: { id, type, parameters }, distance = 0 }) => {
-        const { _isDone, _isNet, doneDistance, totalDistance } = state;
-        const isCurrent = id === currentId;
-
-        // prettier-ignore
-        return {
-          // Take the previous state and update it based on the following
-          ...state,
-          // Segments are only considered done before the currently active item
-          _isDone: _isDone && !isCurrent,
-          // If the current item is a marker check whether it marks the start
-          // or the end of the useful (net) part of the mission
-          ...(
-            type === MissionItemType.MARKER && (
-              parameters.marker === MarkerType.START ? { _isNet: true  } :
-              parameters.marker === MarkerType.END   ? { _isNet: false } :
-              {}
-            )
-          ),
-          // If we are currently in the useful (net) part of the mission,
-          // accumulate the done and total distance appropriately
-          ...(
-            _isNet && {
-              doneDistance: doneDistance + (
-                // The item is currently active, apply the ratio to its distance
-                isCurrent ? distance * (currentRatio ?? 0) :
-                // The item is done, count the entire distance
-                _isDone ? distance :
-                // The item is not even started
-                0
-              ),
-              totalDistance: totalDistance + distance,
-            }
-          ),
-        };
-      },
-      {
-        // If there is an active item, we start the reduction by considering the
-        // items done until we encounter the one that's currently in progress
-        _isDone: Boolean(currentId),
-        _isNet: false,
-        doneDistance: 0,
-        totalDistance: 0,
-      }
-    );
-
-    return totalDistance > 0 ? doneDistance / totalDistance : 0;
-  }
-);
-
-/**
- * Selector that returns the global completion ratio of a mission calculated
- * from the local bounds and the local ratio.
- */
-export const getGlobalMissionCompletionRatio: AppSelector<number> =
-  createSelector(
-    getStartRatioOfPartialMission,
-    getEndRatioOfPartialMission,
-    getNetMissionCompletionRatio,
-    (start, end, localRatio) => start + (end - start) * localRatio
-  );
-
-/**
- * Selector that returns whether there is a partially completed mission that can
- * be resumed from an interruption point.
- */
-export const isMissionPartiallyCompleted: AppSelector<boolean> = createSelector(
-  getGlobalMissionCompletionRatio,
-  (ratio) => ratio > 0 && ratio < 1
-);
-
-/**
- * Selector that collects data about the current mission that can be used for
- * recalling it later.
- */
-export const getMissionDataForStorage: AppSelector<{
-  lastSuccessfulPlannerInvocationParameters: MissionSliceState['lastSuccessfulPlannerInvocationParameters'];
-  name?: string;
-  items: MissionItem[];
-  homePositions: Array<Nullable<GPSPosition>>;
-  progress: {
-    id?: string;
-    ratio?: number;
-  };
-}> = createSelector(
-  getLastSuccessfulPlannerInvocationParameters,
-  getMissionName,
-  getMissionItemsInOrder,
-  getGPSBasedHomePositionsInMission,
-  getCurrentMissionItemId,
-  getCurrentMissionItemRatio,
-  (
-    lastSuccessfulPlannerInvocationParameters,
-    name,
-    items,
-    homePositions,
-    currentMissionItemId,
-    currentMissionItemRatio
-  ) => ({
-    lastSuccessfulPlannerInvocationParameters,
-    name,
-    items,
-    homePositions,
-    progress: {
-      id: currentMissionItemId,
-      ratio: currentMissionItemRatio,
-    },
-  })
-);

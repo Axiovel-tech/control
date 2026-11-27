@@ -1,11 +1,9 @@
 import { createSelector } from '@reduxjs/toolkit';
 
-import DefaultAPIKeys, { type APIKeysRecord } from '~/APIKeys';
 import { BatteryFormatter } from '~/components/battery';
 import { BatterySettings } from '~/model/battery';
 import type { UAVFilter } from '~/model/filtering';
 import {
-  AltitudeSummaryType,
   BatteryDisplayStyle,
   UAVOperationConfirmationStyle,
 } from '~/model/settings';
@@ -24,9 +22,6 @@ type UAVAgingThresholds = {
 };
 
 type UAVSettings = RootState['settings']['uavs'];
-
-export const getAltitudeSummaryType = (state: RootState): AltitudeSummaryType =>
-  state.settings.display?.altitudeSummaryType || AltitudeSummaryType.AMSL;
 
 export const getBatterySettings = createSelector(
   (state: RootState) => state.settings.uavs,
@@ -261,13 +256,6 @@ export const isShowingMissionIds = (state: RootState): boolean =>
   state.settings.display?.showMissionIds ?? false;
 
 /**
- * Returns whether the user is allowed to see experimental features that are
- * not ready for production use yet.
- */
-export const areExperimentalFeaturesEnabled = (state: RootState): boolean =>
-  state.settings.display?.experimentalFeaturesEnabled ?? false;
-
-/**
  * Returns whether the app should ask for a confirmation when performing a
  * UAV operation affecting the given UAVs.
  */
@@ -309,26 +297,3 @@ export const shouldOptimizeForSingleUAV = (state: RootState): boolean =>
  */
 export const shouldOptimizeUIForTouch = (state: RootState): boolean =>
   state.settings.display?.optimizeUIForTouch ?? false;
-
-/**
- * Returns an object mapping service identifiers to their API keys.
- */
-export const getAPIKeys = createSelector(
-  (state: RootState) => state.settings.apiKeys,
-  (apiKeys): APIKeysRecord => {
-    const result: APIKeysRecord = {
-      BING: '',
-      GOOGLE: '',
-      MAPBOX: '',
-      MAPTILER: '',
-      NEXTZEN: '',
-    };
-
-    for (const key of Object.keys(result) as Array<keyof APIKeysRecord>) {
-      const value = apiKeys[key] ?? DefaultAPIKeys[key];
-      result[key] = value ? String(value) : '';
-    }
-
-    return result;
-  }
-);

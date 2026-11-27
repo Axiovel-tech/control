@@ -25,25 +25,14 @@ const baseline: Config = {
 
   ephemeral: false,
 
-  examples: {
-    shows: [],
-  },
-
   features: {
-    loadShowFromCloud: false,
-    missionEditor: false,
     safetySettings: false,
   },
 
   headerComponents: [
     ['uav-status-summary'],
     ['groups-button'],
-    [
-      'battery-status-header-button',
-      'distance-summary-header-button',
-      'altitude-summary-header-button',
-      'velocity-summary-header-button',
-    ],
+    ['battery-status-header-button', 'velocity-summary-header-button'],
     ['rtls-status-header-button'],
     ['connection-status-button'],
     ['server-connection-settings-button', 'safety-button'],
@@ -62,18 +51,8 @@ const baseline: Config = {
   },
 
   map: {
-    drawingTools: [
-      ['select', 'zoom'],
-      [
-        'add-marker',
-        'draw-path',
-        'draw-circle',
-        'draw-rectangle',
-        'draw-polygon',
-        'cut-hole',
-        'edit-feature',
-      ],
-    ],
+    // The geofence is generated from the show; nothing else is drawn by hand
+    drawingTools: [['select', 'zoom'], ['edit-feature']],
 
     features: {
       onCreate() {
@@ -82,47 +61,24 @@ const baseline: Config = {
     },
 
     layers: [
-      { id: 'base', type: LayerType.BASE, label: 'Base map' },
-      { id: 'graticule', type: LayerType.GRATICULE, label: 'Graticule' },
-      { id: 'beacons', type: LayerType.BEACONS, label: 'Beacons' },
+      { id: 'venueGrid', type: LayerType.VENUE_GRID, label: 'Venue grid' },
       { id: 'features', type: LayerType.FEATURES, label: 'Features' },
-      { id: 'home', type: LayerType.MISSION_INFO, label: 'Mission info' },
+      { id: 'beacons', type: LayerType.BEACONS, label: 'Anchors' },
+      { id: 'home', type: LayerType.MISSION_INFO, label: 'Show info' },
       { id: 'uavs', type: LayerType.UAVS, label: 'UAVs' },
     ],
 
-    locations: [
-      {
-        id: 'budapest',
-        name: 'Budapest',
-        center: { lon: 19, lat: 47.5 },
-        rotation: 0,
-        zoom: 11,
-        notes: 'The capital of Hungary',
-      },
-      {
-        id: 'elte',
-        name: 'ELTE Garden',
-        center: { lon: 19.0622 as Longitude, lat: 47.4733 as Latitude },
-        rotation: 348,
-        zoom: 17,
-        notes: '',
-      },
-    ],
-
+    // Until "Adapt to venue" places the show, the map opens on the Axiovel
+    // workshop: the venue grid needs an origin to be drawn around.
     origin: {
-      position: [19.0622 as Longitude, 47.4733 as Latitude],
+      position: [2.166849 as Longitude, 41.5033026 as Latitude],
       angle: '0',
-    },
-
-    tileProviders: {
-      bingMaps: false,
-      googleMaps: false,
     },
 
     view: {
-      position: [19 as Longitude, 47.5 as Latitude],
+      position: [2.166849 as Longitude, 41.5033026 as Latitude],
       angle: '0',
-      zoom: 11,
+      zoom: 21,
     },
   },
 
@@ -153,15 +109,10 @@ const baseline: Config = {
     warnClockSkew: true,
   },
 
-  session: {
-    maxLengthInSeconds: null,
-  },
-
   toastPlacement: 'top-center',
 
   urls: {
     help: 'https://github.com/Axiovel-tech/control',
-    exit: null,
   },
 };
 

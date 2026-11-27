@@ -217,11 +217,6 @@ export const supportsVirtualDrones =
 /**
  * Returns whether the server we are connected to supports offline map caching.
  */
-export const supportsMapCaching = makeSupportsFeatureSelector('map_cache');
-
-/**
- * Returns whether the server we are connected to supports offline map caching.
- */
 
 /**
  * Returns whether the server we are connected to supports studio operations.

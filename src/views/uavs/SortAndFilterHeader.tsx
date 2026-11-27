@@ -220,14 +220,6 @@ const COMMON_HEADER_TEXT_PARTS: readonly HeaderPart[] = Object.freeze([
     },
   },
   {
-    label: 'GPS',
-    sortKey: UAVSortKey.GPS_FIX,
-    style: {
-      textAlign: 'center',
-      width: 44,
-    },
-  },
-  {
     label: 'Position',
     style: {
       textAlign: 'left',
@@ -235,27 +227,11 @@ const COMMON_HEADER_TEXT_PARTS: readonly HeaderPart[] = Object.freeze([
     },
   },
   {
-    label: 'AMSL',
-    sortKey: UAVSortKey.ALTITUDE_MSL,
-    style: {
-      textAlign: 'right',
-      width: 58,
-    },
-  },
-  {
-    label: 'AHL',
+    label: 'Height',
     sortKey: UAVSortKey.ALTITUDE_HOME,
     style: {
       textAlign: 'right',
       width: 56,
-    },
-  },
-  {
-    label: 'AGL',
-    sortKey: UAVSortKey.ALTITUDE_GROUND,
-    style: {
-      textAlign: 'right',
-      width: 48,
     },
   },
   {

@@ -1,18 +1,4 @@
-import SetPayloadIcon from '@mui/icons-material/Camera';
-import MarkerIcon from '@mui/icons-material/Flag';
-import ChangeFlightModeIcon from '@mui/icons-material/Flight';
-import LandIcon from '@mui/icons-material/FlightLand';
-import TakeoffIcon from '@mui/icons-material/FlightTakeoff';
-import UpdateFlightAreaIcon from '@mui/icons-material/FormatShapes';
-import ChangeAltitudeIcon from '@mui/icons-material/Height';
-import HomeIcon from '@mui/icons-material/Home';
-import HoverIcon from '@mui/icons-material/HourglassEmpty';
-import ChangeHeadingIcon from '@mui/icons-material/RotateLeft';
-import UpdateSafetyIcon from '@mui/icons-material/Security';
-import SetParameterIcon from '@mui/icons-material/Settings';
-import ChangeSpeedIcon from '@mui/icons-material/Speed';
 import isObject from 'lodash-es/isObject';
-import UpdateGeofenceIcon from '~/icons/PlacesFence';
 
 import {
   type GeofenceConfiguration,
@@ -22,10 +8,8 @@ import { type Latitude, type Longitude, type LonLat } from '~/utils/geography';
 
 import {
   type Altitude,
-  AltitudeReference,
   type GPSPosition,
   type Heading,
-  HeadingMode,
   isAltitude,
   isHeading,
 } from './geography';
@@ -204,166 +188,6 @@ export type MissionItem = MissionItemLike &
         parameters: { safety: SafetyConfiguration };
       }
   );
-
-export const iconForMissionItemType: Record<MissionItemType, React.ReactNode> =
-  {
-    [MissionItemType.CHANGE_ALTITUDE]: <ChangeAltitudeIcon />,
-    [MissionItemType.CHANGE_FLIGHT_MODE]: <ChangeFlightModeIcon />,
-    [MissionItemType.CHANGE_HEADING]: <ChangeHeadingIcon />,
-    [MissionItemType.CHANGE_SPEED]: <ChangeSpeedIcon />,
-    [MissionItemType.GO_TO]: '#',
-    [MissionItemType.HOVER]: <HoverIcon />,
-    [MissionItemType.LAND]: <LandIcon />,
-    [MissionItemType.MARKER]: <MarkerIcon />,
-    [MissionItemType.RETURN_TO_HOME]: <HomeIcon />,
-    [MissionItemType.SET_PARAMETER]: <SetParameterIcon />,
-    [MissionItemType.SET_PAYLOAD]: <SetPayloadIcon />,
-    [MissionItemType.TAKEOFF]: <TakeoffIcon />,
-    [MissionItemType.UNKNOWN]: '?',
-    [MissionItemType.UPDATE_FLIGHT_AREA]: <UpdateFlightAreaIcon />,
-    [MissionItemType.UPDATE_GEOFENCE]: <UpdateGeofenceIcon />,
-    [MissionItemType.UPDATE_SAFETY]: <UpdateSafetyIcon />,
-  };
-
-export const titleForMissionItemType: Record<MissionItemType, string> = {
-  [MissionItemType.CHANGE_ALTITUDE]: 'Change altitude',
-  [MissionItemType.CHANGE_FLIGHT_MODE]: 'Change flight mode',
-  [MissionItemType.CHANGE_HEADING]: 'Change heading',
-  [MissionItemType.CHANGE_SPEED]: 'Change speed',
-  [MissionItemType.GO_TO]: 'Go to waypoint',
-  [MissionItemType.HOVER]: 'Hover at position',
-  [MissionItemType.LAND]: 'Land',
-  [MissionItemType.MARKER]: 'Marker',
-  [MissionItemType.RETURN_TO_HOME]: 'Return to home',
-  [MissionItemType.SET_PARAMETER]: 'Set parameter',
-  [MissionItemType.SET_PAYLOAD]: 'Set payload',
-  [MissionItemType.TAKEOFF]: 'Takeoff',
-  [MissionItemType.UNKNOWN]: 'Unknown mission item',
-  [MissionItemType.UPDATE_FLIGHT_AREA]: 'Update flight area',
-  [MissionItemType.UPDATE_GEOFENCE]: 'Update geofence',
-  [MissionItemType.UPDATE_SAFETY]: 'Update safety parameters',
-};
-
-const altitudeSchema = {
-  title: 'Altitude',
-  type: 'object',
-  properties: {
-    value: {
-      title: 'Value',
-      description: 'The altitude to reach in [m]',
-      type: 'number',
-      minimum: 0,
-      exclusiveMinimum: 0,
-    },
-    reference: {
-      title: 'Reference',
-      description: 'The altitude reference to use',
-      type: 'string',
-      enum: Object.values(AltitudeReference),
-      default: AltitudeReference.HOME,
-    },
-  },
-  required: ['value', 'reference'],
-};
-
-export const schemaForMissionItemType: Record<
-  MissionItemType,
-  {
-    properties: Record<string, unknown>;
-    required: string[];
-  }
-> = {
-  [MissionItemType.CHANGE_ALTITUDE]: {
-    properties: { alt: altitudeSchema },
-    required: ['alt'],
-  },
-  [MissionItemType.CHANGE_FLIGHT_MODE]: { properties: {}, required: [] },
-  [MissionItemType.CHANGE_HEADING]: {
-    properties: {
-      heading: {
-        title: 'Heading',
-        type: 'object',
-        properties: {
-          value: {
-            title: 'Value',
-            description: 'The absolute heading to turn to in [deg]',
-            type: 'number',
-          },
-          mode: {
-            title: 'Mode',
-            description: 'The heading mode to use',
-            type: 'string',
-            enum: Object.values(HeadingMode),
-            default: HeadingMode.ABSOLUTE,
-          },
-        },
-      },
-    },
-    required: ['heading'],
-  },
-  [MissionItemType.CHANGE_SPEED]: {
-    properties: {
-      velocityXY: {
-        title: 'Horizontal speed',
-        description: 'The horizontal velocity to use in [m/s]',
-        type: 'number',
-        minimum: 0,
-        exclusiveMinimum: 0,
-      },
-      velocityZ: {
-        title: 'Vertical speed',
-        description: 'The vertical velocity to use in [m/s]',
-        type: 'number',
-        minimum: 0,
-        exclusiveMinimum: 0,
-      },
-    },
-    required: [],
-  },
-  [MissionItemType.GO_TO]: {
-    properties: {
-      lat: {
-        title: 'Latitude',
-        description: 'The latitude to go to in [deg]',
-        type: 'number',
-        minimum: -90,
-        maximum: 90,
-      },
-      lon: {
-        title: 'Longitude',
-        description: 'The longitude to go to in [deg]',
-        type: 'number',
-        minimum: -180,
-        maximum: 180,
-      },
-    },
-    required: ['lat', 'lon'],
-  },
-  [MissionItemType.HOVER]: {
-    properties: {
-      duration: {
-        title: 'Duration',
-        description: 'Duration of the hover in [s]',
-        type: 'number',
-        minimum: 0,
-      },
-    },
-    required: ['duration'],
-  },
-  [MissionItemType.LAND]: { properties: {}, required: [] },
-  [MissionItemType.MARKER]: { properties: {}, required: [] },
-  [MissionItemType.RETURN_TO_HOME]: { properties: {}, required: [] },
-  [MissionItemType.SET_PARAMETER]: { properties: {}, required: [] },
-  [MissionItemType.SET_PAYLOAD]: { properties: {}, required: [] },
-  [MissionItemType.TAKEOFF]: {
-    properties: { alt: altitudeSchema },
-    required: [],
-  },
-  [MissionItemType.UNKNOWN]: { properties: {}, required: [] },
-  [MissionItemType.UPDATE_FLIGHT_AREA]: { properties: {}, required: [] },
-  [MissionItemType.UPDATE_GEOFENCE]: { properties: {}, required: [] },
-  [MissionItemType.UPDATE_SAFETY]: { properties: {}, required: [] },
-};
 
 /**
  * Returns whether the given mission item is valid.

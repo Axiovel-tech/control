@@ -1,7 +1,6 @@
 import has from 'lodash-es/has';
 import isEmpty from 'lodash-es/isEmpty';
 import isNil from 'lodash-es/isNil';
-import isObject from 'lodash-es/isObject';
 import property, { type PropertyPath } from 'lodash-es/property';
 import pull from 'lodash-es/pull';
 import sortedIndex from 'lodash-es/sortedIndex';
@@ -151,39 +150,6 @@ export const addItemAt = <T extends ItemLike>(
 };
 
 /**
- * Helper function that receives an item to be added to a collection, and
- * adds it to the collection at the given index, unless an item with the
- * same ID already exists, in which case this function is a no-op.
- *
- * When the index is negative or zero, the item will be added at the front.
- *
- * When the item is larger than or equal to the length of the collection, the
- * item will be added at the back.
- *
- * The item should already have an assigned `id` property. If there is no such
- * property, or it is equal to the special "new item" value, a new ID will be
- * generated based on the `name` property of the item. If there is no `name`
- * property either, an error will be thrown.
- *
- * @param collection - The ordered collection to add the item to
- * @param item - The item to add
- * @param index - The index to add the given item at
- */
-export const addItemUnlessExistsAt = <T extends ItemLike>(
-  collection: Collection<T>,
-  item: T,
-  index: number
-): void => {
-  try {
-    addItemAt(collection, item, index);
-  } catch (error) {
-    if (error instanceof ItemExistsError) {
-      /* this is okay */
-    }
-  }
-};
-
-/**
  * Returns the index where a given item should be inserted in a collection to
  * keep the collection sorted by the given key.
  *
@@ -240,34 +206,6 @@ export const addItemSorted = <T extends ItemLike>(
 ): void => {
   const index = getInsertionIndexForSortedCollection(collection, item, key);
   addItemAt(collection, item, index);
-};
-
-/**
- * Helper function that receives an item to be added to a collection, and
- * adds it to the collection based on a sorting key function, unless an item
- * is already in the collection, in which case this function is a no-op.
- *
- * It is assumed that the collection is already sorted based on the sorting
- * key function.
- *
- * The item should already have an assigned `id` property. If there is no such
- * property, or it is equal to the special "new item" value, a new ID will be
- * generated based on the `name` property of the item. If there is no `name`
- * property either, an error will be thrown.
- *
- * @param collection - The ordered collection to add the item to
- * @param item - The item to add
- * @param key - A function that can be called with a single item and that
- *              returns a value that is used to compare items, or the name of a
- *              single property that is used as a sorting key
- */
-export const addItemSortedUnlessExists = <T extends ItemLike>(
-  collection: Collection<T>,
-  item: T,
-  key: ((item: T) => Identifier) | PropertyPath = 'id'
-): void => {
-  const index = getInsertionIndexForSortedCollection(collection, item, key);
-  addItemUnlessExistsAt(collection, item, index);
 };
 
 /**
@@ -356,32 +294,6 @@ export const createCollectionFromArray = <T extends ItemLike>(
   }
 
   return result;
-};
-
-/**
- * Creates a new item at the front of the given collection that can then
- * subsequently be edited by the user before it is finalized in the
- * collection.
- *
- * @param collection - The ordered collection to add the item to
- * @param idStore - When it is a function, it will be called with the ID of
- *                  the newly generated item. When it is an object, the ID of
- *                  the newly generated item will be associated to its `id`
- *                  property. Otherwise it is ignored.
- */
-export const createNewItemInFrontOf = <T extends ItemLike>(
-  collection: Collection<T>,
-  idStore?: ((id: Identifier) => void) | Record<string, unknown>
-): void => {
-  const id = NEW_ITEM_ID;
-
-  if (typeof idStore === 'function') {
-    idStore(id);
-  } else if (isObject(idStore)) {
-    idStore['id'] = id;
-  }
-
-  collection.byId[id] = { id } as T;
 };
 
 /**
@@ -525,30 +437,6 @@ export const replaceItemOrAddSorted = <T extends ItemLike>(
     collection.byId[item.id] = { ...item };
   } else {
     addItemSorted(collection, item, key);
-  }
-};
-
-/**
- * Helper function that takes a single item and an ordered collection, and
- * attempts to replace the item in the collection based on its ID.
- *
- * If the incoming object has a valid ID, it is assumed that it is already
- * in the collection, but its representation will be replaced.
- *
- * If the incoming object has no ID yet, it will be added to the front of
- * the collection as a new item.
- *
- * @param item - The item to replace in the collection
- * @param collection - The ordered collection to update
- */
-export const replaceItemOrAddToFront = <T extends ItemLike>(
-  collection: Collection<T>,
-  item: T
-): void => {
-  if (hasValidId(item) && collection.byId[item.id]) {
-    collection.byId[item.id] = { ...item };
-  } else {
-    addItemToFront(collection, item);
   }
 };
 

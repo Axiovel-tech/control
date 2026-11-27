@@ -256,22 +256,15 @@ export const getFlatEarthCombinedCoordinateFormatter: AppSelector<
 });
 
 /**
- * Selector that returns a coordinate formatter that can be used in contexts
- * where we want to show both the geographical coordinates and the coordinates
- * relative to the origin of the flat Earth coordinate system.
+ * Selector that returns a coordinate formatter for positions pointed at on
+ * the map. Indoors a position means something relative to the origin of the
+ * show, so that is what is shown; geographical coordinates are only the
+ * fallback for when no flat Earth coordinate system is set up.
  */
 export const getExtendedCoordinateFormatter: AppSelector<CoordinatePairFormatter> =
   createSelector(
     getPreferredCoordinateFormatter,
     getFlatEarthCombinedCoordinateFormatter,
     (geographicFormatter, flatEarthFormatter) =>
-      (coords: LonLat): string => {
-        const geoCoords = geographicFormatter(coords);
-
-        if (flatEarthFormatter === undefined) {
-          return geoCoords;
-        }
-
-        return geoCoords + '<br/>' + flatEarthFormatter(coords);
-      }
+      flatEarthFormatter ?? geographicFormatter
   );

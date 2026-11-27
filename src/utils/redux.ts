@@ -4,12 +4,32 @@
 
 import pMinDelay from 'p-min-delay';
 import {
+  type Action,
   type ActionCreatorWithPreparedPayload,
   type CaseReducer,
   createAction,
   type Draft,
   type PrepareAction,
 } from '@reduxjs/toolkit';
+
+import type { AppThunk } from '~/store/reducers';
+
+/**
+ * How long a dialog stays up after its job is done, in milliseconds, so the
+ * user sees the outcome register before the dialog goes away.
+ */
+export const DIALOG_CLOSE_DELAY = 300;
+
+/**
+ * Thunk that closes a dialog whose job is done, after a short delay.
+ *
+ * @param close - The action creator that closes the dialog
+ */
+export const closeDialogWhenDone =
+  (close: () => Action): AppThunk =>
+  (dispatch) => {
+    setTimeout(() => dispatch(close()), DIALOG_CLOSE_DELAY);
+  };
 
 /**
  * Creates an action factory with an async preparation function.

@@ -120,43 +120,14 @@ export type MissionSliceState = {
   /** Action to perform when the geofence is breached */
   geofenceAction: GeofenceAction;
 
-  /** The name of the mission, if given */
-  name?: string;
-
   /** Collection of items in the current mission if it is a waypoint-based mission */
   items: Collection<MissionItem>;
-
-  /** State of the mission editor panel */
-  editorPanel: {
-    followScroll: boolean;
-  };
-
-  /** State of the mission planner dialog */
-  plannerDialog: {
-    applyGeofence: boolean;
-    open: boolean;
-    parameters: {
-      fromUser: Record<string, unknown>;
-      fromContext: Record<string, unknown>;
-    };
-    selectedType?: string;
-  };
-
-  /** Parameters used in the last successful invocation of the mission planner */
-  lastSuccessfulPlannerInvocationParameters?: {
-    type: string;
-    parametersFromUser: Record<string, unknown>;
-    valuesFromContext: Record<string, unknown>;
-  };
 
   /** The progress of the mission as reported by the UAV */
   progress: {
     currentItemId?: string;
     currentItemRatio?: number;
   };
-
-  /** Backup of the last cleared mission */
-  lastClearedMissionData?: Record<string, unknown>;
 };
 
 const initialState: MissionSliceState = {
@@ -174,29 +145,14 @@ const initialState: MissionSliceState = {
   commandsAreBroadcast: false,
   geofencePolygonId: undefined,
   geofenceAction: GeofenceAction.RETURN,
-  name: undefined,
   items: {
     byId: {},
     order: [],
   },
-  editorPanel: {
-    followScroll: false,
-  },
-  plannerDialog: {
-    applyGeofence: false,
-    open: false,
-    parameters: {
-      fromUser: {},
-      fromContext: {},
-    },
-    selectedType: undefined,
-  },
-  lastSuccessfulPlannerInvocationParameters: undefined,
   progress: {
     currentItemId: undefined,
     currentItemRatio: undefined,
   },
-  lastClearedMissionData: undefined,
 };
 
 const { actions, reducer } = createSlice({
@@ -272,42 +228,12 @@ const { actions, reducer } = createSlice({
     }),
 
     /**
-     * Closes the mission planner dialog.
-     */
-    closeMissionPlannerDialog: noPayload<MissionSliceState>((state) => {
-      state.plannerDialog.open = false;
-    }),
-
-    /**
      * Finishes the current editing session of the mapping.
      */
     finishMappingEditorSession: noPayload<MissionSliceState>((state) => {
       state.mappingEditor.enabled = false;
       state.mappingEditor.indexBeingEdited = -1;
     }),
-
-    moveMissionItem: {
-      prepare: (oldIndex: number, newIndex: number) => ({
-        payload: { oldIndex, newIndex },
-      }),
-      reducer(
-        state,
-        action: PayloadAction<{ oldIndex: number; newIndex: number }>
-      ) {
-        const { oldIndex, newIndex } = action.payload;
-        const numItems = state.items.order.length;
-        if (
-          oldIndex >= 0 &&
-          oldIndex < numItems &&
-          newIndex >= 0 &&
-          newIndex < numItems &&
-          oldIndex !== newIndex
-        ) {
-          const [itemId] = state.items.order.splice(oldIndex, 1);
-          state.items.order.splice(newIndex, 0, itemId);
-        }
-      },
-    },
 
     removeMissionItemsByIds(
       state,
@@ -322,13 +248,6 @@ const { actions, reducer } = createSlice({
      */
     setCommandsAreBroadcast(state, action: PayloadAction<boolean>) {
       state.commandsAreBroadcast = Boolean(action.payload);
-    },
-
-    /**
-     * Sets whether the mission editor panel should follow the active item.
-     */
-    setEditorPanelFollowScroll(state, action: PayloadAction<boolean>) {
-      state.editorPanel.followScroll = Boolean(action.payload);
     },
 
     /**
@@ -402,24 +321,6 @@ const { actions, reducer } = createSlice({
     },
 
     /**
-     * Sets the array of items in the mission, assuming that all items are
-     * already validated.
-     */
-    _setMissionItemsFromValidatedArray(
-      state,
-      { payload: items }: PayloadAction<MissionItem[]>
-    ) {
-      state.items = {
-        order: items.map((i) => i.id),
-        byId: Object.fromEntries(items.map((i) => [i.id, i])),
-      };
-      state.progress = {
-        currentItemId: undefined,
-        currentItemRatio: undefined,
-      };
-    },
-
-    /**
      * Sets the type of the mission, without affecting any other part of the
      * current mission configuration.
      */
@@ -429,61 +330,6 @@ const { actions, reducer } = createSlice({
           ? action.payload
           : MissionType.UNKNOWN;
     },
-
-    setMissionName(state, action: PayloadAction<string | undefined>) {
-      state.name = action.payload;
-    },
-
-    setMissionPlannerDialogApplyGeofence(
-      state,
-      action: PayloadAction<boolean>
-    ) {
-      state.plannerDialog.applyGeofence = Boolean(action.payload);
-    },
-
-    setMissionPlannerDialogSelectedType(
-      state,
-      action: PayloadAction<string | undefined>
-    ) {
-      state.plannerDialog.selectedType = action.payload;
-    },
-
-    setMissionPlannerDialogContextParameters(
-      state,
-      action: PayloadAction<Record<string, unknown>>
-    ) {
-      state.plannerDialog.parameters.fromContext = action.payload;
-    },
-
-    setMissionPlannerDialogUserParameters(
-      state,
-      action: PayloadAction<Record<string, unknown>>
-    ) {
-      state.plannerDialog.parameters.fromUser = action.payload;
-    },
-
-    setLastSuccessfulPlannerInvocationParameters(
-      state,
-      action: PayloadAction<
-        MissionSliceState['lastSuccessfulPlannerInvocationParameters']
-      >
-    ) {
-      state.lastSuccessfulPlannerInvocationParameters = action.payload;
-    },
-
-    setLastClearedMissionData(
-      state,
-      action: PayloadAction<MissionSliceState['lastClearedMissionData']>
-    ) {
-      state.lastClearedMissionData = action.payload;
-    },
-
-    /**
-     * Shows the mission planner dialog.
-     */
-    showMissionPlannerDialog: noPayload<MissionSliceState>((state) => {
-      state.plannerDialog.open = true;
-    }),
 
     /**
      * Starts the current editing session of the mapping, and marks the
@@ -656,25 +502,14 @@ export const {
   addMissionItem,
   cancelMappingEditorSessionAtCurrentSlot,
   clearGeofencePolygonId,
-  closeMissionPlannerDialog,
   finishMappingEditorSession,
-  moveMissionItem,
   notifyUAVsInMissionMappingChanged,
   removeMissionItemsByIds,
   setCommandsAreBroadcast,
   _setMapping,
-  setEditorPanelFollowScroll,
   setGeofenceAction,
   setGeofencePolygonId,
-  setLastClearedMissionData,
-  setLastSuccessfulPlannerInvocationParameters,
-  setMissionName,
-  setMissionPlannerDialogApplyGeofence,
-  setMissionPlannerDialogContextParameters,
-  setMissionPlannerDialogSelectedType,
-  setMissionPlannerDialogUserParameters,
   setMissionType,
-  showMissionPlannerDialog,
   startMappingEditorSession,
   startMappingEditorSessionAtSlot,
   togglePreferredChannel,
@@ -685,7 +520,6 @@ export const {
   updateLandingPositions,
   updateMissionItemParameters,
   updateTakeoffHeadings,
-  _setMissionItemsFromValidatedArray,
 } = actions;
 
 export default reducer;

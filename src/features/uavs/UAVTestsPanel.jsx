@@ -15,16 +15,9 @@ import Colors from '~/components/colors';
 import { errorToString } from '~/error-handling';
 import { useMessageHub } from '~/hooks';
 
-import { COMPASS_CALIB_TIMEOUT } from './constants';
 import ListItemProgressBar from './ListItemProgressBar';
 
 const tests = [
-  {
-    component: 'compass',
-    label: 'Calibrate compass',
-    type: 'calib',
-    timeout: COMPASS_CALIB_TIMEOUT,
-  },
   {
     component: 'accel',
     label: 'Calibrate accelerometer',
@@ -52,12 +45,6 @@ const tests = [
   {
     component: 'led',
     label: 'Execute LED test',
-    type: 'test',
-  },
-  {
-    component: 'pyro',
-    label: 'Execute pyro test',
-    needsConfirmation: true,
     type: 'test',
   },
   {

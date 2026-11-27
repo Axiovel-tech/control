@@ -11,8 +11,15 @@ import { isConnected } from '~/features/servers/selectors';
 import { usePeriodicSelector } from '~/hooks/usePeriodicSelector';
 import { formatSpeed } from '~/utils/formatting';
 
-import { buttonStyle } from './AltitudeSummaryHeaderButton';
 import { getActiveAndAwakeUAVIds, getUAVById } from './selectors';
+
+// `makeStyles` from @material-ui cannot be used, as `GenericHeaderButton`
+// doesn't merge its own classes with the provided `className` from outside.
+const buttonStyle = {
+  justifyContent: 'space-between',
+  textAlign: 'right',
+  width: 105,
+};
 
 const findVelocities = (state) => {
   let maxHorizontal = 0;
@@ -57,7 +64,7 @@ const VelocitySummaryHeaderButton = ({ isConnected }) => {
           ? formatSpeed(maxVertical, 1)
           : '—'
       }
-      style={{ ...buttonStyle, width: 105 }}
+      style={buttonStyle}
       tooltip={t('header.velocitySummary')}
     >
       <Speed />

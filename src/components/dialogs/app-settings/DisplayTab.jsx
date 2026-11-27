@@ -161,16 +161,6 @@ const DisplayTabPresentation = ({ language = 'en', ...props }) => {
               />
             }
           />
-          <FormControlLabel
-            label={t('settings.display.enableExperimentalFeatures')}
-            control={
-              <Checkbox
-                checked={props.experimentalFeaturesEnabled}
-                name='experimentalFeaturesEnabled'
-                onChange={props.onCheckboxToggled}
-              />
-            }
-          />
         </FormGroup>
       </Box>
     </>
@@ -180,7 +170,6 @@ const DisplayTabPresentation = ({ language = 'en', ...props }) => {
 DisplayTabPresentation.propTypes = {
   coordinateFormat: PropTypes.oneOf(coordinateFormatOrder),
   coordinateSystemType: PropTypes.oneOf(['neu', 'nwu']),
-  experimentalFeaturesEnabled: PropTypes.bool,
   language: PropTypes.string,
   origin: PropTypes.arrayOf(PropTypes.number),
   onCheckboxToggled: PropTypes.func,

@@ -35,12 +35,6 @@ import { getArea, getLength } from 'ol/sphere';
 import { type Vector3 } from 'three';
 
 import { type Feature, FeatureType } from '~/model/features';
-import {
-  type Altitude,
-  AltitudeReference,
-  type Heading,
-  HeadingMode,
-} from '~/model/geography';
 
 import {
   formatArea,
@@ -84,8 +78,6 @@ export type Latitude = number & { [_Latitude]: void };
 
 export type LonLat = [Longitude, Latitude];
 export type LatLon = [Latitude, Longitude];
-export type LatLonObject = { lat: Latitude; lon: Longitude };
-
 const _Easting: unique symbol = Symbol('Easting');
 export type Easting = number & { [_Easting]: void };
 
@@ -121,22 +113,6 @@ export function bearing(first: LonLat, second: LonLat): number {
     Math.sin(firstLatRadians) * Math.cos(secondLatRadians) * Math.cos(lonDiff);
   const theta = Math.atan2(y, x);
   return ((theta * 180) / Math.PI + 360) % 360;
-}
-
-/**
- * Returns the final bearing when going from one point to another on a
- * sphere along a great circle.
- *
- * The spherical coordinates must be specified in degrees, in longitude-latitude
- * order.
- *
- * @param first - The first point
- * @param second - The second point
- * @returns Bearing, in degrees, in the [0; 360) range
- */
-export function finalBearing(first: LonLat, second: LonLat): number {
-  const angle = bearing(second, first);
-  return (angle + 180) % 360;
 }
 
 /**
@@ -458,77 +434,6 @@ export const translateBy = curry(
       coordinate[1] + dy,
     ]);
   }
-);
-
-const createSafeWrapper =
-  <S, T>(func: (value: S) => T) =>
-  (value: S, defaultValue: T): T => {
-    if (isNil(value)) {
-      return defaultValue;
-    }
-
-    try {
-      return func(value);
-    } catch {
-      return defaultValue;
-    }
-  };
-
-/**
- * Formats the given altitude-with-reference object in a way that is suitable
- * for presentation on the UI.
- */
-export const formatAltitudeWithReference = (altitude: Altitude): string => {
-  const { reference, value } = altitude;
-  const formattedValue = formatDistance(value);
-
-  switch (reference) {
-    case AltitudeReference.MSL: {
-      return formattedValue + ' AMSL';
-    }
-
-    case AltitudeReference.HOME: {
-      return formattedValue + ' above home';
-    }
-
-    case AltitudeReference.GROUND: {
-      return formattedValue + ' above ground';
-    }
-
-    default: {
-      return `${formattedValue} above unknown reference: ${String(reference)}`;
-    }
-  }
-};
-
-/**
- * Formats the given altitude-with-reference object in a way that is suitable
- * for presentation on the UI, ensuring that falsy values are replaced with a
- * default value.
- */
-export const safelyFormatAltitudeWithReference = createSafeWrapper(
-  formatAltitudeWithReference
-);
-
-/**
- * Formats the given heading-with-mode object in a way that is suitable
- * for presentation on the UI.
- */
-export const formatHeadingWithMode = (heading: Heading): string => {
-  const { mode, value } = heading;
-  const formattedValue = value.toFixed(1) + '\u00B0';
-
-  if (mode === HeadingMode.WAYPOINT) {
-    return 'Always face next waypoint';
-  } else if (mode === HeadingMode.ABSOLUTE) {
-    return formattedValue;
-  } else {
-    return `${formattedValue} @ unknown mode: ${String(mode)}`;
-  }
-};
-
-export const safelyFormatHeadingWithMode = createSafeWrapper(
-  formatHeadingWithMode
 );
 
 /**
@@ -1008,23 +913,6 @@ export function normalizePolygon([
 }
 
 type ScaledJSONGPSCoordinate = [number, number];
-
-/**
- * Converts a longitude-latitude pair to a representation that is safe to be
- * transferred in JSON over to the server without worrying about floating-point
- * rounding errors.
- *
- * @param  coords  the longitude-latitude pair to convert, represented
- *         as an object with a `lon` and a `lat` key.
- * @return the JSON representation, scaled up to 1e7 degrees. Note
- *         that it returns the <em>latitude</em> first
- */
-export const toScaledJSONFromObject = (
-  coords: LatLonObject
-): ScaledJSONGPSCoordinate => [
-  Math.round(coords.lat * 1e7),
-  Math.round(coords.lon * 1e7),
-];
 
 /**
  * Converts a longitude-latitude pair to a representation that is safe to be

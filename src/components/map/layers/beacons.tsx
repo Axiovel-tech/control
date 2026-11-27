@@ -1,4 +1,4 @@
-import { Circle, Icon, Style, Text } from 'ol/style';
+import { Circle, Fill, Icon, Stroke, Style, Text } from 'ol/style';
 import React from 'react';
 
 import { Feature, geom, layer, source } from '@collmot/ol-react';
@@ -7,6 +7,7 @@ import BeaconImage from '~/../assets/img/beacon-24x24.png';
 import SelectionGlow from '~/../assets/img/beacon-selection-glow.png';
 
 import { RGBColors } from '~/components/colors';
+import { fonts, schemes } from '~/design/tokens';
 import { getBeaconDisplayName } from '~/features/beacons/selectors';
 import type { Beacon } from '~/features/beacons/types';
 import { beaconIdToGlobalId } from '~/model/identifiers';
@@ -18,6 +19,11 @@ import type { BaseFeatureProps } from './types';
 import { markAsSelectable } from './utils';
 
 // === Helper functions ===
+
+// Light text with a dark halo, like the drones' labels: it reads on the map
+// in both colour schemes
+const labelFill = new Fill({ color: schemes.dark.ink2 });
+const labelHalo = new Stroke({ color: schemes.dark.bg, width: 3 });
 
 const beaconIconStyle = new Style({
   image: new Icon({
@@ -64,9 +70,11 @@ const createBeaconStyle = (
     /* Label */
     new Style({
       text: new Text({
-        font: '12px sans-serif',
+        fill: labelFill,
+        font: `500 11px ${fonts.mono}`,
         offsetY: 18,
         placement: 'point',
+        stroke: labelHalo,
         text: label,
         textAlign: 'center',
       }),

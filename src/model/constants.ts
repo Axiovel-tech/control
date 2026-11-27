@@ -1,7 +1,7 @@
 /**
  * Default battery cell count to use.
  */
-export const DEFAULT_BATTERY_CELL_COUNT = 3;
+export const DEFAULT_BATTERY_CELL_COUNT = 2;
 
 /**
  * The fully charged voltage of a single cell of a LiPo battery.
@@ -16,7 +16,7 @@ export const LIPO_LOW_VOLTAGE_THRESHOLD = 3.6;
 /**
  * The critical battery threshold of a single cell of a LiPo battery.
  */
-export const LIPO_CRITICAL_VOLTAGE_THRESHOLD = 3.4;
+export const LIPO_CRITICAL_VOLTAGE_THRESHOLD = 3.5;
 
 /**
  * The empty voltage of a single cell of a LiPo battery.

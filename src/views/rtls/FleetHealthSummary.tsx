@@ -132,18 +132,18 @@ const FleetHealthSummary = ({
               {t('rtlsFleetHealth.popup.empty')}
             </Typography>
           ) : (
-            <Box
-              sx={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(56px, 1fr))',
-                gap: 0.5,
-              }}
-            >
+            // wraps within the popup; a drone number fills a cell of equal
+            // width, a tag on no drone takes the room its name needs
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
               {drones.map(({ id, label, status, tooltip }) => (
                 <Tooltip key={id} content={tooltip}>
                   <ButtonBase
                     data-testid={`rtls-tags-panel.health-drone-${id}`}
-                    sx={{ borderRadius: 1 }}
+                    sx={{
+                      borderRadius: 1,
+                      minWidth: 56,
+                      '& > *': { flexGrow: 1 },
+                    }}
                     onClick={() => {
                       setAnchorElement(null);
                       onSelect(id);

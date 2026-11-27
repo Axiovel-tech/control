@@ -22,12 +22,13 @@ import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { connect, useStore } from 'react-redux';
 
-import { isThemeDark, makeStyles } from '@skybrush/app-theme-mui';
+import { makeStyles } from '@skybrush/app-theme-mui';
 
 import { createSelectionHandlerThunk } from '~/components/helpers/lists';
 import FadeAndSlide from '~/components/transitions/FadeAndSlide';
 import DroneAvatar from '~/components/uavs/DroneAvatar';
 import DronePlaceholder from '~/components/uavs/DronePlaceholder';
+import { tokensOf } from '~/design/tokens';
 import { useKeyboardNavigation } from '~/features/hotkeys/hooks';
 import { adjustMissionMapping } from '~/features/mission/actions';
 import {
@@ -73,9 +74,8 @@ import { getSelectedUAVIdsAndMissionSlotIds, itemToGlobalId } from './utils';
 
 const useListStyles = makeStyles((theme: Theme) => ({
   appBar: {
-    backgroundColor: isThemeDark(theme)
-      ? '#424242'
-      : theme.palette.background.paper,
+    backgroundColor: tokensOf(theme).surfaceRaised,
+    borderBottom: `1px solid ${theme.palette.divider}`,
     height: 48,
   },
 

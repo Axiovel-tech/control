@@ -125,10 +125,16 @@ export const refreshFirmwareTargets =
     }
   };
 
-export const showFirmwareUpdateDialog = (): AppThunk => (dispatch) => {
-  dispatch(openFirmwareUpdateDialog());
-  void dispatch(refreshFirmwareTargets());
-};
+/**
+ * Opens the flight firmware update dialog, optionally with the given UAVs
+ * ticked as targets.
+ */
+export const showFirmwareUpdateDialog =
+  (preselectedIds?: string[]): AppThunk =>
+  (dispatch) => {
+    dispatch(openFirmwareUpdateDialog(preselectedIds));
+    void dispatch(refreshFirmwareTargets());
+  };
 
 export const hideFirmwareUpdateDialog = (): AppThunk => (dispatch) => {
   dispatch(closeFirmwareUpdateDialog());

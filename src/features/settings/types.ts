@@ -2,7 +2,6 @@ import type { ThemeType } from '@skybrush/app-theme-mui';
 
 import { type UAVFilter } from '~/model/filtering';
 import {
-  type AltitudeSummaryType,
   type BatteryDisplayStyle,
   type CoordinateFormat,
   type UAVOperationConfirmationStyle,
@@ -10,7 +9,6 @@ import {
 import { type UAVSortKey } from '~/model/sorting';
 
 export enum AppSettingsDialogTab {
-  API_KEYS = 'apiKeys',
   DISPLAY = 'display',
   PREFLIGHT = 'preflight',
   SERVER = 'server',
@@ -39,13 +37,9 @@ export type UAVSortKeyAndOrder = {
 export type SettingsState = {
   display: {
     /** Altitude summary type */
-    altitudeSummaryType: AltitudeSummaryType;
 
     /** Display format of coordinates */
     coordinateFormat: CoordinateFormat;
-
-    /** Whether to allow the user to see experimental features */
-    experimentalFeaturesEnabled: boolean;
 
     /** Whether to hide empty mission slots in the UAV list (unless editing) */
     hideEmptyMissionSlots: boolean;
@@ -215,6 +209,4 @@ export type SettingsState = {
      */
     minOutdoorTakeoffSpacing?: number;
   };
-
-  apiKeys: Record<string, string>;
 };

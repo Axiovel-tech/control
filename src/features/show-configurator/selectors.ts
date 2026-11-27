@@ -313,9 +313,8 @@ export const getVisibleLayersInOrder = createSelector(
 
     // Some of the base layers that should be below the UAVs layer.
     const targetLayers = new Set([
-      LayerType.BASE,
-      LayerType.GRATICULE,
-      LayerType.TILE_SERVER,
+      LayerType.VENUE_GRID,
+      LayerType.IMAGE,
       LayerType.FEATURES,
     ]);
     // The index of the last base layer, that should be below the UAVs layer.

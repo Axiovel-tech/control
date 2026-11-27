@@ -23,7 +23,7 @@ import {
   type RtlsParam,
   type RtlsPosEstimate,
 } from './types';
-import { classifyRole, isAnchorRole } from './stats-utils';
+import { classifyRole, isAnchorRole, SOLVE_RATE_PARAM } from './stats-utils';
 import { updateStateOfRtlsDevice } from './utils';
 import { type RtlsCellSettings } from './cell-settings';
 
@@ -116,6 +116,13 @@ export type RtlsSliceState = {
   /** Cached read-only parameter lists keyed by device id. */
   paramsByDevice: Record<string, RtlsDeviceParamsState>;
 
+  /**
+   * The solve rate each tag is configured for (its `UWB_EMIT_HZ` parameter),
+   * in Hz, keyed by device id. Absent until read from the tag; 0 means the
+   * tag solves on every ranging epoch and so has no fixed target.
+   */
+  solveRateTargets: Record<string, number>;
+
   /** State of the per-device parameter viewer/editor dialog. */
   paramDialog: {
     open: boolean;
@@ -168,6 +175,7 @@ const initialState: RtlsSliceState = {
   recentSleepResults: {},
   anchorPowerRequests: {},
   paramsByDevice: {},
+  solveRateTargets: {},
   paramDialog: {
     open: false,
     deviceId: undefined,
@@ -208,6 +216,7 @@ const { actions, reducer } = createSlice({
       state.recentSleepResults = {};
       state.anchorPowerRequests = {};
       state.paramsByDevice = {};
+      state.solveRateTargets = {};
       state.verify.running = false;
       state.verify.lastResult = undefined;
     },
@@ -342,6 +351,19 @@ const { actions, reducer } = createSlice({
         error: undefined,
         lastFetchedAt: Date.now(),
       };
+
+      const solveRate = params.find((p) => p.name === SOLVE_RATE_PARAM)?.value;
+      if (typeof solveRate === 'number') {
+        state.solveRateTargets[id] = solveRate;
+      }
+    },
+
+    /** Records the solve rate that a tag reports being configured for. */
+    rtlsSolveRateTargetRead(
+      state,
+      { payload: { id, value } }: PayloadAction<{ id: string; value: number }>
+    ) {
+      state.solveRateTargets[id] = value;
     },
 
     /** Records a failure while fetching the parameter list of a device. */
@@ -368,6 +390,10 @@ const { actions, reducer } = createSlice({
         payload: { id, name, value },
       }: PayloadAction<{ id: string; name: string; value: RtlsParam['value'] }>
     ) {
+      if (name === SOLVE_RATE_PARAM && typeof value === 'number') {
+        state.solveRateTargets[id] = value;
+      }
+
       const entry = state.paramsByDevice[id];
       if (!entry) {
         return;
@@ -409,6 +435,19 @@ const { actions, reducer } = createSlice({
       { payload }: PayloadAction<Record<string, Omit<RtlsDevice, 'id'>>>
     ) {
       const ids = Object.keys(payload);
+
+      // The configured solve rate is read once per tag. A tag that left or
+      // rebooted may come back with another value, so it is read again.
+      for (const id of Object.keys(state.solveRateTargets)) {
+        const uptime = payload[id]?.uptimeMs;
+        const previous = state.devices.byId[id]?.uptimeMs;
+        if (
+          !ids.includes(id) ||
+          (uptime !== undefined && previous !== undefined && uptime < previous)
+        ) {
+          delete state.solveRateTargets[id];
+        }
+      }
 
       // Drop devices that are no longer present in the snapshot, along with
       // their now-stale stats and OTA jobs. Device disappearance is the single
@@ -543,6 +582,7 @@ export const {
   rtlsParamsFetchSucceeded,
   rtlsParamValueUpdated,
   rtlsAnchorPowerRequested,
+  rtlsSolveRateTargetRead,
   rtlsSleepTransactionEnded,
   rtlsSleepTransactionStarted,
   setRtlsAnchorLock,

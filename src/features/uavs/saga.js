@@ -11,6 +11,7 @@ import { getRoundedClockSkewInMilliseconds } from '~/features/servers/selectors'
 import { getUAVAgingThresholds } from '~/features/settings/selectors';
 import { isErrorCodeOrMoreSevere } from '~/model/status-codes';
 import { UAVAge } from '~/model/uav';
+import { isLightControlActive } from '~/features/light-control/selectors';
 import { setColorOnUAVs } from '~/utils/messaging';
 
 import {
@@ -331,7 +332,12 @@ function* uavAgingSaga(flock) {
  */
 function* uavColorOverrideSaga(interval = 2000) {
   while (true) {
-    const colorMap = yield select(getColorOverrideToUAVIdsMap);
+    // The main switch of the light control panel has the last word: with the
+    // lights not controlled from the GCS, the drones keep their own program
+    const controlled = yield select(isLightControlActive);
+    const colorMap = controlled
+      ? yield select(getColorOverrideToUAVIdsMap)
+      : {};
 
     try {
       for (const [color, uavIds] of Object.entries(colorMap)) {

@@ -27,8 +27,7 @@ const noiseImage =
 const useStyles = makeStyles((theme) => ({
   root: {
     alignItems: 'stretch',
-    borderBottom:
-      theme.palette.mode === 'light' ? '4px solid #f4f4f4' : '4px solid black',
+    borderBottom: `1px solid ${theme.palette.divider}`,
     display: 'flex',
     flexDirection: 'column',
     height: '100%',
@@ -54,15 +53,13 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 const presets = {
+  // Dark displays sit directly on the panel, lit in the chosen colour
   dark: [
-    {
-      backgroundColor: 'black',
-      color: (theme) => theme.palette.secondary.main,
-    },
-    { backgroundColor: 'black', color: '#f00' },
-    { backgroundColor: 'black', color: '#0f0' },
-    { backgroundColor: 'black', color: '#fc0' },
-    { backgroundColor: 'black', color: '#c0f' },
+    { color: (theme) => theme.palette.secondary.main },
+    { color: '#ff5c5c' },
+    { color: '#3ddc97' },
+    { color: '#ffb020' },
+    { color: '#9b7bff' },
   ],
   light: [
     { backgroundColor: 'rgb(149, 177, 89)', color: 'black', noise: true },
@@ -119,7 +116,11 @@ const LCDClockDisplay = ({
       : 0;
 
   const finalStyle = {
-    backgroundColor: call(theme, presetProps.backgroundColor, 'black'),
+    backgroundColor: call(
+      theme,
+      presetProps.backgroundColor,
+      theme.palette.background.paper
+    ),
     backgroundImage: call(theme, presetProps.noise, false)
       ? noiseImage
       : undefined,

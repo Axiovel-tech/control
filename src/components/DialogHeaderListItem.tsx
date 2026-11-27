@@ -8,17 +8,19 @@ import ListItemIcon from '@mui/material/ListItemIcon';
 import { green, red, yellow } from '@mui/material/colors';
 import type { Theme } from '@mui/material/styles';
 
-import { isThemeDark, makeStyles } from '@skybrush/app-theme-mui';
+import { makeStyles } from '@skybrush/app-theme-mui';
+
+import { tokensOf } from '~/design/tokens';
 
 const useStyles = makeStyles((theme: Theme) => ({
   root: {
-    backgroundColor: isThemeDark(theme) ? '#303030' : theme.palette.grey[200],
+    backgroundColor: tokensOf(theme).surfaceHover,
     paddingTop: 0,
     paddingBottom: 0,
   },
   button: {
     '&:hover': {
-      backgroundColor: isThemeDark(theme) ? '#303030' : theme.palette.grey[200],
+      backgroundColor: tokensOf(theme).surfaceHover,
     },
   },
 }));

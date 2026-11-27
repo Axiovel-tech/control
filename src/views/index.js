@@ -4,13 +4,10 @@
  */
 
 import ClockDisplayList from './clocks';
-import ConnectionList from './connections';
-import FeaturePanel from './features';
 import LayerList from './layers';
 import LCDClockPanel from './lcd-clock';
 import LightControlPanel from './light-control';
 import LogPanel from './log';
-import MessagesPanelView from './messages';
 import {
   RtlsAnchorsPanel,
   RtlsPositionsPanel,
@@ -26,13 +23,10 @@ import UAVList from './uavs';
 
 const views = {
   ClockDisplayList,
-  ConnectionList,
-  FeaturePanel,
   LayerList,
   LCDClockPanel,
   LightControlPanel,
   LogPanel,
-  MessagesPanelView,
   RtlsAnchorsPanel,
   RtlsPositionsPanel,
   RtlsSurveyPanel,
