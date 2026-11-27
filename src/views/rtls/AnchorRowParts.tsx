@@ -354,15 +354,6 @@ const uwbLine: DetailGroup = (t, stats) =>
       })
     : undefined;
 
-const motionLine: DetailGroup = (t, stats) =>
-  anyKnown(stats.tiltDeg, stats.knocks)
-    ? t('rtlsAnchor.value.motion', {
-        tilt:
-          stats.tiltDeg === undefined ? '—' : `${stats.tiltDeg.toFixed(1)}°`,
-        knocks: dash(stats.knocks),
-      })
-    : undefined;
-
 const ethernetLine: DetailGroup = (t, stats) =>
   anyKnown(stats.ethernetLink, stats.ethernetDrops)
     ? t(
@@ -415,7 +406,6 @@ const DETAIL_GROUPS: Array<[string, DetailGroup]> = [
   ['input', inputLine],
   ['uwb', uwbLine],
   ['survey', surveyLine],
-  ['motion', motionLine],
   ['ethernet', ethernetLine],
   ['wifi', wifiLine],
   ['boots', bootsLine],

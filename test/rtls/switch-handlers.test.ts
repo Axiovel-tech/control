@@ -43,6 +43,7 @@ describe('X-RTLS-INF once the anchors own the geometry', () => {
       notSurveyed: ['203'],
       otherSurvey: ['204'],
       rangeDeviation: ['202'],
+      rangeDanger: [],
       excluding: {
         '42': [
           { mac: 3, systemId: 203, state: 'no-position' },
@@ -130,10 +131,10 @@ describe('X-RTLS-STATS once the anchors own the geometry', () => {
 describe('the range check on an anchor row', () => {
   const stats = buildRtlsStatsMap(STATS.stats);
 
-  test('a badge beside "moved" while the range is past the bound', () => {
-    const badges = describeAnchorBadges({ ...stats['202'], moved: true });
-    expect(badges.map(({ id }) => id)).toEqual(['moved', 'rangeDeviation']);
-    expect(badges[1]).toEqual({
+  test('a badge while the range is past the bound', () => {
+    const badges = describeAnchorBadges(stats['202']);
+    expect(badges.map(({ id }) => id)).toEqual(['rangeDeviation']);
+    expect(badges[0]).toEqual({
       id: 'rangeDeviation',
       status: Status.WARNING,
       text: { key: 'rtlsAnchor.badge.rangeCloser', values: { cm: 12 } },
@@ -149,9 +150,24 @@ describe('the range check on an anchor row', () => {
     expect(describeAnchorBadges(stats['201'])).toEqual([]);
   });
 
-  test('the anchor warns, as one that moved does', () => {
+  test('a range past the danger bound is a danger badge', () => {
+    const badge = (rangeDeviationM: number) =>
+      describeAnchorBadges({ id: '1', rangeDeviationM })[0];
+    expect(badge(0.2).status).toBe(Status.WARNING);
+    expect(badge(-0.2001)).toMatchObject({
+      id: 'rangeDeviation',
+      status: Status.ERROR,
+      text: { key: 'rtlsAnchor.badge.rangeCloser', values: { cm: 20 } },
+    });
+    expect(badge(0.35).status).toBe(Status.ERROR);
+  });
+
+  test('the anchor warns, and errs past the danger bound', () => {
     const live = { online: true, age: 1 };
     expect(getAnchorHealth(live, stats['202'])).toBe(RtlsHealth.WARNING);
     expect(getAnchorHealth(live, stats['204'])).toBe(RtlsHealth.OK);
+    expect(
+      getAnchorHealth(live, { ...stats['202'], rangeDeviationM: 0.25 })
+    ).toBe(RtlsHealth.ERROR);
   });
 });

@@ -174,10 +174,21 @@ export function isAnchorResting(
  */
 export const RANGE_DEVIATION_WARNING_M = 0.08;
 
+/**
+ * Beyond this the range check reads danger: the anchor stands elsewhere. The
+ * firmware's second bound; still a warning the operator may lock through.
+ */
+export const RANGE_DEVIATION_DANGER_M = 0.2;
+
 /** Whether an anchor's range check warns: it may stand elsewhere than surveyed. */
 export const isRangeDeviating = (stats: RtlsDeviceStats | undefined): boolean =>
   stats?.rangeDeviationM !== undefined &&
   Math.abs(stats.rangeDeviationM) > RANGE_DEVIATION_WARNING_M;
+
+/** Whether an anchor's range check reads danger. */
+export const isRangeDanger = (stats: RtlsDeviceStats | undefined): boolean =>
+  stats?.rangeDeviationM !== undefined &&
+  Math.abs(stats.rangeDeviationM) > RANGE_DEVIATION_DANGER_M;
 
 /**
  * Whether the survey the cell is on (`cellSurveyId`) is `planar`: every
@@ -296,8 +307,9 @@ function gradeAnchorLiveness(
 
 /**
  * Grades a live anchor's telemetry: errors first (fault, low battery, a
- * refused UWB start), a pack below its warning level, then rest (idle), then
- * warnings (moved, a range check that warns, radio restarts, operating
+ * refused UWB start, a range check that reads danger), a pack below its
+ * warning level, then rest (idle), then warnings (a range check that warns,
+ * radio restarts, operating
  * without a measured ranging rate, an initiator its responders do not hear).
  */
 function gradeAnchorTelemetry(
@@ -315,7 +327,7 @@ function gradeAnchorTelemetry(
   if (isAnchorResting(stats, sleeping)) {
     return RtlsHealth.IDLE;
   }
-  if (isUwbStartRefused(stats)) {
+  if (isUwbStartRefused(stats) || isRangeDanger(stats)) {
     return RtlsHealth.ERROR;
   }
   const operating = stats?.powerState === 'operating';
@@ -323,8 +335,7 @@ function gradeAnchorTelemetry(
     operating &&
     (!isRangingByTelemetry(stats) ||
       (evidence !== undefined && evidence !== 'hearing'));
-  return stats?.moved ||
-    isRangeDeviating(stats) ||
+  return isRangeDeviating(stats) ||
     (stats?.radioRestarts ?? 0) > 0 ||
     notRanging
     ? RtlsHealth.WARNING

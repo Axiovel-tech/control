@@ -22,6 +22,7 @@ describe('anchor health fields', () => {
         uwbStatus: 1,
         rangingRateHz: 9.8,
         radioRestarts: 0,
+        // the retired motion watch of older servers: dropped
         moved: true,
         tiltDeg: 0.7,
         knocks: 2,
@@ -47,9 +48,6 @@ describe('anchor health fields', () => {
       uwbStatus: 1,
       rangingRateHz: 9.8,
       radioRestarts: 0,
-      moved: true,
-      tiltDeg: 0.7,
-      knocks: 2,
       ethernetLink: true,
       ethernetDrops: 1,
       wifiRssiDbm: -61,
@@ -85,12 +83,12 @@ describe('anchor health fields', () => {
 
   test('accepts 0/1 codes for flags and drops non-finite numbers', () => {
     const stats = mapRtlsDeviceStats('101', {
-      moved: 1,
+      batteryWarning: 1,
       lowBattery: 0,
       ethernetLink: 'yes',
       batteryPercent: Number.NaN,
     });
-    expect(stats.moved).toBe(true);
+    expect(stats.batteryWarning).toBe(true);
     expect(stats.lowBattery).toBe(false);
     expect(stats.ethernetLink).toBeUndefined();
     expect(stats.batteryPercent).toBeUndefined();

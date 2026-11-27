@@ -109,6 +109,7 @@ export const INFORMATION = {
     notSurveyed: [203],
     otherSurvey: [204],
     rangeDeviation: [202],
+    rangeDanger: [],
     excluding: {
       '42': [
         { mac: 3, systemId: 203, state: 'no-position' },
@@ -127,6 +128,7 @@ export const INFORMATION_CLEAN = {
     notSurveyed: [],
     otherSurvey: [],
     rangeDeviation: [],
+    rangeDanger: [],
     excluding: {},
   },
 };
@@ -140,6 +142,7 @@ export const INFORMATION_BLANK = {
     notSurveyed: [201, 202, 203, 204, 205, 206],
     otherSurvey: [],
     rangeDeviation: [],
+    rangeDanger: [],
     excluding: {},
   },
 };

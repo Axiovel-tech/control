@@ -115,6 +115,7 @@ describe('rtls slice', () => {
       notSurveyed: ['203'],
       otherSurvey: [],
       rangeDeviation: [],
+      rangeDanger: [],
       excluding: {},
     };
     let state = reducer(initial(), setRtlsCellSurvey(survey));

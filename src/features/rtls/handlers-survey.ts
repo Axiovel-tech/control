@@ -72,6 +72,7 @@ export function mapCellSurvey(value: unknown): RtlsCellSurvey | undefined {
     notSurveyed: toIds(value.notSurveyed),
     otherSurvey: toIds(value.otherSurvey),
     rangeDeviation: toIds(value.rangeDeviation),
+    rangeDanger: toIds(value.rangeDanger),
     excluding,
   };
 }

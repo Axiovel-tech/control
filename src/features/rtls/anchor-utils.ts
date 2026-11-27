@@ -11,6 +11,7 @@ import {
   classifyRole,
   type InitiatorEvidence,
   isAnchorResting,
+  isRangeDanger,
   isRangeDeviating,
   isRangingByTelemetry,
   isUwbStartRefused,
@@ -294,19 +295,12 @@ export function describeAnchorBadges(
       },
     });
   }
-  if (stats.moved) {
-    badges.push({
-      id: 'moved',
-      status: Status.WARNING,
-      text: { key: 'rtlsAnchor.badge.moved' },
-    });
-  }
   if (isRangeDeviating(stats)) {
     // non-null: a deviating range check has a reading
     const deviation = stats.rangeDeviationM!;
     badges.push({
       id: 'rangeDeviation',
-      status: Status.WARNING,
+      status: isRangeDanger(stats) ? Status.ERROR : Status.WARNING,
       text: {
         key:
           deviation < 0

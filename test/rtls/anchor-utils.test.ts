@@ -202,7 +202,7 @@ describe('describeAnchorBadges', () => {
   test('most severe first', () => {
     const badges = describeAnchorBadges(
       stats({
-        moved: true,
+        rangeDeviationM: 0.1,
         lowBattery: true,
         uwbStatus: 3,
         radioRestarts: 2,
@@ -212,7 +212,7 @@ describe('describeAnchorBadges', () => {
     expect(badges.map(({ id, status }) => [id, status])).toEqual([
       ['lowBattery', Status.ERROR],
       ['uwb', Status.ERROR],
-      ['moved', Status.WARNING],
+      ['rangeDeviation', Status.WARNING],
       ['radioRestarts', Status.WARNING],
       ['ethernetDrops', Status.WARNING],
     ]);

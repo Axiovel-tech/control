@@ -87,7 +87,7 @@ describe('getRtlsParamMetadata', () => {
 });
 
 describe('anchor parameter hints', () => {
-  test('describe SLEEP, BAT_PROFILE, BAT_NTC and the motion watch', () => {
+  test('describe SLEEP, BAT_PROFILE and BAT_NTC', () => {
     expect(getRtlsParamMetadata('SLEEP')?.enumLabels).toEqual({
       0: 'awake',
       1: 'asleep',
@@ -96,16 +96,6 @@ describe('anchor parameter hints', () => {
     expect(getRtlsParamMetadata('SLEEP')?.max).toBe(2);
     expect(getRtlsParamMetadata('BAT_PROFILE')?.enumLabels?.[0]).toBe('none');
     expect(getRtlsParamMetadata('BAT_NTC')?.max).toBe(1);
-    expect(getRtlsParamMetadata('MOT_TILT_DEG')).toMatchObject({
-      unit: 'deg',
-      min: 0.2,
-      max: 10,
-      defaultValue: 0.5,
-    });
-    expect(getRtlsParamMetadata('MOT_KNOCK_MG')).toMatchObject({
-      unit: 'mg',
-      max: 984,
-      defaultValue: 250,
-    });
+    expect(getRtlsParamMetadata('MOT_TILT_DEG')).toBeUndefined();
   });
 });
