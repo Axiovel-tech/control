@@ -28,6 +28,7 @@ import {
 import { handleRtlsSurveyMessage } from './features/rtls/survey';
 import { parseShowAudioStatus } from './features/show-audio/messages';
 import { setShowAudioServerStatus } from './features/show-audio/slice';
+import { synchronizeShowSettings } from './features/show/slice';
 
 import { batchAddInboundMessages } from './features/messages/slice';
 import { handleFirmwareUpdateMessage } from './features/firmware-update/handlers';
@@ -108,6 +109,9 @@ messageHub.registerNotificationHandlers({
   'X-RTLS-SURVEY': (message) => handleRtlsSurveyMessage(message.body, dispatch),
   'X-SHOW-AUDIO-INF': (message) =>
     dispatch(setShowAudioServerStatus(parseShowAudioStatus(message.body))),
+  // The show settings changed on the server, e.g. it cancelled a start that
+  // not every drone was ready for: show them as the server has them
+  'X-SHOW-CFG': () => dispatch(synchronizeShowSettings('fromServer')),
 });
 /* eslint-enable object-shorthand */
 
