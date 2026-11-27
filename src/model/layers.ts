@@ -3,20 +3,13 @@
  * that we use on the map.
  */
 
-import FileAttachment from '@mui/icons-material/Attachment';
-import Block from '@mui/icons-material/Block';
-import FileCloud from '@mui/icons-material/Cloud';
 import Flight from '@mui/icons-material/Flight';
-import Gamepad from '@mui/icons-material/Gamepad';
 import Grid from '@mui/icons-material/GridOn';
 import HelpOutline from '@mui/icons-material/HelpOutline';
 import Image from '@mui/icons-material/Image';
 import Info from '@mui/icons-material/Info';
-import Map from '@mui/icons-material/Map';
-import MyLocation from '@mui/icons-material/MyLocation';
 import Streetview from '@mui/icons-material/Streetview';
 import Timeline from '@mui/icons-material/Timeline';
-import TrackChanges from '@mui/icons-material/TrackChanges';
 import type BaseLayer from 'ol/layer/Base';
 import type OLLayer from 'ol/layer/Layer';
 import type OLMap from 'ol/Map';
@@ -28,25 +21,17 @@ import Antenna from '~/icons/Antenna';
  * Enum containing constants for the various layer types that we support.
  */
 export enum LayerType {
-  BASE = 'base',
   BEACONS = 'beacons',
-  DOCKS = 'docks',
   FEATURES = 'features',
-  GEOJSON = 'geojson',
-  GRATICULE = 'graticule',
-  HEATMAP = 'heatmap',
-  HEXGRID = 'hexgrid',
   IMAGE = 'image',
 
   // TODO: Left for backwards compatibility, rename at the next major version!
   MISSION_INFO = 'home',
 
-  OWN_LOCATION = 'ownLocation',
-  TILE_SERVER = 'tileServer',
   UAVS = 'uavs',
   UAV_TRACE = 'uavTrace',
-  UNAVAILABLE = 'unavailable',
   UNTYPED = 'untyped',
+  VENUE_GRID = 'venueGrid',
 }
 
 export type Layer = {
@@ -61,43 +46,14 @@ export type Layer = {
  * Constant containing all the layer types in the order preferred on the UI.
  */
 export const LayerTypes: readonly LayerType[] = [
-  LayerType.BASE,
-  LayerType.TILE_SERVER,
-  LayerType.GRATICULE,
-  LayerType.FEATURES,
+  LayerType.VENUE_GRID,
   LayerType.IMAGE,
-  LayerType.UAVS,
+  LayerType.FEATURES,
   LayerType.BEACONS,
-  LayerType.DOCKS,
-  LayerType.UAV_TRACE,
   LayerType.MISSION_INFO,
-  LayerType.OWN_LOCATION,
-  LayerType.GEOJSON,
-  LayerType.HEATMAP,
+  LayerType.UAVS,
+  LayerType.UAV_TRACE,
 ] as const;
-
-export const ProLayerTypes: readonly LayerType[] = [LayerType.IMAGE] as const;
-
-/**
- * Enum containing constants for the various tile server types that we support.
- */
-export enum TileServerType {
-  WMS = 'wms',
-  XYZ = 'xyz',
-  TILE_CACHE = 'tileCache',
-}
-
-/**
- * Constant containing all the supported tile server types in the order
- * preferred on the UI.
- */
-export const TileServerTypes = [
-  TileServerType.WMS,
-  TileServerType.XYZ,
-  TileServerType.TILE_CACHE,
-] as const;
-
-// TODO: Maybe create a union type for layer parameter schemas?
 
 /**
  * Object mapping layer type constants to their properties.
@@ -112,64 +68,15 @@ const propertiesForLayerTypes: Record<
     multiple?: boolean;
   }
 > = {
-  [LayerType.BASE]: {
-    label: 'Base layer',
-    icon: Map,
-    parameters: {
-      source: 'osm',
-    },
-  },
   [LayerType.BEACONS]: {
-    label: 'Beacons',
+    label: 'Anchors',
     icon: Antenna,
-    parameters: {},
-  },
-  [LayerType.DOCKS]: {
-    label: 'Docking stations',
-    icon: Gamepad,
     parameters: {},
   },
   [LayerType.FEATURES]: {
     label: 'Features',
     icon: Streetview,
     parameters: {},
-  },
-  [LayerType.GEOJSON]: {
-    label: 'GeoJSON layer',
-    icon: FileAttachment,
-    parameters: {
-      data: {},
-      strokeColor: { r: 85, g: 85, b: 225, alpha: 1 },
-      strokeWidth: 2,
-      fillColor: { r: 170, g: 170, b: 225, alpha: 0.5 },
-    },
-    multiple: true,
-  },
-  [LayerType.GRATICULE]: {
-    label: 'Graticule',
-    icon: Grid,
-    parameters: {
-      strokeColor: { r: 0, g: 0, b: 0, alpha: 0.2 },
-      strokeWidth: 1,
-    },
-  },
-  [LayerType.HEATMAP]: {
-    label: 'Heatmap',
-    icon: TrackChanges,
-    parameters: {
-      subscriptions: [],
-      minHue: 100,
-      maxHue: 0,
-      threshold: 0,
-      coloringFunction: 'linear',
-      minValue: 0,
-      maxValue: 0,
-      autoScale: true,
-      maxPoints: 1000,
-      unit: '',
-      minDistance: 5,
-      snapToGrid: false,
-    },
   },
   [LayerType.IMAGE]: {
     label: 'Image',
@@ -188,17 +95,8 @@ const propertiesForLayerTypes: Record<
     },
     multiple: true,
   },
-  [LayerType.HEXGRID]: {
-    label: 'Hex grid layer',
-    icon: Grid,
-    parameters: {
-      center: [19.061951, 47.47334],
-      size: 8,
-      radius: 0.0005,
-    },
-  },
   [LayerType.MISSION_INFO]: {
-    label: 'Mission info',
+    label: 'Show info',
     icon: Info,
     parameters: {
       showConvexHull: true,
@@ -208,24 +106,6 @@ const propertiesForLayerTypes: Record<
       showTrajectoriesOfSelection: true,
       showMissionItems: true,
     },
-  },
-  [LayerType.OWN_LOCATION]: {
-    label: 'Own location',
-    icon: MyLocation,
-    parameters: {
-      showAccuracy: true,
-      showOrientation: true,
-    },
-  },
-  [LayerType.TILE_SERVER]: {
-    label: 'Tile server',
-    icon: FileCloud,
-    parameters: {
-      type: TileServerType.WMS,
-      url: 'http://ows.mundialis.de/services/service',
-      layers: 'TOPO-OSM-WMS',
-    },
-    multiple: true,
   },
   [LayerType.UAVS]: {
     label: 'UAVs',
@@ -241,13 +121,17 @@ const propertiesForLayerTypes: Record<
       trailColor: { r: 0, g: 0, b: 0, a: 1 },
     },
   },
-  [LayerType.UNAVAILABLE]: {
-    label: 'Unavailable layer',
-    icon: Block,
-  },
   [LayerType.UNTYPED]: {
     label: 'Untyped layer',
     icon: HelpOutline,
+  },
+  [LayerType.VENUE_GRID]: {
+    label: 'Venue grid',
+    icon: Grid,
+    parameters: {
+      // Distance from the origin to the edge of the grid, in meters
+      halfExtent: 30,
+    },
   },
 } as const;
 

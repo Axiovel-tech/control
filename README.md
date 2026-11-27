@@ -37,11 +37,7 @@ library packages are intentionally kept compatible with upstream.
    to use the latter one or alternatively `git-shell` for the command above
    to run properly.)_
 
-3. Copy `.env.example` to `.env` and include your Bing Maps / Mapbox / Mapzen
-   API key in it if you want to support these map providers. (None of them
-   are required).
-
-4. Start a development web server with `npm start` inside the checkout, and
+3. Start a development web server with `npm start` inside the checkout, and
    navigate to http://localhost:8080 from your browser. Alternatively, run
    `npm run start:electron` to run Axio Control within its own desktop app
    window.

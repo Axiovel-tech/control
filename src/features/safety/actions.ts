@@ -17,9 +17,11 @@ import { getAutomaticGeofencePolygonForCurrentMissionType } from './selectors';
 
 /**
  * Thunk that adds a geofence polygon with the given coordinates and owner.
+ *
+ * @returns whether the polygon was added
  */
 export const addGeofencePolygon =
-  (points: LonLat[], owner: string): AppThunk =>
+  (points: LonLat[], owner: string): AppThunk<boolean> =>
   (dispatch, getState) => {
     const state = getState();
 
@@ -27,7 +29,7 @@ export const addGeofencePolygon =
       showError('Geofence to be added contains less than 3 points', {
         permanent: true,
       });
-      return;
+      return false;
     }
 
     const geofencePolygon: Feature = {
@@ -46,6 +48,7 @@ export const addGeofencePolygon =
       })
     );
     dispatch(setGeofencePolygonId(geofencePolygonId));
+    return true;
   };
 
 /**
@@ -61,20 +64,24 @@ export const removeGeofencePolygon = (): AppThunk => (dispatch, getState) => {
 /**
  * Thunk that updates (adds if missing, replaces if present) the geofence
  * polygon based on the current mission type.
+ *
+ * @returns whether the polygon was updated
  */
-export const updateGeofencePolygon = (): AppThunk => (dispatch, getState) => {
-  const state = getState();
-  const missionType = getMissionType(state);
-  const geofencePolygon =
-    getAutomaticGeofencePolygonForCurrentMissionType(state);
+export const updateGeofencePolygon =
+  (): AppThunk<boolean> => (dispatch, getState) => {
+    const state = getState();
+    const missionType = getMissionType(state);
+    const geofencePolygon =
+      getAutomaticGeofencePolygonForCurrentMissionType(state);
 
-  geofencePolygon.match(
-    (value) => {
-      dispatch(removeGeofencePolygon());
-      dispatch(addGeofencePolygon(value, missionType));
-    },
-    (error) => {
-      showError(`Could not update geofence: ${error}`, { permanent: true });
-    }
-  );
-};
+    return geofencePolygon.match(
+      (value) => {
+        dispatch(removeGeofencePolygon());
+        return dispatch(addGeofencePolygon(value, missionType));
+      },
+      (error) => {
+        showError(`Could not update geofence: ${error}`, { permanent: true });
+        return false;
+      }
+    );
+  };

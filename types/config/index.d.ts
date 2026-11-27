@@ -45,7 +45,6 @@ declare module 'config' {
   import { type Perspective } from 'perspective';
 
   import { type Origin, type View } from '~/features/map/types';
-  import { type SavedLocation } from '~/features/saved-locations/types';
   import { type Feature } from '~/model/features';
   import { type LayerType } from '~/model/layers';
 
@@ -77,35 +76,10 @@ declare module 'config' {
     };
 
     /**
-     * Unique per-variant settings to be used for distributable builds.
-     */
-    electronBuilder?: {
-      appId?: string;
-      productName?: string;
-    };
-
-    /**
      * Whether the application's state should be reset on each run instead of
      * recalling the last stored session.
      */
     ephemeral: boolean;
-
-    examples: {
-      /**
-       * Example shows can be bundled with the application.
-       * (Note, that `features.loadShowFromCloud` needs to be enabled as well!)
-       *
-       * @example
-       * examples: [
-       *   {
-       *     id: 'example-show',
-       *     title: 'Example show',
-       *     url: 'path/to/example.skyc',
-       *   },
-       * ],
-       */
-      shows: Array<{ id: string; title: string; url: string }>;
-    };
 
     /**
      * Select which functionalities of the application are available. Features not
@@ -114,11 +88,7 @@ declare module 'config' {
     features: Partial<
       Record<
         | 'beacons'
-        | 'docks'
         | 'geofence'
-        | 'loadShowFromCloud'
-        | 'mapFeatures' // (Objects that can be drawn and edited on the map.)
-        | 'missionEditor'
         | 'perspectives'
         | 'rtls'
         | 'safetySettings'
@@ -172,25 +142,10 @@ declare module 'config' {
       }>;
 
       /**
-       * Preset entries of the saved location list.
-       */
-      locations: SavedLocation[];
-
-      /**
        * Initial placement of the map origin. If not given, the center and
        * angle of the map view are used as fallback values.
        */
       origin?: Partial<Origin>;
-
-      /**
-       * Allowed optional tile providers that we do not want to support in
-       * all builds, or that we are not allowed to expose in public builds due
-       * to licensing restrictions.
-       */
-      tileProviders: {
-        bingMaps: boolean;
-        googleMaps: boolean;
-      };
 
       /**
        * The default position, rotation and zoom level of the map view.
@@ -304,16 +259,6 @@ declare module 'config' {
       warnClockSkew: boolean;
     };
 
-    session: {
-      /**
-       * Optional numeric value to limit the length of a session given in seconds.
-       *
-       * @example
-       * maxLengthInSeconds: 3600 // Expire in an hour
-       */
-      maxLengthInSeconds: Nullable<number>;
-    };
-
     /**
      * The desired position of the toast notifications.
      */
@@ -331,12 +276,6 @@ declare module 'config' {
        * (The button is not shown at all if the URL is not defined.)
        */
       help: Nullable<string>;
-
-      /**
-       * The URL to redirect to upon dismissing the session expiry dialog.
-       * @see The `maxLengthInSeconds` property of the `session` key.
-       */
-      exit: Nullable<string>;
     };
   };
 

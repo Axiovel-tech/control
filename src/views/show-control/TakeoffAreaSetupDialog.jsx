@@ -34,6 +34,7 @@ import {
   getMisplacedUAVIds,
   getMissingUAVIdsInMapping,
 } from '~/features/uavs/selectors';
+import { closeDialogWhenDone } from '~/utils/redux';
 import AugmentMappingButton from '~/views/uavs/AugmentMappingButton';
 import RecalculateMappingButton from '~/views/uavs/RecalculateMappingButton';
 
@@ -342,7 +343,7 @@ export default connect(
 
     onApprove() {
       dispatch(approveTakeoffArea());
-      setTimeout(() => dispatch(closeTakeoffAreaSetupDialog()), 300);
+      dispatch(closeDialogWhenDone(closeTakeoffAreaSetupDialog));
     },
 
     onClose() {

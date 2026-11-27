@@ -1,6 +1,8 @@
 import AppBar from '@mui/material/AppBar';
 
-import { isThemeDark, makeStyles } from '@skybrush/app-theme-mui';
+import { makeStyles } from '@skybrush/app-theme-mui';
+
+import { tokensOf } from '~/design/tokens';
 
 import UAVDetailsPanelSelect from './UAVDetailsPanelSelect';
 import UAVDetailsPanelTabs from './UAVDetailsPanelTabs';
@@ -17,10 +19,9 @@ const useStyles = makeStyles((theme) => ({
     justifyContent: 'space-between',
 
     // Partially copied from @skybrush/mui-components/lib/DialogAppBar
-    backgroundColor: isThemeDark(theme) ? '#535353' : '#fff',
-    color: isThemeDark(theme)
-      ? theme.palette.getContrastText('#535353')
-      : '#000',
+    backgroundColor: tokensOf(theme).surfaceRaised,
+    borderBottom: `1px solid ${theme.palette.divider}`,
+    color: theme.palette.text.primary,
   },
 
   select: {

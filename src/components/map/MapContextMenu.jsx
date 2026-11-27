@@ -3,6 +3,7 @@
  * currently selected UAVs.
  */
 
+import Add from '@mui/icons-material/Add';
 import Assignment from '@mui/icons-material/Assignment';
 import Block from '@mui/icons-material/Block';
 import ActionDelete from '@mui/icons-material/Delete';
@@ -13,7 +14,6 @@ import FlightLand from '@mui/icons-material/FlightLand';
 import FlightTakeoff from '@mui/icons-material/FlightTakeoff';
 import Grain from '@mui/icons-material/Grain';
 import Home from '@mui/icons-material/Home';
-import Moon from '@mui/icons-material/NightsStay';
 import PinDrop from '@mui/icons-material/PinDrop';
 import ActionPowerSettingsNew from '@mui/icons-material/PowerSettingsNew';
 import Refresh from '@mui/icons-material/Refresh';
@@ -24,7 +24,6 @@ import PropTypes from 'prop-types';
 import { Translation } from 'react-i18next';
 
 import ContextMenu from '~/components/ContextMenu';
-import Bolt from '~/icons/Bolt';
 import ContentCut from '~/icons/ContentCut';
 import Fence from '~/icons/PlacesFence';
 import { FeatureType } from '~/model/features';
@@ -36,6 +35,7 @@ import * as messaging from '~/utils/messaging';
  */
 class MapContextMenu extends React.Component {
   static propTypes = {
+    addPointToMission: PropTypes.func,
     clearGeofencePolygonId: PropTypes.func,
     contextProvider: PropTypes.func,
     cutFeature: PropTypes.func,
@@ -153,22 +153,6 @@ class MapContextMenu extends React.Component {
                     {t('mapContextMenu.details')}
                   </MenuItem>,
                   <Divider key='div3' />,
-                  <MenuItem
-                    key='wakeUp'
-                    dense
-                    onClick={this._wakeUpSelectedUAVs}
-                  >
-                    <ListItemIcon>
-                      <Bolt />
-                    </ListItemIcon>
-                    {t('general.commands.powerOn')}
-                  </MenuItem>,
-                  <MenuItem key='sleep' dense onClick={this._sleepSelectedUAVs}>
-                    <ListItemIcon>
-                      <Moon />
-                    </ListItemIcon>
-                    {t('general.commands.sleep')}
-                  </MenuItem>,
                   <MenuItem key='reset' dense onClick={this._resetUAVs}>
                     <ListItemIcon>
                       <Refresh color='secondary' />
@@ -186,6 +170,21 @@ class MapContextMenu extends React.Component {
                     {t('general.commands.powerOff')}
                   </MenuItem>,
                   <Divider key='div4' />
+                );
+              }
+
+              if (this.props.addPointToMission) {
+                result.push(
+                  <MenuItem
+                    key='addPointToMission'
+                    dense
+                    onClick={this._addPointToMission}
+                  >
+                    <ListItemIcon>
+                      <Add />
+                    </ListItemIcon>
+                    Add point to mission
+                  </MenuItem>
                 );
               }
 
@@ -333,6 +332,14 @@ class MapContextMenu extends React.Component {
     );
   }
 
+  _addPointToMission = (_event, context) => {
+    const { coords } = context;
+    const { addPointToMission } = this.props;
+    if (addPointToMission) {
+      addPointToMission({ lat: coords[1], lon: coords[0] });
+    }
+  };
+
   _moveSelectedUAVsAtCurrentAltitude = (_event, context) => {
     const { coords, selectedUAVIds } = context;
     messaging.moveUAVs(selectedUAVIds, {
@@ -473,19 +480,9 @@ class MapContextMenu extends React.Component {
     }
   };
 
-  _sleepSelectedUAVs = (_event, context) => {
-    const { selectedUAVIds } = context;
-    messaging.sleepUAVs(selectedUAVIds);
-  };
-
   _shutdownSelectedUAVs = (_event, context) => {
     const { selectedUAVIds } = context;
     messaging.shutdownUAVs(selectedUAVIds);
-  };
-
-  _wakeUpSelectedUAVs = (_event, context) => {
-    const { selectedUAVIds } = context;
-    messaging.wakeUpUAVs(selectedUAVIds);
   };
 }
 

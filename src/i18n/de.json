@@ -18,12 +18,6 @@
     "passed": "Flugkontroller Preflight Check bestanden.",
     "signOffOn": "Bestätige den Flugkontroller Preflight Check"
   },
-  "RTKStatusMiniList": {
-    "satelliteCount": "Satellitenanzahl",
-    "surveyInProgress": "Abfrage in Arbeit…",
-    "surveyNo": "Keine Abfrage in Arbeit",
-    "surveySuccesful": "Abfrage erfolgreich"
-  },
   "UAVOpButtonGrp": {
     "armMotors": "Starte Motoren",
     "disarmMotors": "Motoren abschalten",
@@ -40,11 +34,6 @@
     "clickToMute": "Klicken Sie, um Warnungen stummzuschalten.",
     "muted": "Warnungen sind stummgeschaltet. Klicken Sie, um die Stummschaltung aufzuheben."
   },
-  "altitudeSummaryButton": {
-    "clickToChange": "Klicken Sie, um {{altitudeType}} zu wechseln.",
-    "showingCurrent": "Anzeige von Maximum und Minimum {{altitudeType}}."
-  },
-  "authentication": "Authentifizierung",
   "batteryStatusHeaderButton": "Anzeige des durchschnittlichen und minimalen Ladezustands.",
   "broadcastButton": {
     "disable": "Broadcast deaktivieren",
@@ -127,7 +116,6 @@
   "settings": {
     "display": {
       "coordinateFormat": "Koordinatenformat",
-      "enableExperimentalFeatures": "Experimentelle Funktionen aktivieren (erweitert)",
       "flatEarthCoordinateSystem": "Flat Earth Koordinatensystem",
       "hideInactiveSegmentsOnDarkLCD": "Hoher Kontrast bei LCD-Uhren im Dunkelmodus",
       "language": "Sprache",
@@ -141,7 +129,6 @@
       "showScaleLine": "Maßstabslinie einblenden"
     },
     "tabs": {
-      "apiKeys": "API Schlüssel",
       "display": "Anzeige",
       "preflight": "Preflight",
       "server": "Server",
@@ -196,7 +183,6 @@
     "dronePlacementCheck": "Überprüfung der Drohnenanordnung…",
     "dronePlacementError": "Fehler bei Drohnenanordnung",
     "dronePlacementPartial": "Unvollständige Drohnenanordnung bestätigt",
-    "fromCloud": "Lade Show aus der Cloud",
     "indoor": "Indoor",
     "loading": "Bitte warten, Show Datei wird geladen…",
     "manualPreflightChecks": "Manuelle Preflight Checks",
@@ -232,38 +218,19 @@
     "uploadShowDataStart": "Hier klicken um Upload zu starten"
   },
   "toolbox": {
-    "averagingInProgress": "{{number}} in Arbeit",
-    "coordinateAveraging": "Koordinaten Mittelwert",
-    "licenseInfo": "Lizenz-Informationen",
-    "offlineMaps": "Offline-Karten",
     "paramUpload": "Parameter-Upload",
     "tooltip": "Toolbox",
     "uploadInProgress": "Upload in Arbeit"
   },
   "view": {
-    "beacon-list": "Beacons",
-    "dock-list": "Docks",
-    "feature-list": "Merkmale",
     "field-notes": "Notizen",
     "layer-list": "Ebenen",
     "lcd-clock-panel": "Uhren",
     "light-control": "Lichtsteuerung",
     "log-panel": "Event log",
     "map": "Karte",
-    "saved-location-list": "Standorte",
     "show-control": "Show Steuerung",
     "three-d-view": "3D-Ansicht",
     "uav-list": "UAVs"
-  },
-  "weatherMiniList": {
-    "compassDeclination": "Kompass-Deklination",
-    "kpIndex": "Kp-Index",
-    "lastUpdate": "Letzte Aktualisierung",
-    "noWeatherInfo": "Keine Wetterdaten für diesen Tag",
-    "refreshing": "Aktualisiere…",
-    "sunrise": "Sonnenaufgang",
-    "sunset": "Sonnenuntergang",
-    "timezone": "Zeitzone",
-    "utcOffset": "UTC-Offset"
   }
 }

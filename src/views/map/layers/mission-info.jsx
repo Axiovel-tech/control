@@ -89,7 +89,6 @@ const MissionInfoLayerSettingsPresentation = ({
     showOrigin,
     showHomePositions,
     showLandingPositions,
-    showMissionItems,
     showMissionOrigin,
     showTrajectoriesOfSelection,
   } = parameters || {};
@@ -162,18 +161,6 @@ const MissionInfoLayerSettingsPresentation = ({
             label='Show trajectories of selected drones'
           />
         </>
-      )}
-      {hasFeature('missionEditor') && (
-        <FormControlLabel
-          control={
-            <Checkbox
-              checked={Boolean(showMissionItems)}
-              value='showMissionItems'
-              onChange={handleChange('showMissionItems')}
-            />
-          }
-          label='Show mission items'
-        />
       )}
     </FormGroup>
   );

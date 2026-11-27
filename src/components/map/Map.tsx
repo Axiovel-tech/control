@@ -20,8 +20,8 @@ import { Tool } from './tools';
 
 export const styles: Record<'map' | 'mapWrapper', CSSProperties> = {
   map: {
-    // Vector tile based maps assume that there is a light background
-    background: '#f8f4f0',
+    // There are no map tiles; the venue grid is drawn straight on the panel
+    background: 'var(--ax-surface)',
     height: '100%',
   },
   mapWrapper: {

@@ -295,9 +295,6 @@ export function getSemanticsForFlightMode(
 
 /**
  * Enum representing the possible known GPS fix types of a UAV.
- *
- * NOTE: The reason for this enum being numeric is to facilitate the combined
- *       sorting of UAVs based on GPS fix type as well as number of satellites
  */
 export enum GPSFixType {
   NO_GPS = 0,
@@ -309,101 +306,6 @@ export enum GPSFixType {
   RTK_FIXED = 6,
   STATIC = 7,
   UNKNOWN = 8,
-}
-
-/**
- * Object mapping GPS fix type constants to their properties (human readable
- * descriptions, abbreviations etc).
- *
- * Abbreviations are guaranteed to be at most 4 characters.
- */
-const propertiesForGPSFixTypes: Record<
-  GPSFixType,
-  {
-    abbreviation: string;
-    description: string;
-    status: Status;
-  }
-> = {
-  [GPSFixType.NO_GPS]: {
-    abbreviation: '',
-    description: 'No GPS connected',
-    status: Status.ERROR,
-  },
-  [GPSFixType.NO_FIX]: {
-    abbreviation: '',
-    description: 'No GPS fix obtained',
-    status: Status.ERROR,
-  },
-  [GPSFixType.FIX_2D]: {
-    abbreviation: '2D',
-    description: '2D GPS fix',
-    status: Status.WARNING,
-  },
-  [GPSFixType.FIX_3D]: {
-    abbreviation: '3D',
-    description: '3D GPS fix',
-    status: Status.WARNING,
-  },
-  [GPSFixType.DGPS]: {
-    abbreviation: 'DGPS',
-    description: '3D GPS fix with DGPS/SBAS',
-    status: Status.SUCCESS,
-  },
-  [GPSFixType.RTK_FLOAT]: {
-    abbreviation: 'RTK',
-    description: 'RTK float',
-    status: Status.SUCCESS,
-  },
-  [GPSFixType.RTK_FIXED]: {
-    abbreviation: 'RTK+',
-    description: 'RTK fixed',
-    status: Status.SUCCESS,
-  },
-  [GPSFixType.STATIC]: {
-    abbreviation: 'STA',
-    description: 'Static position',
-    status: Status.SUCCESS,
-  },
-  [GPSFixType.UNKNOWN]: {
-    abbreviation: '----',
-    description: 'Unknown GPS fix type',
-    status: Status.WARNING,
-  },
-};
-
-/**
- * Returns the abbreviation of the given GPS fix type.
- */
-export function abbreviateGPSFixType(fixType: GPSFixType): string {
-  const props =
-    propertiesForGPSFixTypes[fixType] ||
-    propertiesForGPSFixTypes[GPSFixType.UNKNOWN];
-  return props.abbreviation;
-}
-
-/**
- * Returns the description of the given GPS fix type.
- */
-export function describeGPSFixType(
-  fixType: GPSFixType,
-  t: TranslateFn | undefined = undefined
-): string {
-  const resolvedFixType = propertiesForGPSFixTypes[fixType]
-    ? fixType
-    : GPSFixType.UNKNOWN;
-  const description = propertiesForGPSFixTypes[resolvedFixType].description;
-  return t ? t(`gpsFixType.${resolvedFixType}`, description) : description;
-}
-
-/**
- * Returns the semantic status code of the given GPS fix type.
- */
-export function getSemanticsForGPSFixType(fixType: GPSFixType): Status {
-  const props =
-    propertiesForGPSFixTypes[fixType] ||
-    propertiesForGPSFixTypes[GPSFixType.UNKNOWN];
-  return props.status;
 }
 
 /* ************************************************************************* */

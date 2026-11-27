@@ -228,6 +228,14 @@ export const getRtlsOtaJobForDevice: AppSelector<
 > = (state, id) => state.rtls.otaJobs[id];
 
 /**
+ * Selector that returns the solve rate each tag is configured for, in Hz,
+ * keyed by device id. Tags whose configuration has not been read are absent.
+ */
+export const getRtlsSolveRateTargets: AppSelector<Record<string, number>> = (
+  state
+) => state.rtls.solveRateTargets;
+
+/**
  * Selector factory that returns the cached parameter-list state for a device.
  */
 export const getRtlsParamsStateForDevice: AppSelector<

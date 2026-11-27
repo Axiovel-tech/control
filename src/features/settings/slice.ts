@@ -16,7 +16,6 @@ import {
   LIPO_LOW_VOLTAGE_THRESHOLD,
 } from '~/model/constants';
 import {
-  AltitudeSummaryType,
   BatteryDisplayStyle,
   CoordinateFormat,
   UAVOperationConfirmationStyle,
@@ -31,9 +30,7 @@ type SettingsSliceState = SettingsState;
 
 const initialState: SettingsSliceState = {
   display: {
-    altitudeSummaryType: AltitudeSummaryType.AMSL,
     coordinateFormat: CoordinateFormat.SIGNED_DEGREES,
-    experimentalFeaturesEnabled: false,
     hideEmptyMissionSlots: false,
     language: 'en',
     optimizeForSingleUAV: config.optimizeForSingleUAV.default,
@@ -41,7 +38,8 @@ const initialState: SettingsSliceState = {
     showMissionIds: false,
     showMouseCoordinates: true,
     showScaleLine: true,
-    theme: ThemeType.AUTO,
+    // Shows run with the house lights down: dark unless the user says otherwise
+    theme: ThemeType.DARK,
     hideInactiveSegmentsOnDarkLCD: false,
     uavListFilters: [
       /* Each item in this array is currently a string from the UAVFilter
@@ -89,8 +87,6 @@ const initialState: SettingsSliceState = {
     minIndoorTakeoffSpacing: 200,
     minOutdoorTakeoffSpacing: 400,
   },
-
-  apiKeys: {},
 };
 
 const { actions, reducer } = createSlice({

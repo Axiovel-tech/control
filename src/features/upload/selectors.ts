@@ -254,6 +254,22 @@ export const getLastUploadResultByJobType = (
 };
 
 /**
+ * Returns whether the last upload job of the given type ended with every one
+ * of its UAVs done. The result of the job alone does not tell: it is a success
+ * as well when the server refused a UAV for a reason that no retry can fix.
+ */
+export const hasLastUploadSucceededOnAllUAVs = (
+  state: RootState,
+  type: string | undefined
+): boolean => {
+  const last = getHistoryForJobType(state.upload.history, type).at(-1);
+  return (
+    last?.result === 'success' &&
+    !Object.values(last.perUavStatuses).includes('error')
+  );
+};
+
+/**
  * Returns the upload items that are either already sent to a worker or that
  * are being processed by a worker. These items are the ones where the user
  * cannot intervene with the upload process.

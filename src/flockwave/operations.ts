@@ -9,12 +9,10 @@ import type {
   Response_ACKNAK,
   Response_EXTRELOAD,
   Response_EXTSETCFG,
-  RTKSurveySettings,
 } from '@skybrush/flockwave-spec';
 
 import { errorToString } from '~/error-handling';
 import { createUploadError } from '~/features/upload/errors';
-import type { Coordinate3D } from '~/utils/math';
 
 import {
   createBulkParameterUploadRequest,
@@ -183,24 +181,6 @@ export async function setParameters(
 }
 
 /**
- * Sets the source of the RTK corrections that the server broadcasts to the
- * connected drones.
- */
-export async function setRTKCorrectionsSource(
-  hub: MessageHub,
-  presetId: string | null
-) {
-  const response = await hub.sendMessage({
-    type: 'X-RTK-SOURCE',
-    id: presetId,
-  });
-
-  if (response.body.type !== 'ACK-ACK') {
-    throw new Error('Failed to set new RTK correction source');
-  }
-}
-
-/**
  * Sets the configuration of the current drone show on the server.
  */
 export async function setShowConfiguration(
@@ -260,45 +240,6 @@ export async function startCollectiveRTH(hub: MessageHub): Promise<Schedule> {
   throw new Error(
     `Invalid schedule in response to collective RTH trigger: ${JSON.stringify(response.body)}`
   );
-}
-
-/**
- * Asks the RTK framework on the server to start a new survey on the current
- * RTK connection.
- */
-export async function startRTKSurvey(
-  hub: MessageHub,
-  settings: RTKSurveySettings
-) {
-  const response = await hub.sendMessage({
-    type: 'RTK-SURVEY',
-    settings,
-  });
-
-  if (response.body.type !== 'ACK-ACK') {
-    throw new Error('Failed to start RTK survey on the server');
-  }
-}
-
-/**
- * Sets the RTK antenna position on the server by submitting explicit
- * survey settings that contain a fixed position instead of starting a survey.
- */
-export async function setRTKAntennaPosition(
-  hub: MessageHub,
-  { position, accuracy }: { position: Coordinate3D; accuracy: number }
-) {
-  const response = await hub.sendMessage({
-    type: 'X-RTK-SURVEY',
-    settings: {
-      position,
-      accuracy,
-    },
-  });
-
-  if (response.body.type !== 'ACK-ACK') {
-    throw new Error('Failed to set RTK antenna position on the server');
-  }
 }
 
 /**
@@ -412,106 +353,20 @@ export async function uploadGdmShow(
   }
 }
 
-/**
- * Asks the server to upload a mission in some mission format to a given UAV.
- */
-export async function uploadMission(
-  hub: MessageHub,
-  { uavId, data, format }: { uavId: string; data: string; format: string },
-  options: AsyncResponseHandlerOptions
-) {
-  validateObjectId(uavId);
-
-  // HACK HACK HACK we are (ab)using the command execution mechanism. This is
-  // probably okay as a temporary solution, but we might need a better solution
-  // in the long term.
-  try {
-    await hub.sendCommandRequest(
-      {
-        uavId,
-        command: '__mission_upload',
-        args: [data, format],
-      },
-      {
-        timeout: 300 /* five minutes, should be longer than the timeout on the server */,
-        ...options,
-      }
-    );
-  } catch (error) {
-    throw new Error(
-      errorToString(
-        (error as any).message || error,
-        `Failed to upload mission to UAV ${uavId}`
-      )
-    );
-  }
-}
-
-/**
- * Custom class of errors representing server side plan generation problems.
- */
-export class ServerPlanError extends Error {
-  constructor(message?: string) {
-    super(message);
-    this.name = 'ServerPlanError';
-  }
-}
-
-/**
- * Sends a request to the server to plan a mission with the given parameters.
- */
-export async function planMission(
-  hub: MessageHub,
-  { id, parameters }: { id: string; parameters: Record<string, unknown> }
-) {
-  const response = await hub.sendMessage<
-    | (MessageBody<'X-MSN-PLAN'> & { result: Record<string, unknown> })
-    | Response_ACKNAK
-  >({ type: 'X-MSN-PLAN', id, parameters });
-
-  const { type } = response.body;
-  if (type !== 'X-MSN-PLAN') {
-    throw new ServerPlanError(response.body.reason);
-  }
-
-  const { result } = response.body;
-  if (result?.format !== 'skybrush-live/mission-items') {
-    throw new Error(
-      `Mission plan has an unknown format: ${String(result?.format)}`
-    );
-  }
-
-  const { payload } = result;
-  if (
-    !(typeof payload === 'object' && payload !== null) ||
-    !('version' in payload && payload?.version == 1) ||
-    !('items' in payload && Array.isArray(payload?.items))
-  ) {
-    throw new Error('Mission plan response must be in version 1 format');
-  }
-
-  return payload;
-}
-
 const _operations = {
   configureExtension,
-  planMission,
   reloadExtension,
   resetUAV,
   resumeShow,
   sendDebugMessage,
   setParameter,
   setParameters,
-  setRTKAntennaPosition,
-  setRTKCorrectionsSource,
   setShowConfiguration,
   setShowLightConfiguration,
   startCollectiveRTH,
-  startRTKSurvey,
   suspendShow,
   uploadDroneShow,
   uploadGdmShow,
-  uploadMission,
 };
 
 type RemoveHubArg<F> = F extends (hub: MessageHub, ...args: infer A) => infer R

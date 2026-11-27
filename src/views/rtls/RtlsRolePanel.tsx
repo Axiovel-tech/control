@@ -38,6 +38,7 @@ import {
   getRtlsCellSurvey,
   getRtlsPairedUavStatuses,
   getRtlsSleepPendingMap,
+  getRtlsSolveRateTargets,
   getRtlsStatsById,
   getRtlsInitiatorEvidence,
   getRtlsLockedOutDeviceIds,
@@ -84,6 +85,7 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
   const tags = variant === 'tags';
   const dispatch: AppDispatch = useDispatch();
   const devices = useSelector(tags ? getRtlsTagDevices : getRtlsAnchorDevices);
+  const solveRateTargets = useSelector(getRtlsSolveRateTargets);
   const statsById = useSelector(getRtlsStatsById);
   const uavStatuses = useSelector(getRtlsPairedUavStatuses);
   const sleepPending = useSelector(getRtlsSleepPendingMap);
@@ -189,17 +191,24 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
       data-testid={tags ? 'rtls-tags-panel' : 'rtls-anchors-panel'}
       sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}
     >
+      {/* one wrapping line, so a narrow panel stacks the toolbar rather than
+       * cutting it off */}
       <Box
         sx={{
           display: 'flex',
+          flexWrap: 'wrap',
           alignItems: 'center',
-          justifyContent: 'space-between',
+          columnGap: 1,
+          rowGap: 0.5,
           px: 1,
           py: 0.5,
         }}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <OverallRtlsStatusLight scope={tags ? 'tags' : 'anchors'} />
+        <Box sx={{ display: 'contents' }}>
+          {/* the light is a list item, which would claim the whole line */}
+          <Box sx={{ flex: 'none' }}>
+            <OverallRtlsStatusLight scope={tags ? 'tags' : 'anchors'} />
+          </Box>
           {surveyPill && (
             <StatusPill
               inline
@@ -233,12 +242,14 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
           {!tags && <CellSettingsControl />}
           {!tags && <AnchorLockControl />}
         </Box>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+        <Box
+          sx={{ display: 'flex', alignItems: 'center', gap: 0.5, ml: 'auto' }}
+        >
           {/* TWR freshness is per-row (each peer carries its age); a global
            * stats timestamp only describes TAG telemetry, so it is only
            * shown on the tags panel */}
           {tags && (
-            <Typography variant='caption' color='textSecondary'>
+            <Typography noWrap variant='caption' color='textSecondary'>
               {lastUpdatedAt
                 ? `updated ${new Date(lastUpdatedAt).toLocaleTimeString()}`
                 : 'no updates yet'}
@@ -315,6 +326,7 @@ const RtlsRolePanel = ({ variant }: RtlsRolePanelProps) => {
                   }
                   handlers={handlers}
                   locked={lockedOutIds.has(device.id)}
+                  solveRateTargetHz={solveRateTargets[device.id]}
                   stats={stats}
                   onToggleExpanded={toggleExpanded}
                   uavStatus={

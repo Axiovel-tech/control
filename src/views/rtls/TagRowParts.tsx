@@ -18,6 +18,7 @@ import { type I18nText } from '~/features/rtls/i18n-text';
 import { getRtlsDeviceDisplayName } from '~/features/rtls/selectors';
 import {
   countAnchorsInMask,
+  formatSolveRate,
   type RtlsTagCell,
 } from '~/features/rtls/stats-utils';
 import {
@@ -147,14 +148,17 @@ const anchorsSeenOf = (stats: RtlsDeviceStats | undefined): number =>
 
 /** A tag's solve rate and percentage, on its header line. */
 export const TagSolveFigures = ({
+  solveRateTargetHz,
   stats,
 }: {
+  /** Solve rate the tag is configured for, in Hz, once it is known. */
+  solveRateTargetHz?: number;
   stats: RtlsDeviceStats | undefined;
 }) => (
   <>
     <HeaderStat
       label='Solve rate'
-      value={formatNumber(stats?.solveRateHz, 'Hz')}
+      value={formatSolveRate(stats?.solveRateHz, solveRateTargetHz)}
     />
     <HeaderStat
       label='Solve %'

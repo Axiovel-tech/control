@@ -16,9 +16,6 @@
     "noError": "Ninguno de los UAVs indicó un error.",
     "passed": "Comprobaciones a bordo previas al vuelo passadas."
   },
-  "RTKStatusMiniList": {
-    "satelliteCount": "Conteo de satélites"
-  },
   "UAVOpButtonGrp": {
     "armMotors": "Armar motores",
     "disarmMotors": "Desarmar motores",

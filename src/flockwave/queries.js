@@ -4,7 +4,6 @@
  */
 
 import get from 'lodash-es/get';
-import pick from 'lodash-es/pick';
 import sortBy from 'lodash-es/sortBy';
 import memoize from 'memoizee';
 import { toScaledJSONFromLonLat } from '~/utils/geography';
@@ -37,26 +36,6 @@ export async function adaptShow(hub, show, transformations, coordinateSystem) {
   );
 
   if (response?.body?.type === 'X-SHOW-ADAPT') {
-    return response.body;
-  } else {
-    throw new Error(response?.body?.reason ?? 'Unknown error.');
-  }
-}
-
-/**
- * Adds collective RTH plans to drones using the given configuration.
- */
-export async function addCollectiveRTH(hub, show, config) {
-  const response = await hub.sendMessage(
-    {
-      type: 'X-SHOW-CRTH-PLAN',
-      show,
-      config,
-    },
-    { timeout: 3600 }
-  );
-
-  if (response?.body?.type === 'X-SHOW-CRTH-PLAN') {
     return response.body;
   } else {
     throw new Error(response?.body?.reason ?? 'Unknown error.');
@@ -169,71 +148,6 @@ export async function getFlightLogList(hub, uavId) {
 }
 
 /**
- * Returns the current license object from the server.
- */
-export async function getLicenseInformation(hub) {
-  const response = await hub.sendMessage({ type: 'LCN-INF' });
-  return response.body &&
-    response.body.type === 'LCN-INF' &&
-    typeof response.body.license === 'object'
-    ? response.body.license
-    : undefined;
-}
-
-/**
- * Returns the parameter schema of the mission with the given type from the server.
- */
-export async function getMissionTypeSchemas(hub, missionTypeId) {
-  const response = await hub.sendMessage({
-    type: 'X-MSN-TYPE-SCHEMA',
-    ids: [missionTypeId],
-  });
-
-  // TODO: Handle `response.body.error` if present!
-
-  if (
-    response.body &&
-    response.body.type === 'X-MSN-TYPE-SCHEMA' &&
-    typeof response.body.items === 'object' &&
-    typeof response.body.items[missionTypeId] === 'object'
-  ) {
-    return response.body.items[missionTypeId];
-  } else {
-    return {};
-  }
-}
-
-/**
- * Returns the list of registered mission types from the server.
- */
-export async function getMissionTypes(hub, options = {}) {
-  let response;
-  const { features } = options;
-
-  response = await hub.sendMessage({ type: 'X-MSN-TYPE-LIST' });
-  if (response.body && response.body.type === 'X-MSN-TYPE-LIST') {
-    const missionTypeIds = get(response, 'body.ids') || [];
-    if (missionTypeIds.length > 0) {
-      response = await hub.sendMessage({
-        type: 'X-MSN-TYPE-INF',
-        ids: missionTypeIds,
-      });
-
-      const missionTypesById = get(response, 'body.items') || {};
-      const filtered = Object.values(missionTypesById).filter((item) => {
-        return (
-          !Array.isArray(features) ||
-          features.some((feature) => item.features.includes(feature))
-        );
-      });
-      return sortBy(filtered, ['name', 'id']);
-    }
-  } else {
-    return [];
-  }
-}
-
-/**
  * Returns the current preflight status of a single UAV.
  */
 export async function getPreflightStatus(hub, uavId) {
@@ -254,83 +168,6 @@ export async function getPreflightStatus(hub, uavId) {
   }
 
   throw new Error('Unexpected response for preflight status query');
-}
-
-/**
- * Returns the list of RTK data sources.
- */
-export async function getRTKPresets(hub) {
-  let response;
-
-  response = await hub.sendMessage({ type: 'RTK-LIST' });
-  if (response.body && response.body.type === 'RTK-LIST') {
-    const rtkSourceIds = get(response, 'body.ids') || [];
-    if (rtkSourceIds.length > 0) {
-      response = await hub.sendMessage({
-        type: 'RTK-INF',
-        ids: rtkSourceIds,
-      });
-
-      const presetsById = get(response, 'body.preset') || {};
-      for (const [presetId, preset] of Object.entries(presetsById)) {
-        preset.id = presetId;
-      }
-
-      return sortBy(Object.values(presetsById), ['title', 'id']);
-    }
-  } else {
-    return [];
-  }
-}
-
-/**
- * Returns the RTK surveying settings from the server.
- */
-export async function getRTKSurveySettings(hub) {
-  const response = await hub.sendMessage({ type: 'RTK-SURVEY' });
-  return response.body &&
-    response.body.type === 'RTK-SURVEY' &&
-    response.body.settings
-    ? pick(response.body.settings, ['accuracy', 'duration'])
-    : {};
-}
-
-/**
- * Returns the status of the RTK subsystem.
- */
-export async function getRTKStatus(hub) {
-  const response = await hub.sendMessage({ type: 'RTK-STAT' });
-  if (response.body && response.body.type === 'RTK-STAT') {
-    return {
-      antenna: response.body.antenna,
-      messages: response.body.messages,
-      messagesTx: response.body.messages_tx,
-      cnr: response.body.cnr,
-      survey: response.body.survey,
-    };
-  }
-
-  throw new Error('Unexpected response for RTK subsystem status query');
-}
-
-/**
- * Returns the currently selected RTK data source ID.
- *
- * @return {Promise<string | null>}
- */
-export async function getSelectedRTKPresetId(hub) {
-  const response = await hub.sendMessage(
-    { type: 'X-RTK-SOURCE' },
-    // Use a longer timeout as the server might be busy reconfiguring the RTK
-    // source when we ask for it.
-    { timeout: 15 }
-  );
-
-  if (response.body && response.body.type === 'X-RTK-SOURCE') {
-    return get(response, 'body.id');
-  }
-
-  return null;
 }
 
 /**
@@ -356,28 +193,6 @@ export async function getShowConfiguration(hub) {
   }
 
   throw new Error('No show configuration returned');
-}
-
-/**
- * Returns the weather information at the given location from the server.
- *
- * @param position  the location to query, as a lon-lat pair
- */
-export async function getWeatherInformation(hub, position) {
-  if (!Array.isArray(position) || position.length < 2) {
-    throw new Error('Invalid position');
-  }
-
-  const response = await hub.sendMessage({
-    type: 'WTH-AT',
-    position: toScaledJSONFromLonLat(position),
-  });
-
-  if (response.body && response.body.type === 'WTH-AT') {
-    return response.body.weather;
-  }
-
-  throw new Error('Unexpected response for weather query');
 }
 
 /**
@@ -425,22 +240,13 @@ export async function isExtensionLoaded(hub, name) {
 export class QueryHandler {
   _queries = {
     adaptShow,
-    addCollectiveRTH,
     getBasicBeaconProperties,
     getConfigurationOfExtension,
     getFlightLog,
     getFlightLogList,
-    getLicenseInformation,
-    getMissionTypes,
-    getMissionTypeSchemas,
     getPreflightStatus,
-    getRTKPresets,
-    getRTKStatus,
-    getRTKSurveySettings,
-    getSelectedRTKPresetId,
     getServerPortMapping,
     getShowConfiguration,
-    getWeatherInformation,
     isExtensionLoaded,
     listExtensions,
   };

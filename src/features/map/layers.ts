@@ -16,7 +16,6 @@ import {
   type Layer,
   LayerType,
 } from '~/model/layers';
-import { type Source } from '~/model/sources';
 import {
   type Collection,
   createCollectionFromArray,
@@ -211,23 +210,6 @@ const { reducer, actions } = createSlice({
     },
 
     /**
-     * Select a given source for the given map layer.
-     */
-    selectMapSource(
-      state,
-      action: PayloadAction<{ layerId: Layer['id']; source: Source.Source }>
-    ) {
-      const { layerId, source } = action.payload;
-      const layer = state.byId[layerId];
-
-      if (layer === undefined) {
-        console.warn(`Cannot set source of non-existent layer ${layerId}`);
-      } else {
-        layer.parameters['source'] = source;
-      }
-    },
-
-    /**
      * Set a chosen parameter of the layer specified by the id.
      *
      * @param id - The ID of the layer whose parameter is to be changed
@@ -310,7 +292,6 @@ export const {
   changeLayerType,
   removeLayer,
   renameLayer,
-  selectMapSource,
   setLayerParameterById,
   setLayerParametersById,
   toggleLayerVisibility,

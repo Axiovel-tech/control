@@ -36,9 +36,8 @@ const e2eServerPort = ((): number | undefined => {
  * Points a test build at the endpoint the harness started, and only there.
  *
  * Applied after the variant overrides rather than inside the baseline, because
- * a variant may replace the whole `server` block: `light` points it at a public
- * MAVLink proxy and forbids manual setup, which would leave an E2E build
- * talking to a live server with no way to redirect it.
+ * a variant may replace the whole `server` block, which would leave an E2E
+ * build talking to a live server with no way to redirect it.
  *
  * Leaving the port unset is not enough to stay away either — `sagas/onboarding`
  * resolves a nil or unparseable port to 5000 whenever a hostname is configured,

@@ -1,6 +1,5 @@
 /* eslint-disable unicorn/no-negated-condition */
 import Clear from '@mui/icons-material/Clear';
-import CloudDownload from '@mui/icons-material/CloudDownload';
 import Refresh from '@mui/icons-material/Refresh';
 import IconButton from '@mui/material/IconButton';
 import LinearProgress from '@mui/material/LinearProgress';
@@ -35,9 +34,7 @@ import {
   isLoadingShowFile,
 } from '~/features/show/selectors';
 import { selectGdmGeofenceMismatch } from '~/features/show/gdm/selectors';
-import { openLoadShowFromCloudDialog } from '~/features/show/slice';
 import { getSetupStageStatuses } from '~/features/show/stages';
-import { hasFeature } from '~/utils/configuration';
 import { truncate } from '~/utils/formatting';
 
 /**
@@ -100,7 +97,6 @@ const LoadShowFromFileButton = ({
   isGdmShow,
   loading,
   onClearLoadedShow,
-  onLoadShowFromCloud,
   onReloadShowFile,
   onShowFileSelected,
   progress,
@@ -122,12 +118,6 @@ const LoadShowFromFileButton = ({
         <Tooltip content={t('show.clear')}>
           <IconButton edge='end' size='large' onClick={onClearLoadedShow}>
             <Clear />
-          </IconButton>
-        </Tooltip>
-      ) : hasFeature('loadShowFromCloud') ? (
-        <Tooltip content={t('show.fromCloud')}>
-          <IconButton edge='end' size='large' onClick={onLoadShowFromCloud}>
-            <CloudDownload />
           </IconButton>
         </Tooltip>
       ) : undefined
@@ -210,7 +200,6 @@ LoadShowFromFileButton.propTypes = {
   isGdmShow: PropTypes.bool,
   loading: PropTypes.bool,
   onClearLoadedShow: PropTypes.func,
-  onLoadShowFromCloud: PropTypes.func,
   onReloadShowFile: PropTypes.func,
   onShowFileSelected: PropTypes.func,
   progress: PropTypes.number,
@@ -237,7 +226,6 @@ export default connect(
   // mapDispatchToProps
   {
     onClearLoadedShow: clearLoadedShow,
-    onLoadShowFromCloud: openLoadShowFromCloudDialog,
     onReloadShowFile: reloadCurrentShowFile,
     onShowFileSelected: loadShowFromFile,
   }

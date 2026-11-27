@@ -1,5 +1,8 @@
+// Fira Sans stays as the fallback for scripts the brand typefaces lack
 import '@fontsource/fira-sans/400.css';
 import '@fontsource/fira-sans/500.css';
+
+import '../assets/css/fonts.css';
 
 import { disableReactDevTools } from '@fvilers/disable-react-devtools';
 import { createRoot } from 'react-dom/client';

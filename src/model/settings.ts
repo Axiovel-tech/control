@@ -4,42 +4,6 @@
 
 import type { TranslateFn } from '~/i18n/types';
 
-export enum AltitudeSummaryType {
-  AMSL = 'amsl',
-  AHL = 'ahl',
-  AGL = 'agl',
-  XYZ = 'xyz',
-}
-
-const altitudeSummaryTypeDescriptions = {
-  [AltitudeSummaryType.AMSL]: 'Altitude above mean sea level',
-  [AltitudeSummaryType.AHL]: 'Altitude above home level',
-  [AltitudeSummaryType.AGL]: 'Altitude above ground level',
-  [AltitudeSummaryType.XYZ]: 'Altitude in local coordinate system',
-};
-
-const altitudeSummaryTypeShortDescriptions = {
-  [AltitudeSummaryType.AMSL]: 'AMSL',
-  [AltitudeSummaryType.AHL]: 'AHL',
-  [AltitudeSummaryType.AGL]: 'AGL',
-  [AltitudeSummaryType.XYZ]: 'Z coordinate',
-};
-
-export const describeAltitudeSummaryType = (
-  type: AltitudeSummaryType,
-  { short = false } = {},
-  t: TranslateFn | undefined = undefined
-): string => {
-  const descriptions = short
-    ? altitudeSummaryTypeShortDescriptions
-    : altitudeSummaryTypeDescriptions;
-  const description = descriptions[type] || 'Unknown altitude type';
-  const namespace = short
-    ? 'altitudeSummaryType.short'
-    : 'altitudeSummaryType.long';
-  return t ? t(`${namespace}.${type}`, description) : description;
-};
-
 export enum CoordinateFormat {
   DEGREES = 'd',
   DEGREES_MINUTES = 'dm',

@@ -12,7 +12,6 @@ import {
   setAppSettingsDialogTab,
 } from '~/features/settings/actions';
 
-import APIKeysTab from './APIKeysTab';
 import DisplayTab from './DisplayTab';
 import PreflightTab from './PreflightTab';
 import ServerTab from './ServerTab';
@@ -22,7 +21,6 @@ import UAVsTab from './UAVsTab';
 /* ===================================================================== */
 
 const tabNameToComponent = {
-  apiKeys: <APIKeysTab />,
   display: <DisplayTab />,
   preflight: <PreflightTab />,
   server: <ServerTab />,
@@ -50,7 +48,6 @@ const AppSettingsDialogPresentation = ({
       {window.bridge && window.bridge.isElectron ? (
         <Tab value='server' label={t('settings.tabs.server')} />
       ) : null}
-      <Tab value='apiKeys' label={t('settings.tabs.apiKeys')} />
     </DialogTabs>
     <DialogContent style={{ minHeight: 200 }}>
       {tabNameToComponent[selectedTab]}

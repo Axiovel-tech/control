@@ -14,8 +14,10 @@ import { WorkbenchBuilder } from 'react-flexible-workbench';
 
 import { BackgroundHint } from '@skybrush/mui-components';
 
+import { layout } from './design/tokens';
 import { makeDetachable } from './features/detachable-panels/DetachablePanel';
 import { createPerspectiveBuilder } from './features/perspectives/utils';
+import { enableLiveSplitterResizing } from './features/workbench/live-resize';
 import {
   saveWorkbenchState,
   setWorkbenchHasHeaders,
@@ -70,24 +72,9 @@ const onlyWithFeature = (featureName, component) =>
  * components to have props, use a wrapper HOC.
  */
 export const componentRegistry = {
-  'connection-list': {
-    // deprecated, kept there for compatibility
-    component: views.ConnectionList,
-    label: 'Connections',
-  },
-  'feature-list': {
-    component: views.FeaturePanel,
-    label: 'Features',
-    detachable: true,
-    feature: 'features',
-  },
   'field-notes': {
     component: FieldNotesPanel,
     label: 'Field notes',
-  },
-  'ground-control-view': {
-    component: injectFlockFromContext(views.GroundControlView),
-    label: 'Ground control',
   },
   'layer-list': {
     component: views.LayerList,
@@ -114,11 +101,6 @@ export const componentRegistry = {
     component: MapView,
     label: 'Map',
     detachable: true,
-  },
-  messages: {
-    // deprecated, kept there for compatibility
-    component: views.MessagesPanelView,
-    label: 'Messages',
   },
   placeholder: {
     component: Nothing,
@@ -195,6 +177,16 @@ export const componentRegistry = {
   },
 };
 
+/**
+ * Sizes of the workbench chrome; see the golden-layout `dimensions` option.
+ */
+const panelDimensions = {
+  borderWidth: layout.panelGap,
+  headerHeight: layout.panelHeaderHeight,
+  minItemHeight: 96,
+  minItemWidth: 200,
+};
+
 function constructDefaultWorkbench(store) {
   const workbenchBuilder = new WorkbenchBuilder();
 
@@ -212,6 +204,15 @@ function constructDefaultWorkbench(store) {
 
   // Create the default perspective
   const workbench = workbenchBuilder.build();
+
+  // The panel dimensions belong to the design, not to a saved layout: the
+  // library neither stores them in the state it hands out nor offers a way to
+  // set defaults, so they are added to every state on its way in.
+  const restoreState = workbench.restoreState.bind(workbench);
+  workbench.restoreState = (state) => {
+    restoreState({ ...state, dimensions: panelDimensions });
+  };
+
   const { isFixed, state } = createPerspectiveBuilder(
     componentRegistry,
     workbench
@@ -236,7 +237,21 @@ function constructDefaultWorkbench(store) {
   return workbench;
 }
 
+// The panels follow a splitter while it is dragged; has to be in place before
+// the first layout creates its splitters
+enableLiveSplitterResizing();
+
 const workbench = constructDefaultWorkbench(store);
+
+const buildPerspective = createPerspectiveBuilder(componentRegistry, workbench);
+
+/**
+ * Returns the workbench state of one of the well-known layouts, ready to be
+ * passed to `workbench.restoreState()`.
+ *
+ * @param {string} name  name of a layout in `features/perspectives/common`
+ */
+export const buildWorkbenchLayout = (name) => buildPerspective(name).state;
 
 i18n.on('languageChanged', () => {
   workbench.forEach((view) => {

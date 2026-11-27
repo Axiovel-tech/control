@@ -1,21 +1,14 @@
 import type { PayloadAction } from '@reduxjs/toolkit';
 import isNil from 'lodash-es/isNil';
-import reject from 'lodash-es/reject';
 import xor from 'lodash-es/xor';
 
-import { getSelection } from '~/features/selection/selectors';
 import { setSelection } from '~/features/selection/slice';
 import flock from '~/flock';
-import { isUavId, uavIdToGlobalId } from '~/model/identifiers';
-import type { AppThunk, RootState } from '~/store/reducers';
+import { uavIdToGlobalId } from '~/model/identifiers';
+import type { AppThunk } from '~/store/reducers';
 import { setColorOnUAVs, turnOffColorOverrideOnUAVs } from '~/utils/messaging';
 
-import {
-  getSelectedUAVIds,
-  getUAVIdList,
-  getUAVIdsMarkedAsGone,
-  getUAVIdsWithColorOverride,
-} from './selectors';
+import { getSelectedUAVIds, getUAVIdsMarkedAsGone } from './selectors';
 import { _setLEDColorOverride } from './slice';
 
 /**
@@ -25,19 +18,6 @@ export const clearUAVColorOverride =
   (ids: string[]): AppThunk =>
   (dispatch) => {
     dispatch(overrideUAVColor(ids, null));
-  };
-
-/**
- * Clears the color override on all UAVs that are currently being overridden to the given color.
- */
-export const clearUAVColorOverrideForColor =
-  (color: string): AppThunk =>
-  (dispatch, getState) => {
-    const state = getState();
-    const ids = getUAVIdsWithColorOverride(state, color);
-    if (ids.length > 0) {
-      dispatch(clearUAVColorOverride(ids));
-    }
   };
 
 /**
@@ -51,24 +31,17 @@ export const clearAllUAVColorOverrides =
   };
 
 /**
- * Returns whether there is at least one UAV color override in effect.
- */
-export const hasUAVColorOverride = (
-  state: RootState,
-  uavId: string | undefined = undefined
-): boolean =>
-  uavId
-    ? Boolean(state.uavs.lights[uavId])
-    : Object.values(state.uavs.lights).some((x) => x.length > 0);
-
-/**
- * Overrides the color of the UAV with the given ID to the given color.
+ * Overrides the color of the UAV with the given ID to the given color. While
+ * the lights are not controlled from the GCS (the main switch of the light
+ * control panel), the colour is only kept, and goes out when they are.
  */
 export const overrideUAVColor =
   (ids: string[], color: string | null): AppThunk =>
-  (dispatch) => {
+  (dispatch, getState) => {
     if (color) {
-      void setColorOnUAVs(ids, { color });
+      if (getState().lightControl.active) {
+        void setColorOnUAVs(ids, { color });
+      }
     } else {
       void turnOffColorOverrideOnUAVs(ids, {});
     }
@@ -142,19 +115,4 @@ export const toggleUAVIdsInSelection =
 
     const selection = getSelectedUAVIds(getState());
     dispatch(setSelectedUAVIds(xor(selection, ids)));
-  };
-
-/**
- * Thunk that selects the single UAV in the flock if the user only has a single
- * UAV and does nothing otherwise.
- */
-export const selectSingleUAVUnlessAmbiguous =
-  (): AppThunk => (dispatch, getState) => {
-    const state = getState();
-    const uavIds = getUAVIdList(state);
-
-    if (Array.isArray(uavIds) && uavIds.length === 1) {
-      const otherSelection = reject(getSelection(state), isUavId);
-      dispatch(setSelection([...otherSelection, uavIdToGlobalId(uavIds[0])]));
-    }
   };

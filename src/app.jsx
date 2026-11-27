@@ -30,6 +30,7 @@ import RtlsParameterDialog from './features/rtls/RtlsParameterDialog';
 import SafetyDialog from './features/safety/SafetyDialog';
 import ShowConfiguratorDialog from './features/show-configurator/ShowConfiguratorDialog';
 import Sidebar from './features/sidebar/Sidebar';
+import ResponsiveLayout from './features/workbench/ResponsiveLayout';
 import Notifications from './features/snackbar/Notifications';
 import UAVDetailsDialog from './features/uavs/UAVDetailsDialog';
 import UploadDialog from './features/upload/UploadDialog';
@@ -50,7 +51,7 @@ import store, {
   sagaMiddleware,
   waitUntilStateRestored,
 } from './store';
-import ThemeProvider, { DarkModeExtraCSSProvider } from './theme';
+import ThemeProvider from './theme';
 import registerUploadJobTypes from './upload-jobs';
 import workbench from './workbench';
 
@@ -134,13 +135,12 @@ const App = ({ onFirstRender }) => (
     <>
       <CssBaseline />
 
-      <DarkModeExtraCSSProvider />
-
       <AppHotkeys />
 
       <div style={rootStyle}>
         <Header perspectives={perspectives} workbench={workbench} />
         <WorkbenchContainer />
+        <ResponsiveLayout />
         {config?.ribbon?.label && <CornerRibbon {...config.ribbon} />}
         <PendingUAVIdOverlay />
       </div>

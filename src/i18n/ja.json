@@ -21,21 +21,6 @@
     "passed": "機体のプレフライトチェックが正常にパスしました。",
     "signOffOn": "機体のプレフライトチェックを承認"
   },
-  "RTKCorrectionSourceSelector": {
-    "RTKCorrections": "RTKコネクション",
-    "error": "サーバーからRTKリソースを読み込み中のエラー",
-    "noRTKData": "サーバーにRTKリソースがありません",
-    "pleaseWait": "RTKリソースを読み込み中。しばらくお待ちください…"
-  },
-  "RTKMessage": {
-    "noRTKMessagesYet": "受信済みのRTKメッセージはありません"
-  },
-  "RTKStatusMiniList": {
-    "satelliteCount": "衛星数",
-    "surveyInProgress": "調査中…",
-    "surveyNo": "調査中のものはありません",
-    "surveySuccesful": "調査成功"
-  },
   "UAVList": {
     "allUAVs": "全UAV",
     "assignedUAVs": "アサインされたUAV",
@@ -61,39 +46,13 @@
     "clickToMute": "音声アラートをミュート",
     "muted": "音声アラートのミュートを解除"
   },
-  "altitudeSummaryButton": {
-    "clickToChange": "クリックして{{altitudeType}}に変更。",
-    "showingCurrent": "最大/最小{{altitudeType}}を表示。"
-  },
-  "antennaPositionIndicator": {
-    "antennaPositionNotKnown": "アンテナ位置が不明です",
-    "clickToToggle": "緯度/経度⇔ECEF形式の切り替え",
-    "copyToClipboard": "クリップボードにコピー"
-  },
   "augmentMappingButton": {
     "assignSparesToEmptySlots": "予備を空のスロットにアサイン"
   },
-  "authentication": "認証",
   "batteryStatusHeaderButton": "平均バッテリー量/最小バッテリー量",
-  "bearingCalculator": {
-    "addAtLeastTwoItems": "姿勢と距離を計算するためには最低二つのアイテムを追加して下さい",
-    "bearing": ", 姿勢: ",
-    "finalBearing": ", 最終的な姿勢: ",
-    "initialBearing": ", 初期姿勢: ",
-    "selectTwoItems": "姿勢と距離を計算するためには二つのアイテムを選択してください"
-  },
   "broadcastButton": {
     "disable": "ブロードキャストを無効化",
     "enable": "{{time}}秒間ブロードキャストを有効化"
-  },
-  "coordinateAveragingDialogToolbar": {
-    "addNewDrone": "新たにドローンを追加",
-    "copyCentroid": "重心をコピー",
-    "pauseMeasurement": "ポーズ測定",
-    "removeSelected": "選択したものを削除",
-    "resetMeasurement": "測定をリセット",
-    "resumeMeasurement": "測定を再開",
-    "setCentroidAsMapOrigin": "重心をマップ原点にセット"
   },
   "environmentEditorDialog": {
     "environmentSettings": "環境設定",
@@ -199,7 +158,6 @@
     "unknown": "不明なアクション: {{action}}"
   },
   "header": {
-    "distanceSummary": "ホーム地点からの最大最小距離",
     "velocitySummary": "最大水平垂直速度"
   },
   "help": "ヘルプ",
@@ -281,24 +239,6 @@
   },
   "mappingToggleButton": {
     "sortByMissionID": "mission IDでソート"
-  },
-  "measurementList": {
-    "addDrone": "ツールバーの＋ボタンで測定するドローンを追加する",
-    "copyToClipboard": "クリップボードにコピー",
-    "duration": "期間",
-    "noSamplesYet": "サンプル未取得",
-    "samples": "サンプル",
-    "stdDevInXY": "XYにおける標準偏差",
-    "waitingForSamples": "サンプル取得中…"
-  },
-  "mission": {
-    "planner": {
-      "schema": {
-        "error": "サーバーからミッションのパラメータースキーマを読み込み中にエラーが発生",
-        "loading": "ミッションパラメーターを取得中…",
-        "notFound": "接続したサーバーから選択されたミッションタイプのスキーマが提供されませんでした"
-      }
-    }
   },
   "navigationButtonGroup": {
     "fly": "上昇",
@@ -403,18 +343,6 @@
     "returnToHomeSpeedHelperText": "RTH時の水平速度[m/s]",
     "returnToHomeSpeedLabel": "RTH速度"
   },
-  "savedLocation": {
-    "addNew": "ロケーションをを追加",
-    "edit": "位置を編集"
-  },
-  "savedLocationEditor": {
-    "copyFromMapView": "マップビューからコピー",
-    "createNew": "ロケーションを作成",
-    "editSaved": "保存した位置を編集",
-    "name": "名前",
-    "notes": "メモ",
-    "zoomLevel": "拡大レベル"
-  },
   "serverConnectionStatus": {
     "clockSkew": "クロックスキュー",
     "clocksSync": "クロック同期",
@@ -452,7 +380,6 @@
   "settings": {
     "display": {
       "coordinateFormat": "座標形式",
-      "enableExperimentalFeatures": "実験的機能を有効にする（advanced）",
       "flatEarthCoordinateSystem": "Flat Earth座標系",
       "hideInactiveSegmentsOnDarkLCD": "ダークモードLCDクロックのコントラストを強調する",
       "language": "言語",
@@ -466,7 +393,6 @@
       "showScaleLine": "縮尺を表示"
     },
     "tabs": {
-      "apiKeys": "APIキー",
       "display": "ディスプレイ",
       "preflight": "プレフライト",
       "server": "サーバー",
@@ -521,7 +447,6 @@
     "dronePlacementCheck": "ドローンの配置を確認中…",
     "dronePlacementError": "ドローンの配置でエラーが発生しました",
     "dronePlacementPartial": "一部のドローンの配置を承認",
-    "fromCloud": "ドローンショーの設定ファイルをクラウドから読み込み",
     "indoor": "屋内",
     "loading": "ショーファイルを読み込んでいます。しばらくお待ちください…",
     "manualPreflightChecks": "手動飛行前チェック",
@@ -556,31 +481,22 @@
     "uploadShowDataLoading": "アップロード中です。しばらくお待ちください…",
     "uploadShowDataStart": "クリックしてアップロードを開始"
   },
-  "sidebar": {
-    "missionType": "ミッションタイプ: ({{missionType}})"
-  },
   "sorting": {
     "ascending": "昇順",
     "descending": "降順",
     "label": {
-      "agl": "地上高度",
       "ahl": "ホーム高度",
-      "amsl": "高度(MSL)",
       "battery": "バッテリー",
       "default": "デフォルト",
       "flightMode": "フライトモード",
-      "gpsFix": "GPS固定",
       "heading": "見出し",
       "status": "ステータス"
     },
     "shortLabel": {
-      "agl": "AGL",
       "ahl": "AHL",
-      "amsl": "AMSL",
       "battery": "バッテリー",
       "default": "デフォルト",
       "flightMode": "モード",
-      "gpsFix": "GPS固定",
       "heading": "見出し",
       "status": "ステータス"
     },
@@ -614,9 +530,6 @@
   "startUploadButton": {
     "startSelected": "選択したものを開始"
   },
-  "surveyStatusIndicator": {
-    "noSurveyInformation": "調査情報はありません"
-  },
   "takeoffAreaSetupDialog": {
     "allDroneOnline": "ミッション中のドローンはすべてオンラインです。",
     "allDronesAtTakeoffPositions": "全てのドローンは離陸地点に配置されています。",
@@ -641,10 +554,6 @@
     "unspecified": "未指定"
   },
   "toolbox": {
-    "averagingInProgress": "{{number}}進行中",
-    "coordinateAveraging": "座標の平均化",
-    "licenseInfo": "ライセンス情報",
-    "offlineMaps": "オフライン地図",
     "paramUpload": "パラメーターアップロード",
     "tooltip": "ツールボックス",
     "uploadInProgress": "アップロード中"
@@ -668,31 +577,15 @@
     "noAvailableUAVs": "アップロード可能なUAVは存在しません"
   },
   "view": {
-    "beacon-list": "ビーコン",
-    "dock-list": "ドック",
-    "feature-list": "地物",
     "field-notes": "フィールドノート",
     "layer-list": "レイヤー",
     "lcd-clock-panel": "時計",
     "light-control": "ライトコントロール",
     "log-panel": "イベントログ",
     "map": "地図",
-    "mission-editor": "ミッションエディター",
-    "saved-location-list": "ロケーション",
     "show-control": "コントロールの表示",
     "three-d-view": "3D View",
     "uav-details": "UAV詳細",
     "uav-list": "UAV"
-  },
-  "weatherMiniList": {
-    "compassDeclination": "コンパスの偏角",
-    "kpIndex": "Kpインデックス",
-    "lastUpdate": "最終更新",
-    "noWeatherInfo": "この日の天気情報はありません",
-    "refreshing": "リフレッシュ中…",
-    "sunrise": "日の出",
-    "sunset": "日の入り",
-    "timezone": "タイムゾーン",
-    "utcOffset": "UTCオフセット"
   }
 }

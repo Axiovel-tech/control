@@ -5,13 +5,6 @@ export enum Protocol {
   WS = 'ws',
 }
 
-export type ServerAuthenticationInformation = {
-  methods: string[];
-  required: boolean;
-  user: string;
-  valid: boolean;
-};
-
 export type ServerParameters = {
   id: Identifier;
   hostName: string;

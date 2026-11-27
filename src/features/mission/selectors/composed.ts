@@ -1,10 +1,7 @@
 import turfContains from '@turf/boolean-contains';
 import { createSelector } from '@reduxjs/toolkit';
 
-import {
-  getFeaturesById,
-  getFeaturesInOrder,
-} from '~/features/map-features/selectors';
+import { getFeaturesById } from '~/features/map-features/selectors';
 import { type FeatureWithProperties } from '~/features/map-features/types';
 import { selectionForSubset } from '~/features/selection/selectors';
 import {
@@ -20,7 +17,6 @@ import { EMPTY_ARRAY } from '~/utils/redux';
 import {
   getConvexHullOfMissionInWorldCoordinates,
   getGeofencePolygonId,
-  getMissionItemIds,
 } from './local';
 
 /**
@@ -50,66 +46,6 @@ export const getSelectedMissionIndicesForTrajectoryDisplay: AppSelector<
     ? selectedMissionSlotIds.map(Number)
     : EMPTY_ARRAY
 );
-
-export const getItemIndexRangeForSelectedMissionItems: AppSelector<
-  [number, number]
-> = createSelector(
-  getMissionItemIds,
-  getSelectedMissionItemIds,
-  (allIds, selectedIds) => {
-    const indices = selectedIds.map((id) => allIds.indexOf(id));
-    return [Math.min(...indices), Math.max(...indices)];
-  }
-);
-
-/**
- * Returns whether the currently selected mission items form a single,
- * uninterrupted chunk in the list of mission items.
- */
-export const areSelectedMissionItemsInOneChunk: AppSelector<boolean> =
-  createSelector(
-    getItemIndexRangeForSelectedMissionItems,
-    getSelectedMissionItemIds,
-    (indexRange, selectedIds) => {
-      const [minIndex, maxIndex] = indexRange;
-      return minIndex >= 0 && maxIndex === minIndex + selectedIds.length - 1;
-    }
-  );
-
-export const createCanMoveSelectedMissionItemsByDeltaSelector = (
-  delta: number
-): AppSelector<boolean> =>
-  createSelector(
-    getMissionItemIds,
-    areSelectedMissionItemsInOneChunk,
-    getItemIndexRangeForSelectedMissionItems,
-    (allIds, inOneChunk, indexRange) => {
-      if (!inOneChunk) {
-        return false;
-      }
-
-      const [minIndex, maxIndex] = indexRange;
-      if (delta < 0) {
-        return minIndex >= Math.abs(delta);
-      } else {
-        return maxIndex + delta < allIds.length;
-      }
-    }
-  );
-
-/**
- * Returns whether the currently selected mission items can be moved upwards
- * by one slot.
- */
-export const canMoveSelectedMissionItemsUp: AppSelector<boolean> =
-  createCanMoveSelectedMissionItemsByDeltaSelector(-1);
-
-/**
- * Returns whether the currently selected mission items can be moved downwards
- * by one slot.
- */
-export const canMoveSelectedMissionItemsDown: AppSelector<boolean> =
-  createCanMoveSelectedMissionItemsByDeltaSelector(1);
 
 /**
  * Gets the polygon that is to be used as a geofence.
@@ -147,11 +83,6 @@ export const hasActiveGeofencePolygon: AppSelector<boolean> = createSelector(
     geofencePolygonId !== undefined &&
     featuresById[geofencePolygonId] !== undefined
 );
-
-export const getExclusionZonePolygons: AppSelector<FeatureWithProperties[]> =
-  createSelector(getFeaturesInOrder, (featuresInOrder) =>
-    featuresInOrder.filter((f) => f.attributes?.['isExclusionZone'])
-  );
 
 /**
  * Returns whether the convex hull of the waypoint mission (home positions and

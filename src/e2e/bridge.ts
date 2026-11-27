@@ -48,8 +48,8 @@ const toJsonSafe = (value: unknown): unknown => {
   // ever visited. A "seen" set would report the second occurrence of any
   // repeated object as circular, and this store repeats objects constantly:
   // `EMPTY_COLLECTION` from utils/collections is the literal initial state of
-  // the clocks, docks, connections and beacons slices, and none of them are
-  // rehydrated into fresh objects. A test reading `state.docks.order.length`
+  // the clocks, connections and beacons slices, and none of them are
+  // rehydrated into fresh objects. A test reading `state.beacons.order.length`
   // would silently get 10 — the length of the string '[Circular]' — instead
   // of 0.
   //

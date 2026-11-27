@@ -4,15 +4,23 @@
 
 import Feature, { type ObjectWithGeometry } from 'ol/Feature';
 import type Point from 'ol/geom/Point';
-import { Fill, Icon, Style, Text } from 'ol/style';
+import { Fill, Icon, Stroke, Style, Text } from 'ol/style';
 
 import SelectionGlow from '~/../assets/img/drone-selection-glow.png';
-import DroneImage from '~/../assets/img/drone-x-black-32x32.png';
-import DroneImageError from '~/../assets/img/drone-x-black-error-32x32.png';
-import DroneImageInfo from '~/../assets/img/drone-x-black-info-32x32.png';
-import DroneImageWarning from '~/../assets/img/drone-x-black-warning-32x32.png';
+import DroneImage from '~/../assets/img/drone-x-32x32.png';
+import DroneImageError from '~/../assets/img/drone-x-error-32x32.png';
+import DroneImageInfo from '~/../assets/img/drone-x-info-32x32.png';
+import DroneImageWarning from '~/../assets/img/drone-x-warning-32x32.png';
 import { Status } from '~/components/semantics';
+import { fonts, schemes } from '~/design/tokens';
 import { toRadians } from '~/utils/math';
+
+/**
+ * Like the drone images, the labels are light with a dark edge so they read
+ * on the map surface of both colour schemes.
+ */
+const LABEL_COLOR = schemes.dark.ink;
+const LABEL_HALO = new Stroke({ color: schemes.dark.bg, width: 3 });
 
 const droneImages: Record<string, string> = {
   // Non-exhaustive mapping so we cannot type they key as Status
@@ -242,9 +250,11 @@ export default class UAVFeature extends Feature<Point> {
             color:
               this._labelColor && this._labelColor.length > 0
                 ? this._labelColor
-                : 'black',
+                : LABEL_COLOR,
           }),
-          font: '12px sans-serif',
+          // The halo keeps the label legible on the dark and the light map
+          stroke: LABEL_HALO,
+          font: `600 11px ${fonts.mono}`,
           offsetY: 4 + 20 * this._scale,
           text: this.uavId || 'undefined',
           textAlign: 'center',

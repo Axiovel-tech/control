@@ -1,11 +1,13 @@
-@primary-color: #2196f3; // equal to primary[500] in the Material UI theme
+// Colours come from the design tokens published as CSS custom properties by
+// src/theme.tsx, so everything below follows the selected colour scheme.
+@primary-color: var(--ax-primary);
 @button-offset: 20px;
 @short-transition-duration: 0.2s;
 @medium-transition-duration: 0.5s;
 @long-transition-duration: 1s;
 
-@box-background-color-light: #ffffff;
-@box-foreground-color-light: rgba(0, 0, 0, 0.87);
+@box-background-color-light: var(--ax-surface-raised);
+@box-foreground-color-light: var(--ax-ink);
 
 html,
 body {
@@ -14,7 +16,7 @@ body {
 }
 
 body {
-  font-family: 'Fira Sans', Arial, sans-serif;
+  font-family: var(--ax-font-sans, 'Manrope', 'Fira Sans', Arial, sans-serif);
   padding: 0px;
   margin: 0px;
 
@@ -24,9 +26,7 @@ body {
 /* Replace default monospaced font */
 pre,
 code {
-  font-family:
-    'Proggy Vector', 'Menlo', 'Consolas', 'DejaVu Sans Mono', 'Courier New',
-    'Courier', monospace;
+  font-family: var(--ax-font-mono, monospace);
 }
 
 /* Autocomplete highlights */
@@ -63,10 +63,9 @@ mark {
   background-color: @box-background-color-light;
   color: @box-foreground-color-light;
   padding: 0 !important;
-  border-radius: 2px !important;
-  box-shadow:
-    rgba(0, 0, 0, 0.117647) 0px 1px 6px,
-    rgba(0, 0, 0, 0.117647) 0px 1px 4px;
+  border: 1px solid var(--ax-line);
+  border-radius: var(--ax-radius-control) !important;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28);
 }
 
 /* Shadow settings for bottom bars commonly used on same panels */
@@ -327,8 +326,8 @@ mark {
 
   .ol-dragbox,
   .ol-dragzoom {
-    background-color: rgba(0, 136, 255, 0.25);
-    border: 1px solid #08f;
+    background-color: color-mix(in srgb, var(--ax-primary) 22%, transparent);
+    border: 1px solid var(--ax-primary);
   }
 
   /* OpenLayers attribution widget should be in the lower right corner
@@ -341,7 +340,7 @@ mark {
     right: unset;
 
     ul {
-      color: rgba(0, 0, 0, 0.54);
+      color: var(--ax-muted);
 
       a,
       a:hover,
@@ -375,49 +374,6 @@ mark {
     text-align: right;
 
     font-variant-numeric: tabular-nums;
-  }
-}
-
-/* Styling for the heatmap scale */
-#heatmapScale {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-
-  position: absolute;
-  left: 8px;
-  bottom: 8px + 14px + 8px;
-
-  width: 28px;
-  height: 200px;
-
-  span {
-    background-color: rgba(200, 200, 200, 0.75);
-
-    position: relative;
-    left: 40px;
-
-    margin-right: auto;
-    padding: 2px;
-
-    white-space: nowrap;
-
-    border-top-right-radius: 3px;
-    border-bottom-right-radius: 3px;
-  }
-
-  span:after {
-    display: block;
-
-    content: '';
-
-    position: absolute;
-    left: -12px;
-    top: 0px;
-
-    border-style: solid;
-    border-width: 12px 12px 12px 0;
-    border-color: transparent rgba(200, 200, 200, 0.75);
   }
 }
 
@@ -477,6 +433,69 @@ mark {
 
     & .cm-link {
       color: #4fadf8 !important;
+    }
+  }
+}
+
+/* ------------------------------------------------------------------------ */
+/* Themed bits that used to live in a dark-mode-only stylesheet              */
+/* ------------------------------------------------------------------------ */
+
+/* Map surface: there are no tiles, the venue grid is drawn on the panel */
+#main-map-view,
+#adapt-map-view {
+  background: var(--ax-surface);
+
+  .ol-control button,
+  .ol-control button:hover,
+  .ol-control button:focus {
+    background-color: var(--ax-surface-raised) !important;
+    color: var(--ax-ink) !important;
+  }
+
+  .ol-mouse-position,
+  .ol-scale-line {
+    background-color: var(--ax-surface-raised) !important;
+    color: var(--ax-ink) !important;
+    font-family: var(--ax-font-mono);
+    font-size: 11.5px;
+  }
+  .ol-scale-line-inner {
+    border-color: var(--ax-ink-2) !important;
+    color: var(--ax-ink-2) !important;
+  }
+}
+
+.error-panel {
+  background: var(--ax-surface-raised) !important;
+  color: var(--ax-ink);
+}
+
+kbd {
+  background: var(--ax-surface-hover) !important;
+  border: 1px solid var(--ax-line-strong);
+  box-shadow: none;
+  color: var(--ax-ink-2) !important;
+}
+
+/* Markdown editor of the "Field notes" panel */
+.EasyMDEContainer .CodeMirror {
+  background-color: var(--ax-surface) !important;
+  color: var(--ax-ink) !important;
+}
+.EasyMDEContainer .CodeMirror-cursor {
+  border-color: var(--ax-primary) !important;
+}
+.EasyMDEContainer .editor-toolbar {
+  border-color: var(--ax-line) !important;
+
+  button {
+    color: var(--ax-ink-2) !important;
+
+    &:hover,
+    &.active {
+      background: var(--ax-surface-hover) !important;
+      border-color: transparent !important;
     }
   }
 }

@@ -486,29 +486,3 @@ export const simplifyPolygon = <C extends Coordinate2D | EasNor | LonLat>(
   //       returning coordinates of the same type as were passed.
   return ok([...result, result[0]] as C[]);
 };
-
-/**
- * Estimate the amount of time it takes to travel a path with a given target
- * speed and acceleration.
- */
-export const estimatePathDuration = (
-  distance: number,
-  targetSpeed: number,
-  acceleration = 2.5
-): number => {
-  const maxAccelerationDuration = targetSpeed / acceleration;
-  const maxAccelerationDistance = maxAccelerationDuration * (targetSpeed / 2);
-
-  if (distance > 2 * maxAccelerationDistance) {
-    // The target speed is achieved
-    const constantSpeedDistance = distance - 2 * maxAccelerationDistance;
-    const constantSpeedDuration = constantSpeedDistance / targetSpeed;
-    return 2 * maxAccelerationDuration + constantSpeedDuration;
-  } else {
-    // Target speed will not be reached
-    const accelerationDistance = distance / 2;
-    const maxSpeed = Math.sqrt(2 * accelerationDistance * acceleration);
-    const accelerationDuration = maxSpeed / acceleration;
-    return 2 * accelerationDuration;
-  }
-};

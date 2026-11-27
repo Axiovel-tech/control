@@ -42,6 +42,7 @@ import {
   mapViewCoordinateFromLonLat,
   turfDistanceInMeters,
 } from '~/utils/geography';
+import { closeDialogWhenDone } from '~/utils/redux';
 import {
   atLeast,
   atMost,
@@ -59,7 +60,11 @@ import {
   getMaximumHeightForCurrentMissionType,
   getMaximumHorizontalDistanceForCurrentMissionType,
 } from './selectors';
-import { initialState, updateGeofenceSettings } from './slice';
+import {
+  closeSafetyDialog,
+  initialState,
+  updateGeofenceSettings,
+} from './slice';
 import {
   makeGeofenceGenerationSettingsApplicator,
   proposeDistanceLimit,
@@ -401,8 +406,8 @@ const GeofenceSettingsForm = connect(
           maxVertexCount: data.maxVertexCount,
         })
       );
-      if (data.generate) {
-        dispatch(updateGeofencePolygon());
+      if (!data.generate || dispatch(updateGeofencePolygon())) {
+        dispatch(closeDialogWhenDone(closeSafetyDialog));
       }
     },
   }

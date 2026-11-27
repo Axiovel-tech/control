@@ -20,21 +20,6 @@
     "noError": "Żaden z UAV's nie zgłosił błędu.",
     "passed": "Kontrola przed lotem - zaliczona."
   },
-  "RTKCorrectionSourceSelector": {
-    "RTKCorrections": "Korekty RTK",
-    "error": "Błąd podczas ładowania źródeł danych RTK z serwera",
-    "noRTKData": "Brak źródeł danych RTK na serwerze",
-    "pleaseWait": "Proszę czekać, ładowanie źródeł danych RTK …"
-  },
-  "RTKMessage": {
-    "noRTKMessagesYet": "Nie otrzymano jeszcze żadnych komunikatów RTK"
-  },
-  "RTKStatusMiniList": {
-    "satelliteCount": "Liczba satelitów",
-    "surveyInProgress": "Poszukiwanie w toku …",
-    "surveyNo": "Brak poszukiwania",
-    "surveySuccesful": "Poszukiwanie zakończone"
-  },
   "UAVList": {
     "allUAVs": "Wszystkie UAV's",
     "assignedUAVs": "Przyłączone UAV's",
@@ -59,36 +44,10 @@
     "clickToMute": "Kliknij, aby wyciszyć alerty dźwiękowe.",
     "muted": "Alerty dźwiękowe są wyciszone. Kliknij, aby wyłączyć wyciszenie."
   },
-  "altitudeSummaryButton": {
-    "clickToChange": "Kliknij, aby zmienić na {{altitudeType}}.",
-    "showingCurrent": "Wyświetl wartość maksymalną i minimalną {{altitudeType}}."
-  },
-  "antennaPositionIndicator": {
-    "antennaPositionNotKnown": "Pozycja anteny nie jest znana",
-    "clickToToggle": "Kliknij, aby przełączać się między formatem dł./szer. geogr. (lon/lat) i ECEF",
-    "copyToClipboard": "Kopiuj do schowka"
-  },
-  "authentication": "Uwierzytelnienie",
   "batteryStatusHeaderButton": "Pokazuje średni i minimalny poziom naładowania.",
-  "bearingCalculator": {
-    "addAtLeastTwoItems": "Dodaj co najmniej dwa elementy, aby obliczyć kierunek i odległość między nimi",
-    "bearing": ", kierunek: ",
-    "finalBearing": ", ostateczny kierunek: ",
-    "initialBearing": ", kierunek początkowy: ",
-    "selectTwoItems": "Wybierz dokładnie dwa elementy, aby obliczyć kierunek i odległość między nimi"
-  },
   "broadcastButton": {
     "disable": "Wyłącz broadcast",
     "enable": "Włącz broadcast na {{time}} sekund"
-  },
-  "coordinateAveragingDialogToolbar": {
-    "addNewDrone": "Dodaj nowego drona",
-    "copyCentroid": "Kopiuj — środek ciężkości",
-    "pauseMeasurement": "Wstrzymaj pomiar",
-    "removeSelected": "Usuń wybrane",
-    "resetMeasurement": "Zresetuj pomiar",
-    "resumeMeasurement": "Wznów pomiar",
-    "setCentroidAsMapOrigin": "Ustaw środek ciężkości jako początek mapy"
   },
   "environmentEditorDialog": {
     "environmentSettings": "Ustawienia środowiska",
@@ -185,7 +144,6 @@
     "unknown": "Nierozpoznana akcja: {{action}}"
   },
   "header": {
-    "distanceSummary": "Maksymalna i minimalna odległość od pozycji początkowej (startowej)",
     "velocitySummary": "Maksymalna prędkość: pozioma i pionowa"
   },
   "help": "Pomoc",
@@ -267,24 +225,6 @@
   },
   "mappingToggleButton": {
     "sortByMissionID": "Sortuj według ID misji"
-  },
-  "measurementList": {
-    "addDrone": "Dodaj drona do pomiaru za pomocą przycisku + na pasku narzędzi",
-    "copyToClipboard": "Kopiuj do schowka",
-    "duration": "Czas trwania",
-    "noSamplesYet": "Brak próbek",
-    "samples": "próbki",
-    "stdDevInXY": "odchylenie standardowe w płaszczyźnie XY",
-    "waitingForSamples": "Czekam na próbki …"
-  },
-  "mission": {
-    "planner": {
-      "schema": {
-        "error": "Błąd podczas ładowania z serwera schematu parametrów misji",
-        "loading": "Pobieranie parametrów misji …",
-        "notFound": "Serwer, z którym się połączyłeś nie udostępnia schematu dla wybranego typu misji"
-      }
-    }
   },
   "navigationButtonGroup": {
     "fly": "Lot",
@@ -389,18 +329,6 @@
     "returnToHomeSpeedHelperText": "Prędkość pozioma w [m/s], z jaką wykonywane są operacje powrotu na startowisko.",
     "returnToHomeSpeedLabel": "Prędkość powrotna"
   },
-  "savedLocation": {
-    "addNew": "Dodaj nową lokalizację",
-    "edit": "Edytuj lokalizację"
-  },
-  "savedLocationEditor": {
-    "copyFromMapView": "Skopiuj z widoku mapy",
-    "createNew": "Utwórz nową lokalizację",
-    "editSaved": "Edytuj zapisaną lokalizację",
-    "name": "Nazwa",
-    "notes": "Notatki",
-    "zoomLevel": "Poziom powiększenia"
-  },
   "serverConnectionStatus": {
     "clockSkew": "Synchronizacja zegara",
     "clocksSync": "Zegary zsynchronizowane",
@@ -437,7 +365,6 @@
   "settings": {
     "display": {
       "coordinateFormat": "Format współrzędnych",
-      "enableExperimentalFeatures": "Włącz funkcje eksperymentalne (zaawansowane)",
       "flatEarthCoordinateSystem": "Układ współrzędnych płaskiej ziemi",
       "hideInactiveSegmentsOnDarkLCD": "Popraw kontrast na zegarach LCD w trybie ciemnym",
       "language": "Język",
@@ -451,7 +378,6 @@
       "showScaleLine": "Pokaż skalę"
     },
     "tabs": {
-      "apiKeys": "Klucze API",
       "display": "Wyświetlacz",
       "preflight": "Lista kontrolna przed lotem",
       "server": "Serwer",
@@ -506,7 +432,6 @@
     "dronePlacementCheck": "Sprawdzanie umiejscowienia drona …",
     "dronePlacementError": "Błąd w umiejscowieniu drona",
     "dronePlacementPartial": "Zatwierdzono częściowe rozmieszczenie dronów",
-    "fromCloud": "Załaduj pokaz z chmury",
     "indoor": "Wnętrze",
     "loading": "Proszę czekać, trwa ładowanie pliku pokazu…",
     "manualPreflightChecks": "Ręczna kontrola przed lotem",
@@ -541,30 +466,21 @@
     "uploadShowDataLoading": "Proszę czekać, trwa przesyłanie …",
     "uploadShowDataStart": "Kliknij tutaj, aby rozpocząć proces przesyłania"
   },
-  "sidebar": {
-    "missionType": "Typ misji: ({{missionType}})"
-  },
   "sorting": {
     "ascending": "Rosnąco",
     "descending": "Malejąco",
     "label": {
-      "agl": "Wysokość nad ziemią",
       "ahl": "Wysokość nad startowiskiem",
-      "amsl": "Wysokość (MSL)",
       "battery": "Bateria",
       "default": "Domyślny",
-      "gpsFix": "Dokładność GPS",
       "heading": "Kurs",
       "status": "Status"
     },
     "shortLabel": {
-      "agl": "AGL (Above Ground Level)",
       "ahl": "AHL (Altitude Above Home Level)",
-      "amsl": "AMSL (Above Mean Sea Level)",
       "battery": "Bateria",
       "default": "Domyślny",
       "flightMode": "Tryb",
-      "gpsFix": "Dokładność GPS",
       "heading": "Kurs",
       "status": "Status"
     },
@@ -598,9 +514,6 @@
   "startUploadButton": {
     "startSelected": "Rozpocznij wybrane"
   },
-  "surveyStatusIndicator": {
-    "noSurveyInformation": "Brak danych z ankiety"
-  },
   "takeoffAreaSetupDialog": {
     "allDroneOnline": "Wszystkie drony biorące udział w misji są online.",
     "allDronesAtTakeoffPositions": "Wszystkie drony zostały umieszczone na pozycjach startowych.",
@@ -625,10 +538,6 @@
     "unspecified": "Nieokreślony"
   },
   "toolbox": {
-    "averagingInProgress": "{{number}} w toku",
-    "coordinateAveraging": "Uśrednianie współrzędnych",
-    "licenseInfo": "Informacje o licencji",
-    "offlineMaps": "Mapy offline",
     "paramUpload": "Prześlij parametry",
     "tooltip": "Skrzynka z narzędziami",
     "uploadInProgress": "Przesyłanie w toku"
@@ -652,31 +561,15 @@
     "noAvailableUAVs": "Brak dostępnych UAV's, do których można przesłać dane."
   },
   "view": {
-    "beacon-list": "Latarnie",
-    "dock-list": "Doki",
-    "feature-list": "Cechy",
     "field-notes": "Notatki",
     "layer-list": "Warstwy",
     "lcd-clock-panel": "Zegary",
     "light-control": "Sterowanie oświetleniem",
     "log-panel": "Rejestr zdarzeń",
     "map": "Mapa",
-    "mission-editor": "Edytor misji",
-    "saved-location-list": "Lokalizacje",
     "show-control": "Kontrola pokazu",
     "three-d-view": "Widok 3D",
     "uav-details": "Szczegóły UAV",
     "uav-list": "UAV's"
-  },
-  "weatherMiniList": {
-    "compassDeclination": "Deklinacja kompasu",
-    "kpIndex": "Indeks Kp",
-    "lastUpdate": "Ostatnia aktualizacja",
-    "noWeatherInfo": "Brak informacji o pogodzie na ten dzień",
-    "refreshing": "Odświeżanie …",
-    "sunrise": "Wschód słońca",
-    "sunset": "Zachód słońca",
-    "timezone": "Strefa czasowa",
-    "utcOffset": "Przesunięcie UTC"
   }
 }

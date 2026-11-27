@@ -12,7 +12,6 @@ import {
   featureIdToGlobalId,
   globalIdToFeatureId,
   globalIdToUavId,
-  isDockId,
   isFeatureId,
   isUavId,
 } from '~/model/identifiers';
@@ -140,8 +139,6 @@ export const showDetailsForFeatureById = (featureId) => (dispatch) => {
     action = openUAVDetailsDialog(globalIdToUavId(featureId));
   } else if (isFeatureId(featureId)) {
     action = showFeatureEditorDialog(globalIdToFeatureId(featureId));
-  } else if (isDockId(featureId)) {
-    /* TODO(ntamas) */
   }
 
   if (action) {

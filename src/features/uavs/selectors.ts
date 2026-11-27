@@ -65,18 +65,6 @@ export const getColorOverrideToUAVIdsMap = createSelector(
 );
 
 /**
- * Returns the IDs of the UAVs whose LED light color is currently being overridden to the
- * given color.
- */
-export const getUAVIdsWithColorOverride = (
-  state: RootState,
-  color: string
-): string[] => {
-  const overrideMap = getColorOverrideToUAVIdsMap(state);
-  return overrideMap[color] ?? EMPTY_ARRAY;
-};
-
-/**
  * Returns the list of UAV IDs that should be shown on the UI, in the
  * order preferred by the state of the application.
  *

@@ -1,94 +1,414 @@
-/* Styling for the global workbench component, currently implemented
- * using golden-layout */
+/* Styling for the workbench: the dockable panels in the middle of the window
+ * (golden-layout), the header above them and the navigation rail next to
+ * them.
+ *
+ * Colours, radii and sizes come from the CSS custom properties published by
+ * `src/theme.tsx` from `src/design/tokens.ts`; nothing here is specific to
+ * the dark or the light scheme. The header and the rail use the `chrome`
+ * tokens, which are dark in both. */
 
 @import '~golden-layout/src/css/goldenlayout-base.css';
-@import '~golden-layout/src/css/goldenlayout-light-theme.css';
-@import '~react-flexible-workbench/themes/dark.css';
 
-/* Make the panels scrollable */
-body .lm_content {
-  overflow-y: auto;
-  background-color: white;
+@panel-header-height: var(--ax-panel-header-height);
+@transition: 140ms ease;
+
+/* Icons of the panel controls, drawn as masks so they follow the text colour */
+@icon-close: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><path d='M4 4l8 8M12 4l-8 8' stroke='black' stroke-width='1.6' stroke-linecap='round' fill='none'/></svg>");
+@icon-maximise: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><path d='M9.5 3.5h3v3M6.5 12.5h-3v-3M12.5 3.5L9 7M3.5 12.5L7 9' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' fill='none'/></svg>");
+@icon-minimise: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><path d='M12.5 6.5h-3v-3M3.5 9.5h3v3M9.5 6.5L13 3M6.5 9.5L3 13' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' fill='none'/></svg>");
+@icon-chevron: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><path d='M4 6l4 4 4-4' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round' fill='none'/></svg>");
+
+.mask-icon(@icon, @size: 14px) {
+  background: currentColor;
+  background-image: none;
+  mask: @icon center / @size @size no-repeat;
+  -webkit-mask: @icon center / @size @size no-repeat;
 }
 
-/* Fix the background color of the panel bodies and the tabs */
-body .lm_header {
-  .lm_tab {
-    background-color: #ddd;
-    &.lm_active {
-      background-color: white;
+/* ------------------------------------------------------------------------ */
+/* Panels                                                                    */
+/* ------------------------------------------------------------------------ */
+
+/* `react-flexible-workbench` loads the stock light theme of golden-layout on
+ * its own, after this file; the `body` prefix makes the rules below win. */
+body {
+  .lm_goldenlayout {
+    background: var(--ax-bg);
+  }
+
+  /* A stack of tabs reads as one card: rounded strip of tabs, body below */
+  .lm_header {
+    height: @panel-header-height;
+    background: color-mix(in srgb, var(--ax-surface) 62%, var(--ax-bg));
+    border: 1px solid var(--ax-line);
+    border-bottom: none;
+    border-radius: var(--ax-radius-panel) var(--ax-radius-panel) 0 0;
+    box-sizing: border-box !important;
+
+    &.lm_selectable {
+      cursor: pointer;
     }
+
+    .lm_tabs {
+      left: 4px;
+    }
+
+    .lm_tab {
+      height: @panel-header-height;
+      margin: 0;
+      padding: 0 30px 0 12px;
+      border: none;
+      background: none;
+      color: var(--ax-muted);
+      font-family: var(--ax-font-sans);
+      font-size: 12.5px;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+      line-height: @panel-header-height;
+      transition:
+        color @transition,
+        box-shadow @transition;
+
+      &:hover {
+        background: none;
+        color: var(--ax-ink);
+      }
+
+      &.lm_active {
+        padding-bottom: 0;
+        background: none;
+        color: var(--ax-ink);
+        box-shadow: inset 0 -2px 0 var(--ax-primary);
+      }
+
+      i {
+        display: none;
+      }
+
+      .lm_title {
+        /* line box of the strip minus the top/bottom borders of the header */
+        height: calc(@panel-header-height - 2px);
+        vertical-align: top;
+      }
+
+      .lm_close_tab {
+        top: 50%;
+        right: 9px;
+        width: 14px;
+        height: 14px;
+        margin-top: -8px;
+        border-radius: 4px;
+        opacity: 0;
+        color: var(--ax-muted);
+        transition: opacity @transition;
+        .mask-icon(@icon-close, 12px);
+
+        &:hover {
+          color: var(--ax-ink);
+        }
+      }
+
+      &:hover .lm_close_tab,
+      &.lm_active .lm_close_tab {
+        opacity: 1;
+      }
+    }
+
+    .lm_controls {
+      top: 0;
+      right: 6px;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      gap: 2px;
+
+      > li {
+        float: none;
+        width: 22px;
+        height: 22px;
+        border-radius: 5px;
+        color: var(--ax-muted);
+        opacity: 1;
+        transition: color @transition;
+
+        &:hover {
+          color: var(--ax-ink);
+        }
+      }
+
+      .lm_popout {
+        display: none;
+      }
+      .lm_maximise {
+        .mask-icon(@icon-maximise);
+      }
+      .lm_close {
+        .mask-icon(@icon-close, 13px);
+      }
+      .lm_tabdropdown {
+        .mask-icon(@icon-chevron);
+
+        &:before {
+          display: none;
+        }
+      }
+    }
+
+    /* Tabs that do not fit go into a drop-down list */
+    .lm_tabdropdown_list {
+      top: @panel-header-height;
+      right: 4px;
+      z-index: 30;
+      padding: 4px;
+      background: var(--ax-surface-raised);
+      border: 1px solid var(--ax-line-strong);
+      border-radius: 8px;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+
+      .lm_tab {
+        float: none;
+        display: block;
+        height: 30px;
+        padding: 0 12px;
+        border-radius: 5px;
+        box-shadow: none;
+        line-height: 30px;
+
+        &:hover {
+          background: var(--ax-surface-hover);
+        }
+
+        .lm_title {
+          width: 160px;
+          height: 30px;
+        }
+      }
+    }
+  }
+
+  .lm_maximised .lm_header {
+    background: color-mix(in srgb, var(--ax-surface) 62%, var(--ax-bg));
+  }
+  .lm_maximised .lm_controls .lm_maximise {
+    .mask-icon(@icon-minimise);
+  }
+
+  /* Panel bodies */
+  .lm_content {
+    overflow-y: auto;
+    background-color: var(--ax-surface);
+    border: 1px solid var(--ax-line);
+    border-top-color: transparent;
+    border-radius: 0 0 var(--ax-radius-panel) var(--ax-radius-panel);
+    box-sizing: border-box;
+    color: var(--ax-ink);
+  }
+
+  /* Panels shown without a tab strip keep all four corners */
+  .lm_stack:not(:has(> .lm_header)) .lm_content,
+  .lm_header[style*='display: none'] + .lm_items .lm_content {
+    border-top-color: var(--ax-line);
+    border-radius: var(--ax-radius-panel);
+  }
+
+  .lm_title {
+    user-select: none;
+  }
+
+  /* The gap between two panels is the splitter */
+  .lm_splitter {
+    background: transparent;
+    opacity: 1;
+    transition: background @transition;
+
+    &:hover,
+    &.lm_dragging {
+      background: color-mix(in srgb, var(--ax-primary) 55%, transparent);
+      border-radius: 3px;
+    }
+  }
+
+  /* Dragging a panel */
+  .lm_dragProxy .lm_content {
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45);
+    box-sizing: border-box;
+    opacity: 0.9;
+  }
+  .lm_dropTargetIndicator {
+    margin: 1px;
+    border-radius: var(--ax-radius-panel);
+    outline: 2px dashed var(--ax-primary);
+    outline-offset: -2px;
+    box-shadow: none;
+    transition: all 160ms ease;
+
+    .lm_inner {
+      background: var(--ax-primary);
+      border-radius: var(--ax-radius-panel);
+      opacity: 0.12;
+    }
+  }
+  .lm_transition_indicator {
+    background-color: var(--ax-primary);
+    border: none;
+    opacity: 0.2;
+  }
+
+  /* Fixed layouts cannot be rearranged */
+  .workbench-fixed .lm_splitter,
+  .workbench-fixed .lm_tab {
+    pointer-events: none;
   }
 }
 
-/* Prevent selection in the panel titles */
-.lm_title {
-  user-select: none;
-}
+/* ------------------------------------------------------------------------ */
+/* Icons shared by the workbench-related components                          */
+/* ------------------------------------------------------------------------ */
 
-/* Settings button */
-.lm_controls .lm_settings {
-  background-image: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAkAAAAJCAYAAADgkQYQAAAAFUlEQVQY02NgGJzgPxTjZDMNQkcDAOi4Bf2rdMdGAAAAAElFTkSuQmCC);
-}
-
-/* Icon styling in workbench-related components */
 .wb-icon {
   display: inline-block;
   position: relative;
   vertical-align: middle;
-  width: 48px;
-  height: 48px;
-  padding: 12px;
+  width: 40px;
+  height: 40px;
+  padding: 9px;
   box-sizing: border-box;
-}
-.wb-module {
-  padding: 0 !important;
-  white-space: nowrap;
-}
-.wb-module .wb-module-label {
-  margin-right: 15px;
-  white-space: nowrap;
+
+  svg {
+    width: 22px;
+    height: 22px;
+  }
 }
 
-/* Horizontal separators in sidebar */
-#sidebar hr {
-  width: 100%;
-  height: 1px;
-  margin: 0.25em 0;
-  border: none;
-  background: #424242;
-  box-shadow: 0 -1px 4px rgba(0, 0, 0, 0.65);
-}
-
-/* Vertical separators in header */
-#header-inner > hr {
-  align-self: stretch;
-  width: 1px;
-  margin: 0 0.25em;
-  border: none;
-  background: #424242;
-  box-shadow: -1px 0 4px rgba(0, 0, 0, 0.65);
+.wb-module-label {
+  user-select: none;
 }
 
 .wb-modification-indicator {
   font-size: 10px;
   text-align: center;
-
   user-select: none;
 }
 
-/* Perspective switching in header */
+/* ------------------------------------------------------------------------ */
+/* Header                                                                    */
+/* ------------------------------------------------------------------------ */
+
+#header {
+  position: relative;
+  z-index: 50;
+  flex: 0 0 var(--ax-header-height);
+  height: var(--ax-header-height);
+  background: var(--ax-chrome-bg);
+  border-bottom: 1px solid var(--ax-chrome-line);
+  color: var(--ax-chrome-ink);
+  font-family: var(--ax-font-sans);
+}
+
+#header-inner {
+  display: flex;
+  flex-flow: row nowrap;
+  align-items: stretch;
+  height: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.ax-header-nav-toggle {
+  flex: 0 0 var(--ax-rail-width);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ax-chrome-ink-2);
+  cursor: pointer;
+  transition: color @transition;
+
+  &:hover {
+    color: var(--ax-chrome-ink);
+  }
+}
+
+.ax-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 18px 0 2px;
+  user-select: none;
+  white-space: nowrap;
+
+  .ax-brand-mark {
+    width: 26px;
+    height: 26px;
+    flex: none;
+  }
+
+  .ax-brand-name {
+    font-family: var(--ax-font-display);
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    line-height: 1;
+
+    small {
+      display: block;
+      margin-top: 4px;
+      color: var(--ax-chrome-muted);
+      font-family: var(--ax-font-sans);
+      font-size: 9.5px;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+    }
+  }
+}
+
+.ax-header-spacer {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+/* A group of related header widgets, set apart by a hairline */
+.ax-header-group {
+  display: flex;
+  align-items: stretch;
+  flex: none;
+  padding: 0 4px;
+  border-left: 1px solid var(--ax-chrome-line);
+}
+
+/* Header widgets come from a shared library with a fixed blue hover gradient
+ * and text shadow; bring them in line with the chrome. */
+.ax-header-item,
+.ax-header-overflow {
+  display: flex;
+  align-items: stretch;
+
+  > * {
+    border-radius: var(--ax-radius-control);
+    margin: 6px 1px;
+    text-shadow: none !important;
+    transition: background @transition;
+  }
+  > *:hover {
+    background: var(--ax-chrome-hover) !important;
+  }
+}
+
+#header span.GenericHeaderButton-label {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+#header span.GenericHeaderButton-secondaryLabel {
+  color: var(--ax-chrome-muted) !important;
+  font-weight: 500;
+}
+
+/* Perspective switching is unused with a single perspective, but the bar is
+ * kept as the stretch region of the header for deployments that add more. */
 .wb-perspective-bar {
-  background: linear-gradient(
-    to right,
-    transparent 0%,
-    rgba(0, 0, 0, 0.25) 80%,
-    rgba(0, 0, 0, 0.4) 100%
-  );
   flex: 1;
   justify-content: left;
-  border-right: 1px solid #424242;
-  border-bottom: 1px solid #424242;
   overflow-x: auto;
 }
 .wb-perspective-bar-item {
@@ -96,30 +416,277 @@ body .lm_header {
 }
 .wb-perspective-bar button {
   display: none;
-  border-bottom: 3px solid transparent;
-  border-radius: 0;
-  font-size: 14px !important; /* consistent with sidebar */
   height: 100%;
-  background: unset;
-  box-shadow: unset;
-  padding: 7px 8px 4px 8px; /* padding higher at the top to compensate for border at bottom */
+  padding: 0 12px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  color: var(--ax-chrome-ink-2);
+  font: 600 13px var(--ax-font-sans);
+  cursor: pointer;
 }
 .wb-perspective-bar .wb-perspective-selected button {
-  background: linear-gradient(
-    to bottom,
-    transparent 0%,
-    rgba(0, 0, 0, 0.25) 100%
-  );
-  border-bottom: 3px solid #03a9f4; /* Material UI lightBlue[500] */
+  border-bottom-color: var(--ax-chrome-active);
+  color: var(--ax-chrome-ink);
 }
 .wb-perspective-bar button:hover {
-  /* styling same as for GenericHeaderButton */
-  background: linear-gradient(to bottom, #06c 0%, #25a 100%);
-  border-bottom: 3px solid #03a9f4; /* Material UI lightBlue[500] */
+  background: var(--ax-chrome-hover);
 }
 
-/* Disable draggable splitters for fixed layouts */
-.workbench-fixed .lm_splitter,
-.workbench-fixed .lm_tab {
-  pointer-events: none;
+/* The strips of tabs and dialogs in overlays come from a shared library with
+ * a fixed grey of their own */
+.MuiDialog-paper .MuiAppBar-root {
+  background: color-mix(
+    in srgb,
+    var(--ax-surface-raised) 70%,
+    var(--ax-bg)
+  ) !important;
+  border-bottom: 1px solid var(--ax-line);
+  color: var(--ax-ink) !important;
+}
+
+/* ------------------------------------------------------------------------ */
+/* Navigation rail                                                           */
+/* ------------------------------------------------------------------------ */
+
+#sidebar {
+  display: flex;
+  flex: none;
+  flex-flow: column nowrap;
+  width: var(--ax-rail-width);
+  height: calc(100vh - var(--ax-header-height));
+  /* clip, not hidden: the collapsed rail must not scroll sideways to the
+   * labels it cuts off, which focus or a drag would otherwise make it do */
+  overflow: clip;
+  background: var(--ax-chrome-bg);
+  border-right: 1px solid var(--ax-chrome-line);
+  color: var(--ax-chrome-ink-2);
+  font-family: var(--ax-font-sans);
+  transition: width 180ms ease;
+
+  &.ax-rail-open {
+    width: var(--ax-rail-open-width);
+  }
+
+  .ax-rail-scroll {
+    display: flex;
+    flex: 1;
+    flex-flow: column nowrap;
+    width: var(--ax-rail-open-width);
+    padding: 8px 0;
+    overflow: hidden auto;
+    scrollbar-width: none;
+  }
+
+  .wb-module-tray.wb-module-tray-vertical {
+    padding: 0;
+    overflow: visible;
+  }
+
+  .ax-rail-heading {
+    height: 26px;
+    padding: 10px 18px 0;
+    box-sizing: border-box;
+    color: var(--ax-chrome-muted);
+    font-size: 9.5px;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    opacity: 0;
+    transition: opacity 180ms ease;
+  }
+  &.ax-rail-open .ax-rail-heading {
+    opacity: 1;
+  }
+  /* Closed rail: the headings collapse into hairlines between the groups */
+  &:not(.ax-rail-open) .ax-rail-heading {
+    height: 13px;
+    margin: 6px 14px 0;
+    padding: 0;
+    width: calc(var(--ax-rail-width) - 28px);
+    border-top: 1px solid var(--ax-chrome-line);
+  }
+  .ax-rail-heading:first-child {
+    border-top: none !important;
+    margin-top: 0 !important;
+  }
+  &:not(.ax-rail-open) .ax-rail-heading:first-child {
+    height: 0;
+  }
+
+  .wb-module {
+    position: relative;
+    display: flex;
+    align-items: center;
+    height: 40px;
+    margin: 2px 8px;
+    padding: 0 !important;
+    border-radius: 8px;
+    color: var(--ax-chrome-ink-2);
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    text-shadow: none;
+    white-space: nowrap;
+    transition:
+      background @transition,
+      color @transition;
+
+    &:hover {
+      background: var(--ax-chrome-hover);
+      color: var(--ax-chrome-ink);
+    }
+
+    .wb-sidebar-icon-container {
+      position: relative;
+      flex: none;
+      width: 40px;
+      height: 40px;
+    }
+
+    .wb-module-label {
+      margin: 0 12px 0 6px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* The library marks a module "disabled" while its panel is on the
+     * workbench: that is the panel being open, so it is shown lit. Clicking
+     * it closes the panel. */
+    &.wb-module-disabled {
+      background: rgba(111, 224, 245, 0.1);
+      color: var(--ax-chrome-active);
+
+      &:hover {
+        background: rgba(111, 224, 245, 0.18);
+      }
+
+      .wb-icon {
+        opacity: 1;
+      }
+
+      &::before {
+        content: '';
+        position: absolute;
+        left: -8px;
+        top: 10px;
+        bottom: 10px;
+        width: 3px;
+        border-radius: 0 3px 3px 0;
+        background: var(--ax-chrome-active);
+      }
+    }
+  }
+
+  .ax-rail-footer {
+    width: var(--ax-rail-open-width);
+    padding: 8px 18px 12px;
+    box-sizing: border-box;
+    color: var(--ax-chrome-muted);
+    font-family: var(--ax-font-mono);
+    font-size: 10.5px;
+    white-space: nowrap;
+  }
+}
+
+/* ------------------------------------------------------------------------ */
+/* Narrow windows                                                            */
+/* ------------------------------------------------------------------------ */
+
+/* Header widgets drop out by priority as the window narrows; whatever drops
+ * out stays reachable from the overflow menu at the end of the header. The
+ * menu holds a second copy of the collapsible widgets and shows exactly the
+ * ones the header is hiding at the current width. */
+.ax-header-overflow.ax-header-group {
+  display: none;
+}
+
+.ax-header-overflow-panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 220px;
+  padding: 6px;
+  background: var(--ax-chrome-bg);
+  color: var(--ax-chrome-ink);
+
+  .ax-header-group,
+  .ax-header-item {
+    display: none;
+  }
+
+  .ax-header-group {
+    flex-wrap: wrap;
+    padding: 2px 0;
+    border-left: none;
+  }
+}
+
+.collapse-header(@priority) {
+  #header-inner > .ax-header-group[data-priority='@{priority}'],
+  #header-inner .ax-header-item[data-priority='@{priority}'] {
+    display: none;
+  }
+  #header-inner > .ax-header-overflow.ax-header-group,
+  .ax-header-overflow-panel
+    .ax-header-group:has(.ax-header-item[data-priority='@{priority}']),
+  .ax-header-overflow-panel .ax-header-item[data-priority='@{priority}'] {
+    display: flex;
+  }
+}
+
+@media (max-width: 1180px) {
+  .ax-brand .ax-brand-name {
+    display: none;
+  }
+  .ax-brand {
+    padding-right: 10px;
+  }
+  .collapse-header(3);
+}
+
+@media (max-width: 899px) {
+  .collapse-header(2);
+
+  /* The rail floats over the workbench instead of taking space from it */
+  #sidebar {
+    position: absolute;
+    top: var(--ax-header-height);
+    left: 0;
+    z-index: 45;
+    width: 0;
+    border-right: none;
+
+    &.ax-rail-open {
+      width: var(--ax-rail-open-width);
+      border-right: 1px solid var(--ax-chrome-line);
+      box-shadow: 16px 0 48px rgba(0, 0, 0, 0.5);
+    }
+  }
+}
+
+@media (max-width: 560px) {
+  .collapse-header(1);
+
+  .ax-brand {
+    display: none;
+  }
+  .ax-header-nav-toggle {
+    flex-basis: 44px;
+  }
+
+  /* What is left of the fleet summary gives way last, and stays reachable
+   * by swiping when even that does not fit */
+  #header-inner > .ax-header-lead {
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  #header span.GenericHeaderButton-secondaryLabel {
+    display: none;
+  }
 }

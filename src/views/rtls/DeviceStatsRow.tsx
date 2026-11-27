@@ -264,6 +264,8 @@ export type DeviceStatsRowProps = {
   initiatorEvidence?: InitiatorEvidence;
   /** Stable "show more" / "show less" toggle of a row, by device id. */
   onToggleExpanded?: (id: string) => void;
+  /** Solve rate the tag is configured for, in Hz, once it is known. */
+  solveRateTargetHz?: number;
   stats: RtlsDeviceStats | undefined;
   /** Status of the paired UAV, used to color the drone pill. */
   uavStatus?: Status;
@@ -278,6 +280,7 @@ const RoleContent = ({
   locked = false,
   nameTableAnchor,
   role,
+  solveRateTargetHz,
   stats,
   where,
 }: {
@@ -286,6 +289,7 @@ const RoleContent = ({
   locked?: boolean;
   nameTableAnchor?: TableAnchorNamer;
   role: RtlsRole;
+  solveRateTargetHz?: number;
   stats: RtlsDeviceStats | undefined;
   where: 'figures' | 'cluster';
 }) => {
@@ -309,7 +313,7 @@ const RoleContent = ({
       stats={stats}
     />
   ) : (
-    <TagSolveFigures stats={stats} />
+    <TagSolveFigures solveRateTargetHz={solveRateTargetHz} stats={stats} />
   );
 };
 
@@ -335,6 +339,7 @@ const DeviceStatsRow = ({
   initiatorMacs = NO_MACS,
   locked = false,
   onToggleExpanded,
+  solveRateTargetHz,
   stats,
   uavStatus,
 }: DeviceStatsRowProps) => {
@@ -349,7 +354,15 @@ const DeviceStatsRow = ({
       data-testid={`rtls-device-${device.id}`}
       sx={{ px: 1, py: 1, opacity: lost ? 0.55 : 1 }}
     >
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+      <Box
+        sx={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          columnGap: 1,
+          rowGap: 0.5,
+        }}
+      >
         <Box
           sx={{
             display: 'flex',
@@ -386,38 +399,51 @@ const DeviceStatsRow = ({
           device={device}
           initiatorMacs={initiatorMacs}
           role={role}
+          solveRateTargetHz={solveRateTargetHz}
           stats={stats}
           where='figures'
         />
-        {/* the name and the figures keep left, the rest keeps right */}
-        <Box sx={{ flexGrow: 1 }} />
-        {surveyLabel && (
-          <Tooltip content={surveyTooltip ?? ''} disabled={!surveyTooltip}>
-            {/* Tippy needs a child that forwards refs, which StatusPill does not. */}
-            <Box component='span' data-testid='rtls-row-survey'>
-              <StatusPill inline status={surveyStatus ?? Status.OFF}>
-                {surveyLabel}
-              </StatusPill>
-            </Box>
-          </Tooltip>
-        )}
-        <RoleContent
-          device={device}
-          initiatorMacs={initiatorMacs}
-          locked={locked}
-          nameTableAnchor={nameTableAnchor}
-          role={role}
-          stats={stats}
-          where='cluster'
-        />
-        {handlers && (
-          <RowActions
-            busy={busy}
+        {/* the name and the figures keep left, the rest keeps right and
+         * moves below them where the panel is too narrow for one line */}
+        <Box
+          sx={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            alignItems: 'center',
+            justifyContent: 'flex-end',
+            columnGap: 1,
+            rowGap: 0.5,
+            ml: 'auto',
+          }}
+        >
+          {surveyLabel && (
+            <Tooltip content={surveyTooltip ?? ''} disabled={!surveyTooltip}>
+              {/* Tippy needs a child that forwards refs, which StatusPill does not. */}
+              <Box component='span' data-testid='rtls-row-survey'>
+                <StatusPill inline status={surveyStatus ?? Status.OFF}>
+                  {surveyLabel}
+                </StatusPill>
+              </Box>
+            </Tooltip>
+          )}
+          <RoleContent
             device={device}
-            handlers={handlers}
+            initiatorMacs={initiatorMacs}
             locked={locked}
+            nameTableAnchor={nameTableAnchor}
+            role={role}
+            stats={stats}
+            where='cluster'
           />
-        )}
+          {handlers && (
+            <RowActions
+              busy={busy}
+              device={device}
+              handlers={handlers}
+              locked={locked}
+            />
+          )}
+        </Box>
       </Box>
       {onToggleExpanded && (
         <ShowMoreButton

@@ -100,11 +100,7 @@ module.exports = {
 
       '~': path.resolve(projectRoot, 'src'),
       config: path.resolve(projectRoot, 'config'),
-      'config-overrides': path.resolve(
-        projectRoot,
-        'config',
-        process.env.SKYBRUSH_VARIANT ?? 'default'
-      ),
+      'config-overrides': path.resolve(projectRoot, 'config', 'default'),
       'layout-bmfont-text': '@collmot/layout-bmfont-text',
     },
     extensions: [
