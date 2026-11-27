@@ -172,6 +172,35 @@ describe('the lock command', () => {
     expect(state(store).rtls.anchorLock).toBe(undefined);
   });
 
+  test('the resurvey check is asked for and waited for longer', async () => {
+    answerLock({
+      result: 'warnings',
+      warnings: [
+        {
+          code: 'resurvey-moved',
+          device: 203,
+          detail: 'RTLS anchor A2 is 12 cm off its surveyed position',
+        },
+      ],
+    });
+    const result = await dispatchThunk(
+      createStore(),
+      sendRtlsLockCommand('lock', false, () => true, true)
+    );
+    expect(sendMessage.mock.calls[0]).toEqual([
+      {
+        type: 'X-RTLS-LOCK',
+        action: 'lock',
+        acknowledgeWarnings: false,
+        resurvey: true,
+      },
+      { timeout: 210 },
+    ]);
+    expect(result.warnings).toEqual([
+      'RTLS anchor A2 is 12 cm off its surveyed position',
+    ]);
+  });
+
   test('a lock from an attempt no longer on screen is not announced', async () => {
     answerLock({ result: 'locked' });
     const result = await dispatchThunk(

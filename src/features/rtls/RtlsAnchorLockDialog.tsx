@@ -1,7 +1,8 @@
 /**
- * @file The lock dialog: one line, then the server's warnings with an
- * acknowledgement when it raises any, or its reason when it refuses (an
- * anchor that is not operating).
+ * @file The lock dialog: one line and the opt-in resurvey check, then the
+ * server's warnings with an acknowledgement when it raises any, or its
+ * reason when it refuses (an anchor that is not operating). The check runs
+ * with the first Lock only: Lock anyway does not measure again.
  */
 
 import Alert from '@mui/material/Alert';
@@ -10,6 +11,7 @@ import Checkbox from '@mui/material/Checkbox';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import FormControlLabel from '@mui/material/FormControlLabel';
+import LinearProgress from '@mui/material/LinearProgress';
 import Typography from '@mui/material/Typography';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -32,6 +34,9 @@ const RtlsAnchorLockDialog = () => {
   // the warnings the server answered the last lock attempt with
   const [warnings, setWarnings] = useState<string[]>([]);
   const [acknowledged, setAcknowledged] = useState(false);
+  const [resurvey, setResurvey] = useState(false);
+  // the resurvey check of the lock under way is measuring
+  const [measuring, setMeasuring] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
   // moves on every open and close: a reply to an earlier attempt is dropped
@@ -41,8 +46,10 @@ const RtlsAnchorLockDialog = () => {
     attempt.current += 1;
     if (open) {
       setBusy(false);
+      setMeasuring(false);
       setWarnings([]);
       setAcknowledged(false);
+      setResurvey(false);
       setError(undefined);
     }
   }, [open]);
@@ -51,7 +58,9 @@ const RtlsAnchorLockDialog = () => {
 
   const handleLock = useCallback(async () => {
     const sent = attempt.current;
+    const check = resurvey && warnings.length === 0;
     setBusy(true);
+    setMeasuring(check);
     setError(undefined);
     let result: RtlsLockOutcome | undefined;
     let failure: string | undefined;
@@ -60,7 +69,8 @@ const RtlsAnchorLockDialog = () => {
         sendRtlsLockCommand(
           'lock',
           warnings.length > 0 && acknowledged,
-          () => sent === attempt.current
+          () => sent === attempt.current,
+          check
         )
       );
     } catch (lockError) {
@@ -70,6 +80,7 @@ const RtlsAnchorLockDialog = () => {
       return;
     }
     setBusy(false);
+    setMeasuring(false);
     if (result?.result === 'locked') {
       close();
     } else if (result?.result === 'warnings') {
@@ -78,7 +89,7 @@ const RtlsAnchorLockDialog = () => {
     } else {
       setError(result?.error ?? failure);
     }
-  }, [acknowledged, close, dispatch, warnings.length]);
+  }, [acknowledged, close, dispatch, resurvey, warnings.length]);
 
   return (
     <DraggableDialog
@@ -92,6 +103,25 @@ const RtlsAnchorLockDialog = () => {
         <Typography variant='body2'>
           {t('rtlsAnchorLock.dialog.text')}
         </Typography>
+        <FormControlLabel
+          control={
+            <Checkbox
+              data-testid='rtls-lock-resurvey'
+              checked={resurvey}
+              disabled={busy || warnings.length > 0}
+              onChange={(event) => setResurvey(event.target.checked)}
+            />
+          }
+          label={t('rtlsAnchorLock.dialog.resurvey')}
+        />
+        {measuring && (
+          <>
+            <LinearProgress data-testid='rtls-lock-measuring' />
+            <Typography variant='caption' color='text.secondary'>
+              {t('rtlsAnchorLock.dialog.measuring')}
+            </Typography>
+          </>
+        )}
         {warnings.length > 0 && (
           <>
             <ul style={{ marginTop: 8, marginBottom: 0, paddingLeft: 20 }}>

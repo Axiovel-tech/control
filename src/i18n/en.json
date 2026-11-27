@@ -958,6 +958,8 @@
     },
     "dialog": {
       "acknowledge": "Lock anyway",
+      "measuring": "Measuring…",
+      "resurvey": "Resurvey check",
       "text": "Lock the anchors to prevent unwanted changes during the show."
     },
     "lock": "Lock",
