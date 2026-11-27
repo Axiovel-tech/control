@@ -454,4 +454,20 @@ describe('battery warning in health', () => {
       )
     ).toBe(RtlsHealth.ERROR);
   });
+
+  test('gives way to a range check that reads danger', () => {
+    expect(
+      getDeviceHealthForRole(
+        RtlsRole.ANCHOR_RESPONDER,
+        {
+          id: '2',
+          powerState: 'operating',
+          rangingRateHz: 9,
+          batteryWarning: true,
+          rangeDeviationM: 0.25,
+        },
+        { online: true }
+      )
+    ).toBe(RtlsHealth.ERROR);
+  });
 });

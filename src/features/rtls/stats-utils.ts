@@ -180,15 +180,22 @@ export const RANGE_DEVIATION_WARNING_M = 0.08;
  */
 export const RANGE_DEVIATION_DANGER_M = 0.2;
 
+/**
+ * Whether a reading is beyond a bound as the firmware compares them, in
+ * float32: its 0.2F arrives as 0.2000000030, beyond 0.2 in doubles while its
+ * ring shows a warning.
+ */
+const beyond = (stats: RtlsDeviceStats | undefined, bound: number): boolean =>
+  stats?.rangeDeviationM !== undefined &&
+  Math.fround(Math.abs(stats.rangeDeviationM)) > Math.fround(bound);
+
 /** Whether an anchor's range check warns: it may stand elsewhere than surveyed. */
 export const isRangeDeviating = (stats: RtlsDeviceStats | undefined): boolean =>
-  stats?.rangeDeviationM !== undefined &&
-  Math.abs(stats.rangeDeviationM) > RANGE_DEVIATION_WARNING_M;
+  beyond(stats, RANGE_DEVIATION_WARNING_M);
 
 /** Whether an anchor's range check reads danger. */
 export const isRangeDanger = (stats: RtlsDeviceStats | undefined): boolean =>
-  stats?.rangeDeviationM !== undefined &&
-  Math.abs(stats.rangeDeviationM) > RANGE_DEVIATION_DANGER_M;
+  beyond(stats, RANGE_DEVIATION_DANGER_M);
 
 /**
  * Whether the survey the cell is on (`cellSurveyId`) is `planar`: every
@@ -306,9 +313,9 @@ function gradeAnchorLiveness(
 }
 
 /**
- * Grades a live anchor's telemetry: errors first (fault, low battery, a
- * refused UWB start, a range check that reads danger), a pack below its
- * warning level, then rest (idle), then warnings (a range check that warns,
+ * Grades a live anchor's telemetry: errors first (fault, low battery, a range
+ * check that reads danger), a pack below its warning level, then rest (idle),
+ * a refused UWB start (error), then warnings (a range check that warns,
  * radio restarts, operating
  * without a measured ranging rate, an initiator its responders do not hear).
  */
@@ -317,7 +324,11 @@ function gradeAnchorTelemetry(
   sleeping: boolean | undefined,
   evidence: InitiatorEvidence | undefined
 ): RtlsHealth {
-  if (stats?.powerState === 'fault' || stats?.lowBattery) {
+  if (
+    stats?.powerState === 'fault' ||
+    stats?.lowBattery ||
+    isRangeDanger(stats)
+  ) {
     return RtlsHealth.ERROR;
   }
   if (stats?.batteryWarning) {
@@ -327,7 +338,7 @@ function gradeAnchorTelemetry(
   if (isAnchorResting(stats, sleeping)) {
     return RtlsHealth.IDLE;
   }
-  if (isUwbStartRefused(stats) || isRangeDanger(stats)) {
+  if (isUwbStartRefused(stats)) {
     return RtlsHealth.ERROR;
   }
   const operating = stats?.powerState === 'operating';
