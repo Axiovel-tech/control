@@ -7,7 +7,11 @@
  */
 
 import { showConfirmationDialog } from '~/features/prompt/actions';
-import { showError, showNotification } from '~/features/snackbar/actions';
+import {
+  showError,
+  showNotification,
+  showWarning,
+} from '~/features/snackbar/actions';
 import { type Message, type MessageBody } from '~/flockwave/types';
 import i18n from '~/i18n';
 import messageHub from '~/message-hub';
@@ -34,6 +38,8 @@ type RtlsLockResult = {
   warnings: string[];
   /** The anchors that did not take the write (`incomplete` result). */
   failures: RtlsLockFailure[];
+  /** The server ran the resurvey check (a server without it never says so). */
+  resurveyRan: boolean;
 };
 
 const LOCK_RESULTS = [
@@ -51,11 +57,12 @@ const LOCK_RESULTS = [
 const LOCK_TIMEOUT_SECONDS = 15;
 
 /**
- * How long a lock with the resurvey check waits: eight survey steps, each
- * tried twice at the slowest block (10.5 s), the return (10 s), then the
- * lock itself. A cell at 50 Hz takes about 15 s.
+ * How long a lock with the resurvey check waits. A cell at 50 Hz takes about
+ * 15 s; the firmware takes UWB_BLOCK_MS up to 1000 ms, at which eight steps
+ * tried twice and the return take minutes. The server answers by itself
+ * when a step does not end.
  */
-const RESURVEY_TIMEOUT_SECONDS = 210;
+const RESURVEY_TIMEOUT_SECONDS = 600;
 
 /**
  * Locks or unlocks the anchors (X-RTLS-LOCK). Every answer is a normal
@@ -104,6 +111,7 @@ async function sendRtlsLock(
         id,
         detail: (isRecord(entry) && toText(entry.detail)) || 'refused',
       })),
+    resurveyRan: isRecord(body.resurvey) && body.resurvey.ran === true,
   };
 }
 
@@ -155,8 +163,17 @@ export const sendRtlsLockCommand =
   ): AppThunk<Promise<RtlsLockOutcome>> =>
   async (_dispatch, getState) => {
     const result = await sendRtlsLock(action, acknowledgeWarnings, resurvey);
+    // an older server takes the lock without the check
+    const unchecked =
+      resurvey && !result.resurveyRan && result.result !== 'refused';
+    const notRun = i18n.t('rtlsAnchorLock.resurveyNotRun');
     if (result.result === 'warnings') {
-      return result;
+      return unchecked
+        ? { ...result, warnings: [...result.warnings, notRun] }
+        : result;
+    }
+    if (unchecked && isCurrent()) {
+      showWarning(notRun);
     }
     const error = describeLockOutcome(getState(), result);
     if (error === undefined && isCurrent()) {

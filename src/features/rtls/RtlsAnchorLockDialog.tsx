@@ -5,52 +5,33 @@
  * with the first Lock only: Lock anyway does not measure again.
  */
 
-import Alert from '@mui/material/Alert';
-import Button from '@mui/material/Button';
-import Checkbox from '@mui/material/Checkbox';
-import DialogActions from '@mui/material/DialogActions';
-import DialogContent from '@mui/material/DialogContent';
-import FormControlLabel from '@mui/material/FormControlLabel';
-import LinearProgress from '@mui/material/LinearProgress';
-import Typography from '@mui/material/Typography';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { useTranslation } from 'react-i18next';
+import { useCallback, useEffect, useReducer, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-
-import { DraggableDialog } from '@skybrush/mui-components';
 
 import { errorToString } from '~/error-handling';
 import { type AppDispatch } from '~/store/reducers';
 
 import { type RtlsLockOutcome, sendRtlsLockCommand } from './anchor-lock';
+import {
+  LOCK_DIALOG_OPENED,
+  lockDialogReducer,
+  runsResurveyCheck,
+} from './anchor-lock-dialog';
+import RtlsAnchorLockDialogView from './RtlsAnchorLockDialogView';
 import { isRtlsLockDialogOpen } from './selectors';
 import { closeRtlsLockDialog } from './slice';
 
 const RtlsAnchorLockDialog = () => {
-  const { t } = useTranslation();
   const dispatch: AppDispatch = useDispatch();
   const open = useSelector(isRtlsLockDialogOpen);
-
-  // the warnings the server answered the last lock attempt with
-  const [warnings, setWarnings] = useState<string[]>([]);
-  const [acknowledged, setAcknowledged] = useState(false);
-  const [resurvey, setResurvey] = useState(false);
-  // the resurvey check of the lock under way is measuring
-  const [measuring, setMeasuring] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string>();
+  const [state, update] = useReducer(lockDialogReducer, LOCK_DIALOG_OPENED);
   // moves on every open and close: a reply to an earlier attempt is dropped
   const attempt = useRef(0);
 
   useEffect(() => {
     attempt.current += 1;
     if (open) {
-      setBusy(false);
-      setMeasuring(false);
-      setWarnings([]);
-      setAcknowledged(false);
-      setResurvey(false);
-      setError(undefined);
+      update({ type: 'opened' });
     }
   }, [open]);
 
@@ -58,17 +39,16 @@ const RtlsAnchorLockDialog = () => {
 
   const handleLock = useCallback(async () => {
     const sent = attempt.current;
-    const check = resurvey && warnings.length === 0;
-    setBusy(true);
-    setMeasuring(check);
-    setError(undefined);
-    let result: RtlsLockOutcome | undefined;
+    const acknowledge = state.warnings.length > 0 && state.acknowledged;
+    const check = runsResurveyCheck(state);
+    update({ type: 'sent' });
+    let outcome: RtlsLockOutcome | undefined;
     let failure: string | undefined;
     try {
-      result = await dispatch(
+      outcome = await dispatch(
         sendRtlsLockCommand(
           'lock',
-          warnings.length > 0 && acknowledged,
+          acknowledge,
           () => sent === attempt.current,
           check
         )
@@ -79,90 +59,21 @@ const RtlsAnchorLockDialog = () => {
     if (sent !== attempt.current) {
       return;
     }
-    setBusy(false);
-    setMeasuring(false);
-    if (result?.result === 'locked') {
+    update({ type: 'answered', outcome, failure });
+    if (outcome?.result === 'locked') {
       close();
-    } else if (result?.result === 'warnings') {
-      setWarnings(result.warnings);
-      setAcknowledged(false);
-    } else {
-      setError(result?.error ?? failure);
     }
-  }, [acknowledged, close, dispatch, resurvey, warnings.length]);
+  }, [close, dispatch, state]);
 
   return (
-    <DraggableDialog
-      fullWidth
+    <RtlsAnchorLockDialogView
       open={open}
-      maxWidth='sm'
-      title={t('rtlsAnchorLock.title')}
+      state={state}
       onClose={close}
-    >
-      <DialogContent data-testid='rtls-lock-dialog'>
-        <Typography variant='body2'>
-          {t('rtlsAnchorLock.dialog.text')}
-        </Typography>
-        <FormControlLabel
-          control={
-            <Checkbox
-              data-testid='rtls-lock-resurvey'
-              checked={resurvey}
-              disabled={busy || warnings.length > 0}
-              onChange={(event) => setResurvey(event.target.checked)}
-            />
-          }
-          label={t('rtlsAnchorLock.dialog.resurvey')}
-        />
-        {measuring && (
-          <>
-            <LinearProgress data-testid='rtls-lock-measuring' />
-            <Typography variant='caption' color='text.secondary'>
-              {t('rtlsAnchorLock.dialog.measuring')}
-            </Typography>
-          </>
-        )}
-        {warnings.length > 0 && (
-          <>
-            <ul style={{ marginTop: 8, marginBottom: 0, paddingLeft: 20 }}>
-              {warnings.map((text, index) => (
-                <li key={index}>
-                  <Typography variant='body2'>{text}</Typography>
-                </li>
-              ))}
-            </ul>
-            <FormControlLabel
-              control={
-                <Checkbox
-                  data-testid='rtls-lock-acknowledge'
-                  checked={acknowledged}
-                  disabled={busy}
-                  onChange={(event) => setAcknowledged(event.target.checked)}
-                />
-              }
-              label={t('rtlsAnchorLock.dialog.acknowledge')}
-            />
-          </>
-        )}
-        {error !== undefined && (
-          <Alert severity='error' sx={{ mt: 1 }}>
-            {error}
-          </Alert>
-        )}
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={close}>{t('general.action.cancel')}</Button>
-        <Button
-          data-testid='rtls-lock-confirm'
-          color='primary'
-          variant='contained'
-          disabled={busy || (warnings.length > 0 && !acknowledged)}
-          onClick={() => void handleLock()}
-        >
-          {t('rtlsAnchorLock.lock')}
-        </Button>
-      </DialogActions>
-    </DraggableDialog>
+      onLock={() => void handleLock()}
+      onResurvey={(checked) => update({ type: 'resurvey', checked })}
+      onAcknowledge={(checked) => update({ type: 'acknowledged', checked })}
+    />
   );
 };
 

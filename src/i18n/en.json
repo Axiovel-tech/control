@@ -969,6 +969,7 @@
       "locked": "Anchors locked",
       "unlocked": "Anchors unlocked"
     },
+    "resurveyNotRun": "Resurvey check not run by the server",
     "step": {
       "description": "Lock the anchors to prevent unwanted changes.",
       "lockFirst": "Lock the anchors first"

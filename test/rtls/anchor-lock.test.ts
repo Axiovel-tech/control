@@ -10,6 +10,7 @@ jest.mock('~/features/snackbar/actions', () => ({
   __esModule: true,
   showError: jest.fn(),
   showNotification: jest.fn(),
+  showWarning: jest.fn(),
 }));
 jest.mock('~/error-handling', () => ({
   errorToString: (error: unknown): string => String(error),
@@ -44,7 +45,11 @@ import {
   updateRtlsStats,
 } from '~/features/rtls/slice';
 import { showConfirmationDialog } from '~/features/prompt/actions';
-import { showError, showNotification } from '~/features/snackbar/actions';
+import {
+  showError,
+  showNotification,
+  showWarning,
+} from '~/features/snackbar/actions';
 import messageHub from '~/message-hub';
 import { UAVAge } from '~/model/uav';
 
@@ -175,6 +180,7 @@ describe('the lock command', () => {
   test('the resurvey check is asked for and waited for longer', async () => {
     answerLock({
       result: 'warnings',
+      resurvey: { ran: true },
       warnings: [
         {
           code: 'resurvey-moved',
@@ -194,11 +200,42 @@ describe('the lock command', () => {
         acknowledgeWarnings: false,
         resurvey: true,
       },
-      { timeout: 210 },
+      { timeout: 600 },
     ]);
     expect(result.warnings).toEqual([
       'RTLS anchor A2 is 12 cm off its surveyed position',
     ]);
+  });
+
+  test('a server that did not run the check says nothing of it', async () => {
+    // an older server: warnings without the check, then a lock without it
+    answerLock({ result: 'warnings', warnings: [{ detail: 'A3 is offline' }] });
+    const warned = await dispatchThunk(
+      createStore(),
+      sendRtlsLockCommand('lock', false, () => true, true)
+    );
+    expect(warned.warnings).toEqual([
+      'A3 is offline',
+      'rtlsAnchorLock.resurveyNotRun',
+    ]);
+
+    answerLock({ result: 'locked' });
+    const locked = await dispatchThunk(
+      createStore(),
+      sendRtlsLockCommand('lock', false, () => true, true)
+    );
+    expect(locked.result).toBe('locked');
+    expect(showWarning).toHaveBeenCalledWith('rtlsAnchorLock.resurveyNotRun');
+
+    // a refusal is shown as it is; a lock without the option warns of nothing
+    answerLock({ result: 'refused', reason: 'A survey is running' });
+    await dispatchThunk(
+      createStore(),
+      sendRtlsLockCommand('lock', false, () => true, true)
+    );
+    answerLock({ result: 'locked' });
+    await dispatchThunk(createStore(), sendRtlsLockCommand('lock', true));
+    expect(showWarning).toHaveBeenCalledTimes(1);
   });
 
   test('a lock from an attempt no longer on screen is not announced', async () => {
