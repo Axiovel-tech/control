@@ -27,7 +27,7 @@ import {
   toggleLayerVisibility,
 } from '~/features/map/layers';
 import { LayerType } from '~/model/layers';
-import { getLayers, getLicensedLayerById } from '~/selectors/layers';
+import { getLayerById, getLayers } from '~/selectors/layers';
 import { createValidator, required } from '~/utils/validation';
 import { LayerSettings, stateObjectToLayerSettings } from '~/views/map/layers';
 
@@ -64,10 +64,7 @@ const BasicLayerSettingsFormPresentation = ({
           <div>&nbsp;</div>
           <Switch
             checked={layer.visible}
-            disabled={
-              layer.type === LayerType.UNAVAILABLE ||
-              layer.type === LayerType.UNTYPED
-            }
+            disabled={layer.type === LayerType.UNTYPED}
             style={{ flex: 'none' }}
             onChange={onToggleLayerVisibility}
           />
@@ -204,7 +201,7 @@ class LayerSettingsContainerPresentation extends React.Component {
 const LayerSettingsContainer = connect(
   // mapStateToProps
   (state, ownProps) => ({
-    layer: getLicensedLayerById(ownProps.layerId)(state),
+    layer: getLayerById(ownProps.layerId)(state),
   }),
   // mapDispatchToProps
   {}
@@ -329,7 +326,7 @@ const LayerSettingsDialog = connect(
       const { layerSettings } = state.dialogs;
       const { selectedLayer: selectedLayerId } = layerSettings || {};
       const selectedLayer = selectedLayerId
-        ? getLicensedLayerById(selectedLayerId)(state)
+        ? getLayerById(selectedLayerId)(state)
         : undefined;
 
       if (selectedLayer && selectedLayer.type === LayerType.UNTYPED) {

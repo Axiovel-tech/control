@@ -1,21 +1,12 @@
 import BusinessCenter from '@mui/icons-material/BusinessCenter';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { connect } from 'react-redux';
 
-import { GenericHeaderButton, SidebarBadge } from '@skybrush/mui-components';
-
-import Colors from '~/components/colors';
-import { getActiveUAVIdsBeingAveraged } from '~/features/measurement/selectors';
-import type { RootState } from '~/store/reducers';
+import { GenericHeaderButton } from '@skybrush/mui-components';
 
 import ToolboxMenu from './ToolboxMenu';
 
-type Props = {
-  numberOfAveragingInProgress: number;
-};
-
-const ToolboxButtonPresentation = ({ numberOfAveragingInProgress }: Props) => {
+const ToolboxButton = () => {
   const [anchorElement, setAnchorElement] = useState<HTMLElement | null>(null);
   const { t } = useTranslation();
 
@@ -27,8 +18,6 @@ const ToolboxButtonPresentation = ({ numberOfAveragingInProgress }: Props) => {
     setAnchorElement(null);
   };
 
-  const needsBadge = numberOfAveragingInProgress > 0;
-
   return (
     <>
       <GenericHeaderButton
@@ -38,7 +27,6 @@ const ToolboxButtonPresentation = ({ numberOfAveragingInProgress }: Props) => {
         tooltip={t('toolbox.tooltip')}
         onClick={handleClick}
       >
-        <SidebarBadge color={Colors.warning} visible={needsBadge} />
         <BusinessCenter />
       </GenericHeaderButton>
       <ToolboxMenu
@@ -52,11 +40,4 @@ const ToolboxButtonPresentation = ({ numberOfAveragingInProgress }: Props) => {
   );
 };
 
-export default connect(
-  // mapStateToProps
-  (state: RootState) => ({
-    numberOfAveragingInProgress: getActiveUAVIdsBeingAveraged(state).length,
-  }),
-  // mapDispatchToProps
-  null
-)(ToolboxButtonPresentation);
+export default ToolboxButton;

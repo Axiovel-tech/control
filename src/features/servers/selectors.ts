@@ -1,5 +1,4 @@
 import { createSelector } from '@reduxjs/toolkit';
-import { type License } from '@skybrush/flockwave-spec';
 import isNil from 'lodash-es/isNil';
 import * as semver from 'semver';
 
@@ -8,23 +7,8 @@ import { type AppSelector, type RootState } from '~/store/reducers';
 import { selectOrdered } from '~/utils/collections';
 
 import { CLOCK_SKEW_WARNING_THRESHOLD, MAX_ROUNDTRIP_TIME } from './constants';
-import { INVALID, type ServersSliceState } from './slice';
-import {
-  Protocol,
-  type ServerAuthenticationInformation,
-  type ServerParameters,
-} from './types';
-
-/**
- * Returns the current authentication token that the user possesses.
- *
- * @param state - The state of the application
- * @return The current authentication token or undefined if
- *         the user has no authentication token
- */
-export const getAuthenticationToken: AppSelector<string | undefined> = (
-  state
-) => state.servers.token ?? undefined;
+import { type ServersSliceState } from './slice';
+import { Protocol, type ServerParameters } from './types';
 
 /**
  * Returns the estimated clock skew between us and the server, in milliseconds.
@@ -182,17 +166,6 @@ const getCurrentServerFeatures: AppSelector<Record<string, boolean>> = (
 ) => state.servers.current.features;
 
 /**
- * Returns the license that is currently active on the connected Axio
- * Server.
- *
- * @param state - The state of the application
- * @return An object describing the license active on the currently
- *         connected Axio Server
- */
-const getCurrentServerLicense: AppSelector<License | undefined> = (state) =>
-  state.servers.current.license;
-
-/**
  * Selector that returns the mapping of services to ports on the server. May
  * be an empty object if the server is too old and cannot provide the mapping
  * on its own.
@@ -210,52 +183,6 @@ export const getDetectedServersInOrder: AppSelector<ServerParameters[]> =
   createSelector((state: RootState) => state.servers.detected, selectOrdered);
 
 /**
- * Returns all the information that we currently know about the authentication
- * methods supported by the current server.
- */
-const getAuthenticationSettings: AppSelector<ServerAuthenticationInformation> =
-  createSelector(getCurrentServerState, (current) =>
-    current.state === ConnectionState.CONNECTED
-      ? current.authentication
-      : INVALID
-  );
-
-/**
- * Returns the name of the user that is currently authenticated to the server.
- */
-export const getAuthenticatedUser: AppSelector<string> = createSelector(
-  getAuthenticationSettings,
-  (settings) => settings.user
-);
-
-/**
- * Returns whether we have valid and up-to-date information about the
- * authentication methods supported by the server we are currently connected
- * to.
- */
-export const areServerAuthenticationSettingsValid: AppSelector<boolean> =
-  createSelector(getAuthenticationSettings, (settings) => settings.valid);
-
-/**
- * Returns whether the user is currently authenticated to the remote
- * Axio Server.
- */
-export const isAuthenticated: AppSelector<boolean> = createSelector(
-  getAuthenticatedUser,
-  Boolean
-);
-
-/**
- * Returns whether the user is currently attempting to authenticate to the
- * remote Axio Server.
- *
- * @param state - The state of the application
- * @return Whether there is an authentication attempt in progress
- */
-export const isAuthenticating: AppSelector<boolean> = (state) =>
-  state.servers.isAuthenticating;
-
-/**
  * Returns whether we are connected to the remote Axio Server.
  */
 export const isConnected: AppSelector<boolean> = createSelector(
@@ -270,14 +197,6 @@ export const isConnected: AppSelector<boolean> = createSelector(
 export const isConnecting: AppSelector<boolean> = createSelector(
   getCurrentServerState,
   (current) => current.state === ConnectionState.CONNECTING
-);
-
-/**
- * Returns whether the server supports at least one authentication method.
- */
-export const supportsAuthentication: AppSelector<boolean> = createSelector(
-  getAuthenticationSettings,
-  (settings) => settings.methods && settings.methods.length > 0
 );
 
 /**
@@ -301,36 +220,13 @@ export const supportsVirtualDrones =
 export const supportsMapCaching = makeSupportsFeatureSelector('map_cache');
 
 /**
+ * Returns whether the server we are connected to supports offline map caching.
+ */
+
+/**
  * Returns whether the server we are connected to supports studio operations.
  */
 export const supportsStudioInterop = makeSupportsFeatureSelector('studio');
-
-/**
- * Creates a selector that returns true if and only if a license containing
- * the given feature type is active on the currently connected server.
- */
-const makeHasLicenseForFeatureTypeSelector = (
-  name: string
-): AppSelector<boolean | undefined> =>
-  createSelector(getCurrentServerLicense, (license) =>
-    license?.features?.some((feature) => feature.type === name)
-  );
-
-/**
- * Returns whether the server we are connected to has an activated license,
- * which enables pro features.
- */
-export const hasLicenseWithProFeatures =
-  makeHasLicenseForFeatureTypeSelector('pro');
-
-/**
- * Returns whether the server requires the user to authenticate before
- * doing anything.
- */
-export const requiresAuthentication: AppSelector<boolean> = createSelector(
-  getAuthenticationSettings,
-  (settings) => settings.required
-);
 
 /**
  * Returns whether the server time is being adjusted at the moment.
@@ -365,10 +261,3 @@ export const isClockSkewSignificant: AppSelector<boolean> = createSelector(
  */
 export const isTimeSyncWarningDialogVisible: AppSelector<boolean> = (state) =>
   state.servers.timeSyncDialog.open;
-
-/**
- * Selector that returns whether the server supports the show suspend, resume,
- * and collective RTH options.
- */
-export const supportsSuspendResumeCRTH: AppSelector<boolean> =
-  getServerVersionValidator('>=2.42');

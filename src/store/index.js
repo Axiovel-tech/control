@@ -19,9 +19,7 @@ import {
 import { createPromise } from 'redux-promise-middleware';
 import createSagaMiddleware from 'redux-saga';
 
-import { updateAveragingByIds } from '~/features/measurement/slice';
 import { shouldPreventSleepMode } from '~/features/power-saving/selectors';
-import { updateRTKStatistics } from '~/features/rtk/slice';
 import { showAppSettingsDialog } from '~/features/settings/actions';
 import { loadingPromiseFulfilled } from '~/features/show/slice';
 import { updateAgesOfUAVs, updateUAVs } from '~/features/uavs/slice';
@@ -44,7 +42,7 @@ import { bindSelectors } from './subscriptions';
 const persistConfig = {
   key: 'flockwave-client',
   storage: window.bridge ? window.bridge.createStateStore() : localForage,
-  version: 3,
+  version: 4,
   migrate: migrations,
   stateReconciler: defaultStateReconciler,
 
@@ -55,7 +53,6 @@ const persistConfig = {
     'clocks',
     'connections',
     'detachablePanels',
-    'docks',
     'firmwareUpdate',
     'localServer',
     'log',
@@ -67,7 +64,6 @@ const persistConfig = {
     'showAudio',
     'snackbar',
     'uavs',
-    'weather',
   ],
 
   // do not save more frequently than once every second
@@ -80,7 +76,6 @@ const persistConfig = {
       'featureEditor',
       'layerSettings',
       'messages',
-      'savedLocationEditor',
       'serverSettings',
     ]),
 
@@ -102,10 +97,6 @@ const persistConfig = {
     // The pending UAV Id overlay should be temporary and reset on reload
     createBlacklistFilter('hotkeys', ['pendingUAVId']),
 
-    // We do not wish to store the state of the license check, only whether the
-    // license info dialog is open
-    createFilter('licenseInfo', ['dialog']),
-
     // We do not wish to store home/landing positions and takeoff heading in
     // the mission because they depend on the loaded show anyway
     createBlacklistFilter('mission', [
@@ -115,7 +106,6 @@ const persistConfig = {
       // 'homePositions',
       'landingPositions',
       'takeoffHeadings',
-      'lastClearedMissionData',
     ]),
 
     // We do not wish to save which preflight checks the user has ticked off
@@ -135,9 +125,6 @@ const persistConfig = {
     // with the commit that last replaced what was drawn; the survey itself
     // is the server's
     createFilter('rtlsSurvey', ['sketches', 'committedSurveyId']),
-
-    // Store only saved coordinates from RTK
-    createFilter('rtk', ['savedCoordinates']),
 
     // We do not wish to save 3D view tooltips, camera pose or the scene ID
     createBlacklistFilter('threeD', ['camera', 'tooltip', 'sceneId']),
@@ -213,12 +200,7 @@ const store = configureStore({
     process.env.NODE_ENV === 'production'
       ? false
       : {
-          actionsDenylist: [
-            updateAgesOfUAVs.type,
-            updateAveragingByIds.type,
-            updateRTKStatistics.type,
-            updateUAVs.type,
-          ],
+          actionsDenylist: [updateAgesOfUAVs.type, updateUAVs.type],
 
           // make sure that the show object that we load is not cached / tracked by
           // the Redux devtools

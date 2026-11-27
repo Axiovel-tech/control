@@ -17,7 +17,6 @@ import {
   updateFeatureAttributes,
 } from '~/features/map-features/slice';
 import { setFlatEarthCoordinateSystemOrigin } from '~/features/map/origin';
-import { addNewWaypointMissionItem } from '~/features/mission/actions';
 import { getGeofencePolygonId } from '~/features/mission/selectors';
 import {
   clearGeofencePolygonId,
@@ -30,7 +29,6 @@ import { getSelectedUAVIds } from '~/features/uavs/selectors';
 import { hasFeature } from '~/utils/configuration';
 
 const hasMapFeatures = hasFeature('mapFeatures');
-const hasMissionEditor = hasFeature('missionEditor');
 const hasGeofence = hasFeature('geofence');
 const hasShowControl = hasFeature('showControl');
 
@@ -53,7 +51,6 @@ const MapContextMenuContainer = connect(
   }),
   // mapDispatchToProps
   {
-    addPointToMission: hasMissionEditor ? addNewWaypointMissionItem : null,
     clearGeofencePolygonId: hasGeofence ? clearGeofencePolygonId : null,
     cutFeature: hasMapFeatures ? cutFeature : null,
     editFeature: hasMapFeatures ? showFeatureEditorDialog : null,

@@ -11,7 +11,6 @@ import { getBatteryFormatter } from '~/features/settings/selectors';
 import { UAVAge } from '~/model/uav';
 import { formatCoordinateArray, formatNumberSafely } from '~/utils/formatting';
 import FlightModeStatusPill from '~/views/uavs/FlightModeStatusPill';
-import GPSStatusPill from '~/views/uavs/GPSStatusPill';
 
 import { createSingleUAVStatusSummarySelector, getUAVById } from './selectors';
 
@@ -46,11 +45,6 @@ const useStyles = makeStyles((theme) => ({
     minWidth: 48,
     flex: 1,
   },
-  gpsPill: {
-    minWidth: 40,
-    flex: 1,
-    outline: 'none !important',
-  },
   batteryIndicator: {
     display: 'inline-block',
     flex: 1,
@@ -66,11 +60,6 @@ const useStyles = makeStyles((theme) => ({
     whiteSpace: 'noWrap',
     margin: theme.spacing(0, 1, 0, 0),
   },
-  numSatellitesLabel: {
-    flex: 1,
-    textAlign: 'center',
-    whiteSpace: 'noWrap',
-  },
 }));
 
 const naText = <span className='muted'>—</span>;
@@ -84,7 +73,6 @@ const DroneInfoTooltipContent = ({
   batteryFormatter,
   batteryStatus,
   details,
-  gpsFix,
   heading,
   label,
   localPosition,
@@ -94,7 +82,6 @@ const DroneInfoTooltipContent = ({
   textSemantics,
 }) => {
   const classes = useStyles();
-  const { type: gpsFixType, numSatellites } = gpsFix || {};
   const hasLocalPosition = localPosition && Array.isArray(localPosition);
   return (
     <>
@@ -120,25 +107,15 @@ const DroneInfoTooltipContent = ({
           mode={mode}
           className={clsx(classes.pill, classes.modePill)}
         />
-        <GPSStatusPill
-          className={clsx(classes.pill, classes.gpsPill)}
-          fixType={gpsFixType}
-        />
       </div>
       <div className={classes.row}>
         {hasLocalPosition ? (
           localCoordinateFormatter(localPosition)
         ) : (
-          <>
-            <div className={classes.altitudeLabel}>
-              {formatNumberSafely(position?.ahl, 1, ' m', naText)}
-              <span className='muted'>{'\u00A0'}AHL</span>
-            </div>
-            <div className={classes.numSatellitesLabel}>
-              {formatNumberSafely(numSatellites, 0, '', naText)}
-              <span className='muted'>{'\u00A0'}sats</span>
-            </div>
-          </>
+          <div className={classes.altitudeLabel}>
+            {formatNumberSafely(position?.ahl, 1, ' m', naText)}
+            <span className='muted'>{'\u00A0'}AHL</span>
+          </div>
         )}
       </div>
     </>
@@ -155,10 +132,6 @@ DroneInfoTooltipContent.propTypes = {
     percentage: PropTypes.number,
   }),
   details: PropTypes.string,
-  gpsFix: PropTypes.shape({
-    type: PropTypes.number,
-    numSatellites: PropTypes.number,
-  }),
   heading: PropTypes.number,
   label: PropTypes.string,
   localPosition: PropTypes.arrayOf(PropTypes.number),
@@ -179,7 +152,6 @@ export default connect(
       const uav = getUAVById(state, uavId);
       return {
         batteryFormatter: getBatteryFormatter(state),
-        gpsFix: uav?.gpsFix,
         heading: uav?.heading,
         label: uavId,
         localPosition: uav?.localPosition,

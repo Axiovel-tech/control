@@ -23,7 +23,6 @@ import { getPreferredCoordinateFormatter } from '~/selectors/formatting';
 import { formatCoordinateArray } from '~/utils/formatting';
 
 import FlightModeStatusPill from './FlightModeStatusPill';
-import GPSStatusPill from './GPSStatusPill';
 import RSSIIndicator from './RSSIIndicator';
 
 /**
@@ -72,10 +71,6 @@ const useStyles = makeStyles((theme) => ({
   modePill: {
     width: 48,
   },
-  gpsPill: {
-    width: 40,
-    outline: 'none !important',
-  },
   rssiPills: {
     width: 72,
     paddingLeft: 2,
@@ -104,7 +99,6 @@ const DroneStatusLine = ({
   heading,
   headingDeviation,
   gone,
-  gpsFixType,
   label,
   localPosition,
   missing,
@@ -116,7 +110,7 @@ const DroneStatusLine = ({
   textSemantics = 'info',
 }) => {
   const classes = useStyles();
-  const { amsl, ahl, agl } = position || {};
+  const { ahl } = position || {};
   return (
     <div className={clsx(classes.root, gone && classes.gone)}>
       {padStart(label, 5)}
@@ -144,10 +138,6 @@ const DroneStatusLine = ({
           />
           <ColoredLight inline color={color} />
           <RSSIIndicator className={classes.rssiPills} rssi={rssi} />
-          <GPSStatusPill
-            className={clsx(classes.pill, classes.gpsPill)}
-            fixType={gpsFixType}
-          />
           {localPosition ? (
             padEnd(localCoordinateFormatter(localPosition), 25)
           ) : position ? (
@@ -155,20 +145,10 @@ const DroneStatusLine = ({
           ) : (
             <span className={classes.muted}>{padEnd('no position', 25)}</span>
           )}
-          {!isNil(amsl) ? (
-            padStart(position.amsl.toFixed(1), 6) + 'm'
-          ) : (
-            <span className={classes.muted}>{'    ———'}</span>
-          )}
           {!isNil(ahl) ? (
             padStart(position.ahl.toFixed(1), 6) + 'm'
           ) : (
             <span className={classes.muted}>{'    ———'}</span>
-          )}
-          {!isNil(agl) ? (
-            padStart(position.agl.toFixed(1), 5) + 'm'
-          ) : (
-            <span className={classes.muted}>{'   ———'}</span>
           )}
           <StatusText status={headingDeviationToStatus(headingDeviation)}>
             {padStart(!isNil(heading) ? Math.round(heading) + '°' : '', 5)}
@@ -197,7 +177,6 @@ DroneStatusLine.propTypes = {
   details: PropTypes.string,
   editing: PropTypes.bool,
   gone: PropTypes.bool,
-  gpsFixType: PropTypes.number,
   heading: PropTypes.number,
   headingDeviation: PropTypes.number,
   id: PropTypes.string,
@@ -245,7 +224,6 @@ export default connect(
         color,
         coordinateFormatter: getPreferredCoordinateFormatter(state),
         debugString: uav ? uav.debugString : undefined,
-        gpsFixType: uav ? uav.gpsFix.type : undefined,
         heading: uav ? uav.heading : undefined,
         headingDeviation,
         localPosition: uav ? uav.localPosition : undefined,

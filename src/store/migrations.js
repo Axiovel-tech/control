@@ -27,6 +27,24 @@ const migrations = {
       };
     }
   }),
+  4: createNextState((state) => {
+    // Slices of features that no longer exist
+    for (const key of [
+      'licenseInfo',
+      'measurement',
+      'rtk',
+      'savedLocations',
+      'versionCheck',
+    ]) {
+      delete state[key];
+    }
+
+    delete state.dialogs?.savedLocationEditor;
+
+    // Saved panel arrangements may hold panels that no longer exist; start
+    // again from the default layout
+    delete state.workbench;
+  }),
 };
 
 export default createMigrate(migrations);

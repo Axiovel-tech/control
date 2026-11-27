@@ -26,11 +26,6 @@ const commonLayouts: Record<PerspectiveName, PerspectiveObject> = {
               type: 'stack',
               contents: [
                 { type: 'panel', component: 'lcd-clock-panel', id: 'clocks' },
-                {
-                  type: 'panel',
-                  component: 'saved-location-list',
-                  id: 'locations',
-                },
                 { type: 'panel', component: 'layer-list', id: 'layers' },
               ],
               height: 25,

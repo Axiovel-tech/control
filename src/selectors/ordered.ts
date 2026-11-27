@@ -2,7 +2,7 @@ import { createSelector } from '@reduxjs/toolkit';
 
 import type { RootState } from '~/store/reducers';
 import { selectOrdered } from '~/utils/collections';
-import { getLicensedLayers } from './layers';
+import { getLayers } from './layers';
 
 /**
  * Selector that calculates and caches the list of all the connections that
@@ -20,7 +20,7 @@ export const getConnectionsInOrder = createSelector(
  * bottom layer first.
  */
 export const getLayersInBottomFirstOrder = createSelector(
-  getLicensedLayers,
+  getLayers,
   selectOrdered
 );
 

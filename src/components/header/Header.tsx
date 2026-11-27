@@ -6,7 +6,6 @@ import Shapeshifter from 'react-shapeshifter';
 
 import UAVStatusSummary from '~/components/uavs/UAVStatusSummary';
 import PerspectiveBar from '~/features/perspectives/PerspectiveBar';
-import RTKStatusHeaderButton from '~/features/rtk/RTKStatusHeaderButton';
 import RtlsStatusHeaderButton from '~/features/rtls/RtlsStatusHeaderButton';
 import SelectionGroupsHeaderButton from '~/features/selection/SelectionGroupsHeaderButton';
 import { BROADCAST_MODE_TIMEOUT_LENGTH } from '~/features/settings/constants';
@@ -16,21 +15,18 @@ import AltitudeSummaryHeaderButton from '~/features/uavs/AltitudeSummaryHeaderBu
 import BatteryStatusHeaderButton from '~/features/uavs/BatteryStatusHeaderButton';
 import DistanceSummaryHeaderButton from '~/features/uavs/DistanceSummaryHeaderButton';
 import VelocitySummaryHeaderButton from '~/features/uavs/VelocitySummaryHeaderButton';
-import WeatherHeaderButton from '~/features/weather/WeatherHeaderButton';
 import { shouldSidebarBeShown } from '~/features/workbench/selectors';
 import type { RootState } from '~/store/reducers';
 import { hasFeature } from '~/utils/configuration';
 
 import AlertButton from './AlertButton';
 import AppSettingsButton from './AppSettingsButton';
-import AuthenticationButton from './AuthenticationButton';
 import BroadcastButton from './BroadcastButton';
 import ConnectionStatusButton from './ConnectionStatusButton';
 import FullScreenButton from './FullScreenButton';
 import HelpButton from './HelpButton';
 import SafetyButton from './SafetyButton';
 import ServerConnectionSettingsButton from './ServerConnectionSettingsButton';
-import SessionExpiryBox from './SessionExpiryBox';
 import ToolboxButton from './ToolboxButton';
 
 const style = {
@@ -48,7 +44,6 @@ const componentRegistry: Record<string, React.ComponentType> = {
   'alert-button': AlertButton,
   'altitude-summary-header-button': AltitudeSummaryHeaderButton,
   'app-settings-button': AppSettingsButton,
-  'authentication-button': AuthenticationButton,
   'battery-status-header-button': BatteryStatusHeaderButton,
   'broadcast-button': () => (
     <BroadcastButton timeoutLength={BROADCAST_MODE_TIMEOUT_LENGTH} />
@@ -58,8 +53,6 @@ const componentRegistry: Record<string, React.ComponentType> = {
   'full-screen-button': FullScreenButton,
   'groups-button': SelectionGroupsHeaderButton,
   'help-button': () => (config.urls.help ? <HelpButton /> : null),
-  'rtk-status-header-button': () =>
-    hasFeature('toolboxMenu') && <RTKStatusHeaderButton />,
   'rtls-status-header-button': () =>
     hasFeature('rtls') && <RtlsStatusHeaderButton />,
   'safety-button': SafetyButton,
@@ -68,11 +61,9 @@ const componentRegistry: Record<string, React.ComponentType> = {
       hideTooltip={Boolean(config.optimizeUIForTouch.default)}
     />
   ),
-  'session-expiry-box': SessionExpiryBox,
   'toolbox-button': () => hasFeature('toolboxMenu') && <ToolboxButton />,
   'uav-status-summary': UAVStatusSummary,
   'velocity-summary-header-button': VelocitySummaryHeaderButton,
-  'weather-header-button': WeatherHeaderButton,
 };
 
 type Props = {
@@ -116,7 +107,6 @@ const Header = ({ isSidebarOpen, showSidebar, toggleSidebar }: Props) => (
 export default connect(
   // mapStateToProps
   (state: RootState) => ({
-    sessionExpiresAt: state.session.expiresAt,
     isSidebarOpen: isSidebarOpen(state),
     showSidebar: shouldSidebarBeShown(state),
   }),

@@ -1,22 +1,7 @@
-/* global VERSION */
-
-import formatDate from 'date-fns/format';
 import { produce } from 'immer';
 import isNil from 'lodash-es/isNil';
-import pickBy from 'lodash-es/pickBy';
 import shuffle from 'lodash-es/shuffle';
 
-import { showErrorMessage } from '~/features/error-handling/actions';
-import {
-  addFeatureIfMissing,
-  selectSingleFeatureOfTypeUnlessAmbiguous,
-} from '~/features/map-features/actions';
-import {
-  getFeatureById,
-  getSingleSelectedFeatureIdOfType,
-} from '~/features/map-features/selectors';
-import { showPromptDialog } from '~/features/prompt/actions';
-import { updateGeofencePolygon } from '~/features/safety/actions';
 import { setSelection } from '~/features/selection/slice';
 import {
   getFirstPointsOfTrajectories,
@@ -27,92 +12,40 @@ import {
   isShowOutdoor,
   proposeMappingFileName,
 } from '~/features/show/selectors';
-import {
-  showError,
-  showNotification,
-  showSuccess,
-} from '~/features/snackbar/actions';
-import { MessageSemantics } from '~/features/snackbar/types';
-import { selectSingleUAVUnlessAmbiguous } from '~/features/uavs/actions';
+import { showError, showSuccess } from '~/features/snackbar/actions';
 import {
   getCurrentGPSPositionByUavId,
   getCurrentLocalPositionByUavId,
   getMissingUAVIdsInMapping,
-  getSingleSelectedUAVId,
   getUAVIdList,
   getUnmappedUAVIds,
 } from '~/features/uavs/selectors';
-import { openUploadDialogForJob } from '~/features/upload/slice';
-import { ServerPlanError } from '~/flockwave/operations';
 import messageHub from '~/message-hub';
-import { FeatureType } from '~/model/features';
-import {
-  missionItemIdToGlobalId,
-  missionSlotIdToGlobalId,
-} from '~/model/identifiers';
-import {
-  isMissionItemValid,
-  MissionItemType,
-  MissionType,
-  schemaForMissionItemType,
-  titleForMissionItemType,
-} from '~/model/missions';
-import { readFileAsText } from '~/utils/files';
+import { missionSlotIdToGlobalId } from '~/model/identifiers';
+import { MissionItemType } from '~/model/missions';
 import { readTextFromFile, writeTextToFile } from '~/utils/filesystem';
-import { toLonLatFromScaledJSON } from '~/utils/geography';
 import { chooseUniqueId } from '~/utils/naming';
 import { createAsyncAction } from '~/utils/redux';
 import workers from '~/workers';
 
-import { JOB_TYPE } from '../constants';
 import {
-  contextVolatilities,
-  ContextVolatility,
-  getParametersFromContext,
-  ParameterUIContext,
-} from '../parameter-context';
-import {
-  createCanMoveSelectedMissionItemsByDeltaSelector,
   getEmptyMappingSlotIndices,
-  getGeofencePolygon,
   getGPSBasedHomePositionsInMission,
-  getItemIndexRangeForSelectedMissionItems,
-  getLastClearedMissionData,
-  getLastSuccessfulPlannerInvocationParameters,
-  getMissionDataForStorage,
   getMissionItemById,
   getMissionItemsById,
   getMissionMapping,
   getMissionMappingFileContents,
-  getMissionPlannerDialogContextParameters,
-  getMissionPlannerDialogSelectedType,
-  getMissionPlannerDialogUserParameters,
   getSelectedMissionItemIds,
-  shouldMissionPlannerDialogApplyGeofence,
 } from '../selectors';
 import {
-  _setMissionItemsFromValidatedArray,
   addMissionItem,
-  closeMissionPlannerDialog,
-  moveMissionItem,
   removeMissionItemsByIds,
-  setLastClearedMissionData,
-  setLastSuccessfulPlannerInvocationParameters,
-  setMissionName,
-  setMissionPlannerDialogSelectedType,
-  setMissionPlannerDialogUserParameters,
-  setMissionType,
-  updateCurrentMissionItemId,
-  updateCurrentMissionItemRatio,
-  updateHomePositions,
   updateMissionItemParameters,
 } from '../slice';
-import { getMissionItemUploadJobPayload } from '../upload';
 import {
   clearMapping,
   removeUAVsFromMapping,
   replaceMapping,
-  setMappingLength,
 } from './ts-actions';
 
 /**
@@ -415,39 +348,6 @@ export const removeMissingUAVsFromMapping = () => (dispatch, getState) => {
 };
 
 /**
- * Thunk that assumes that a single-UAV mission is going to be executed and
- * assigns the selected UAV to the mission.
- */
-export const prepareMappingForSingleUAVMissionFromSelection =
-  () => (dispatch, getState) => {
-    const state = getState();
-    const uavId = getSingleSelectedUAVId(state);
-
-    if (uavId) {
-      const uavPosition = getCurrentGPSPositionByUavId(state, uavId);
-
-      dispatch(setMappingLength(1));
-      dispatch(replaceMapping([uavId]));
-
-      if (uavPosition) {
-        dispatch(updateHomePositions([uavPosition]));
-      }
-    } else {
-      const featureId = getSingleSelectedFeatureIdOfType(FeatureType.POINTS)(
-        state
-      );
-
-      dispatch(setMappingLength(1));
-      dispatch(replaceMapping([featureId]));
-
-      const [lon, lat] = getFeatureById(state, featureId).points[0];
-
-      // TODO: amsl of marker?
-      dispatch(updateHomePositions([{ lon, lat, agl: 0, amsl: undefined }]));
-    }
-  };
-
-/**
  * Thunk that adds a new mission item of the given type to the end of the
  * current mission.
  */
@@ -466,59 +366,6 @@ export const addNewMissionItem =
     return item;
   };
 
-export const editMissionItemParameters =
-  (itemId) => async (dispatch, getState) => {
-    const state = getState();
-    const item = getMissionItemsById(state)[itemId];
-
-    const parameters = await dispatch(
-      showPromptDialog({
-        initialValues: item.parameters,
-        schema: {
-          title: titleForMissionItemType[item.type],
-          type: 'object',
-          ...schemaForMissionItemType[item.type],
-        },
-      })
-    );
-
-    dispatch(updateMissionItemParameters(itemId, parameters));
-  };
-
-/**
- * Thunk that adds a new "go to" waypoint item to the end of the current
- * mission.
- */
-export const addNewWaypointMissionItem = (coords) => (dispatch) => {
-  const { lon, lat } = coords;
-  dispatch(addNewMissionItem(MissionItemType.GO_TO, { lon, lat }));
-};
-
-/**
- * Thunk that moves the selected waypoint item(s) up or down by one slot.
- */
-export const moveSelectedMissionItemsByDelta = (delta) => {
-  if (delta !== 1 && delta !== -1) {
-    throw new Error('Only delta = +/-1 is supported');
-  }
-
-  return (dispatch, getState) => {
-    const state = getState();
-    const canMove = createCanMoveSelectedMissionItemsByDeltaSelector(delta);
-    if (!canMove(state)) {
-      return;
-    }
-
-    const [minIndex, maxIndex] =
-      getItemIndexRangeForSelectedMissionItems(state);
-    if (delta === -1) {
-      dispatch(moveMissionItem(minIndex - 1, maxIndex));
-    } else if (delta === 1) {
-      dispatch(moveMissionItem(maxIndex + 1, minIndex));
-    }
-  };
-};
-
 /**
  * Thunk that removes the selected mission items from the mission.
  */
@@ -526,18 +373,6 @@ export const removeSelectedMissionItems = () => (dispatch, getState) => {
   const selectedMissionItemIds = getSelectedMissionItemIds(getState());
   dispatch(removeMissionItemsByIds(selectedMissionItemIds));
 };
-
-/**
- * Action factory that creates an action that updates the selection to the
- * given list of mission item IDs.
- *
- * @param {string[]} ids  the IDs of the selected mission items. Any mission
- *        item whose ID is not in this set will be deselected, and so will be
- *        any other item that is not a mission item.
- * @return {Object} an appropriately constructed action
- */
-export const setSelectedMissionItemIds = (ids) =>
-  setSelection(ids.map(missionItemIdToGlobalId));
 
 /**
  * Thunk that updates the parameters of a mission item based on a map feature.
@@ -564,389 +399,3 @@ export const updateMissionItemFromFeature =
       )
     );
   };
-
-/**
- * Thunk that receives an array of mission items and completely replaces the
- * current list of mission items with the received ones, rejecting mission
- * items whose format is invalid.
- */
-export const setMissionItemsFromArray = (items) => (dispatch) => {
-  const validItems = [];
-  let index = 0;
-
-  for (const item of items) {
-    if (!item || !isMissionItemValid(item)) {
-      console.warn(`Rejecting invalid mission item at index ${index}`);
-    } else {
-      validItems.push(item);
-    }
-
-    index++;
-  }
-
-  dispatch(_setMissionItemsFromValidatedArray(validItems));
-};
-
-/**
- * Thunk that uploads the current list of mission items to the selected UAV.
- */
-export const uploadMissionItemsToSelectedUAV = () => (dispatch, getState) => {
-  const state = getState();
-  const selectedUAVId = getSingleSelectedUAVId(state);
-  if (selectedUAVId !== undefined) {
-    const payload = getMissionItemUploadJobPayload(state);
-    dispatch(openUploadDialogForJob({ job: { type: JOB_TYPE, payload } }));
-  }
-};
-
-/**
- * Helper function that transforms certain mission items received from the
- * planner before storing them in the state of the application.
- */
-const processReceivedMissionItem = (item) => {
-  switch (item.type) {
-    case MissionItemType.UPDATE_FLIGHT_AREA:
-      return produce(item, (draft) => {
-        for (const p of draft.parameters.flightArea.polygons) {
-          p.points = p.points.map(toLonLatFromScaledJSON);
-        }
-      });
-
-    default:
-      return item;
-  }
-};
-
-/**
- * Thunk that prepares a mission by assigning context based parameters, invokes
- * the planner on the server and sets up a mission according to the response.
- */
-export const invokeMissionPlanner =
-  ({ resume = false } = {}) =>
-  async (dispatch, getState) => {
-    const state = getState();
-
-    const { missionType, fromUser, fromContext, valuesFromContext } = resume
-      ? structuredClone(getLastSuccessfulPlannerInvocationParameters(state))
-      : {
-          missionType: getMissionPlannerDialogSelectedType(state),
-          fromUser: getMissionPlannerDialogUserParameters(state),
-          fromContext: getMissionPlannerDialogContextParameters(state),
-          valuesFromContext: {},
-        };
-
-    const activeContext = resume
-      ? pickBy(
-          fromContext,
-          (_, key) => contextVolatilities[key] === ContextVolatility.DYNAMIC
-        )
-      : fromContext;
-
-    // If we need to select a UAV from the context, and we only have a
-    // single UAV at the moment, we can safely assume that this is the UAV
-    // that the user wants to work with, so select it
-    if (ParameterUIContext.SELECTED_UAV_COORDINATE in activeContext) {
-      dispatch(selectSingleUAVUnlessAmbiguous());
-    }
-
-    // If we need to select a coordinate from the context, and we only have a
-    // single UAV or marker at the moment, we can safely assume that this is the
-    // UAV or marker that the user wants to work with, so select it
-    if (ParameterUIContext.SELECTED_COORDINATE in activeContext) {
-      dispatch(selectSingleUAVUnlessAmbiguous());
-      dispatch(selectSingleFeatureOfTypeUnlessAmbiguous(FeatureType.POINTS));
-    }
-
-    // If we need to select a polygon / linestring feature from the context,
-    // and we only have a single polygon / linestring that is owned by the
-    // user at the moment, we can safely assume that this is the polygon /
-    // linestring that the user wants to work with, so select it
-
-    if (ParameterUIContext.SELECTED_POLYGON_FEATURE in activeContext) {
-      dispatch(selectSingleFeatureOfTypeUnlessAmbiguous(FeatureType.POLYGON));
-    }
-
-    if (ParameterUIContext.SELECTED_LINE_STRING_FEATURE in activeContext) {
-      dispatch(
-        selectSingleFeatureOfTypeUnlessAmbiguous(FeatureType.LINE_STRING)
-      );
-    }
-
-    try {
-      Object.assign(
-        valuesFromContext,
-        getParametersFromContext(activeContext, getState)
-      );
-    } catch (error) {
-      dispatch(showErrorMessage('Error while setting parameters', error));
-      return;
-    }
-
-    const parameters = {
-      ...valuesFromContext,
-      ...fromUser,
-    };
-
-    let name = null;
-    let items = null;
-    try {
-      ({ name, items } = await messageHub.execute.planMission({
-        id: missionType,
-        parameters,
-      }));
-      if (!Array.isArray(items)) {
-        throw new TypeError('Expected an array of mission items');
-      }
-    } catch (error) {
-      if (error instanceof ServerPlanError) {
-        dispatch(
-          showErrorMessage('Failed to plan mission on the server', error)
-        );
-      } else {
-        dispatch(
-          showErrorMessage('Error while invoking mission planner', error)
-        );
-      }
-    }
-
-    if (Array.isArray(items)) {
-      dispatch(setMissionType(MissionType.WAYPOINT));
-      dispatch(setMissionName(name));
-      dispatch(setMissionItemsFromArray(items.map(processReceivedMissionItem)));
-      dispatch(prepareMappingForSingleUAVMissionFromSelection());
-      dispatch(closeMissionPlannerDialog());
-
-      if (
-        shouldMissionPlannerDialogApplyGeofence(state) &&
-        getGeofencePolygon(state)?.owner !== 'user'
-      ) {
-        dispatch(updateGeofencePolygon());
-      }
-
-      dispatch(
-        setLastSuccessfulPlannerInvocationParameters({
-          missionType,
-          fromUser,
-          fromContext,
-          valuesFromContext,
-        })
-      );
-
-      showSuccess(
-        'Mission planned successfully. Would you like to export it?',
-        {
-          buttons: [
-            {
-              label: 'Export',
-              action: exportMission(),
-            },
-          ],
-          permanent: true,
-          topic: 'export-suggestion',
-        }
-      );
-    }
-  };
-
-/**
- * Thunk that clears a mission and shows a toast with an option to restore it.
- */
-export const clearMission = () => (dispatch, _getState) => {
-  dispatch(backupMission());
-  dispatch(setMissionType(MissionType.UNKNOWN));
-  dispatch(setMissionName(null));
-  dispatch(setLastSuccessfulPlannerInvocationParameters(null));
-  dispatch(setMissionItemsFromArray([]));
-  dispatch(setMappingLength(0));
-  showNotification({
-    message: 'Previous mission cleared.',
-    semantics: MessageSemantics.INFO,
-    buttons: [
-      {
-        label: 'Undo',
-        action: restoreLastClearedMission(),
-      },
-    ],
-    permanent: true,
-    topic: 'mission-cleared',
-  });
-};
-
-/**
- * Thunk that backs up a mission to the store.
- * (Intended to be used as a restore point after clearing.)
- */
-export const backupMission = () => (dispatch, getState) => {
-  dispatch(setLastClearedMissionData(getMissionDataForStorage(getState())));
-};
-
-/**
- * Thunk that restores missing mission features from a backed up context
- * parameter configuration.
- */
-export const restoreMissingFeatures =
-  (mapping, values) => (dispatch, getState) => {
-    const state = getState();
-
-    // Restore the missing linestring features
-    const linestringParameters =
-      mapping[ParameterUIContext.SELECTED_LINE_STRING_FEATURE] ?? [];
-    for (const linestringParameter of linestringParameters) {
-      dispatch(
-        addFeatureIfMissing(
-          {
-            type: FeatureType.LINE_STRING,
-            points: values[linestringParameter].map(toLonLatFromScaledJSON),
-            label: linestringParameter,
-            owner: 'user',
-          },
-          ['type', 'points']
-        )
-      );
-    }
-
-    // Restore the missing marker features, and optionally place markers for UAV
-    // and generic coordinates as well, if UAVs are not available
-    const markerParameters = [
-      ...(mapping[ParameterUIContext.SELECTED_MARKER_FEATURE] ?? []),
-      ...(getUAVIdList(state).length === 0
-        ? [
-            ...(mapping[ParameterUIContext.SELECTED_UAV_COORDINATE] ?? []),
-            ...(mapping[ParameterUIContext.SELECTED_COORDINATE] ?? []),
-          ]
-        : []),
-    ];
-
-    for (const markerParameter of markerParameters) {
-      dispatch(
-        addFeatureIfMissing(
-          {
-            type: FeatureType.POINTS,
-            points: [toLonLatFromScaledJSON(values[markerParameter])],
-            label: markerParameter,
-            owner: 'user',
-          },
-          ['type', 'points']
-        )
-      );
-    }
-
-    // Restore the missing polygon features
-    const polygonParameters =
-      mapping[ParameterUIContext.SELECTED_POLYGON_FEATURE] ?? [];
-    for (const polygonParameter of polygonParameters) {
-      dispatch(
-        addFeatureIfMissing(
-          {
-            type: FeatureType.POLYGON,
-            points: values[polygonParameter].points.map(toLonLatFromScaledJSON),
-            holes: values[polygonParameter].holes?.map((hole) =>
-              hole.map(toLonLatFromScaledJSON)
-            ),
-            label: polygonParameter,
-            owner: 'user',
-          },
-          ['type', 'points', 'holes']
-        )
-      );
-    }
-
-    // Restore the missing exclusion zone features
-    const exclusionZoneParameters =
-      mapping[ParameterUIContext.EXCLUSION_ZONE_POLYGONS] ?? [];
-    for (const exclusionZoneParameter of exclusionZoneParameters) {
-      for (const exclusionZonePolygon of values[exclusionZoneParameter]) {
-        dispatch(
-          addFeatureIfMissing(
-            {
-              type: FeatureType.POLYGON,
-              points: exclusionZonePolygon.points.map(toLonLatFromScaledJSON),
-              holes: exclusionZonePolygon.holes?.map((hole) =>
-                hole.map(toLonLatFromScaledJSON)
-              ),
-              label: exclusionZoneParameter,
-              owner: 'user',
-              attributes: { isExclusionZone: true },
-            },
-            ['type', 'points', 'holes']
-          )
-        );
-      }
-    }
-  };
-
-/**
- * Thunk that restores a mission from previously backed up mission data.
- */
-export const restoreMission =
-  ({
-    lastSuccessfulPlannerInvocationParameters: parameters,
-    name,
-    items,
-    homePositions,
-    progress: { id: currentMissionItemId, ratio: currentMissionItemRatio },
-  }) =>
-  (dispatch, _getState) => {
-    dispatch(setMissionType(MissionType.WAYPOINT));
-    dispatch(setMissionName(name));
-    dispatch(setMissionItemsFromArray(items));
-    dispatch(setMappingLength(homePositions.length));
-    dispatch(updateHomePositions(homePositions));
-    dispatch(updateCurrentMissionItemId(currentMissionItemId));
-    dispatch(updateCurrentMissionItemRatio(currentMissionItemRatio));
-
-    // Only restore from parameters if there has been a successful mission
-    // planner invocation before the data was stored.
-    if (parameters) {
-      dispatch(setLastSuccessfulPlannerInvocationParameters(parameters));
-      dispatch(setMissionPlannerDialogSelectedType(parameters.missionType));
-      dispatch(setMissionPlannerDialogUserParameters(parameters.fromUser));
-      dispatch(
-        restoreMissingFeatures(
-          parameters.fromContext,
-          parameters.valuesFromContext
-        )
-      );
-    }
-  };
-
-/**
- * Thunk that restores the last cleared mission.
- */
-export const restoreLastClearedMission = () => (dispatch, getState) => {
-  dispatch(restoreMission(getLastClearedMissionData(getState())));
-  showNotification({ topic: 'mission-cleared' });
-  showSuccess('Mission restored successfully');
-};
-
-/**
- * Thunk that stores the current mission into a file.
- */
-export const exportMission = () => (_dispatch, getState) => {
-  const state = getState();
-  // The ISO 8601 extended format cannot be used because colons are usually not
-  // allowed in filenames, and the ISO 8601 basic format is less human-readable
-  const date = formatDate(new Date(), 'yyyy-MM-dd_HH-mm-ss');
-  const missionData = getMissionDataForStorage(state);
-  const metaData = { exportedAt: date, skybrushVersion: VERSION };
-  writeTextToFile(
-    JSON.stringify({ meta: metaData, mission: missionData }, null, 2),
-    `mission-export-${date}.json`,
-    { title: 'Export mission data' }
-  );
-  showNotification({ topic: 'export-suggestion' });
-  showSuccess('Successfully exported mission');
-};
-
-/**
- * Thunk that loads a mission from a file, replacing the current mission.
- */
-export const importMission = (file) => async (dispatch, _getState) => {
-  try {
-    const data = JSON.parse(await readFileAsText(file));
-    dispatch(restoreMission(data.mission));
-    showSuccess('Successfully imported mission');
-  } catch (error) {
-    showError(`Error while importing mission: ${error}`);
-  }
-};

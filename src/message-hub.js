@@ -17,7 +17,6 @@ import {
   handleConnectionDeletionMessage,
   handleConnectionInformationMessage,
 } from './model/connections';
-import { handleDockInformationMessage } from './model/docks';
 import { handleObjectDeletionMessage } from './model/objects';
 
 import {
@@ -60,7 +59,6 @@ messageHub.registerNotificationHandlers({
     handleConnectionDeletionMessage(message.body, dispatch),
   'CONN-INF': (message) =>
     handleConnectionInformationMessage(message.body, dispatch),
-  'DOCK-INF': (message) => handleDockInformationMessage(message.body, dispatch),
   'OBJ-DEL': (message) => handleObjectDeletionMessage(message.body, dispatch),
   'SYS-CLOSE': (message) => {
     if (message.body && message.body.reason) {

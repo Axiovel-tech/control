@@ -6,7 +6,6 @@ jest.mock('~/message-hub', () => ({
   __esModule: true,
   default: {
     query: {
-      addCollectiveRTH: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
       adaptShow: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
     },
   },
@@ -28,7 +27,6 @@ jest.mock('~/features/show-configurator/selectors', () => ({
 // ESM-only package that the jest transform skips; the tested paths never wait
 jest.mock('delay', () => ({ __esModule: true, default: jest.fn() }));
 
-import { addCollectiveRTH } from '~/features/collective-rth/actions';
 import { adaptShow } from '~/features/show-configurator/actions';
 import messageHub from '~/message-hub';
 
@@ -41,22 +39,9 @@ const gdmState = {
 const getState = () => gdmState;
 
 describe('features that need the .skyc file', () => {
-  test('collective RTH refuses a .gdm show without calling the server', async () => {
-    const dispatch = jest.fn();
-    // AppThunk is typed as returning void, but this one is async
-    const done: unknown = addCollectiveRTH()(dispatch, getState, undefined);
-    await done;
-
-    expect(messageHub.query.addCollectiveRTH).not.toHaveBeenCalled();
-    expect(dispatch).toHaveBeenCalledWith(
-      expect.objectContaining({
-        payload: { state: 'error', error: 'show.gdm.requiresSkyc' },
-      })
-    );
-  });
-
   test('the show configurator refuses a .gdm show without calling the server', async () => {
     const dispatch = jest.fn();
+    // AppThunk is typed as returning void, but this one is async
     const done: unknown = adaptShow({} as never, { type: 'default' } as never)(
       dispatch,
       getState,

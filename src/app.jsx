@@ -14,35 +14,25 @@ import CornerRibbon from './components/CornerRibbon';
 import dialogs from './components/dialogs';
 import Header from './components/header';
 import ServerConnectionManager from './components/ServerConnectionManager';
-import CollectiveRTHDialog from './features/collective-rth/CollectiveRTHDialog';
 import DetachedPanelManager from './features/detachable-panels/DetachedPanelManager';
-import DockDetailsDialog from './features/docks/DockDetailsDialog';
 import FirmwareUpdateSetupDialog from './features/firmware-update/FirmwareUpdateSetupDialog';
 import AppHotkeys from './features/hotkeys/AppHotkeys';
 import HotkeyDialog from './features/hotkeys/HotkeyDialog';
 import PendingUAVIdOverlay from './features/hotkeys/PendingUAVIdOverlay';
-import LicenseInfoDialog from './features/license-info/LicenseInfoDialog';
-import MapCachingDialog from './features/map-caching/MapCachingDialog';
-import CoordinateAveragingDialog from './features/measurement/CoordinateAveragingDialog';
-import MissionPlannerDialog from './features/mission/MissionPlannerDialog';
 import MissionProgressObserver from './features/mission/MissionProgressObserver';
 import ParameterUploadSetupDialog from './features/parameters/ParameterUploadSetupDialog';
 import PromptDialog from './features/prompt/PromptDialog';
-import RTKCoordinateRestorationDialog from './features/rtk/RTKCoordinateRestorationDialog';
-import RTKSetupDialog from './features/rtk/RTKSetupDialog';
 import RtlsAnchorLockDialog from './features/rtls/RtlsAnchorLockDialog';
 import RtlsCellSettingsDialog from './features/rtls/RtlsCellSettingsDialog';
 import RtlsVerifyDialog from './features/rtls/RtlsVerifyDialog';
 import RtlsOtaDialog from './features/rtls/RtlsOtaDialog';
 import RtlsParameterDialog from './features/rtls/RtlsParameterDialog';
 import SafetyDialog from './features/safety/SafetyDialog';
-import SavedLocationEditorDialog from './features/saved-locations/SavedLocationEditorDialog';
 import ShowConfiguratorDialog from './features/show-configurator/ShowConfiguratorDialog';
 import Sidebar from './features/sidebar/Sidebar';
 import Notifications from './features/snackbar/Notifications';
 import UAVDetailsDialog from './features/uavs/UAVDetailsDialog';
 import UploadDialog from './features/upload/UploadDialog';
-import VersionCheckDialog from './features/version-check/VersionCheckDialog';
 import {
   isWorkbenchLayoutFixed,
   shouldSidebarBeShown,
@@ -62,7 +52,6 @@ import store, {
 } from './store';
 import ThemeProvider, { DarkModeExtraCSSProvider } from './theme';
 import registerUploadJobTypes from './upload-jobs';
-import { hasTimeLimitedSession } from './utils/configuration';
 import workbench from './workbench';
 
 import 'tippy.js/dist/tippy.css';
@@ -165,39 +154,26 @@ const App = ({ onFirstRender }) => (
       <ShowFileWatcher />
 
       <dialogs.AppSettingsDialog />
-      <dialogs.AuthenticationDialog />
-      <dialogs.DeauthenticationDialog />
       <dialogs.FeatureEditorDialog />
       <dialogs.FlyToTargetDialog />
       <dialogs.GlobalErrorDialog />
       <dialogs.LayerSettingsDialog />
       <dialogs.ServerSettingsDialog />
-      {hasTimeLimitedSession && <dialogs.SessionExpiryDialog />}
       <dialogs.TimeSyncDialog />
 
-      <CollectiveRTHDialog />
-      <CoordinateAveragingDialog />
-      <DockDetailsDialog />
       <FirmwareUpdateSetupDialog />
       <HotkeyDialog />
-      <LicenseInfoDialog />
-      <MapCachingDialog />
-      <MissionPlannerDialog />
       <ParameterUploadSetupDialog />
       <PromptDialog />
-      <RTKCoordinateRestorationDialog />
-      <RTKSetupDialog />
       <RtlsVerifyDialog />
       <RtlsAnchorLockDialog />
       <RtlsCellSettingsDialog />
       <RtlsOtaDialog />
       <RtlsParameterDialog />
       <SafetyDialog />
-      <SavedLocationEditorDialog />
       <ShowConfiguratorDialog />
       <UAVDetailsDialog />
       <UploadDialog />
-      <VersionCheckDialog />
 
       <Notifications />
     </>

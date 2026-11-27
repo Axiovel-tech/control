@@ -3,7 +3,6 @@
  * currently selected UAVs.
  */
 
-import Add from '@mui/icons-material/Add';
 import Assignment from '@mui/icons-material/Assignment';
 import Block from '@mui/icons-material/Block';
 import ActionDelete from '@mui/icons-material/Delete';
@@ -37,7 +36,6 @@ import * as messaging from '~/utils/messaging';
  */
 class MapContextMenu extends React.Component {
   static propTypes = {
-    addPointToMission: PropTypes.func,
     clearGeofencePolygonId: PropTypes.func,
     contextProvider: PropTypes.func,
     cutFeature: PropTypes.func,
@@ -191,21 +189,6 @@ class MapContextMenu extends React.Component {
                 );
               }
 
-              if (this.props.addPointToMission) {
-                result.push(
-                  <MenuItem
-                    key='addPointToMission'
-                    dense
-                    onClick={this._addPointToMission}
-                  >
-                    <ListItemIcon>
-                      <Add />
-                    </ListItemIcon>
-                    Add point to mission
-                  </MenuItem>
-                );
-              }
-
               if (this.props.setMapCoordinateSystemOrigin) {
                 result.push(
                   <MenuItem
@@ -349,14 +332,6 @@ class MapContextMenu extends React.Component {
       </Translation>
     );
   }
-
-  _addPointToMission = (_event, context) => {
-    const { coords } = context;
-    const { addPointToMission } = this.props;
-    if (addPointToMission) {
-      addPointToMission({ lat: coords[1], lon: coords[0] });
-    }
-  };
 
   _moveSelectedUAVsAtCurrentAltitude = (_event, context) => {
     const { coords, selectedUAVIds } = context;

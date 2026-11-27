@@ -7,11 +7,9 @@ import Typography from '@mui/material/Typography';
 import Assignment from '@mui/icons-material/Assignment';
 import Flight from '@mui/icons-material/Flight';
 import FormatListBulleted from '@mui/icons-material/FormatListBulleted';
-import Gamepad from '@mui/icons-material/Gamepad';
 import Grain from '@mui/icons-material/Grain';
 import Layers from '@mui/icons-material/Layers';
 import Map from '@mui/icons-material/Map';
-import Place from '@mui/icons-material/Place';
 import Radar from '@mui/icons-material/Radar';
 import SettingsInputAntenna from '@mui/icons-material/SettingsInputAntenna';
 import Straighten from '@mui/icons-material/Straighten';
@@ -26,11 +24,7 @@ import { connect } from 'react-redux';
 
 import LogStatusBadge from '~/components/badges/LogStatusBadge';
 import { getMissionType } from '~/features/mission/selectors';
-import { areExperimentalFeaturesEnabled } from '~/features/settings/selectors';
-import Antenna from '~/icons/Antenna';
 import ConnectingAirports from '~/icons/ConnectingAirports';
-import HomeCircleOutlined from '~/icons/HomeCircleOutlined';
-import Route from '~/icons/Route';
 import ShapeLine from '~/icons/ShapeLine';
 import { MissionType } from '~/model/missions';
 import { hasFeature } from '~/utils/configuration';
@@ -57,7 +51,6 @@ const innerStyle = {
   width: SIDEBAR_OPEN_WIDTH,
 };
 
-const hasMissionEditor = hasFeature('missionEditor');
 const hasShowControl = hasFeature('showControl');
 
 /**
@@ -66,13 +59,7 @@ const hasShowControl = hasFeature('showControl');
  *
  * @returns  {Object}  the rendered sidebar component
  */
-const Sidebar = ({
-  experimentalFeaturesEnabled,
-  isOpen,
-  missionType,
-  t,
-  workbench,
-}) => (
+const Sidebar = ({ isOpen, missionType, t, workbench }) => (
   <div
     id='sidebar'
     style={{ ...style, width: isOpen ? SIDEBAR_OPEN_WIDTH : 48 }}
@@ -114,20 +101,6 @@ const Sidebar = ({
           label={t('view.uav-list')}
           component='uav-list'
         />
-        <Module
-          id='collectiveRTH'
-          icon={<HomeCircleOutlined />}
-          label={t('view.collective-rth')}
-          component='collective-rth'
-        />
-        {hasFeature('beacons') && (
-          <Module
-            id='beacons'
-            icon={<Antenna />}
-            label={t('view.beacon-list')}
-            component='beacon-list'
-          />
-        )}
         {/* The RTLS server extension is optional; `hasFeature('rtls')` mirrors
             the gating of the other optional modules above. It defaults to true
             when the key is absent, so RTLS stays visible unless a deployment
@@ -165,14 +138,6 @@ const Sidebar = ({
             component='rtls-positions'
           />
         )}
-        {hasFeature('docks') && experimentalFeaturesEnabled && (
-          <Module
-            id='docks'
-            icon={<Gamepad />}
-            label={t('view.dock-list')}
-            component='dock-list'
-          />
-        )}
         <hr />
         {/* Do not use a single React fragment here for the next section; it would confuse `react-flexible-workbench` */}
         {hasShowControl && (
@@ -192,26 +157,11 @@ const Sidebar = ({
           />
         )}
         {hasShowControl && <hr />}
-        {hasMissionEditor && (
-          <Module
-            id='missionEditor'
-            icon={<Route />}
-            label={t('view.mission-editor')}
-            component='mission-editor'
-          />
-        )}
-        {(hasShowControl || hasMissionEditor) && <hr />}
         <Module
           id='clocks'
           icon={<Alarm />}
           label={t('view.lcd-clock-panel')}
           component='lcd-clock-panel'
-        />
-        <Module
-          id='locations'
-          icon={<Place />}
-          label={t('view.saved-location-list')}
-          component='saved-location-list'
         />
         <hr />
         <Module
@@ -248,7 +198,6 @@ const Sidebar = ({
 );
 
 Sidebar.propTypes = {
-  experimentalFeaturesEnabled: PropTypes.bool,
   isOpen: PropTypes.bool,
   missionType: PropTypes.oneOf(Object.values(MissionType)),
   t: PropTypes.func,
@@ -261,7 +210,6 @@ Sidebar.propTypes = {
 export default connect(
   // mapStateToProps
   (state, { workbench }) => ({
-    experimentalFeaturesEnabled: areExperimentalFeaturesEnabled(state),
     isOpen: isSidebarOpen(state),
     missionType: getMissionType(state),
     workbench,
