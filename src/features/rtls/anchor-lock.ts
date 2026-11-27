@@ -7,7 +7,11 @@
  */
 
 import { showConfirmationDialog } from '~/features/prompt/actions';
-import { showError, showNotification } from '~/features/snackbar/actions';
+import {
+  showError,
+  showNotification,
+  showWarning,
+} from '~/features/snackbar/actions';
 import { type Message, type MessageBody } from '~/flockwave/types';
 import i18n from '~/i18n';
 import messageHub from '~/message-hub';
@@ -34,6 +38,8 @@ type RtlsLockResult = {
   warnings: string[];
   /** The anchors that did not take the write (`incomplete` result). */
   failures: RtlsLockFailure[];
+  /** The server ran the resurvey check (a server without it never says so). */
+  resurveyRan: boolean;
 };
 
 const LOCK_RESULTS = [
@@ -51,14 +57,25 @@ const LOCK_RESULTS = [
 const LOCK_TIMEOUT_SECONDS = 15;
 
 /**
+ * How long a lock with the resurvey check waits. A cell at 50 Hz takes about
+ * 15 s; the firmware takes UWB_BLOCK_MS up to 1000 ms, at which eight steps
+ * tried twice and the return take minutes. The server answers by itself
+ * when a step does not end.
+ */
+const RESURVEY_TIMEOUT_SECONDS = 600;
+
+/**
  * Locks or unlocks the anchors (X-RTLS-LOCK). Every answer is a normal
  * response with a `result`; only a NAK (e.g. a server without the RTLS
  * extension) rejects, with its reason. The aggregate lock in the reply is
- * not read: the next X-RTLS-INF reports it.
+ * not read: the next X-RTLS-INF reports it. With `resurvey` the server
+ * first measures the cell against the stored survey and adds what it found
+ * to the warnings.
  */
 async function sendRtlsLock(
   action: 'lock' | 'unlock',
-  acknowledgeWarnings?: boolean
+  acknowledgeWarnings?: boolean,
+  resurvey = false
 ): Promise<RtlsLockResult> {
   const response: Message<MessageBody & AnyRecord> =
     await messageHub.sendMessage(
@@ -66,8 +83,11 @@ async function sendRtlsLock(
         type: 'X-RTLS-LOCK',
         action,
         ...(acknowledgeWarnings === undefined ? {} : { acknowledgeWarnings }),
+        ...(resurvey ? { resurvey } : {}),
       },
-      { timeout: LOCK_TIMEOUT_SECONDS }
+      {
+        timeout: resurvey ? RESURVEY_TIMEOUT_SECONDS : LOCK_TIMEOUT_SECONDS,
+      }
     );
   const body = response.body;
   if (body?.type !== 'X-RTLS-LOCK') {
@@ -91,6 +111,7 @@ async function sendRtlsLock(
         id,
         detail: (isRecord(entry) && toText(entry.detail)) || 'refused',
       })),
+    resurveyRan: isRecord(body.resurvey) && body.resurvey.ran === true,
   };
 }
 
@@ -130,18 +151,29 @@ const describeLockOutcome = (
  * server answers a lock with `warnings` instead of locking, for the dialog
  * to list. Announces a success while `isCurrent` (the caller's attempt is
  * still the one on screen). Only the command's feedback comes from here: the
- * header and the show step wait for the reported lock.
+ * header and the show step wait for the reported lock. `resurvey` runs the
+ * server's resurvey check first.
  */
 export const sendRtlsLockCommand =
   (
     action: 'lock' | 'unlock',
     acknowledgeWarnings?: boolean,
-    isCurrent: () => boolean = () => true
+    isCurrent: () => boolean = () => true,
+    resurvey = false
   ): AppThunk<Promise<RtlsLockOutcome>> =>
   async (_dispatch, getState) => {
-    const result = await sendRtlsLock(action, acknowledgeWarnings);
+    const result = await sendRtlsLock(action, acknowledgeWarnings, resurvey);
+    // an older server takes the lock without the check
+    const unchecked =
+      resurvey && !result.resurveyRan && result.result !== 'refused';
+    const notRun = i18n.t('rtlsAnchorLock.resurveyNotRun');
     if (result.result === 'warnings') {
-      return result;
+      return unchecked
+        ? { ...result, warnings: [...result.warnings, notRun] }
+        : result;
+    }
+    if (unchecked && isCurrent()) {
+      showWarning(notRun);
     }
     const error = describeLockOutcome(getState(), result);
     if (error === undefined && isCurrent()) {

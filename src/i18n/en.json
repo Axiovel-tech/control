@@ -958,6 +958,8 @@
     },
     "dialog": {
       "acknowledge": "Lock anyway",
+      "measuring": "Measuring…",
+      "resurvey": "Resurvey check",
       "text": "Lock the anchors to prevent unwanted changes during the show."
     },
     "lock": "Lock",
@@ -967,6 +969,7 @@
       "locked": "Anchors locked",
       "unlocked": "Anchors unlocked"
     },
+    "resurveyNotRun": "Resurvey check not run by the server",
     "step": {
       "description": "Lock the anchors to prevent unwanted changes.",
       "lockFirst": "Lock the anchors first"
