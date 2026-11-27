@@ -1,4 +1,3 @@
-import IconButton from '@mui/material/IconButton';
 import ListItem from '@mui/material/ListItem';
 import ListItemButton from '@mui/material/ListItemButton';
 import ListItemText from '@mui/material/ListItemText';
@@ -10,12 +9,10 @@ import { StatusLight, Tooltip } from '@skybrush/mui-components';
 
 import PrerequisiteList from '~/components/PrerequisiteList';
 import { Status } from '~/components/semantics';
-import { showDialog as showCollectiveRTHDialog } from '~/features/collective-rth/slice';
 import {
   isConnected,
   supportsStudioInterop,
 } from '~/features/servers/selectors';
-import { isDeveloperModeEnabled } from '~/features/session/selectors';
 import { showDialogAndClearUndoHistory } from '~/features/show-configurator/actions';
 import { selectShowConfiguratorDataFromShow } from '~/features/show-configurator/selectors';
 import { type ShowData } from '~/features/show-configurator/slice';
@@ -25,8 +22,6 @@ import {
   getShowSegments,
   hasLoadedShowFile,
   isGdmShowLoaded,
-  selectCollectiveRTHPlanSummary,
-  type CollectiveRTHPlanSummary,
 } from '~/features/show/selectors';
 import { getSetupStageStatuses } from '~/features/show/stages';
 import { showError } from '~/features/snackbar/actions';
@@ -35,8 +30,6 @@ import {
   type Prerequisite,
 } from '~/hooks/useConstPrerequisites';
 import { tt } from '~/i18n';
-import HomeCircleOutlined from '~/icons/HomeCircleOutlined';
-import Pro from '~/icons/Pro';
 import type { RootState } from '~/store/reducers';
 import { type Nullable } from '~/utils/types';
 
@@ -73,11 +66,7 @@ const PREREQUISITES: readonly Prerequisite[] = Object.freeze([
 ]);
 
 type Props = Readonly<{
-  devModeEnabled: boolean;
-  isGdmShow: boolean;
-  rthPlanSummary: CollectiveRTHPlanSummary;
   show: ShowData | undefined;
-  showCollectiveRTHDialog: () => void;
   // TODO: This should probably be a `ThunkActionDispatch`, but that doesn't
   //       seem to be reexported from `redux-thunk` via `@reduxjs/toolkit`...
   showDialogAndClearUndoHistory: (data?: ShowData) => void;
@@ -85,15 +74,7 @@ type Props = Readonly<{
 }>;
 
 const ShowConfiguratorButton = (props: Props) => {
-  const {
-    devModeEnabled,
-    isGdmShow,
-    rthPlanSummary,
-    show,
-    showCollectiveRTHDialog,
-    showDialogAndClearUndoHistory,
-    status,
-  } = props;
+  const { show, showDialogAndClearUndoHistory, status } = props;
 
   const { t } = useTranslation();
 
@@ -129,48 +110,11 @@ const ShowConfiguratorButton = (props: Props) => {
               placement='left'
               triggerTarget={tooltipTriggerTarget}
             >
-              <span>
-                {t('show.showConfigurator.button')}
-                <Pro style={{ verticalAlign: 'middle', marginLeft: 8 }} />
-              </span>
+              <span>{t('show.showConfigurator.button')}</span>
             </Tooltip>
           }
           secondary={t('show.showConfigurator.description')}
         />
-        {devModeEnabled && (
-          <Tooltip
-            content={
-              isGdmShow
-                ? t('show.gdm.requiresSkyc')
-                : rthPlanSummary.isValid
-                  ? t('show.showConfigurator.tooltip.validRTHPlan', {
-                      numPlans: Object.keys(rthPlanSummary.plans).length,
-                    })
-                  : t('show.showConfigurator.tooltip.invalidRTHPlan')
-            }
-            placement='left'
-          >
-            {/* The collective RTH dialog sends the .skyc file to the server */}
-            <IconButton
-              disabled={isGdmShow}
-              edge='end'
-              size='large'
-              color={
-                rthPlanSummary.numDrones === 0
-                  ? 'default'
-                  : rthPlanSummary.isValid
-                    ? 'success'
-                    : 'warning'
-              }
-              onClick={(evt) => {
-                evt.stopPropagation();
-                showCollectiveRTHDialog();
-              }}
-            >
-              <HomeCircleOutlined />
-            </IconButton>
-          </Tooltip>
-        )}
       </ListItemButton>
     </ListItem>
   );
@@ -178,14 +122,10 @@ const ShowConfiguratorButton = (props: Props) => {
 
 const ConnectedShowConfiguratorButton = connect(
   (state: RootState) => ({
-    devModeEnabled: isDeveloperModeEnabled(state),
-    isGdmShow: isGdmShowLoaded(state),
-    rthPlanSummary: selectCollectiveRTHPlanSummary(state),
     show: selectShowConfiguratorDataFromShow(state),
     status: getSetupStageStatuses(state).showConfigurator,
   }),
   {
-    showCollectiveRTHDialog,
     showDialogAndClearUndoHistory,
   }
 )(ShowConfiguratorButton);

@@ -70,27 +70,10 @@ const onlyWithFeature = (featureName, component) =>
  * components to have props, use a wrapper HOC.
  */
 export const componentRegistry = {
-  'beacon-list': {
-    component: views.BeaconList,
-    label: 'Beacons',
-    detachable: true,
-    feature: 'beacons',
-  },
-  'collective-rth': {
-    component: views.CollectiveRTHPanel,
-    label: 'Collective RTH',
-    detachable: true,
-  },
   'connection-list': {
     // deprecated, kept there for compatibility
     component: views.ConnectionList,
     label: 'Connections',
-  },
-  'dock-list': {
-    component: views.DockList,
-    label: 'Docks',
-    detachable: true,
-    feature: 'docks',
   },
   'feature-list': {
     component: views.FeaturePanel,
@@ -136,12 +119,6 @@ export const componentRegistry = {
     // deprecated, kept there for compatibility
     component: views.MessagesPanelView,
     label: 'Messages',
-  },
-  'mission-editor': {
-    component: views.MissionOverviewPanel,
-    label: 'Mission editor',
-    detachable: true,
-    feature: 'missionEditor',
   },
   placeholder: {
     component: Nothing,
@@ -194,11 +171,6 @@ export const componentRegistry = {
     label: 'RTLS Tags',
     detachable: true,
     feature: 'rtls',
-  },
-  'saved-location-list': {
-    component: views.SavedLocationList,
-    label: 'Locations',
-    detachable: true,
   },
   'show-control': {
     component: views.ShowControlPanel,

@@ -1,11 +1,8 @@
 import Box from '@mui/material/Box';
 import List from '@mui/material/List';
 
-import { hasFeature } from '~/utils/configuration';
-
 import AuthorizationButton from './AuthorizationButton';
 import EnvironmentEditorDialog from './EnvironmentEditorDialog';
-import LoadShowFromCloudDialog from './LoadShowFromCloudDialog';
 import ManualPreflightChecksDialog from './ManualPreflightChecksDialog';
 import OnboardPreflightChecksDialog from './OnboardPreflightChecksDialog';
 import ShowControlPanelUpperSegment from './ShowControlPanelUpperSegment';
@@ -28,7 +25,6 @@ const ShowControlPanel = () => (
       </List>
     </Box>
 
-    {hasFeature('loadShowFromCloud') && <LoadShowFromCloudDialog />}
     <EnvironmentEditorDialog />
     <StartTimeDialog />
     <TakeoffAreaSetupDialog />

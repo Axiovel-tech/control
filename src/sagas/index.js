@@ -2,25 +2,19 @@
  * The root saga of the Axio Control application.
  */
 
-import config from 'config';
-
 import { all } from 'redux-saga/effects';
 
 import beaconSaga from '~/features/beacons/saga';
 import hotkeySaga from '~/features/hotkeys/saga';
 import localServerSaga from '~/features/local-server/saga';
-import measurementSaga from '~/features/measurement/saga';
 import rtlsSaga from '~/features/rtls/saga';
-import serversSaga from '~/features/servers/saga';
 import showAudioSaga from '~/features/show-audio/saga';
 import showSaga from '~/features/show/saga';
-import sessionSaga from '~/features/session/saga';
 import threeDViewSaga from '~/features/three-d/saga';
 import uavManagementSaga from '~/features/uavs/saga';
 import uploadSaga from '~/features/upload/saga';
-import weatherSaga from '~/features/weather/saga';
 import flock from '~/flock';
-import { hasFeature, hasTimeLimitedSession } from '~/utils/configuration';
+import { hasFeature } from '~/utils/configuration';
 
 import onboardingSaga from './onboarding';
 
@@ -31,16 +25,13 @@ export default function* rootSaga() {
   const { localServer } = (window ? window.bridge : null) || {};
   const sagas = [
     hotkeySaga(),
-    measurementSaga(),
     onboardingSaga(),
     rtlsSaga(),
-    serversSaga(),
     showSaga(),
     showAudioSaga(),
     threeDViewSaga(),
     uavManagementSaga(flock),
     uploadSaga(),
-    weatherSaga(),
   ];
 
   if (localServer && localServer.search) {
@@ -49,10 +40,6 @@ export default function* rootSaga() {
 
   if (hasFeature('beacons')) {
     sagas.push(beaconSaga());
-  }
-
-  if (hasTimeLimitedSession) {
-    sagas.push(sessionSaga(config.session));
   }
 
   yield all(sagas);

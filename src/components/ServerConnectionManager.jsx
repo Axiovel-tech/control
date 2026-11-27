@@ -18,7 +18,6 @@ import handleError from '~/error-handling';
 import { clearBeaconList } from '~/features/beacons/slice';
 import { clearClockList } from '~/features/clocks/slice';
 import { clearConnectionList } from '~/features/connections/slice';
-import { clearDockList } from '~/features/docks/slice';
 import { shouldManageLocalServer } from '~/features/local-server/selectors';
 import { addLogItem } from '~/features/log/slice';
 import {
@@ -42,12 +41,10 @@ import {
 import {
   addServerFeatures,
   clearServerFeatures,
-  clearServerLicense,
   clearServerPortMapping,
   clearTimeSyncStatistics,
   openTimeSyncWarningDialog,
   setCurrentServerConnectionState,
-  setServerLicense,
   setServerPortMapping,
   setServerVersion,
 } from '~/features/servers/slice';
@@ -59,7 +56,6 @@ import {
 } from '~/features/show/slice';
 import { showError, showNotification } from '~/features/snackbar/actions';
 import { MessageSemantics } from '~/features/snackbar/types';
-import { clearWeatherData } from '~/features/weather/slice';
 import i18n from '~/i18n';
 import messageHub from '~/message-hub';
 import {
@@ -68,7 +64,6 @@ import {
 } from '~/model/beacons';
 import { handleClockInformationMessage } from '~/model/clocks';
 import { handleConnectionInformationMessage } from '~/model/connections';
-import { handleDockInformationMessage } from '~/model/docks';
 import { ConnectionState } from '~/model/enums';
 import { logLevelForLogLevelName } from '~/utils/logging';
 
@@ -526,24 +521,6 @@ async function executeTasksAfterConnection(dispatch, getState) {
     handleClockInformationMessage(response.body, dispatch);
 
     // Send an OBJ-LIST message to the server to get an up-to-date
-    // list of docking stations
-    response = await messageHub.sendMessage({
-      type: 'OBJ-LIST',
-      filter: ['dock'],
-    });
-    const dockIds = response.body.ids || [];
-
-    // For each dock ID that we have received, get its status
-    // via a DOCK-INF message
-    if (dockIds.length > 0) {
-      response = await messageHub.sendMessage({
-        type: 'DOCK-INF',
-        ids: dockIds,
-      });
-      handleDockInformationMessage(response.body, dispatch);
-    }
-
-    // Send an OBJ-LIST message to the server to get an up-to-date
     // list of beacons
     response = await messageHub.sendMessage({
       type: 'OBJ-LIST',
@@ -613,9 +590,6 @@ async function executeTasksAfterConnection(dispatch, getState) {
       /* Not supported, server is too old */
     }
 
-    // Set the license received in the response from the server.
-    dispatch(setServerLicense(await messageHub.query.getLicenseInformation()));
-
     // Check if the server supports drone show execution, and if so,
     // synchronize the show settings
     const supportsDroneShows = await messageHub.query.isExtensionLoaded('show');
@@ -681,14 +655,11 @@ async function executeTasksAfterDisconnection(dispatch) {
   dispatch(clearBeaconList());
   dispatch(clearClockList());
   dispatch(clearConnectionList());
-  dispatch(clearDockList());
   dispatch(clearRtlsDevices());
   dispatch(clearServerFeatures());
-  dispatch(clearServerLicense());
   dispatch(clearServerPortMapping());
   dispatch(clearStartTimeAndMethod());
   dispatch(clearTimeSyncStatistics());
-  dispatch(clearWeatherData());
 }
 
 const createCommonDisconnectionAndErrorHandlerThunk =
@@ -756,7 +727,7 @@ const createCommonDisconnectionAndErrorHandlerThunk =
 const ServerConnectionManager = connect(
   // mapStateToProps
   (state) => ({
-    active: state.dialogs.serverSettings.active && !state.session.isExpired,
+    active: state.dialogs.serverSettings.active,
     cliArguments: state.settings.localServer.cliArguments,
     needsLocalServer: shouldManageLocalServer(state),
     port: getServerPort(state),

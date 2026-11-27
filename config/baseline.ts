@@ -44,23 +44,14 @@ const baseline: Config = {
       'altitude-summary-header-button',
       'velocity-summary-header-button',
     ],
-    [
-      'rtk-status-header-button',
-      'rtls-status-header-button',
-      'weather-header-button',
-    ],
+    ['rtls-status-header-button'],
     ['connection-status-button'],
-    [
-      'server-connection-settings-button',
-      'safety-button',
-      'authentication-button',
-    ],
+    ['server-connection-settings-button', 'safety-button'],
     [
       'broadcast-button',
       'toolbox-button',
       'app-settings-button',
       'alert-button',
-      'session-expiry-box',
     ],
   ],
 

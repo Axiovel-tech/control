@@ -1,17 +1,11 @@
 /**
  * @file Slice of the state object that stores the list of currently detected
- * servers and whether we are authenticated to any of them.
+ * servers and the state of the connection to the current one.
  */
 
-import {
-  type License,
-  type Response_AUTHINF,
-  type Response_AUTHWHOAMI,
-} from '@skybrush/flockwave-spec';
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 
 import { ConnectionState } from '~/model/enums';
-import { getAuthenticationTokenFromUrl } from '~/utils/authentication';
 import {
   clearOrderedCollection,
   type Collection,
@@ -19,17 +13,12 @@ import {
 } from '~/utils/collections';
 import { noPayload } from '~/utils/redux';
 
-import {
-  type ServerAuthenticationInformation,
-  type ServerParameters,
-} from './types';
+import { type ServerParameters } from './types';
 import { addServer } from './utils';
 
 export type ServersSliceState = {
   current: {
-    authentication: ServerAuthenticationInformation;
     features: Record<string, boolean>;
-    license?: License;
     ports: Record<string, number>;
     state: ConnectionState;
     // TODO: Do `adjusting` and `calculating` really need to be optional?
@@ -43,32 +32,16 @@ export type ServersSliceState = {
     };
     version?: string;
   };
-  isAuthenticating: boolean;
   isScanning: boolean;
   detected: Collection<ServerParameters>;
-  token?: string;
   timeSyncDialog: {
     open: boolean;
   };
 };
 
-/**
- * Part of the default state object that represents a connection where the
- * information about the authentication requirements of the server is
- * not available yet.
- */
-export const INVALID: ServerAuthenticationInformation = {
-  methods: [],
-  required: false,
-  user: '',
-  valid: false,
-};
-
 const initialState: ServersSliceState = {
   current: {
-    authentication: INVALID,
     features: {},
-    license: undefined,
     ports: {},
     state: ConnectionState.DISCONNECTED,
     timeSync: {
@@ -80,10 +53,8 @@ const initialState: ServersSliceState = {
     },
     version: undefined,
   },
-  isAuthenticating: false,
   isScanning: false,
   detected: EMPTY_COLLECTION,
-  token: getAuthenticationTokenFromUrl(),
   timeSyncDialog: {
     open: false,
   },
@@ -174,45 +145,12 @@ const { actions, reducer } = createSlice({
       state.current.timeSync.adjustmentResult = false;
     },
 
-    authenticateToServerPromisePending(state) {
-      state.isAuthenticating = true;
-    },
-
-    authenticateToServerPromiseFulfilled(state) {
-      state.isAuthenticating = false;
-    },
-
-    authenticateToServerPromiseRejected(state) {
-      state.isAuthenticating = false;
-    },
-
-    /**
-     * Clears the name and domain of the currently authenticated user.
-     */
-    clearAuthenticatedUser(state) {
-      state.current.authentication.user = '';
-    },
-
-    /**
-     * Clears the stored authentication token.
-     */
-    clearAuthenticationToken(state) {
-      state.token = undefined;
-    },
-
     /**
      * Clears the list of features that we know are supported on the server that
      * we are connected to.
      */
     clearServerFeatures(state) {
       state.current.features = {};
-    },
-
-    /**
-     * Clears the information about the currently active license on the server.
-     */
-    clearServerLicense(state) {
-      state.current.license = undefined;
     },
 
     /**
@@ -293,14 +231,6 @@ const { actions, reducer } = createSlice({
     },
 
     /**
-     * Action factory that sets the name and domain of the currently authenticated
-     * user.
-     */
-    setAuthenticatedUser(state, action: PayloadAction<string | undefined>) {
-      state.current.authentication.user = action.payload ?? '';
-    },
-
-    /**
      * Action factory that creates an action that sets whether we are connected
      * to the current server that the user is trying to communicate with or not.
      */
@@ -308,22 +238,7 @@ const { actions, reducer } = createSlice({
       state,
       action: PayloadAction<ConnectionState>
     ) {
-      const newState = action.payload;
-
-      state.current.state = newState;
-
-      // If we have disconnected just now, clear the authentication
-      // information as we don't know yet what the server provides
-      if (newState === ConnectionState.DISCONNECTED) {
-        state.current.authentication = INVALID;
-      }
-    },
-
-    /**
-     * Sets the information about the currently active license on the server.
-     */
-    setServerLicense(state, { payload: license }: PayloadAction<License>) {
-      state.current.license = license;
+      state.current.state = action.payload;
     },
 
     /**
@@ -357,31 +272,6 @@ const { actions, reducer } = createSlice({
      */
     stopScanning(state) {
       state.isScanning = false;
-    },
-
-    /**
-     * Updates the authentication settings known about the current server.
-     */
-    updateCurrentServerAuthenticationSettings(
-      state,
-      action: PayloadAction<
-        Pick<Response_AUTHINF, 'methods' | 'required'> &
-          Pick<Response_AUTHWHOAMI, 'user'>
-      >
-    ) {
-      const { methods, required, user } = action.payload;
-
-      if (!Array.isArray(methods)) {
-        return;
-      }
-
-      state.current.authentication.required = Boolean(required);
-      state.current.authentication.methods = methods.map(String);
-      if (user !== undefined) {
-        state.current.authentication.user = user;
-      }
-
-      state.current.authentication.valid = true;
     },
 
     /**
@@ -427,26 +317,17 @@ export const {
   addDetectedServer,
   addInferredServer,
   addServerFeatures,
-  authenticateToServerPromiseFulfilled,
-  authenticateToServerPromisePending,
-  authenticateToServerPromiseRejected,
-  clearAuthenticatedUser,
-  clearAuthenticationToken,
   clearServerFeatures,
-  clearServerLicense,
   clearServerPortMapping,
   clearTimeSyncStatistics,
   closeTimeSyncWarningDialog,
   openTimeSyncWarningDialog,
   removeAllDetectedServers,
-  setAuthenticatedUser,
   setCurrentServerConnectionState,
-  setServerLicense,
   setServerPortMapping,
   setServerVersion,
   startScanning,
   stopScanning,
-  updateCurrentServerAuthenticationSettings,
   updateDetectedServerHostname,
   updateDetectedServerLabel,
 } = actions;
